@@ -252,8 +252,10 @@ MLL.renderRow = function(entry, sessionTag, opts) {
     var bg  = isBonus ? '#fff' : MLL.BC(n);
     var tc  = isBonus ? '#555' : MLL.TC(n);
     var brd = isMatch ? '2px solid #f5c518' : isBonus ? '2px solid #aaa' : 'none';
-    // 반자동: 시스템이 채운 번호(autoNums)만 흐리게, 사용자 선택번호는 진하게
+    // 반자동: 시스템이 채운 번호(autoNums)만 흐리게 — 추첨전/후 관계없이 항상 유지
     var op = (entry.type==='반자동' && autoNums.length>0 && autoNums.indexOf(n)>=0) ? '0.4' : '1';
+    // 단, 당첨번호와 일치하는 경우 당첨 표시를 위해 흐리기 해제
+    if (isMatch) op = '1';
     return '<span style="width:19px;height:19px;border-radius:50%;display:inline-flex;' +
       'align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;' +
       'background:'+bg+';color:'+tc+';border:'+brd+';margin:1px;opacity:'+op+';">'+n+'</span>';
@@ -788,7 +790,9 @@ function refreshTable(){
         var bg  = isBonus?'#fff':MLL.BC(n);
         var tc  = isBonus?'#555':MLL.TC(n);
         var brd = isMatch?'2px solid #f5c518':isBonus?'2px solid #aaa':'none';
-        var op  = (entry.type==='반자동'&&autoNums.length>0&&autoNums.indexOf(n)>=0)?'0.4':'1';
+        // 반자동: 시스템번호는 흐리게 — 추첨전/후 항상 유지, 당첨번호 일치 시만 예외
+        var op = (entry.type==='반자동'&&autoNums.length>0&&autoNums.indexOf(n)>=0) ? '0.4' : '1';
+        if(isMatch) op='1';
         return '<span style="width:19px;height:19px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;'+
           'font-size:8px;font-weight:700;flex-shrink:0;background:'+bg+';color:'+tc+';border:'+brd+';margin:1px;opacity:'+op+';">'+n+'</span>';
       }).join('');
