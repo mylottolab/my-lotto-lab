@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Lotto Lab - 카메라 실구매 등록</title>
+<title>My Lotto Lab - 실구매 등록</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
 body{background:#f3f4f6;font-size:13px;}
-.header{background:#f3f4f6;}
-.header-inner{max-width:1000px;margin:0 auto;width:100%;padding:0 14px;height:44px;display:flex;align-items:center;justify-content:space-between;background:#1c1c2e;border-radius:0 0 8px 8px;}
-.logo-icon{width:30px;height:30px;background:#1a7ad4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.header-inner{max-width:1000px;margin:0 auto;padding:0 14px;height:44px;display:flex;align-items:center;justify-content:space-between;background:#1c1c2e;border-radius:0 0 8px 8px;}
 .logo-left{display:flex;align-items:center;gap:9px;}
+.logo-icon{width:30px;height:30px;background:#1a7ad4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
 .logo-text .title{font-size:14px;font-weight:700;color:#fff;}
 .logo-text .sub{font-size:9px;color:#aaa;}
 .btn-back{background:none;border:1px solid #555;color:#ccc;padding:3px 10px;border-radius:5px;font-size:11px;cursor:pointer;}
@@ -20,13 +19,10 @@ body{background:#f3f4f6;font-size:13px;}
 .tab{flex:1;padding:9px 4px;text-align:center;font-size:11px;font-weight:600;cursor:pointer;color:#888;border-bottom:3px solid transparent;line-height:1.4;}
 .tab.active{color:#1a7ad4;border-bottom:3px solid #1a7ad4;background:#f5f9ff;}
 .tab:hover:not(.active){background:#fafafa;}
-.panel{display:none;}
-.panel.active{display:block;}
+.panel{display:none;}.panel.active{display:block;}
 .card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;margin-bottom:10px;}
 .ph{padding:9px 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:12px;color:#fff;}
-.ph-green{background:#2f9e44;}
-.ph-blue{background:#1a7ad4;}
-.ph-purple{background:#7048e8;}
+.ph-green{background:#2f9e44;}.ph-blue{background:#1a7ad4;}.ph-purple{background:#7048e8;}
 .pb{padding:12px 14px;}
 
 /* 방법1 */
@@ -45,26 +41,18 @@ body{background:#f3f4f6;font-size:13px;}
 .btn-add:hover{background:#f0f8ff;}
 .btn-save-green{width:100%;background:#2f9e44;color:#fff;border:none;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
 
-/* 방법2 업로드 */
+/* 방법2 */
 .upload-area{border:2px dashed #c0d4f0;border-radius:10px;padding:16px;text-align:center;cursor:pointer;background:#f8fbff;margin-bottom:8px;transition:all 0.2s;}
 .upload-area:hover,.upload-area.dragover{border-color:#1a7ad4;background:#eef6ff;}
 .upload-icon{font-size:30px;margin-bottom:6px;}
 .upload-text{font-size:12px;color:#555;margin-bottom:2px;}
 .upload-sub{font-size:10px;color:#aaa;}
-
-/* 이미지 목록 */
-.img-list{margin-bottom:8px;}
-.img-item{display:flex;align-items:center;gap:8px;background:#f8f8f8;border:1px solid #eee;border-radius:6px;padding:6px 8px;margin-bottom:4px;}
-.img-thumb{width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #ddd;cursor:pointer;flex-shrink:0;}
-.img-name{flex:1;font-size:10px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.img-status{font-size:9px;padding:2px 6px;border-radius:8px;font-weight:700;white-space:nowrap;}
-.is-wait{background:#f0f0f0;color:#888;}
-.is-proc{background:#e8f4ff;color:#1a7ad4;animation:pulse 1s infinite;}
-.is-done{background:#e8fff0;color:#2f9e44;}
-.is-err{background:#fff0f0;color:#e03131;}
-.btn-crop-item{background:#f5c518;border:none;border-radius:4px;padding:2px 7px;font-size:9px;font-weight:700;cursor:pointer;color:#7a5e00;white-space:nowrap;}
-.btn-del-item{background:none;border:1px solid #fcc;border-radius:4px;padding:2px 6px;color:#e03131;cursor:pointer;font-size:9px;}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.fail-list{margin-bottom:8px;}
+.fail-item{display:flex;align-items:center;gap:8px;background:#fff0f0;border:1px solid #fcc;border-radius:6px;padding:6px 8px;margin-bottom:4px;}
+.fail-thumb{width:36px;height:36px;object-fit:cover;border-radius:4px;border:1px solid #ddd;flex-shrink:0;cursor:pointer;}
+.fail-name{flex:1;font-size:10px;color:#c00;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.btn-crop-retry{background:#f5c518;border:none;border-radius:4px;padding:3px 8px;font-size:9px;font-weight:700;cursor:pointer;color:#7a5e00;white-space:nowrap;}
+.btn-del-fail{background:none;border:1px solid #fcc;border-radius:4px;padding:3px 6px;color:#e03131;cursor:pointer;font-size:9px;}
 
 /* 크롭 모달 */
 .crop-modal{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px;}
@@ -72,8 +60,8 @@ body{background:#f3f4f6;font-size:13px;}
 .crop-box{background:#1c1c2e;border-radius:12px;padding:14px;max-width:92vw;width:560px;display:flex;flex-direction:column;gap:10px;}
 .crop-title{font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:space-between;}
 .crop-hint{font-size:10px;color:#f5c518;text-align:center;}
-.crop-canvas-wrap{position:relative;overflow:hidden;border-radius:8px;cursor:crosshair;background:#000;display:flex;align-items:center;justify-content:center;max-height:55vh;}
-#cropImg{max-width:100%;max-height:55vh;display:block;user-select:none;}
+.crop-canvas-wrap{position:relative;overflow:hidden;border-radius:8px;cursor:crosshair;background:#000;display:flex;align-items:center;justify-content:center;}
+#cropImg{max-width:100%;max-height:55vh;display:block;user-select:none;-webkit-user-select:none;}
 #selBox{position:absolute;border:2px solid #f5c518;background:rgba(245,197,24,0.13);display:none;pointer-events:none;}
 .crop-actions{display:flex;gap:6px;}
 .crop-actions button{flex:1;border:none;border-radius:6px;padding:8px;font-size:11px;font-weight:700;cursor:pointer;}
@@ -98,20 +86,17 @@ body{background:#f3f4f6;font-size:13px;}
 .row-ball{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;}
 .btn-save-ocr{width:100%;background:#2f9e44;color:#fff;border:none;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
 
-/* 방법3 QR */
+/* 방법3 */
 .qr-guide-box{background:#f5f0ff;border:1px solid #c0a8f0;border-radius:8px;padding:14px;margin-bottom:10px;text-align:center;}
 .qr-guide-title{font-size:12px;font-weight:700;color:#5a3db8;margin-bottom:4px;}
 .qr-guide-desc{font-size:10px;color:#666;line-height:1.7;}
-#qr-reader{display:none;width:100%;border-radius:8px;overflow:hidden;margin-bottom:8px;}
-#qr-reader video{width:100%!important;}
+#qr-reader{display:none;width:100%;margin-bottom:8px;border-radius:8px;overflow:hidden;}
+#qr-reader video{width:100%!important;border-radius:0!important;}
 #qr-reader img{display:none!important;}
-
-/* 디지털 줌 */
-.zoom-wrap{background:#f8f8f8;border:1px solid #eee;border-radius:7px;padding:8px 10px;margin-bottom:8px;}
+.zoom-wrap{background:#f8f8f8;border:1px solid #eee;border-radius:7px;padding:8px 10px;margin-bottom:8px;display:none;}
 .zoom-label{font-size:10px;color:#555;font-weight:600;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;}
 .zoom-slider{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;background:#ddd;outline:none;}
 .zoom-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#7048e8;cursor:pointer;}
-
 .qr-btns{display:flex;gap:6px;margin-bottom:6px;}
 .btn-qr{flex:1;border:none;border-radius:6px;padding:8px;font-size:11px;font-weight:700;cursor:pointer;}
 .btn-qr-start{background:#7048e8;color:#fff;}
@@ -122,10 +107,10 @@ body{background:#f3f4f6;font-size:13px;}
 .btn-url-parse{background:#7048e8;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;}
 .qr-result{background:#f0fff4;border:1px solid #2f9e44;border-radius:8px;padding:10px 12px;margin-top:8px;display:none;}
 .qr-result.show{display:block;}
-.ocr-round-lbl{font-size:14px;font-weight:700;color:#1a7ad4;margin-bottom:8px;}
 .ocr-title{font-size:11px;font-weight:700;color:#2f9e44;margin-bottom:8px;}
+.ocr-round-lbl{font-size:14px;font-weight:700;color:#1a7ad4;margin-bottom:8px;}
 
-/* 공통 */
+/* 공통 메시지 */
 .msg{border-radius:6px;padding:7px 10px;font-size:11px;margin:6px 0;display:none;line-height:1.5;}
 .msg.show{display:block;}
 .msg.success{background:#e8fff0;border:1px solid #2f9e44;color:#1a6b2e;}
@@ -142,17 +127,20 @@ body{background:#f3f4f6;font-size:13px;}
 .fsel{border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:10px;}
 .btn-q{background:#fff;border:1px solid #1a7ad4;color:#1a7ad4;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;}
 .tw{overflow-x:auto;overflow-y:auto;max-height:600px;}
-table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:400px;}
-col.c-round{width:56px;}col.c-nums{width:148px;}col.c-type{width:64px;}
-col.c-status{width:56px;}col.c-grade{width:52px;}col.c-del{width:30px;}
+table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:440px;}
+col.c-round{width:52px;}col.c-nums{width:145px;}col.c-type{width:58px;}
+col.c-real{width:52px;}col.c-status{width:52px;}col.c-grade{width:48px;}col.c-del{width:28px;}
 th{background:#f8f8f8;padding:6px;font-size:10px;font-weight:700;color:#555;border-bottom:1px solid #e0e0e0;white-space:nowrap;position:sticky;top:0;z-index:2;text-align:center;}
 td{padding:5px 6px;font-size:10px;color:#444;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;white-space:nowrap;overflow:hidden;}
 tr:hover td{background:#fafafa;}
+tr.real-purchase td{background:#fff8e1;}
 .rc{background:#555;color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;}
 .bm{display:flex;gap:2px;align-items:center;justify-content:center;}
 .ball{width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;}
 .tg{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;white-space:nowrap;}
 .tm{background:#e8f4ff;color:#1a7ad4;}.ta{background:#e8fff0;color:#2f9e44;}.ts{background:#fff3e0;color:#e67700;}
+.real-badge{background:#f5c518;color:#7a5e00;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;}
+.virtual-badge{background:#eee;color:#888;font-size:8px;padding:1px 4px;border-radius:3px;}
 .tbf{color:#e03131;font-weight:700;font-size:9px;}.tba{color:#999;font-size:9px;}.gx{color:#ddd;}
 .btn-d{background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;}
 .no-data{text-align:center;padding:30px;color:#bbb;font-size:12px;}
@@ -166,7 +154,7 @@ tr:hover td{background:#fafafa;}
       <div class="logo-icon">🎱</div>
       <div class="logo-text">
         <div class="title">My Lotto Lab</div>
-        <div class="sub">카메라 실구매 등록</div>
+        <div class="sub">실구매 등록</div>
       </div>
     </div>
     <button class="btn-back" onclick="location.href='main_page.html'">← 메인으로</button>
@@ -180,7 +168,7 @@ tr:hover td{background:#fafafa;}
       <span>✂️ QR코드 영역 선택</span>
       <button onclick="closeCropModal()" style="background:none;border:none;color:#aaa;font-size:18px;cursor:pointer;">✕</button>
     </div>
-    <div class="crop-hint">마우스로 QR코드 부분을 드래그하세요 · 자동탐지도 가능</div>
+    <div class="crop-hint">마우스로 QR코드 부분을 드래그 · 자동탐지도 가능</div>
     <div class="crop-canvas-wrap" id="cropCanvasWrap">
       <img id="cropImg" draggable="false">
       <div id="selBox"></div>
@@ -197,19 +185,17 @@ tr:hover td{background:#fafafa;}
 
 <div class="main">
 <div class="wrap">
-
-<!-- 왼쪽 -->
 <div>
   <div class="tabs">
     <div class="tab active" onclick="switchTab(1)">✏️ 방법1<br>직접입력</div>
     <div class="tab" onclick="switchTab(2)">🖼 방법2<br>이미지+크롭</div>
-    <div class="tab" onclick="switchTab(3)">📷 방법3<br>QR+줌</div>
+    <div class="tab" onclick="switchTab(3)">📷 방법3<br>QR 스캔</div>
   </div>
 
   <!-- 방법1 -->
   <div class="panel active" id="tab1">
     <div class="card">
-      <div class="ph ph-green">✏️ 방법1 — 직접 입력</div>
+      <div class="ph ph-green">✏️ 방법1 — 직접 입력 (실구매)</div>
       <div class="pb">
         <div class="manual-round">
           <label>회차:</label>
@@ -219,7 +205,7 @@ tr:hover td{background:#fafafa;}
         <div id="combos"></div>
         <button class="btn-add" onclick="addCombo()">＋ 번호조합 추가</button>
         <div class="msg" id="msg1"></div>
-        <button class="btn-save-green" onclick="saveManual()">⬇ 저장</button>
+        <button class="btn-save-green" onclick="saveManual()">⬇ 실구매 저장</button>
       </div>
     </div>
   </div>
@@ -227,10 +213,10 @@ tr:hover td{background:#fafafa;}
   <!-- 방법2 -->
   <div class="panel" id="tab2">
     <div class="card">
-      <div class="ph ph-blue">🖼 방법2 — 이미지 업로드 + QR 크롭 인식</div>
+      <div class="ph ph-blue">🖼 방법2 — 이미지 업로드 (실구매 QR 인식)</div>
       <div class="pb">
         <div style="background:#fff8e1;border:1px solid #f5c518;border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:10px;color:#7a5e00;line-height:1.7;">
-          💡 여러 장 동시 업로드 가능 · 각 이미지의 <b>✂️ 크롭</b> 버튼으로 QR 영역만 선택하면 인식률이 높아요!
+          💡 여러 장 동시 업로드 가능 · 인식 실패 시 <b>✂️ 크롭</b>으로 QR 영역만 선택 후 재시도
         </div>
         <div class="upload-area" id="dropArea"
           onclick="document.getElementById('imgInput').click()"
@@ -240,7 +226,7 @@ tr:hover td{background:#fafafa;}
           <div class="upload-sub">JPG · PNG · HEIC 등</div>
         </div>
         <input type="file" id="imgInput" accept="image/*" multiple style="display:none" onchange="onImgSelect(this)">
-        <div class="img-list" id="imgList"></div>
+        <div class="fail-list" id="failList"></div>
         <div class="progress" id="ocrProgress"><div class="progress-bar" id="ocrBar" style="width:0%"></div></div>
         <div class="msg" id="msg2"></div>
         <div id="allResults"></div>
@@ -251,68 +237,45 @@ tr:hover td{background:#fafafa;}
   <!-- 방법3 -->
   <div class="panel" id="tab3">
     <div class="card">
-      <div class="ph ph-purple">📷 방법3 — QR 카메라 스캔 + 디지털 줌</div>
+      <div class="ph ph-purple">📷 방법3 — QR 카메라 스캔 (실구매)</div>
       <div class="pb">
         <div class="qr-guide-box" id="qrGuide">
           <div style="font-size:28px;margin-bottom:6px;">📱</div>
-          <div class="qr-guide-title">고성능 QR 자동 인식 + 디지털 줌</div>
+          <div class="qr-guide-title">QR 자동 인식</div>
           <div class="qr-guide-desc">
-            카메라로 QR코드를 비추면 자동 인식<br>
-            슬라이더로 <b>디지털 줌 1x~4x</b> 조절 가능<br>
-            <span id="detectorBadge" style="display:inline-block;margin-top:4px;font-size:9px;padding:2px 8px;border-radius:8px;font-weight:700;"></span>
+            로또 용지 QR코드를 카메라에 비추면<br>
+            회차·번호·구매형태 자동 인식 후 <b>실구매</b>로 저장<br>
+            <span id="detectorBadge" style="display:inline-block;margin-top:5px;font-size:9px;padding:2px 8px;border-radius:8px;font-weight:700;"></span>
           </div>
         </div>
-
-        <!-- 디지털 줌 카메라 뷰 (Html5-QRCode 대신 직접 구현) -->
-        <div id="camSection" style="display:none;margin-bottom:8px;">
-          <div style="position:relative;width:100%;background:#000;border-radius:8px;overflow:hidden;">
-            <video id="camVideo" autoplay playsinline muted style="width:100%;display:block;"></video>
-            <canvas id="camCanvas" style="display:none;"></canvas>
-            <!-- 줌 뷰 캔버스 (디지털 줌 적용) -->
-            <canvas id="zoomCanvas" style="width:100%;display:block;position:absolute;top:0;left:0;"></canvas>
-            <!-- QR 프레임 오버레이 -->
-            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
-              <div id="qrFrame" style="width:55%;aspect-ratio:1;border:2px solid #f5c518;border-radius:8px;position:relative;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);">
-                <div style="position:absolute;width:100%;height:2px;background:linear-gradient(90deg,transparent,#f5c518,transparent);animation:sc 1.8s ease-in-out infinite;"></div>
-              </div>
-              <div style="color:#f5c518;font-size:10px;font-weight:700;margin-top:8px;text-shadow:0 1px 3px rgba(0,0,0,.8);">QR코드를 사각형 안에 맞춰주세요</div>
-            </div>
-            <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:#fff;font-size:9px;text-align:center;padding:4px;">
-              💡 로또 용지 오른쪽 하단 QR코드를 비춰주세요
-            </div>
+        <div id="qr-reader"></div>
+        <div class="zoom-wrap" id="zoomWrap">
+          <div class="zoom-label">
+            <span>🔍 디지털 줌</span>
+            <span id="zoomVal" style="color:#7048e8;font-weight:700;">1.0x</span>
           </div>
-          <!-- 줌 슬라이더 -->
-          <div class="zoom-wrap">
-            <div class="zoom-label">
-              <span>🔍 디지털 줌</span>
-              <span id="zoomVal" style="color:#7048e8;font-weight:700;">1.0x</span>
-            </div>
-            <input type="range" class="zoom-slider" id="zoomSlider" min="10" max="40" value="10" step="1" oninput="onZoom(this.value)">
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:#aaa;margin-top:2px;">
-              <span>1x (원본)</span><span>2x</span><span>3x</span><span>4x (최대)</span>
-            </div>
+          <input type="range" class="zoom-slider" id="zoomSlider" min="10" max="40" value="10" step="1" oninput="onZoom(this.value)">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#aaa;margin-top:2px;">
+            <span>1x</span><span>2x</span><span>3x</span><span>4x</span>
           </div>
         </div>
-
         <div class="qr-btns">
           <button class="btn-qr btn-qr-start" id="btnQrStart" onclick="startCamScan()">📷 QR 스캔 시작</button>
           <button class="btn-qr btn-qr-stop" id="btnQrStop" onclick="stopCamScan()" style="display:none;">⏹ 종료</button>
         </div>
         <div class="msg" id="msg3"></div>
-
         <div style="border-top:1px dashed #ddd;margin:8px 0;padding-top:8px;">
-          <div style="font-size:10px;color:#999;margin-bottom:5px;">📋 스마트폰으로 스캔한 URL을 직접 붙여넣기</div>
+          <div style="font-size:10px;color:#999;margin-bottom:5px;">📋 스마트폰으로 스캔한 URL 직접 붙여넣기</div>
           <div class="url-row">
             <input class="url-in" type="text" id="urlInput" placeholder="http://qr.dhlottery.co.kr/?v=1227m06...">
             <button class="btn-url-parse" onclick="parseUrlManual()">인식</button>
           </div>
         </div>
-
         <div class="qr-result" id="qrResult">
           <div class="ocr-title">✅ QR 인식 결과 — 저장할 항목 선택</div>
           <div class="ocr-round-lbl" id="qrRoundLbl"></div>
           <div id="qrRows"></div>
-          <button class="btn-save-ocr" style="margin-top:8px;" onclick="saveQrResult()">⬇ 선택 항목 저장</button>
+          <button class="btn-save-ocr" style="margin-top:8px;" onclick="saveQrResult()">⬇ 실구매 저장</button>
         </div>
       </div>
     </div>
@@ -333,11 +296,11 @@ tr:hover td{background:#fafafa;}
     <table>
       <colgroup>
         <col class="c-round"><col class="c-nums"><col class="c-type">
-        <col class="c-status"><col class="c-grade"><col class="c-del">
+        <col class="c-real"><col class="c-status"><col class="c-grade"><col class="c-del">
       </colgroup>
       <thead><tr>
-        <th>회차</th><th>선택한 번호</th><th>구매형태</th>
-        <th>추첨유무</th><th>추첨결과</th><th>삭제</th>
+        <th>회차</th><th>번호</th><th>구매형태</th>
+        <th>구분</th><th>추첨</th><th>결과</th><th>삭제</th>
       </tr></thead>
       <tbody id="tb"></tbody>
     </table>
@@ -346,15 +309,13 @@ tr:hover td{background:#fafafa;}
 </div>
 </div>
 
-<style>
-@keyframes sc{0%,100%{top:5%}50%{top:90%}}
-</style>
-
-<!-- ZXing QR 라이브러리 -->
+<!-- Html5-QRCode 라이브러리 -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- ZXing (이미지 QR 인식용) -->
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 
 <script>
-// ── 기본 설정 ──
+// ── 기본 ──
 const ROUND1=new Date('2002-12-07T20:45:00+09:00').getTime();
 const WEEK=7*24*60*60*1000;
 function calcRound(){const e=Date.now()-ROUND1;return e<0?0:Math.floor(e/WEEK)+1;}
@@ -376,16 +337,19 @@ function switchTab(n){
   if(n!==3)stopCamScan();
 }
 
-// ── 방법1: 직접입력 ──
+// ── 방법1: 직접입력 (실구매) ──
 const LABELS=['A','B','C','D','E','F','G','H','I','J'];
 function addCombo(){
   comboCount++;const id=comboCount;
-  const lbl=LABELS[(id-1)%10];
   const div=document.createElement('div');
   div.className='combo-block';div.id='cb'+id;
   div.innerHTML=`<div class="combo-top">
-    <span class="combo-lbl">${lbl}</span>
-    <select class="type-sel" id="tp${id}"><option value="자동">자동</option><option value="반자동">반자동</option><option value="수동">수동</option></select>
+    <span class="combo-lbl">${LABELS[(id-1)%10]}</span>
+    <select class="type-sel" id="tp${id}">
+      <option value="자동">자동</option>
+      <option value="반자동">반자동</option>
+      <option value="수동">수동</option>
+    </select>
     <button class="combo-del" onclick="document.getElementById('cb${id}').remove()">✕</button>
   </div>
   <div class="num-grid">${[1,2,3,4,5,6].map(n=>`<input class="num-in" type="number" id="n${id}_${n}" min="1" max="45" placeholder="${n}" oninput="autoNext(this,${id},${n})">`).join('')}</div>`;
@@ -393,7 +357,8 @@ function addCombo(){
 }
 function autoNext(el,id,num){
   const v=el.value.replace(/[^0-9]/g,'');el.value=v;
-  if(v.length>=2){const n=parseInt(v);if(n<1)el.value=1;else if(n>45)el.value=45;if(num<6){const nx=document.getElementById(`n${id}_${num+1}`);if(nx)nx.focus();}}
+  if(v.length>=2){const n=parseInt(v);if(n<1)el.value=1;else if(n>45)el.value=45;
+    if(num<6){const nx=document.getElementById(`n${id}_${num+1}`);if(nx)nx.focus();}}
 }
 function saveManual(){
   const round=parseInt(document.getElementById('manualRound').value);
@@ -407,16 +372,15 @@ function saveManual(){
     const type=document.getElementById('tp'+id).value;
     const nums=[1,2,3,4,5,6].map(n=>parseInt(document.getElementById(`n${id}_${n}`)?.value||''));
     if(nums.some(isNaN)||nums.some(n=>n<1||n>45)||new Set(nums).size!==6){skip++;return;}
-    data.unshift({round,nums,type,status,grade:null});ok++;
+    data.unshift({round,nums,type,status,grade:null,isReal:true});ok++;
   });
-  if(ok>0){render();showMsg('msg1','success',`✅ ${ok}개 저장!${skip?` (오류 ${skip}개 건너뜀)`:''}`);
+  if(ok>0){render();showMsg('msg1','success',`✅ ${ok}개 실구매 저장!${skip?` (오류 ${skip}개 건너뜀)`:''}`);
     document.getElementById('combos').innerHTML='';comboCount=0;document.getElementById('manualRound').value='';}
   else showMsg('msg1','error','저장 가능한 번호가 없습니다.');
 }
 
-// ── 방법2: 이미지 업로드 + 크롭 ──
-let imgItems=[];  // {id, file, objectUrl, status, cropData}
-let currentCropId=null;
+// ── 방법2: 이미지 업로드 + 크롭 (실구매) ──
+let imgItems=[],currentCropId=null;
 let isDragging=false,dragStartX=0,dragStartY=0,cropX=0,cropY=0,cropW=0,cropH=0;
 
 function onDrag(e,over){e.preventDefault();document.getElementById('dropArea').classList.toggle('dragover',over);}
@@ -430,69 +394,54 @@ function addImages(files){
     const id='img'+Date.now()+Math.random().toString(36).slice(2);
     const objectUrl=URL.createObjectURL(f);
     imgItems.push({id,file:f,objectUrl,status:'wait',cropData:null});
+    setTimeout(()=>recognizeItem(id),100);
   });
-  renderImgList();
-  showMsg('msg2','info',`${imgs.length}장 추가됨. ✂️ 크롭 후 인식하거나 바로 인식하세요.`);
+  showMsg('msg2','info',`${imgs.length}장 인식 시작...`);
 }
 
-function renderImgList(){
-  const el=document.getElementById('imgList');
-  if(!imgItems.length){el.innerHTML='';return;}
-  el.innerHTML=imgItems.map(item=>{
-    const sc=item.status==='wait'?'is-wait':item.status==='proc'?'is-proc':item.status==='done'?'is-done':'is-err';
-    const st=item.status==='wait'?'대기':item.status==='proc'?'처리중...':item.status==='done'?'완료':'실패';
-    const cropBadge=item.cropData?'<span style="font-size:9px;color:#2f9e44;font-weight:700;">✂️크롭됨</span>':'';
-    return `<div class="img-item" id="${item.id}">
-      <img class="img-thumb" src="${item.objectUrl}" onclick="openCropModal('${item.id}')" title="클릭하여 크롭">
-      <span class="img-name">${item.file.name} ${cropBadge}</span>
-      <span class="img-status ${sc}">${st}</span>
-      <button class="btn-crop-item" onclick="openCropModal('${item.id}')">✂️ 크롭</button>
-      <button class="btn-crop-item" style="background:#1a7ad4;color:#fff;" onclick="recognizeItem('${item.id}')">🔍 인식</button>
-      <button class="btn-del-item" onclick="removeItem('${item.id}')">✕</button>
-    </div>`;
-  }).join('');
+function renderFailList(){
+  const el=document.getElementById('failList');
+  const fails=imgItems.filter(x=>x.status==='err');
+  if(!fails.length){el.innerHTML='';return;}
+  el.innerHTML=`<div style="font-size:10px;font-weight:700;color:#e03131;margin-bottom:5px;">⚠️ 인식 실패 — QR 영역을 크롭해서 재시도하세요</div>`+
+    fails.map(item=>`<div class="fail-item" id="fi_${item.id}">
+      <img class="fail-thumb" src="${item.objectUrl}" onclick="openCropModal('${item.id}')">
+      <span class="fail-name">${item.file.name}</span>
+      <button class="btn-crop-retry" onclick="openCropModal('${item.id}')">✂️ 크롭 재시도</button>
+      <button class="btn-del-fail" onclick="removeItem('${item.id}')">✕</button>
+    </div>`).join('');
 }
 
 function removeItem(id){
   const item=imgItems.find(x=>x.id===id);
   if(item)URL.revokeObjectURL(item.objectUrl);
   imgItems=imgItems.filter(x=>x.id!==id);
-  renderImgList();
+  renderFailList();
 }
 
 // ── 크롭 모달 ──
 function openCropModal(id){
   currentCropId=id;
-  const item=imgItems.find(x=>x.id===id);
-  if(!item)return;
+  const item=imgItems.find(x=>x.id===id);if(!item)return;
   cropX=0;cropY=0;cropW=0;cropH=0;
   document.getElementById('selBox').style.display='none';
   document.getElementById('btnApplyCrop').disabled=true;
   document.getElementById('msgCrop').className='msg';
-  const img=document.getElementById('cropImg');
-  img.src=item.objectUrl;
+  document.getElementById('cropImg').src=item.objectUrl;
   document.getElementById('cropModal').classList.add('show');
   setupCropDrag();
 }
-
-function closeCropModal(){
-  document.getElementById('cropModal').classList.remove('show');
-  currentCropId=null;
-}
+function closeCropModal(){document.getElementById('cropModal').classList.remove('show');currentCropId=null;}
 
 function setupCropDrag(){
   const wrap=document.getElementById('cropCanvasWrap');
   const box=document.getElementById('selBox');
   const img=document.getElementById('cropImg');
-
   wrap.onmousedown=e=>{
     e.preventDefault();
     const rect=img.getBoundingClientRect();
-    isDragging=true;
-    dragStartX=e.clientX-rect.left;
-    dragStartY=e.clientY-rect.top;
-    box.style.display='none';
-    document.getElementById('btnApplyCrop').disabled=true;
+    isDragging=true;dragStartX=e.clientX-rect.left;dragStartY=e.clientY-rect.top;
+    box.style.display='none';document.getElementById('btnApplyCrop').disabled=true;
   };
   wrap.onmousemove=e=>{
     if(!isDragging)return;
@@ -501,119 +450,85 @@ function setupCropDrag(){
     const curY=Math.max(0,Math.min(e.clientY-rect.top,rect.height));
     const x=Math.min(dragStartX,curX),y=Math.min(dragStartY,curY);
     const w=Math.abs(curX-dragStartX),h=Math.abs(curY-dragStartY);
-    box.style.left=x+'px';box.style.top=y+'px';
-    box.style.width=w+'px';box.style.height=h+'px';
-    box.style.display='block';
-    // 실제 이미지 좌표로 변환
-    const scaleX=document.getElementById('cropImg').naturalWidth/rect.width;
-    const scaleY=document.getElementById('cropImg').naturalHeight/rect.height;
-    cropX=Math.round(x*scaleX);cropY=Math.round(y*scaleY);
-    cropW=Math.round(w*scaleX);cropH=Math.round(h*scaleY);
+    box.style.cssText+=`;left:${x}px;top:${y}px;width:${w}px;height:${h}px;display:block;`;
+    const sx=img.naturalWidth/rect.width,sy=img.naturalHeight/rect.height;
+    cropX=Math.round(x*sx);cropY=Math.round(y*sy);cropW=Math.round(w*sx);cropH=Math.round(h*sy);
   };
-  wrap.onmouseup=e=>{
-    isDragging=false;
-    if(cropW>20&&cropH>20){
-      document.getElementById('btnApplyCrop').disabled=false;
-    }
-  };
-  // 터치 지원
-  wrap.ontouchstart=e=>{
-    const t=e.touches[0];
-    const me=new MouseEvent('mousedown',{clientX:t.clientX,clientY:t.clientY});
-    wrap.onmousedown(me);
-  };
-  wrap.ontouchmove=e=>{
-    e.preventDefault();
-    const t=e.touches[0];
-    const me=new MouseEvent('mousemove',{clientX:t.clientX,clientY:t.clientY});
-    wrap.onmousemove(me);
-  };
-  wrap.ontouchend=e=>{wrap.onmouseup(e);};
+  wrap.onmouseup=()=>{isDragging=false;if(cropW>20&&cropH>20)document.getElementById('btnApplyCrop').disabled=false;};
+  wrap.ontouchstart=e=>{const t=e.touches[0];wrap.onmousedown({preventDefault:()=>{},clientX:t.clientX,clientY:t.clientY});};
+  wrap.ontouchmove=e=>{e.preventDefault();const t=e.touches[0];wrap.onmousemove({clientX:t.clientX,clientY:t.clientY});};
+  wrap.ontouchend=()=>wrap.onmouseup();
 }
 
 function applyCrop(){
   const item=imgItems.find(x=>x.id===currentCropId);
   if(!item||cropW<10||cropH<10)return;
   item.cropData={x:cropX,y:cropY,w:cropW,h:cropH};
-  renderImgList();
-  showMsg('msgCrop','success','✅ 크롭 영역 저장됨! 이제 🔍 인식 버튼을 누르세요.');
-  setTimeout(()=>closeCropModal(),1200);
+  item.status='wait';
+  closeCropModal();
+  recognizeItem(item.id);
 }
 
 function autoDetectQr(){
-  // ZXing으로 전체 이미지에서 QR 찾고 위치 추정
-  const item=imgItems.find(x=>x.id===currentCropId);
-  if(!item){return;}
-  showMsg('msgCrop','info','🔍 QR 영역 자동 탐지 중...');
+  const item=imgItems.find(x=>x.id===currentCropId);if(!item)return;
+  showMsg('msgCrop','info','🔍 QR 자동 탐지 중...');
   const img=document.getElementById('cropImg');
   const canvas=document.createElement('canvas');
   canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
-  const ctx=canvas.getContext('2d');
-  ctx.drawImage(img,0,0);
+  canvas.getContext('2d').drawImage(img,0,0);
   try{
-    const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const imageData=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height);
     const hints=new Map();
     hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE]);
     hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-    const reader=new ZXing.MultiFormatReader();
-    reader.setHints(hints);
+    const reader=new ZXing.MultiFormatReader();reader.setHints(hints);
     const src=new ZXing.RGBLuminanceSource(imageData.data,canvas.width,canvas.height);
     const bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
     const result=reader.decode(bitmap);
     const pts=result.getResultPoints();
     if(pts&&pts.length>=3){
-      // QR 포인트로 영역 계산
       const xs=pts.map(p=>p.getX()),ys=pts.map(p=>p.getY());
-      const minX=Math.max(0,Math.min(...xs)-30),minY=Math.max(0,Math.min(...ys)-30);
-      const maxX=Math.min(canvas.width,Math.max(...xs)+30),maxY=Math.min(canvas.height,Math.max(...ys)+30);
-      cropX=Math.round(minX);cropY=Math.round(minY);
-      cropW=Math.round(maxX-minX);cropH=Math.round(maxY-minY);
-      // 선택 박스 표시
+      const pad=40;
+      cropX=Math.max(0,Math.round(Math.min(...xs)-pad));
+      cropY=Math.max(0,Math.round(Math.min(...ys)-pad));
+      cropW=Math.min(canvas.width-cropX,Math.round(Math.max(...xs)-Math.min(...xs)+pad*2));
+      cropH=Math.min(canvas.height-cropY,Math.round(Math.max(...ys)-Math.min(...ys)+pad*2));
       const dispImg=document.getElementById('cropImg');
       const rect=dispImg.getBoundingClientRect();
-      const scaleX=rect.width/canvas.width,scaleY=rect.height/canvas.height;
+      const sx=rect.width/canvas.width,sy=rect.height/canvas.height;
       const box=document.getElementById('selBox');
-      box.style.left=(cropX*scaleX)+'px';box.style.top=(cropY*scaleY)+'px';
-      box.style.width=(cropW*scaleX)+'px';box.style.height=(cropH*scaleY)+'px';
-      box.style.display='block';
+      box.style.cssText+=`;left:${cropX*sx}px;top:${cropY*sy}px;width:${cropW*sx}px;height:${cropH*sy}px;display:block;`;
       document.getElementById('btnApplyCrop').disabled=false;
-      // QR 인식도 바로 됐으니 결과 처리
       const url=result.getText();
       if(url.includes('dhlottery')){
         const parsed=parseLottoQrUrl(url);
         if(parsed){
-          item.status='done';renderImgList();
+          item.status='done';renderFailList();
           showResultCard(parsed,item.file.name);
           showMsg('msg2','success',`✅ QR 인식 성공! 제${parsed.round}회 / ${parsed.combos.length}개`);
           closeCropModal();return;
         }
       }
-      showMsg('msgCrop','success','✅ QR 위치 탐지됨! [크롭 인식] 버튼을 누르세요.');
+      showMsg('msgCrop','success','✅ QR 위치 탐지! [크롭 인식] 버튼을 눌러주세요.');
     }
-  }catch(e){
-    showMsg('msgCrop','error','자동 탐지 실패. 마우스로 QR 영역을 직접 드래그해주세요.');
-  }
+  }catch(e){showMsg('msgCrop','error','자동 탐지 실패. 마우스로 직접 드래그해주세요.');}
 }
 
 function recognizeFull(){
-  const item=imgItems.find(x=>x.id===currentCropId);
-  if(!item)return;
-  item.cropData=null;
-  closeCropModal();
-  recognizeItem(item.id);
+  const item=imgItems.find(x=>x.id===currentCropId);if(!item)return;
+  item.cropData=null;closeCropModal();recognizeItem(item.id);
 }
 
 async function recognizeItem(id){
-  const item=imgItems.find(x=>x.id===id);
-  if(!item)return;
-  item.status='proc';renderImgList();
+  const item=imgItems.find(x=>x.id===id);if(!item)return;
+  item.status='proc';
   showProgress('ocrProgress','ocrBar');
-  showMsg('msg2','info',`🔍 "${item.file.name}" QR 인식 중...`);
+  showMsg('msg2','info',`🔍 "${item.file.name}" 인식 중...`);
   try{
     const img=await loadImage(item.objectUrl);
     const canvas=document.createElement('canvas');
     if(item.cropData){
-      const {x,y,w,h}=item.cropData;
+      const{x,y,w,h}=item.cropData;
       canvas.width=w;canvas.height=h;
       canvas.getContext('2d').drawImage(img,x,y,w,h,0,0,w,h);
     } else {
@@ -623,50 +538,39 @@ async function recognizeItem(id){
     setProgress('ocrBar',30);
     let url=null;
 
-    // ① BarcodeDetector (네이티브, Chrome/Safari 지원)
+    // ① BarcodeDetector (네이티브)
     if('BarcodeDetector' in window){
-      showMsg('msg2','info','🚀 네이티브 BarcodeDetector로 인식 중...');
       try{
-        const detector=new BarcodeDetector({formats:['qr_code']});
+        const det=new BarcodeDetector({formats:['qr_code']});
         const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.95));
         const bmp=await createImageBitmap(blob);
-        const codes=await detector.detect(bmp);
+        const codes=await det.detect(bmp);
         if(codes.length>0)url=codes[0].rawValue;
       }catch(e){}
     }
-
     // ② ZXing 폴백
     if(!url){
-      showMsg('msg2','info','🔍 ZXing으로 인식 중...');
       const imageData=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height);
       url=await zxingDecode(imageData,canvas.width,canvas.height);
     }
-
     setProgress('ocrBar',90);
     if(url){
       const parsed=parseLottoQrUrl(url);
       if(parsed){
-        item.status='done';renderImgList();
+        item.status='done';renderFailList();
         showResultCard(parsed,item.file.name);
         hideProgress('ocrProgress');
         showMsg('msg2','success',`✅ QR 인식 성공! 제${parsed.round}회 / ${parsed.combos.length}개`);
         return;
       }
     }
-    item.status='err';renderImgList();
-    showMsg('msg2','error','인식 실패 — ✂️ 크롭으로 QR 영역만 선택 후 다시 시도해보세요');
-  }catch(e){
-    item.status='err';renderImgList();
-    showMsg('msg2','error',`오류: ${e.message}`);
-  }
+    item.status='err';renderFailList();
+    showMsg('msg2','error','인식 실패 — ✂️ 크롭으로 QR 영역만 선택 후 재시도하세요');
+  }catch(e){item.status='err';renderFailList();showMsg('msg2','error',`오류: ${e.message}`);}
   hideProgress('ocrProgress');
 }
 
-function loadImage(src){
-  return new Promise((res,rej)=>{
-    const img=new Image();img.onload=()=>res(img);img.onerror=rej;img.src=src;
-  });
-}
+function loadImage(src){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>res(img);img.onerror=rej;img.src=src;});}
 
 function zxingDecode(imageData,w,h){
   return new Promise(resolve=>{
@@ -674,12 +578,10 @@ function zxingDecode(imageData,w,h){
       const hints=new Map();
       hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE]);
       hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-      const reader=new ZXing.MultiFormatReader();
-      reader.setHints(hints);
+      const reader=new ZXing.MultiFormatReader();reader.setHints(hints);
       const src=new ZXing.RGBLuminanceSource(imageData.data,w,h);
       const bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
-      const result=reader.decode(bitmap);
-      resolve(result.getText());
+      resolve(reader.decode(bitmap).getText());
     }catch(e){resolve(null);}
   });
 }
@@ -692,13 +594,14 @@ function showResultCard(result,filename){
     const balls=c.nums.map(n=>`<span class="row-ball" style="background:${BC(n)};color:${TC(n)}">${n}</span>`).join('');
     return `<div class="ocr-row">
       <input class="chk" type="checkbox" id="${rid}_chk${i}" checked>
-      <span class="row-lbl">${c.label}</span><span class="row-type ${tc}">${c.type}</span>
+      <span class="row-lbl">${c.label}</span>
+      <span class="row-type ${tc}">${c.type}</span>
       <div class="row-balls">${balls}</div>
     </div>`;
   }).join('');
-  div.innerHTML=`<div class="result-card-title">✅ ${filename}</div>
+  div.innerHTML=`<div class="result-card-title">✅ ${filename} <span style="background:#f5c518;color:#7a5e00;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px;">실구매</span></div>
     <div class="result-card-round">제 ${result.round}회</div>${rows}
-    <button class="btn-save-ocr" style="margin-top:6px;" onclick="saveResultCard('${rid}',${result.round},${JSON.stringify(result.combos)})">⬇ 선택 항목 저장</button>`;
+    <button class="btn-save-ocr" style="margin-top:6px;" onclick="saveResultCard('${rid}',${result.round},${JSON.stringify(result.combos)})">⬇ 실구매 저장</button>`;
   document.getElementById('allResults').prepend(div);
 }
 
@@ -706,123 +609,79 @@ function saveResultCard(rid,round,combos){
   const status=round<=CURRENT?'추첨후':'추첨전';let cnt=0;
   combos.forEach((c,i)=>{
     if(document.getElementById(`${rid}_chk${i}`)?.checked){
-      data.unshift({round,nums:[...c.nums],type:c.type,status,grade:null});cnt++;
+      data.unshift({round,nums:[...c.nums],type:c.type,status,grade:null,isReal:true});cnt++;
     }
   });
   if(cnt>0){render();document.getElementById(rid).style.opacity='0.5';document.getElementById(rid).style.pointerEvents='none';
-    showMsg('msg2','success',`✅ ${cnt}개 저장 완료!`);}
+    showMsg('msg2','success',`✅ ${cnt}개 실구매 저장 완료!`);}
 }
 
-// ── 방법3: 카메라 QR + 디지털 줌 ──
-let camStream=null,camAnimFrame=null,lastQrData=null,qrParsedData=null;
-let zoomLevel=1.0;
+// ── 방법3: Html5-QRCode + BarcodeDetector (실구매) ──
+let html5Qr=null,qrParsedData=null,zoomLevel=1.0;
 
 function onZoom(val){
   zoomLevel=val/10;
   document.getElementById('zoomVal').textContent=zoomLevel.toFixed(1)+'x';
+  if(html5Qr){
+    try{
+      const cap=html5Qr.getRunningTrackCapabilities();
+      if(cap&&cap.zoom)html5Qr.applyVideoConstraints({advanced:[{zoom:zoomLevel}]});
+    }catch(e){}
+  }
 }
 
 async function startCamScan(){
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}
-    });
-    camStream=stream;
-    const video=document.getElementById('camVideo');
-    video.srcObject=stream;
-    await video.play();
     document.getElementById('qrGuide').style.display='none';
-    document.getElementById('camSection').style.display='block';
+    document.getElementById('qr-reader').style.display='block';
     document.getElementById('btnQrStart').style.display='none';
     document.getElementById('btnQrStop').style.display='flex';
+    document.getElementById('zoomWrap').style.display='block';
     document.getElementById('qrResult').classList.remove('show');
-    qrParsedData=null;lastQrData=null;
-    showMsg('msg3','info','📷 QR코드를 프레임 안에 맞춰주세요! 슬라이더로 줌 조절 가능');
-    camLoop();
+    qrParsedData=null;
+
+    html5Qr=new Html5Qrcode('qr-reader');
+    await html5Qr.start(
+      {facingMode:'environment'},
+      {fps:15,qrbox:{width:230,height:230},aspectRatio:1.0,
+       experimentalFeatures:{useBarCodeDetectorIfSupported:true}},
+      (text)=>handleQrSuccess(text),
+      ()=>{}
+    );
+    showMsg('msg3','info','📷 QR코드를 화면 중앙에 맞춰주세요!');
   }catch(e){
+    document.getElementById('qrGuide').style.display='block';
+    document.getElementById('qr-reader').style.display='none';
+    document.getElementById('btnQrStart').style.display='flex';
+    document.getElementById('btnQrStop').style.display='none';
+    document.getElementById('zoomWrap').style.display='none';
     showMsg('msg3','error','카메라를 사용할 수 없습니다. URL 붙여넣기를 이용해주세요.');
   }
 }
 
-function stopCamScan(){
-  if(camAnimFrame){cancelAnimationFrame(camAnimFrame);camAnimFrame=null;}
-  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
-  document.getElementById('camVideo').srcObject=null;
-  document.getElementById('camSection').style.display='none';
+async function stopCamScan(){
+  if(html5Qr){try{await html5Qr.stop();html5Qr.clear();}catch(e){}html5Qr=null;}
+  const reader=document.getElementById('qr-reader');
+  reader.style.display='none';reader.innerHTML='';
   document.getElementById('qrGuide').style.display='block';
   document.getElementById('btnQrStart').style.display='flex';
   document.getElementById('btnQrStop').style.display='none';
+  document.getElementById('zoomWrap').style.display='none';
   document.getElementById('zoomSlider').value=10;
-  zoomLevel=1.0;
-  document.getElementById('zoomVal').textContent='1.0x';
+  zoomLevel=1.0;document.getElementById('zoomVal').textContent='1.0x';
 }
 
-// BarcodeDetector 지원 여부 확인
-const hasBarcodeDetector='BarcodeDetector' in window;
-let barcodeDetector=null;
-if(hasBarcodeDetector){
-  BarcodeDetector.getSupportedFormats().then(formats=>{
-    if(formats.includes('qr_code'))
-      barcodeDetector=new BarcodeDetector({formats:['qr_code']});
-  }).catch(()=>{});
-}
-
-async function camLoop(){
-  const video=document.getElementById('camVideo');
-  const canvas=document.getElementById('camCanvas');
-  const zoomCvs=document.getElementById('zoomCanvas');
-  if(!camStream)return;
-  if(video.readyState===video.HAVE_ENOUGH_DATA){
-    const vw=video.videoWidth,vh=video.videoHeight;
-    canvas.width=vw;canvas.height=vh;
-    const ctx=canvas.getContext('2d');
-    ctx.drawImage(video,0,0);
-
-    // 디지털 줌: 중앙 크롭
-    const zw=Math.round(vw/zoomLevel),zh=Math.round(vh/zoomLevel);
-    const zx=Math.round((vw-zw)/2),zy=Math.round((vh-zh)/2);
-    zoomCvs.width=vw;zoomCvs.height=vh;
-    const zctx=zoomCvs.getContext('2d');
-    zctx.drawImage(canvas,zx,zy,zw,zh,0,0,vw,vh);
-
-    let qrText=null;
-    try{
-      // ① BarcodeDetector (네이티브, 빠름)
-      if(barcodeDetector){
-        const bitmap=await createImageBitmap(zoomCvs);
-        const codes=await barcodeDetector.detect(bitmap);
-        if(codes.length>0)qrText=codes[0].rawValue;
-      }
-      // ② ZXing 폴백
-      if(!qrText){
-        const imageData=zctx.getImageData(0,0,vw,vh);
-        const hints=new Map();
-        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE]);
-        hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-        const reader=new ZXing.MultiFormatReader();
-        reader.setHints(hints);
-        const src=new ZXing.RGBLuminanceSource(imageData.data,vw,vh);
-        const bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
-        const result=reader.decode(bitmap);
-        qrText=result.getText();
-      }
-    }catch(e){}
-
-    if(qrText&&qrText!==lastQrData){
-      lastQrData=qrText;
-      if(qrText.includes('dhlottery')||qrText.includes('qr.dh')){
-        const parsed=parseLottoQrUrl(qrText);
-        if(parsed){
-          if(navigator.vibrate)navigator.vibrate([100,50,100]);
-          renderQrResult(parsed);
-          stopCamScan();
-          showMsg('msg3','success',`✅ QR 인식 성공! 제${parsed.round}회 / ${parsed.combos.length}개 조합`);
-          return;
-        }
-      }
+function handleQrSuccess(text){
+  if(!text)return;
+  if(text.includes('dhlottery')||text.includes('qr.dh')){
+    const parsed=parseLottoQrUrl(text);
+    if(parsed){
+      if(navigator.vibrate)navigator.vibrate([100,50,100]);
+      renderQrResult(parsed);
+      stopCamScan();
+      showMsg('msg3','success',`✅ QR 인식 성공! 제${parsed.round}회 / ${parsed.combos.length}개`);
     }
   }
-  camAnimFrame=requestAnimationFrame(camLoop);
 }
 
 // ── QR URL 파싱 ──
@@ -832,7 +691,7 @@ function parseLottoQrUrl(url){
     const v=match[1];
     const roundMatch=v.match(/^(\d+)/);if(!roundMatch)return null;
     const round=parseInt(roundMatch[1]);
-    const combos=[];const labels=['A','B','C','D','E','F','G','H','I','J'];
+    const combos=[],labels=['A','B','C','D','E','F','G','H','I','J'];
     let m;const pat=/([mqs])(\d{12})/g;
     while((m=pat.exec(v))!==null){
       const type=m[1]==='m'?'수동':m[1]==='q'?'자동':'반자동';
@@ -859,9 +718,12 @@ function renderQrResult(result){
   document.getElementById('qrRows').innerHTML=result.combos.map((c,i)=>{
     const tc=c.type==='자동'?'t-auto':c.type==='반자동'?'t-semi':'t-manual';
     const balls=c.nums.map(n=>`<span class="row-ball" style="background:${BC(n)};color:${TC(n)}">${n}</span>`).join('');
-    return `<div class="ocr-row"><input class="chk" type="checkbox" id="qrchk${i}" checked>
-      <span class="row-lbl">${c.label}</span><span class="row-type ${tc}">${c.type}</span>
-      <div class="row-balls">${balls}</div></div>`;
+    return `<div class="ocr-row">
+      <input class="chk" type="checkbox" id="qrchk${i}" checked>
+      <span class="row-lbl">${c.label}</span>
+      <span class="row-type ${tc}">${c.type}</span>
+      <div class="row-balls">${balls}</div>
+    </div>`;
   }).join('');
   document.getElementById('qrResult').classList.add('show');
 }
@@ -871,9 +733,12 @@ function saveQrResult(){
   const{round,combos}=qrParsedData;
   const status=round<=CURRENT?'추첨후':'추첨전';let cnt=0;
   combos.forEach((c,i)=>{
-    if(document.getElementById(`qrchk${i}`)?.checked){data.unshift({round,nums:[...c.nums],type:c.type,status,grade:null});cnt++;}
+    if(document.getElementById(`qrchk${i}`)?.checked){
+      data.unshift({round,nums:[...c.nums],type:c.type,status,grade:null,isReal:true});cnt++;
+    }
   });
-  if(cnt>0){render();document.getElementById('qrResult').classList.remove('show');qrParsedData=null;showMsg('msg3','success',`✅ ${cnt}개 저장 완료!`);}
+  if(cnt>0){render();document.getElementById('qrResult').classList.remove('show');qrParsedData=null;
+    showMsg('msg3','success',`✅ ${cnt}개 실구매 저장 완료!`);}
 }
 
 // ── 공통 ──
@@ -885,35 +750,45 @@ function showMsg(id,type,text){
   el.className='msg '+type+' show';el.textContent=text;
   if(type==='success')setTimeout(()=>el.classList.remove('show'),4000);
 }
+
+// ── 테이블 렌더 ──
 function render(){
   const fv=document.getElementById('fs').value;
   let list=fv?data.filter(x=>String(x.round)===fv):[...data];
   document.getElementById('tc').textContent=data.length;
   const tb=document.getElementById('tb');
-  if(!list.length){tb.innerHTML='<tr><td colspan="6" class="no-data">저장된 번호가 없습니다.</td></tr>';return;}
+  if(!list.length){tb.innerHTML='<tr><td colspan="7" class="no-data">저장된 번호가 없습니다.</td></tr>';return;}
   tb.innerHTML=list.map(item=>{
     const ri=data.indexOf(item);
     const balls=[...item.nums].sort((a,b)=>a-b).map(n=>`<span class="ball" style="background:${BC(n)};color:${TC(n)}">${n}</span>`).join('');
     const ttag=item.type==='수동'?'tm':item.type==='자동'?'ta':'ts';
+    const realTag=item.isReal?'<span class="real-badge">실구매</span>':'<span class="virtual-badge">가상</span>';
     const stag=item.status==='추첨전'?'<span class="tbf">추첨전</span>':'<span class="tba">추첨후</span>';
-    return `<tr><td><span class="rc">${item.round}회</span></td><td><div class="bm">${balls}</div></td>
-      <td><span class="tg ${ttag}">${item.type}</span></td><td>${stag}</td>
-      <td><span class="gx">-</span></td><td><button class="btn-d" onclick="del(${ri})">🗑</button></td></tr>`;
+    const rowCls=item.isReal?'real-purchase':'';
+    return `<tr class="${rowCls}">
+      <td><span class="rc">${item.round}회</span></td>
+      <td><div class="bm">${balls}</div></td>
+      <td><span class="tg ${ttag}">${item.type}</span></td>
+      <td>${realTag}</td>
+      <td>${stag}</td>
+      <td><span class="gx">-</span></td>
+      <td><button class="btn-d" onclick="del(${ri})">🗑</button></td>
+    </tr>`;
   }).join('');
 }
 function del(i){if(confirm('삭제하시겠습니까?')){data.splice(i,1);render();}}
 
 addCombo();render();
 
-// BarcodeDetector 지원 배지 표시
+// BarcodeDetector 지원 배지
 window.addEventListener('load',()=>{
   const badge=document.getElementById('detectorBadge');
   if('BarcodeDetector' in window){
-    badge.style.background='#e8fff0';badge.style.color='#2f9e44';badge.style.border='1px solid #2f9e44';
+    badge.style.cssText='background:#e8fff0;color:#2f9e44;border:1px solid #2f9e44;';
     badge.textContent='✅ 네이티브 BarcodeDetector 지원 (고성능)';
-  } else {
-    badge.style.background='#fff3e0';badge.style.color='#e67700';badge.style.border='1px solid #e67700';
-    badge.textContent='⚠️ ZXing 모드 (Chrome Android에서 더 빠름)';
+  }else{
+    badge.style.cssText='background:#fff3e0;color:#e67700;border:1px solid #e67700;';
+    badge.textContent='⚠️ ZXing 모드 (Chrome Android 권장)';
   }
 });
 </script>
