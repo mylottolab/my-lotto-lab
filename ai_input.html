@@ -705,6 +705,16 @@ function del(i){if(confirm('삭제하시겠습니까?')){data.splice(i,1);render
 
 render();
 
+// ── onclick에서 접근 가능하도록 전역 등록 ──
+window.toggleMic=toggleMic;
+window.sendInput=sendInput;
+window.onKeyDown=onKeyDown;
+window.fillEx=fillEx;
+window.saveResult=saveResult;
+window.regenResult=regenResult;
+window.del=del;
+window.render=render;
+
 // ── 시간대별 안내 문구 ──
 (function(){
   const el=document.getElementById('roundNotice');
@@ -723,8 +733,6 @@ render();
       <span style="color:#aaa;">회차 미지정 시 → <b>제${THIS_ROUND}회</b>로 자동 등록됩니다</span>`;
   }
 })();
-
-render();
 </script>
 </body>
 </html>
