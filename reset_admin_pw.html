@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>관리자 비밀번호 초기화</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
+body{background:#0f0f1a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+.card{background:#1c1c2e;border:1px solid #2a2a40;border-radius:14px;padding:32px;max-width:360px;width:100%;text-align:center;}
+.icon{font-size:48px;margin-bottom:12px;}
+.title{font-size:16px;font-weight:700;margin-bottom:6px;}
+.sub{font-size:11px;color:#888;margin-bottom:20px;line-height:1.7;}
+.btn{width:100%;background:#e03131;color:#fff;border:none;border-radius:8px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;}
+.btn-back{width:100%;background:none;border:1px solid #333;color:#888;border-radius:8px;padding:10px;font-size:12px;cursor:pointer;}
+.result{display:none;background:#0d2b1a;border:1px solid #2f9e44;border-radius:8px;padding:12px;margin-top:12px;font-size:12px;color:#6fcf97;line-height:1.8;}
+.result.show{display:block;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">🔑</div>
+  <div class="title">관리자 비밀번호 초기화</div>
+  <div class="sub">
+    비밀번호를 초기값으로 재설정합니다.<br>
+    초기 비밀번호: <b style="color:#f5c518;">lotto2024!</b>
+  </div>
+  <button class="btn" onclick="resetPw()">🔄 비밀번호 초기화</button>
+  <button class="btn-back" onclick="location.href='admin.html'">← 관리자 로그인으로</button>
+  <div class="result" id="result"></div>
+</div>
+<script>
+function resetPw(){
+  // 저장된 변경 비밀번호 삭제 → 기본값 lotto2024! 로 복원
+  localStorage.removeItem('mll_admin_pw');
+  sessionStorage.removeItem('mll_admin_auth');
+  var el = document.getElementById('result');
+  el.innerHTML = '✅ 초기화 완료!<br>비밀번호: <b style="color:#f5c518;">lotto2024!</b><br>관리자 페이지에서 로그인하세요.';
+  el.classList.add('show');
+  document.querySelector('.btn').disabled = true;
+  document.querySelector('.btn').style.background = '#555';
+  document.querySelector('.btn').textContent = '✅ 초기화 완료';
+  setTimeout(function(){ location.href='admin.html'; }, 2000);
+}
+window.resetPw = resetPw;
+</script>
+</body>
+</html>
