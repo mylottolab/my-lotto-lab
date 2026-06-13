@@ -4,115 +4,477 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab - 엑셀/CSV 대량 입력</title>
+<script>
+// =====================================================
+// My Lotto Lab - 공통 모듈 (common.js)
+// 모든 페이지에서 공유하는 데이터/함수
+// =====================================================
+
+// ── 전역 MLL 객체 (중복 로드 방지) ──
+if (typeof window.MLL === 'undefined') { window.MLL = {}; }
+var MLL = window.MLL;
+
+MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
+MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
+MLL.STORAGE_KEY       = 'mll_entries';      // 등록번호
+MLL.RESULTS_KEY       = 'mll_results';      // 당첨결과
+MLL.ADMIN_PW_KEY      = 'mll_admin_auth';   // 관리자 인증
+MLL.SESSION_KEY       = 'mll_session';      // 현재 세션ID
+
+// ── 세션ID 생성/조회 ──
+MLL.getSession = function(tag) {
+  // 각 입력창마다 고유 세션 태그 (general/camera/ai/excel)
+  var key = MLL.SESSION_KEY + '_' + tag;
+  var s = sessionStorage.getItem(key);
+  if (!s) { s = tag + '_' + Date.now(); sessionStorage.setItem(key, s); }
+  return s;
+};
+
+// ── 회차/시간 계산 ──
+MLL.getLottoInfo = function() {
+  var now = new Date();
+  var ko  = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+  var day = ko.getDay(), hour = ko.getHours(), min = ko.getMinutes();
+  var elapsed   = now.getTime() - MLL.ROUND1_TS;
+  var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
+  var nextRound = thisRound + 1;
+  var soldOut   = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
+  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut };
+};
+
+MLL.getDrawDate = function(round) {
+  var d = new Date(MLL.ROUND1_TS + (round - 1) * MLL.WEEK_MS);
+  var y = d.getFullYear();
+  var m = String(d.getMonth()+1).padStart(2,'0');
+  var dd= String(d.getDate()).padStart(2,'0');
+  return y+'/'+m+'/'+dd;
+};
+
+MLL.getRoundStatus = function(round) {
+  var info = MLL.getLottoInfo();
+  return round < info.thisRound ? '추첨후' : '추첨전';
+};
+
+// ── 볼 색상 ──
+MLL.BC = function(n) {
+  return n<=10?'#f5c518':n<=20?'#1a7ad4':n<=30?'#e03131':n<=40?'#888888':'#2f9e44';
+};
+MLL.TC = function(n) { return n<=10?'#7a5e00':'#ffffff'; };
+
+// ── UUID 생성 ──
+MLL.uuid = function() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
+    return v.toString(16);
+  });
+};
+
+// =====================================================
+// 데이터 CRUD
+// =====================================================
+
+MLL.loadEntries = function() {
+  try { return JSON.parse(localStorage.getItem(MLL.STORAGE_KEY) || '[]'); }
+  catch(e) { return []; }
+};
+
+MLL.saveEntries = function(entries) {
+  localStorage.setItem(MLL.STORAGE_KEY, JSON.stringify(entries));
+};
+
+// 단일 항목 추가
+MLL.addEntry = function(item) {
+  var entries = MLL.loadEntries();
+  if (!item.id)          item.id          = MLL.uuid();
+  if (!item.createdAt)   item.createdAt   = Date.now();
+  if (!item.grade)       item.grade       = null;
+  if (!item.prizeMoney)  item.prizeMoney  = 0;
+  if (!item.sessionTag)  item.sessionTag  = '';
+  // status 자동 판단
+  item.status = MLL.getRoundStatus(item.round);
+  entries.push(item);
+  MLL.saveEntries(entries);
+  return item;
+};
+
+// 여러 항목 추가
+MLL.addEntries = function(items) {
+  var entries = MLL.loadEntries();
+  items.forEach(function(item) {
+    if (!item.id)         item.id         = MLL.uuid();
+    if (!item.createdAt)  item.createdAt  = Date.now();
+    if (!item.grade)      item.grade      = null;
+    if (!item.prizeMoney) item.prizeMoney = 0;
+    if (!item.sessionTag) item.sessionTag = '';
+    item.status = MLL.getRoundStatus(item.round);
+    entries.push(item);
+  });
+  MLL.saveEntries(entries);
+  return items;
+};
+
+// 항목 삭제
+MLL.deleteEntry = function(id) {
+  var entries = MLL.loadEntries().filter(function(e){ return e.id !== id; });
+  MLL.saveEntries(entries);
+};
+
+// =====================================================
+// 당첨결과 데이터
+// =====================================================
+
+MLL.loadResults = function() {
+  try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }
+  catch(e) { return {}; }
+};
+
+MLL.saveResults = function(results) {
+  localStorage.setItem(MLL.RESULTS_KEY, JSON.stringify(results));
+};
+
+MLL.getResult = function(round) {
+  return MLL.loadResults()[round] || null;
+};
+
+// ── 당첨 등수 계산 ──
+MLL.calcGrade = function(myNums, winNums, bonusNum) {
+  var match = 0;
+  myNums.forEach(function(n){ if(winNums.indexOf(n) >= 0) match++; });
+  var hasBonus = myNums.indexOf(bonusNum) >= 0;
+  if (match===6)                  return 1;
+  if (match===5 && hasBonus)      return 2;
+  if (match===5)                  return 3;
+  if (match===4)                  return 4;
+  if (match===3)                  return 5;
+  return 0;
+};
+
+// ── 당첨금액 계산 ──
+MLL.calcPrize = function(grade, result) {
+  if (!result || grade===0) return 0;
+  if (grade===1) return result.prize1 || 0;
+  if (grade===2) return result.prize2 || 0;
+  if (grade===3) return result.prize3 || 0;
+  if (grade===4) return 50000;
+  if (grade===5) return 5000;
+  return 0;
+};
+
+// ── 당첨결과로 전체 업데이트 ──
+// resultsObj 구조:
+// {
+//   1227: {
+//     nums: [1,14,16,34,41,44],  // 당첨번호 6개
+//     bonus: 13,                  // 보너스번호
+//     winners1: 11,               // 1등 총 당첨게임수
+//     prize1: 2674808455,         // 1등 1게임당 당첨금액
+//     autoWin: 8,                 // 자동 1등 당첨게임수
+//     semiWin: 1,                 // 반자동 1등 당첨게임수
+//     manualWin: 2,               // 수동 1등 당첨게임수
+//     winnerShops: "진흥수퍼, ...", // 1등 당첨점명
+//     winners2: 70,               // 2등 당첨게임수
+//     prize2: 70054508,           // 2등 1게임당 당첨금액
+//     winners3: 3042,             // 3등 당첨게임수
+//     prize3: 1612037,            // 3등 1게임당 당첨금액
+//     note: "..."                 // 특이사항 (옵션)
+//   }
+// }
+MLL.applyResults = function(resultsObj) {
+  MLL.saveResults(resultsObj);
+  var entries = MLL.loadEntries();
+  var updated = 0;
+  entries.forEach(function(entry) {
+    var res = resultsObj[entry.round];
+    if (res) {
+      entry.status     = '추첨후';
+      entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
+      entry.prizeMoney = MLL.calcPrize(entry.grade, res);
+      updated++;
+    }
+  });
+  MLL.saveEntries(entries);
+  return updated;
+};
+
+// =====================================================
+// 정렬 (추첨전 상단, 추첨후 하단, 각각 회차 내림차순)
+// =====================================================
+
+MLL.sortEntries = function(entries) {
+  var pre  = entries.filter(function(e){ return e.status==='추첨전'; })
+                    .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  var post = entries.filter(function(e){ return e.status!=='추첨전'; })
+                    .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  return pre.concat(post);
+};
+
+// =====================================================
+// 공통 테이블 렌더러
+// =====================================================
+
+MLL.GRADE_LABEL = ['낙첨','1등','2등','3등','4등','5등'];
+MLL.GRADE_COLOR = ['#aaa','#e03131','#e67700','#1a7ad4','#2f9e44','#888'];
+
+MLL.renderBalls = function(nums, bonusNums, small) {
+  var size = small ? 19 : 24;
+  var fs   = small ? 8  : 10;
+  return nums.map(function(n) {
+    var isBonus = bonusNums && bonusNums.indexOf(n)>=0;
+    var bg  = isBonus ? '#fff'    : MLL.BC(n);
+    var tc  = isBonus ? '#555'    : MLL.TC(n);
+    var brd = isBonus ? '2px solid #aaa' : 'none';
+    return '<span style="width:'+size+'px;height:'+size+'px;border-radius:50%;display:inline-flex;' +
+      'align-items:center;justify-content:center;font-size:'+fs+'px;font-weight:700;flex-shrink:0;' +
+      'background:'+bg+';color:'+tc+';border:'+brd+';margin:1px;">'+n+'</span>';
+  }).join('');
+};
+
+// 통일된 테이블 행 생성
+MLL.renderRow = function(entry, sessionTag, opts) {
+  opts = opts || {};
+  var isSession = sessionTag && entry.sessionTag === sessionTag;
+  var result    = MLL.getResult(entry.round);
+  var winNums   = result ? result.nums   : [];
+  var bonusNum  = result ? result.bonus  : null;
+
+  // 번호 정렬 후 매치 표시
+  var sorted = entry.nums.slice().sort(function(a,b){return a-b;});
+  var ballsHTML = sorted.map(function(n) {
+    var isMatch = winNums.indexOf(n) >= 0;
+    var isBonus = n === bonusNum && !isMatch;
+    var bg  = isBonus ? '#fff'    : MLL.BC(n);
+    var tc  = isBonus ? '#555'    : MLL.TC(n);
+    var brd = isMatch  ? '2px solid #f5c518' :
+              isBonus  ? '2px solid #aaa'    : 'none';
+    var op  = (entry.type==='반자동' && !entry.isReal) ? '0.45' : '1';
+    return '<span style="width:19px;height:19px;border-radius:50%;display:inline-flex;' +
+      'align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;' +
+      'background:'+bg+';color:'+tc+';border:'+brd+';margin:1px;opacity:'+op+';">'+n+'</span>';
+  }).join('');
+
+  // 구매형태 뱃지
+  var typeColor = entry.type==='자동'?'#2f9e44':entry.type==='반자동'?'#e67700':'#1a7ad4';
+  var typeBg    = entry.type==='자동'?'#e8fff0':entry.type==='반자동'?'#fff3e0':'#e8f4ff';
+  var typeHTML  = '<span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;' +
+    'color:'+typeColor+';background:'+typeBg+';border:1px solid '+typeColor+';">'+entry.type+'</span>';
+
+  // 구분 (실구매/가상)
+  var realHTML = entry.isReal
+    ? '<span style="background:#f5c518;color:#7a5e00;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;">실구매</span>'
+    : '<span style="background:#eee;color:#999;font-size:8px;padding:1px 4px;border-radius:3px;">가상</span>';
+
+  // 추첨상태
+  var statusHTML = entry.status==='추첨전'
+    ? '<span style="color:#e03131;font-weight:700;font-size:9px;">추첨전</span>'
+    : '<span style="color:#999;font-size:9px;">추첨후</span>';
+
+  // 당첨결과
+  var gradeHTML = '<span style="color:#ddd;">-</span>';
+  if (entry.status==='추첨후' && entry.grade !== null) {
+    if (entry.grade === 0) {
+      gradeHTML = '<span style="color:#aaa;font-size:9px;">낙첨</span>';
+    } else {
+      gradeHTML = '<span style="color:'+MLL.GRADE_COLOR[entry.grade]+';font-weight:700;font-size:9px;">' +
+        MLL.GRADE_LABEL[entry.grade]+'</span>';
+    }
+  }
+
+  // 당첨금
+  var prizeHTML = '<span style="color:#ddd;">-</span>';
+  if (entry.prizeMoney && entry.prizeMoney > 0) {
+    prizeHTML = '<span style="color:#e03131;font-weight:700;font-size:9px;">' +
+      entry.prizeMoney.toLocaleString()+'원</span>';
+  }
+
+  // 세션 하이라이트 (현재 입력창에서 입력한 항목)
+  var rowStyle = isSession
+    ? 'border-left:3px solid #1a7ad4;background:#f0f8ff;'
+    : (entry.status==='추첨전' ? 'background:#fff8e1;' : '');
+
+  var rcColor = entry.status==='추첨전' ? '#e03131' : '#555';
+
+  var delBtn = opts.noDelete ? '' :
+    '<button onclick="MLL.deleteEntry(\''+entry.id+'\');if(window.refreshTable)refreshTable();" ' +
+    'style="background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;">🗑</button>';
+
+  return '<tr style="'+rowStyle+'">' +
+    '<td style="text-align:center;padding:4px 4px;"><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">'+entry.round+'회</span></td>' +
+    '<td style="padding:4px 6px;"><div style="display:flex;gap:1px;align-items:center;flex-wrap:wrap;">'+ballsHTML+'</div></td>' +
+    '<td style="text-align:center;padding:4px 4px;">'+typeHTML+'</td>' +
+    '<td style="text-align:center;padding:4px 4px;">'+realHTML+'</td>' +
+    '<td style="text-align:center;padding:4px 4px;">'+statusHTML+'</td>' +
+    '<td style="text-align:center;padding:4px 4px;">'+gradeHTML+'</td>' +
+    '<td style="text-align:center;padding:4px 4px;">'+prizeHTML+'</td>' +
+    '<td style="text-align:center;padding:4px 4px;">'+delBtn+'</td>' +
+    '</tr>';
+};
+
+// 섹션 구분선
+MLL.renderDivider = function(label, count) {
+  return '<tr><td colspan="8" style="background:#f0f0f0;padding:3px 8px;font-size:9px;font-weight:700;color:#888;">'+
+    label+' ('+count+'개)</td></tr>';
+};
+
+// 전체 테이블 렌더
+MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
+  var entries = MLL.loadEntries();
+  if (filterRound) entries = entries.filter(function(e){ return e.round == filterRound; });
+  var sorted  = MLL.sortEntries(entries);
+  var pre     = sorted.filter(function(e){ return e.status==='추첨전'; });
+  var post    = sorted.filter(function(e){ return e.status!=='추첨전'; });
+  var tbody   = document.getElementById(tbodyId);
+  if (!tbody) return;
+
+  var html = '';
+  if (!sorted.length) {
+    html = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';
+  } else {
+    if (pre.length) {
+      html += MLL.renderDivider('🔴 추첨 예정', pre.length);
+      pre.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
+    }
+    if (post.length) {
+      html += MLL.renderDivider('✅ 추첨 완료', post.length);
+      post.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
+    }
+  }
+  tbody.innerHTML = html;
+
+  // 카운트 업데이트
+  var tcEl = document.getElementById('totalCount');
+  if (tcEl) tcEl.textContent = entries.length;
+  var realEl = document.getElementById('realCount');
+  if (realEl) realEl.textContent = entries.filter(function(e){return e.isReal;}).length;
+};
+
+// 테이블 헤더 HTML
+MLL.TABLE_HEADER = '<thead><tr>' +
+  '<th style="width:52px;">회차</th>' +
+  '<th style="width:160px;">번호</th>' +
+  '<th style="width:54px;">구매형태</th>' +
+  '<th style="width:50px;">구분</th>' +
+  '<th style="width:50px;">추첨</th>' +
+  '<th style="width:46px;">결과</th>' +
+  '<th style="width:80px;">당첨금</th>' +
+  '<th style="width:28px;">삭제</th>' +
+  '</tr></thead>';
+
+// =====================================================
+// 관리자 인증
+// =====================================================
+
+MLL.ADMIN_PW = 'lotto2024!';  // 관리자 비밀번호 (변경 가능)
+
+MLL.checkAdmin = function() {
+  return sessionStorage.getItem(MLL.ADMIN_PW_KEY) === 'ok';
+};
+
+MLL.loginAdmin = function(pw) {
+  if (pw === MLL.ADMIN_PW) {
+    sessionStorage.setItem(MLL.ADMIN_PW_KEY, 'ok');
+    return true;
+  }
+  return false;
+};
+
+MLL.logoutAdmin = function() {
+  sessionStorage.removeItem(MLL.ADMIN_PW_KEY);
+};
+
+// =====================================================
+// 통계
+// =====================================================
+
+MLL.getStats = function() {
+  var entries = MLL.loadEntries();
+  var stats = {
+    total: entries.length,
+    byMethod: { general:0, camera:0, ai:0, excel:0 },
+    byType:   { auto:0, semi:0, manual:0 },
+    byStatus: { pre:0, post:0 },
+    byReal:   { real:0, virtual:0 },
+    byGrade:  { g1:0, g2:0, g3:0, g4:0, g5:0, fail:0 },
+    totalPrize: 0
+  };
+  entries.forEach(function(e) {
+    // 입력방법
+    var m = e.inputMethod || 'general';
+    if (stats.byMethod[m] !== undefined) stats.byMethod[m]++;
+    // 구매형태
+    if (e.type==='자동')   stats.byType.auto++;
+    if (e.type==='반자동') stats.byType.semi++;
+    if (e.type==='수동')   stats.byType.manual++;
+    // 추첨상태
+    if (e.status==='추첨전') stats.byStatus.pre++;
+    else                     stats.byStatus.post++;
+    // 실구매/가상
+    if (e.isReal) stats.byReal.real++;
+    else          stats.byReal.virtual++;
+    // 당첨
+    if (e.grade===1) stats.byGrade.g1++;
+    else if (e.grade===2) stats.byGrade.g2++;
+    else if (e.grade===3) stats.byGrade.g3++;
+    else if (e.grade===4) stats.byGrade.g4++;
+    else if (e.grade===5) stats.byGrade.g5++;
+    else if (e.status==='추첨후') stats.byGrade.fail++;
+    // 당첨금
+    stats.totalPrize += (e.prizeMoney || 0);
+  });
+  return stats;
+};
+
+console.log('[MLL] common.js 로드 완료');
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
 body{background:#f3f4f6;font-size:13px;}
-.header{background:#f3f4f6;padding:0;}
-.header-inner{max-width:1000px;margin:0 auto;width:100%;padding:0 14px;height:44px;display:flex;align-items:center;justify-content:space-between;background:#1c1c2e;border-radius:0 0 8px 8px;}
-.logo-icon{width:30px;height:30px;background:#1a7ad4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.header-inner{max-width:1000px;margin:0 auto;padding:0 14px;height:44px;display:flex;align-items:center;justify-content:space-between;background:#1c1c2e;border-radius:0 0 8px 8px;}
 .logo-left{display:flex;align-items:center;gap:9px;}
+.logo-icon{width:30px;height:30px;background:#2f9e44;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
 .logo-text .title{font-size:14px;font-weight:700;color:#fff;}
 .logo-text .sub{font-size:9px;color:#aaa;}
 .btn-back{background:none;border:1px solid #555;color:#ccc;padding:3px 10px;border-radius:5px;font-size:11px;cursor:pointer;}
-.btn-back:hover{background:#333;}
-
 .main{max-width:960px;margin:0 auto;padding:12px 14px;}
 .wrap{display:grid;grid-template-columns:420px 1fr;gap:10px;}
-
-/* 왼쪽 패널 */
 .panel{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
 .ph{padding:10px 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#fff;background:#2f9e44;}
 .pb{padding:14px;}
-
-/* 파일 업로드 영역 */
-.upload-section{margin-bottom:14px;}
 .upload-label{font-size:11px;font-weight:600;color:#555;margin-bottom:6px;}
 .file-input-wrap{display:flex;align-items:center;gap:8px;border:1px solid #ddd;border-radius:6px;padding:6px 10px;background:#fafafa;}
-.file-btn{background:#fff;border:1px solid #ccc;border-radius:5px;padding:4px 10px;font-size:11px;color:#555;cursor:pointer;white-space:nowrap;}
-.file-btn:hover{background:#f0f0f0;}
+.file-btn{background:#fff;border:1px solid #ccc;border-radius:5px;padding:4px 10px;font-size:11px;color:#555;cursor:pointer;}
 .file-name{font-size:11px;color:#999;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .btn-row{display:flex;gap:8px;margin-top:10px;}
 .btn-upload{flex:1;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
-.btn-upload:hover{background:#268a38;}
-.btn-download{flex:1;background:#fff;color:#2f9e44;border:2px solid #2f9e44;border-radius:6px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:5px;}
-.btn-download:hover{background:#f0fff4;}
-
-/* 결과 메세지 */
+.btn-download{flex:1;background:#fff;color:#2f9e44;border:2px solid #2f9e44;border-radius:6px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
 .result-box{display:none;border-radius:6px;padding:10px 12px;font-size:11px;margin-top:10px;line-height:1.7;}
 .result-box.success{background:#e8fff0;border:1px solid #2f9e44;color:#1a6b2e;}
 .result-box.error{background:#fff0f0;border:1px solid #e03131;color:#c00;}
 .result-box.show{display:block;}
-
-/* 파일 형식 안내 */
 .guide-box{background:#e8f9ff;border:1px solid #b0e0f5;border-radius:8px;padding:12px 14px;}
-.guide-title{font-size:12px;font-weight:700;color:#1a7ad4;margin-bottom:8px;display:flex;align-items:center;gap:5px;}
+.guide-title{font-size:12px;font-weight:700;color:#1a7ad4;margin-bottom:8px;}
 .guide-table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:10px;}
 .guide-table th{background:#1a7ad4;color:#fff;padding:5px 6px;text-align:center;font-weight:600;}
 .guide-table td{background:#fff;padding:4px 6px;text-align:center;border:1px solid #c0dff5;color:#444;}
-.guide-table td.memo{text-align:left;}
 .guide-notes{list-style:none;font-size:10px;color:#555;line-height:1.9;}
 .guide-notes li::before{content:'• ';color:#1a7ad4;}
-
-.btn-back-list{width:100%;background:#fff;border:1px solid #ccc;border-radius:6px;padding:7px;font-size:11px;color:#666;cursor:pointer;margin-top:12px;}
-.btn-back-list:hover{background:#f5f5f5;}
-
-/* 오른쪽 테이블 패널 */
 .rp{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
 .rph{padding:8px 12px;display:flex;align-items:center;gap:7px;border-bottom:1px solid #eee;flex-wrap:wrap;}
 .rpt{font-size:13px;font-weight:700;color:#333;}
 .cb{background:#1a7ad4;color:#fff;font-size:10px;padding:1px 7px;border-radius:8px;}
 .fsel{border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:10px;}
 .btn-q{background:#fff;border:1px solid #1a7ad4;color:#1a7ad4;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;}
-.btn-res{background:#2f9e44;color:#fff;border:none;border-radius:4px;padding:3px 9px;font-size:10px;cursor:pointer;}
 .tw{overflow-x:auto;overflow-y:auto;max-height:560px;}
-table{width:100%;border-collapse:collapse;min-width:480px;table-layout:fixed;}
-col.c-round{width:58px;}
-col.c-nums{width:150px;}
-col.c-memo{width:100px;}
-col.c-type{width:80px;}
-col.c-status{width:58px;}
-col.c-grade{width:58px;}
-col.c-del{width:36px;}
+table{width:100%;border-collapse:collapse;min-width:500px;}
 th{background:#f8f8f8;padding:6px 7px;font-size:10px;font-weight:700;color:#555;border-bottom:1px solid #e0e0e0;white-space:nowrap;position:sticky;top:0;z-index:2;text-align:center;}
-th.s{cursor:pointer;user-select:none;}
-th.s:hover{background:#eef2ff;color:#1a7ad4;}
-td{padding:5px 7px;font-size:10px;color:#444;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+td{padding:5px 7px;font-size:10px;color:#444;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;}
 tr:hover td{background:#fafafa;}
-/* 엑셀 업로드분 구분 스타일 */
-tr.excel-row td{background:#f0fff4;}
-tr.excel-row .rc{background:#2f9e44;}
-.rc{background:#555;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;}
-.bm{display:flex;gap:2px;align-items:center;justify-content:center;}
-.ball{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;}
-.tg{font-size:9px;padding:1px 6px;border-radius:3px;font-weight:600;}
-.tm{background:#e8f4ff;color:#1a7ad4;}
-.ta{background:#e8fff0;color:#2f9e44;}
-.ts{background:#fff3e0;color:#e67700;}
-/* 엑셀 업로드 수동 태그 */
-.te{background:#e8fff0;color:#2f9e44;font-size:9px;padding:1px 6px;border-radius:3px;font-weight:700;border:1px solid #2f9e44;white-space:nowrap;}
-.tbf{color:#e03131;font-weight:700;font-size:10px;}
-.tba{color:#999;font-size:10px;}
-.gx{color:#ddd;}
-.btn-d{background:none;border:1px solid #fcc;border-radius:3px;padding:1px 5px;color:#e03131;cursor:pointer;font-size:10px;}
-.sa{font-size:9px;}
-.sa.asc::after{content:' ▲';color:#1a7ad4;}
-.sa.desc::after{content:' ▼';color:#1a7ad4;}
-.sa:not(.asc):not(.desc)::after{content:' ⇅';color:#bbb;}
-.no-data{text-align:center;padding:40px;color:#bbb;font-size:12px;}
-/* 엑셀 업로드 범례 */
-.legend{display:flex;align-items:center;gap:12px;font-size:10px;color:#666;padding:6px 12px;border-top:1px solid #f0f0f0;background:#fafafa;}
-.legend-item{display:flex;align-items:center;gap:4px;}
-.legend-dot{width:10px;height:10px;border-radius:2px;}
-.legend-dot.manual{background:#f0fff4;border:1px solid #2f9e44;}
-.legend-dot.normal{background:#fff;border:1px solid #ddd;}
 </style>
 </head>
 <body>
-
 <div class="header">
   <div class="header-inner">
     <div class="logo-left">
-      <div class="logo-icon">🎱</div>
+      <div class="logo-icon">📊</div>
       <div class="logo-text">
         <div class="title">My Lotto Lab</div>
         <div class="sub">엑셀/CSV 대량 입력</div>
@@ -122,301 +484,182 @@ tr.excel-row .rc{background:#2f9e44;}
   </div>
 </div>
 
-<div class="main">
-<div class="wrap">
+<div class="main"><div class="wrap">
 
 <!-- 왼쪽: 업로드 패널 -->
 <div>
   <div class="panel">
     <div class="ph">📊 엑셀/CSV 대량 입력</div>
     <div class="pb">
-
-      <!-- 파일 업로드 -->
-      <div class="upload-section">
-        <div class="upload-label">파일 업로드</div>
-        <div style="font-size:10px;color:#aaa;margin-bottom:6px;">파일 선택 (.xlsx 또는 .csv)</div>
-        <div class="file-input-wrap">
-          <button class="file-btn" onclick="document.getElementById('fileInput').click()">파일 선택</button>
-          <span class="file-name" id="fileName">선택된 파일 없음</span>
-        </div>
-        <input type="file" id="fileInput" accept=".xlsx,.csv" style="display:none;" onchange="onFileSelect(this)">
-        <div class="btn-row">
-          <button class="btn-upload" onclick="uploadFile()">⬆ 업로드 및 저장</button>
-          <button class="btn-download" onclick="downloadTemplate()">⬇ 엑셀양식 다운로드</button>
-        </div>
-        <div class="result-box" id="resultBox"></div>
+      <div class="upload-label">파일 업로드</div>
+      <div style="font-size:10px;color:#aaa;margin-bottom:6px;">파일 선택 (.xlsx 또는 .csv)</div>
+      <div class="file-input-wrap">
+        <button class="file-btn" onclick="document.getElementById('fileInput').click()">파일 선택</button>
+        <span class="file-name" id="fileName">선택된 파일 없음</span>
       </div>
+      <input type="file" id="fileInput" accept=".xlsx,.csv" style="display:none;" onchange="onFileSelect(this)">
+      <div class="btn-row">
+        <button class="btn-upload" onclick="uploadFile()">⬆ 업로드 및 저장</button>
+        <button class="btn-download" onclick="downloadTemplate()">⬇ 엑셀양식 다운로드</button>
+      </div>
+      <div class="result-box" id="resultBox"></div>
 
-      <!-- 파일 형식 안내 -->
-      <div class="guide-box">
+      <div class="guide-box" style="margin-top:12px;">
         <div class="guide-title">ℹ 파일 형식 안내</div>
-        <div style="font-size:10px;color:#555;margin-bottom:8px;text-align:center;">1행은 헤더로 똑 같은 명칭으로 넣어두셔야합니다.</div>
+        <div style="font-size:10px;color:#555;margin-bottom:8px;text-align:center;">1행은 헤더로 똑같은 명칭을 넣어주세요.</div>
         <table class="guide-table">
-          <thead>
-            <tr>
-              <th>회차</th><th>번호1</th><th>번호2</th><th>번호3</th><th>번호4</th><th>번호5</th><th>번호6</th><th>메모</th>
-            </tr>
-          </thead>
+          <thead><tr><th>회차</th><th>번호1</th><th>번호2</th><th>번호3</th><th>번호4</th><th>번호5</th><th>번호6</th><th>메모</th></tr></thead>
           <tbody>
-            <tr>
-              <td>1228</td><td>3</td><td>14</td><td>22</td><td>31</td><td>38</td><td>45</td><td class="memo">생일번호</td>
-            </tr>
-            <tr>
-              <td>1228</td><td>7</td><td>11</td><td>19</td><td>27</td><td>33</td><td>42</td><td class="memo"></td>
-            </tr>
+            <tr><td>1228</td><td>3</td><td>14</td><td>22</td><td>31</td><td>38</td><td>45</td><td>생일번호</td></tr>
+            <tr><td>1228</td><td>7</td><td>11</td><td>19</td><td>27</td><td>33</td><td>42</td><td></td></tr>
           </tbody>
         </table>
         <ul class="guide-notes">
           <li>번호는 1~45 사이의 서로 다른 숫자 6개여야 합니다.</li>
           <li>한 행이 하나의 번호 조합입니다.</li>
           <li>오류가 있는 행은 건너뛰고 나머지는 정상 저장됩니다.</li>
-          <li>업로드된 번호는 <b style="color:#2f9e44;">수동(엑셀)</b>으로 표시되며, 통계에서는 <b>수동</b>으로 집계됩니다.</li>
+          <li>업로드된 번호는 <b style="color:#2f9e44;">수동(엑셀)</b>으로 표시됩니다.</li>
         </ul>
       </div>
-
-      <button class="btn-back-list" onclick="location.href='lotto_input_page_v4.html'">← 내 번호 목록으로</button>
     </div>
   </div>
 </div>
 
-<!-- 오른쪽: 저장된 번호 테이블 -->
+<!-- 오른쪽: 테이블 -->
 <div class="rp">
   <div class="rph">
     <span class="rpt">🎫 저장된 번호</span>
-    <span class="cb" id="tc">0</span>
-    <span class="rpt">개</span>
-    <div style="margin-left:auto;display:flex;gap:5px;align-items:center;">
-      <select class="fsel" id="fs" onchange="render()"><option value="">전체</option></select>
-      <button class="btn-q" onclick="render()">조회</button>
-      <button class="btn-res" onclick="showRes()">✔ 결과 확인</button>
+    <span class="cb" id="totalCount">0</span>
+    <div style="margin-left:auto;display:flex;gap:5px;">
+      <select class="fsel" id="fs" onchange="refreshTable()"><option value="">전체</option></select>
+      <button class="btn-q" onclick="refreshTable()">조회</button>
     </div>
-  </div>
-  <div class="legend">
-    <span>범례:</span>
-    <div class="legend-item"><div class="legend-dot manual"></div><span>엑셀 업로드(수동)</span></div>
-    <div class="legend-item"><div class="legend-dot normal"></div><span>일반 등록</span></div>
   </div>
   <div class="tw">
     <table>
-      <colgroup>
-        <col class="c-round"><col class="c-nums"><col class="c-memo">
-        <col class="c-type"><col class="c-status"><col class="c-grade"><col class="c-del">
-      </colgroup>
       <thead><tr>
-        <th class="s" onclick="srt('round')">회차<span class="sa" id="sa-round"></span></th>
-        <th>선택한 번호</th>
-        <th>선택사유(메모)</th>
-        <th class="s" onclick="srt('type')">구매형태<span class="sa" id="sa-type"></span></th>
-        <th class="s" onclick="srt('status')">추첨유무<span class="sa" id="sa-status"></span></th>
-        <th class="s" onclick="srt('grade')">추첨결과?<span class="sa" id="sa-grade"></span></th>
-        <th>삭제</th>
+        <th style="width:52px;">회차</th>
+        <th style="width:155px;">번호</th>
+        <th style="width:80px;">메모</th>
+        <th style="width:54px;">구매형태</th>
+        <th style="width:50px;">구분</th>
+        <th style="width:50px;">추첨</th>
+        <th style="width:46px;">결과</th>
+        <th style="width:75px;">당첨금</th>
+        <th style="width:28px;">삭제</th>
       </tr></thead>
       <tbody id="tb"></tbody>
     </table>
   </div>
 </div>
 
-</div>
-</div>
+</div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-// ── 회차 계산 ──
-const ROUND1_DRAW_KST = new Date('2002-12-07T20:45:00+09:00').getTime();
-const WEEK_MS = 7*24*60*60*1000;
-function getRoundDate(r){
-  const d=new Date(ROUND1_DRAW_KST+(r-1)*WEEK_MS);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function calcCurrentRound(){
-  const elapsed=Date.now()-ROUND1_DRAW_KST;
-  return elapsed<0?0:Math.floor(elapsed/WEEK_MS)+1;
-}
-const CURRENT_ROUND=calcCurrentRound();
-const NEXT_ROUND=CURRENT_ROUND+1;
+var SESSION_TAG = MLL.getSession('excel');
+var INFO        = MLL.getLottoInfo();
+var THIS_ROUND  = INFO.thisRound;
+var NEXT_ROUND  = INFO.nextRound;
 
-// 필터 셀렉트
+// 필터 드롭다운
 (function(){
-  const sel=document.getElementById('fs');
-  for(let r=NEXT_ROUND;r>=Math.max(1,NEXT_ROUND-19);r--){
-    const opt=document.createElement('option');
-    opt.value=r;opt.textContent=r+'회';
-    sel.appendChild(opt);
+  var sel=document.getElementById('fs');
+  for(var r=NEXT_ROUND;r>=Math.max(1,NEXT_ROUND-19);r--){
+    var o=document.createElement('option'); o.value=r; o.textContent=r+'회'; sel.appendChild(o);
   }
 })();
 
-const BC=(n)=>n<=10?'#f5c518':n<=20?'#1a7ad4':n<=30?'#e03131':n<=40?'#888':'#2f9e44';
-const TC=(n)=>n<=10?'#7a5e00':'#fff';
-const CLS=(n)=>n<=10?'y':n<=20?'bl':n<=30?'r':n<=40?'gy':'gr';
-
-let resShown=false;
-let sortCol=null,sortDir=1;
-let data=[
-  {round:NEXT_ROUND,nums:[5,8,12,13,38,43],an:[],memo:'차번호',type:'수동',status:'추첨전',grade:null,fromExcel:false},
-  {round:CURRENT_ROUND,nums:[3,18,25,30,38,43],an:[],memo:'',type:'자동',status:'추첨후',grade:null,fromExcel:false},
-  {round:CURRENT_ROUND-1,nums:[5,17,24,36,40,42],an:[],memo:'',type:'수동',status:'추첨후',grade:5,fromExcel:false},
-];
-
-// ── 파일 선택 ──
-function onFileSelect(input){
-  const f=input.files[0];
-  document.getElementById('fileName').textContent=f?f.name:'선택된 파일 없음';
+function onFileSelect(inp){
+  document.getElementById('fileName').textContent = inp.files[0] ? inp.files[0].name : '선택된 파일 없음';
 }
 
-// ── 엑셀 양식 다운로드 ──
 function downloadTemplate(){
-  const wb=XLSX.utils.book_new();
-  const wsData=[
+  var wb=XLSX.utils.book_new();
+  var wsData=[
     ['회차','번호1','번호2','번호3','번호4','번호5','번호6','메모'],
     [1228,3,14,22,31,38,45,'생일번호'],
     [1228,7,11,19,27,33,42,''],
   ];
-  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  var ws=XLSX.utils.aoa_to_sheet(wsData);
   ws['!cols']=[{wch:8},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:20}];
   XLSX.utils.book_append_sheet(wb,ws,'번호입력');
   XLSX.writeFile(wb,'lotto_template.xlsx');
 }
 
-// ── 파일 업로드 및 파싱 ──
 function uploadFile(){
-  const input=document.getElementById('fileInput');
-  const rb=document.getElementById('resultBox');
-  if(!input.files.length){
-    showResult('error','파일을 먼저 선택해주세요.');return;
-  }
-  const file=input.files[0];
-  const reader=new FileReader();
+  var inp=document.getElementById('fileInput');
+  if(!inp.files.length){ showResult('error','파일을 먼저 선택해주세요.'); return; }
+  var file=inp.files[0];
+  var reader=new FileReader();
   reader.onload=function(e){
     try{
-      let rows=[];
-      const name=file.name.toLowerCase();
-      if(name.endsWith('.csv')){
-        const text=e.target.result;
-        const lines=text.split('\n').filter(l=>l.trim());
-        const headers=lines[0].split(',').map(h=>h.trim());
-        for(let i=1;i<lines.length;i++){
-          const cols=lines[i].split(',').map(c=>c.trim());
-          const obj={};
-          headers.forEach((h,j)=>obj[h]=cols[j]||'');
+      var rows=[];
+      if(file.name.toLowerCase().endsWith('.csv')){
+        var lines=e.target.result.split('\n').filter(function(l){return l.trim();});
+        var headers=lines[0].split(',').map(function(h){return h.trim();});
+        for(var i=1;i<lines.length;i++){
+          var cols=lines[i].split(',').map(function(c){return c.trim();});
+          var obj={};
+          headers.forEach(function(h,j){obj[h]=cols[j]||'';});
           rows.push(obj);
         }
       } else {
-        const wb=XLSX.read(e.target.result,{type:'array'});
-        const ws=wb.Sheets[wb.SheetNames[0]];
+        var wb=XLSX.read(e.target.result,{type:'array'});
+        var ws=wb.Sheets[wb.SheetNames[0]];
         rows=XLSX.utils.sheet_to_json(ws);
       }
       processRows(rows);
-    } catch(err){
-      showResult('error','파일 읽기 오류: '+err.message);
-    }
+    } catch(err){ showResult('error','파일 읽기 오류: '+err.message); }
   };
-  if(file.name.toLowerCase().endsWith('.csv'))
-    reader.readAsText(file,'utf-8');
-  else
-    reader.readAsArrayBuffer(file);
+  if(file.name.toLowerCase().endsWith('.csv')) reader.readAsText(file,'utf-8');
+  else reader.readAsArrayBuffer(file);
 }
 
 function processRows(rows){
-  let ok=0,skip=0,added=[];
-  rows.forEach(row=>{
+  var ok=0, skip=0, items=[];
+  rows.forEach(function(row){
     try{
-      const round=parseInt(row['회차']);
-      const nums=[
-        parseInt(row['번호1']),parseInt(row['번호2']),parseInt(row['번호3']),
-        parseInt(row['번호4']),parseInt(row['번호5']),parseInt(row['번호6'])
-      ];
-      const memo=row['메모']||'';
-      // 유효성 검사
-      if(!round||round<1)throw new Error('회차 오류');
-      if(nums.some(isNaN)||nums.some(n=>n<1||n>45))throw new Error('번호 범위 오류');
-      if(new Set(nums).size!==6)throw new Error('중복 번호');
-      const status=round<=CURRENT_ROUND?'추첨후':'추첨전';
-      added.push({round,nums,an:[],memo,type:'수동',status,grade:null,fromExcel:true}); // 통계시 '수동'으로 집계
+      var round=parseInt(row['회차']);
+      var nums=[parseInt(row['번호1']),parseInt(row['번호2']),parseInt(row['번호3']),
+                parseInt(row['번호4']),parseInt(row['번호5']),parseInt(row['번호6'])];
+      var memo=row['메모']||'';
+      if(!round||round<1) throw new Error('회차 오류');
+      if(nums.some(isNaN)||nums.some(function(n){return n<1||n>45;})) throw new Error('번호 오류');
+      if(new Set(nums).size!==6) throw new Error('중복 번호');
+      items.push({ round:round, nums:nums.sort(function(a,b){return a-b;}), type:'수동', isReal:false, inputMethod:'excel', sessionTag:SESSION_TAG, memo:memo });
       ok++;
     } catch(e){ skip++; }
   });
-  // 최신순으로 추가
-  added.reverse().forEach(item=>data.unshift(item));
-  resShown=false;
-  render();
-  let msg=`✅ ${ok}개 저장 완료!`;
-  if(skip>0) msg+=` (오류 ${skip}개 건너뜀)`;
+  if(items.length) MLL.addEntries(items);
+  refreshTable();
+  var msg='✅ '+ok+'개 저장 완료!';
+  if(skip>0) msg+=' (오류 '+skip+'개 건너뜀)';
   showResult('success',msg);
   document.getElementById('fileInput').value='';
   document.getElementById('fileName').textContent='선택된 파일 없음';
 }
 
 function showResult(type,msg){
-  const rb=document.getElementById('resultBox');
+  var rb=document.getElementById('resultBox');
   rb.className='result-box '+type+' show';
   rb.textContent=msg;
-  setTimeout(()=>rb.classList.remove('show'),5000);
+  setTimeout(function(){rb.classList.remove('show');},5000);
 }
 
-// ── 정렬 ──
-function srt(col){
-  if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}
-  ['round','type','status','grade'].forEach(c=>{
-    const el=document.getElementById('sa-'+c);
-    if(el){el.className='sa';if(c===col)el.classList.add(sortDir===1?'asc':'desc');}
-  });render();
+function refreshTable(){
+  var fv=document.getElementById('fs').value;
+  MLL.renderTable('tb', SESSION_TAG, fv||null);
+  var entries=MLL.loadEntries();
+  document.getElementById('totalCount').textContent=entries.length;
 }
 
-function showRes(){
-  resShown=true;
-  data.forEach(item=>{
-    if(item.status==='추첨후'&&item.grade===null){
-      const r=Math.random();item.grade=r<0.04?5:r<0.008?4:0;
-    }
-  });render();
-}
+window.onFileSelect=onFileSelect;
+window.downloadTemplate=downloadTemplate;
+window.uploadFile=uploadFile;
+window.refreshTable=refreshTable;
 
-function render(){
-  const fv=document.getElementById('fs').value;
-  let list=fv?data.filter(x=>String(x.round)===fv):[...data];
-  if(sortCol){
-    list.sort((a,b)=>{
-      const av=sortCol==='round'?a.round:sortCol==='grade'?(a.grade||0):a[sortCol]||'';
-      const bv=sortCol==='round'?b.round:sortCol==='grade'?(b.grade||0):b[sortCol]||'';
-      return av<bv?-sortDir:av>bv?sortDir:0;
-    });
-  }
-  document.getElementById('tc').textContent=data.length;
-  const tb=document.getElementById('tb');
-  if(!list.length){
-    tb.innerHTML='<tr><td colspan="7" class="no-data">저장된 번호가 없습니다.</td></tr>';return;
-  }
-  tb.innerHTML=list.map(item=>{
-    const ri=data.indexOf(item);
-    const balls=[...item.nums].sort((a,b)=>a-b).map(n=>
-      `<span class="ball" style="background:${BC(n)};color:${TC(n)}">${n}</span>`
-    ).join('');
-    // 엑셀 업로드분: 초록 테두리 수동 태그, 행 배경색 구분
-    const ttag=item.fromExcel
-      ?`<span class="te">수동(엑셀)</span>`
-      :item.type==='수동'?`<span class="tg tm">수동</span>`
-      :item.type==='자동'?`<span class="tg ta">자동</span>`
-      :`<span class="tg ts">반자동</span>`;
-    const stag=item.status==='추첨전'?'<span class="tbf">추첨전</span>':'<span class="tba">추첨후</span>';
-    let gr='<span class="gx">-</span>';
-    if(resShown&&item.status==='추첨후'){
-      gr=item.grade?`<span style="font-size:9px;font-weight:700;color:#1a7ad4;">${item.grade}등</span>`:'<span class="gx">낙첨</span>';
-    }
-    const rowCls=item.fromExcel?'excel-row':'';
-    return `<tr class="${rowCls}">
-      <td><span class="rc">${item.round}회</span></td>
-      <td><div class="bm">${balls}</div></td>
-      <td style="font-size:9px;color:#999;text-align:left;">${item.memo||''}</td>
-      <td>${ttag}</td>
-      <td>${stag}</td>
-      <td>${gr}</td>
-      <td><button class="btn-d" onclick="del(${ri})">🗑</button></td>
-    </tr>`;
-  }).join('');
-}
-
-function del(i){if(confirm('삭제하시겠습니까?')){data.splice(i,1);render();}}
-render();
+refreshTable();
 </script>
 </body>
 </html>
