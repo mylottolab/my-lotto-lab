@@ -55,6 +55,7 @@ body{background:#f3f4f6;font-size:13px;}
 .result-btns{display:flex;gap:6px;margin-top:6px;}
 .btn-save-r{flex:2;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;}
 .btn-regen{flex:1;background:#1a7ad4;color:#fff;border:none;border-radius:6px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;}
+.btn-cancel-r{flex:1;background:#fff;color:#e03131;border:1px solid #e03131;border-radius:6px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;}
 .rp{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
 .rph{padding:8px 12px;display:flex;align-items:center;gap:7px;border-bottom:1px solid #eee;flex-wrap:wrap;}
 .rpt{font-size:13px;font-weight:700;color:#333;}
@@ -503,6 +504,7 @@ function showResult(round, items, include, exclude, specified) {
     '<div class="result-btns">' +
     '<button class="btn-save-r" onclick="saveResult(\''+rid+'\')">⬇ 저장</button>' +
     '<button class="btn-regen" onclick="regenResult(\''+rid+'\')">🔄 재생성</button>' +
+    '<button class="btn-cancel-r" onclick="cancelResult(\''+rid+'\')">✕ 취소</button>' +
     '</div></div>';
 
   var msg = specified
@@ -529,9 +531,16 @@ function saveResult(rid) {
     renderTable();
     var card = document.getElementById(rid);
     if (card) { card.style.opacity='0.5'; card.style.pointerEvents='none'; }
-    addBubble('ai', '✅ '+cnt+'개 번호가 저장됐어요! 더 등록하시겠어요?');
+    addBubble('ai', '✅ '+cnt+'개 번호가 저장됐어요!\n\n추가 등록을 원하시면:\n🎤 마이크 버튼을 누른 후 음성으로 주문하시거나\n아래 입력창에 문자로 주문 후 ▶ 버튼을 눌러주세요!');
     pendingItems=null; pendingRound=null; pendingCond=null;
   }
+}
+
+function cancelResult(rid) {
+  var card = document.getElementById(rid);
+  if (card) card.remove();
+  pendingItems=null; pendingRound=null; pendingCond=null;
+  addBubble('ai', '취소됐어요. 다시 주문해주세요! 😊');
 }
 
 function regenResult(rid) {
