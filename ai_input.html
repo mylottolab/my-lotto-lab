@@ -342,10 +342,9 @@ function processInput(text) {
 }
 
 function extractRound(t) {
-  // 원본 텍스트에서 회차를 가장 먼저 추출 (금액 변환 전)
-  // "1220회 자동만원" → "1220회" 를 먼저 잡음
-  // 회차 패턴: 숫자 뒤에 바로 "회" (3~5자리)
-  var m = t.match(/(\d{3,5})\s*회/);
+  // 쉼표 제거 (음성인식이 "1,220회" 로 변환하는 경우 대비)
+  var clean = t.replace(/,/g, '');
+  var m = clean.match(/(\d{3,5})\s*회/);
   if (m) return { round: parseInt(m[1]), specified: true };
   if (/이번|금번|이번주/.test(t)) return { round: THIS_ROUND, specified: true };
   if (/다음|다음주/.test(t)) return { round: NEXT_ROUND, specified: true };
@@ -400,8 +399,8 @@ function extractDirectNumbers(t) {
 
 function extractGameOrders(t) {
   var results = [];
-  // 먼저 회차 부분 제거 (예: "1220회" → 게임수 계산에서 제외)
-  var processed = t.replace(/\d{3,5}\s*회/g, '');
+  // 쉼표 제거 + 회차 부분 제거 후 금액/게임수 파싱
+  var processed = t.replace(/,/g, '').replace(/\d{3,5}\s*회/g, '');
   var moneyMap = {
     '천':1,'이천':2,'삼천':3,'사천':4,'오천':5,'육천':6,'칠천':7,'팔천':8,'구천':9,
     '만':10,'이만':20,'삼만':30,'사만':40,'오만':50,'육만':60,'칠만':70,'팔만':80,'구만':90,'십만':100
