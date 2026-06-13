@@ -342,9 +342,10 @@ function processInput(text) {
 }
 
 function extractRound(t) {
-  // 금액 관련 단어 제거 후 회차 파싱 (예: "1220회 자동만원" → "만원"이 회차에 영향 안 주도록)
-  var cleaned = t.replace(/(\d+)\s*만\s*(원어치|원|게임|장|개)/g, function(m,n){ return n+'0게임'; });
-  var m = cleaned.match(/(\d{3,5})\s*회/);
+  // 원본 텍스트에서 회차를 가장 먼저 추출 (금액 변환 전)
+  // "1220회 자동만원" → "1220회" 를 먼저 잡음
+  // 회차 패턴: 숫자 뒤에 바로 "회" (3~5자리)
+  var m = t.match(/(\d{3,5})\s*회/);
   if (m) return { round: parseInt(m[1]), specified: true };
   if (/이번|금번|이번주/.test(t)) return { round: THIS_ROUND, specified: true };
   if (/다음|다음주/.test(t)) return { round: NEXT_ROUND, specified: true };
