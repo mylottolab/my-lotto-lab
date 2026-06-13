@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab - AI 도우미 등록</title>
+<script src="common.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
 body{background:#f3f4f6;font-size:13px;}
@@ -152,9 +153,17 @@ tr.pre-draw td{background:#fff8e1;}
     </div>
   </div>
   <div class="tw">
-    <table>
-      <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"></colgroup>
-      <thead><tr><th>회차</th><th>번호</th><th>구매형태</th><th>추첨</th><th>결과</th><th>삭제</th></tr></thead>
+    <table style="min-width:500px;">
+      <thead><tr>
+        <th style="width:52px;">회차</th>
+        <th style="width:160px;">번호</th>
+        <th style="width:54px;">구매형태</th>
+        <th style="width:50px;">구분</th>
+        <th style="width:50px;">추첨</th>
+        <th style="width:46px;">결과</th>
+        <th style="width:80px;">당첨금</th>
+        <th style="width:28px;">삭제</th>
+      </tr></thead>
       <tbody id="tb"></tbody>
     </table>
   </div>
@@ -163,6 +172,18 @@ tr.pre-draw td{background:#fff8e1;}
 </div>
 
 <script>
+// ── MLL 로드 확인 ──
+if (typeof window.MLL === 'undefined') {
+  console.error('[MLL] common.js가 로드되지 않았습니다.');
+  window.MLL = {
+    getSession:function(){return 'ai_'+Date.now();},
+    addEntry:function(){},
+    deleteEntry:function(){},
+    renderTable:function(id){document.getElementById(id).innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:#e03131;">common.js 로드 실패. GitHub에 common.js를 업로드해주세요.</td></tr>';},
+    getLottoInfo:function(){var n=Math.floor((Date.now()-new Date('2002-12-07T20:00:00+09:00').getTime())/(7*24*60*60*1000))+1;return{thisRound:n,nextRound:n+1,soldOut:false};}
+  };
+}
+
 // ===================== 회차/판매 로직 =====================
 var ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
 var WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -568,57 +589,56 @@ function regenResult(rid) {
   });
 }
 
-// ===================== 테이블 렌더 =====================
-function renderTable() {
-  var fv = document.getElementById('fs').value;
-  var list = fv ? data.filter(function(x){return String(x.round)===fv;}) : data.slice();
-  document.getElementById('tc').textContent = data.length;
-  var pre = list.filter(function(x){return x.status==='추첨전';}).sort(function(a,b){return b.round-a.round;});
-  var post = list.filter(function(x){return x.status==='추첨후';}).sort(function(a,b){return b.round-a.round;});
-  var tb = document.getElementById('tb');
-  if (!list.length) { tb.innerHTML = '<tr><td colspan="6" class="no-data">저장된 번호가 없습니다.</td></tr>'; return; }
-  var html = '';
-  if (pre.length) {
-    html += '<tr class="sdiv"><td colspan="6">🔴 추첨 예정 (' + pre.length + '개)</td></tr>';
-    pre.forEach(function(item) {
-      var ri = data.indexOf(item);
-      var balls = item.nums.slice().sort(function(a,b){return a-b;}).map(function(n){
-        return '<span class="ball" style="background:'+BC(n)+';color:'+TC(n)+'">'+n+'</span>';
-      }).join('');
-      var ttag = item.type==='수동'?'tm':'ta';
-      var dl = getDeadline(item.round);
-      html += '<tr class="pre-draw"><td><span class="rc rc-pre">'+item.round+'회</span></td>' +
-        '<td><div class="bm">'+balls+'</div></td>' +
-        '<td><span class="tg '+ttag+'">'+item.type+'</span></td>' +
-        '<td><span class="spre" title="'+dl+'">추첨전</span></td>' +
-        '<td><span class="gx">-</span></td>' +
-        '<td><button class="btn-d" onclick="delItem('+ri+')">🗑</button></td></tr>';
-    });
+// ===================== 저장/렌더 (common.js 사용) =====================
+var SESSION_TAG = MLL.getSession('ai');
+
+function saveResult(rid) {
+  if (!pendingItems || !pendingCond) return;
+  var status = pendingCond.status;
+  var cnt = 0;
+  pendingItems.forEach(function(item, i) {
+    var chk = document.getElementById(rid+'c'+i);
+    if (chk && chk.checked) {
+      MLL.addEntry({
+        round:       pendingRound,
+        nums:        item.nums.slice(),
+        type:        item.type,
+        status:      status,
+        isReal:      false,
+        inputMethod: 'ai',
+        sessionTag:  SESSION_TAG
+      });
+      cnt++;
+    }
+  });
+  if (cnt > 0) {
+    renderTable();
+    var card = document.getElementById(rid);
+    if (card) { card.style.opacity='0.5'; card.style.pointerEvents='none'; }
+    addBubble('ai', '✅ '+cnt+'개 번호가 저장됐어요!\n\n추가 등록을 원하시면:\n🎤 마이크 버튼을 누른 후 음성으로 주문하시거나\n아래 입력창에 문자로 주문 후 ▶ 버튼을 눌러주세요!');
+    pendingItems=null; pendingRound=null; pendingCond=null;
   }
-  if (post.length) {
-    html += '<tr class="sdiv"><td colspan="6">✅ 추첨 완료 (' + post.length + '개)</td></tr>';
-    post.forEach(function(item) {
-      var ri = data.indexOf(item);
-      var balls = item.nums.slice().sort(function(a,b){return a-b;}).map(function(n){
-        return '<span class="ball" style="background:'+BC(n)+';color:'+TC(n)+'">'+n+'</span>';
-      }).join('');
-      var ttag = item.type==='수동'?'tm':'ta';
-      html += '<tr><td><span class="rc">'+item.round+'회</span></td>' +
-        '<td><div class="bm">'+balls+'</div></td>' +
-        '<td><span class="tg '+ttag+'">'+item.type+'</span></td>' +
-        '<td><span class="spost">추첨후</span></td>' +
-        '<td><span class="gx">-</span></td>' +
-        '<td><button class="btn-d" onclick="delItem('+ri+')">🗑</button></td></tr>';
-    });
-  }
-  tb.innerHTML = html;
 }
 
-function delItem(i) {
-  if (confirm('삭제하시겠습니까?')) { data.splice(i, 1); renderTable(); }
+function renderTable() {
+  var fv = document.getElementById('fs').value;
+  MLL.renderTable('tb', SESSION_TAG, fv || null);
+}
+
+function delItem(id) {
+  if (confirm('삭제하시겠습니까?')) { MLL.deleteEntry(id); renderTable(); }
 }
 
 renderTable();
+
+// 회차 드롭다운
+(function() {
+  var info = MLL.getLottoInfo();
+  var sel  = document.getElementById('fs');
+  for (var r=info.nextRound; r>=Math.max(1,info.nextRound-19); r--) {
+    var o=document.createElement('option'); o.value=r; o.textContent=r+'회'; sel.appendChild(o);
+  }
+})();
 </script>
 </body>
 </html>
