@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>1228회 강제 수정</title>
+<style>
+body{background:#0f0f1a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;}
+.card{background:#1c1c2e;border:1px solid #2a2a40;border-radius:14px;padding:32px;max-width:500px;width:100%;text-align:center;}
+.btn{width:100%;background:#2f9e44;color:#fff;border:none;border-radius:8px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;margin:8px 0;}
+.btn2{width:100%;background:#1a7ad4;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;margin:4px 0;}
+.log{background:#0f0f1a;border:1px solid #333;border-radius:8px;padding:12px;margin-top:12px;text-align:left;font-size:11px;line-height:1.9;max-height:300px;overflow-y:auto;}
+.ok{color:#6fcf97;}.err{color:#ff8a8a;}.info{color:#74b9ff;}.warn{color:#f5c518;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div style="font-size:36px;margin-bottom:10px;">🔧</div>
+  <h2 style="margin-bottom:6px;">1228회 당첨결과 강제 적용</h2>
+  <p style="font-size:12px;color:#888;margin-bottom:20px;">localStorage 직접 수정 방식</p>
+
+  <button class="btn" onclick="step1()">1단계: 현재 상태 진단</button>
+  <button class="btn" onclick="step2()" id="btn2" style="background:#e03131;">2단계: 1228회 강제 추첨후 전환</button>
+  <button class="btn2" onclick="step3()">3단계: 결과 확인</button>
+  <button class="btn2" onclick="goCheck()" style="background:#7048e8;">→ lotto_input_page_v4.html 열기</button>
+
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+var DATA_1228 = {
+  nums:[24,29,30,31,35,44], bonus:1,
+  winners1:11, prize1:2698334421,
+  autoWin:10, semiWin:0, manualWin:1,
+  winnerShops:'감만정보통신(부산),일등복권방(부산),나라복권(인천),복돼지복권방(경기),바른(경기),돈벼락(경기),이마트24백석동문점(경기),복권나라(전남),동네복권(경북),로또명당(경남),중앙복권방(충북)',
+  winners2:83, prize2:59601765,
+  winners3:2836, prize3:1744340, note:''
+};
+
+function log(msg, cls){
+  var d=document.getElementById('log');
+  d.innerHTML+='<div class="'+(cls||'info')+'">'+msg+'</div>';
+  d.scrollTop=d.scrollHeight;
+}
+
+function step1(){
+  document.getElementById('log').innerHTML='';
+  log('=== 현재 상태 진단 ===','warn');
+
+  // entries 확인
+  var entries=JSON.parse(localStorage.getItem('mll_entries')||'[]');
+  log('총 등록 항목: '+entries.length+'개','info');
+
+  var r1228=entries.filter(function(e){return Number(e.round)===1228;});
+  var r1229=entries.filter(function(e){return Number(e.round)===1229;});
+  log('1228회 항목: '+r1228.length+'개','info');
+  log('1229회 항목: '+r1229.length+'개','info');
+
+  if(r1228.length>0){
+    log('1228회 status: '+r1228[0].status,'warn');
+    log('1228회 grade: '+r1228[0].grade,'warn');
+    log('1228회 round 타입: '+typeof r1228[0].round,'warn');
+  }
+
+  // results 확인
+  var results=JSON.parse(localStorage.getItem('mll_results')||'{}');
+  var keys=Object.keys(results);
+  log('저장된 당첨결과 키: ['+keys.join(',')+']','info');
+  if(results['1228']||results[1228]){
+    log('1228회 당첨결과 존재함','ok');
+  } else {
+    log('1228회 당첨결과 없음 → 2단계 실행 필요','err');
+  }
+}
+
+function step2(){
+  log('=== 1228회 강제 전환 시작 ===','warn');
+
+  // 1. 당첨결과 저장 (키를 문자열로 명시)
+  var results=JSON.parse(localStorage.getItem('mll_results')||'{}');
+  results['1228']=DATA_1228;
+  results[1228]=DATA_1228;  // 숫자 키도 함께 저장
+  localStorage.setItem('mll_results', JSON.stringify(results));
+  log('✅ 당첨결과 저장 완료 (키: "1228" + 1228)','ok');
+
+  // 2. entries 업데이트
+  var entries=JSON.parse(localStorage.getItem('mll_entries')||'[]');
+  var updated=0;
+  entries.forEach(function(entry){
+    if(Number(entry.round)===1228){
+      entry.status='추첨후';
+      entry.round=1228;  // 숫자로 통일
+      // 당첨 등수 계산
+      var myNums=entry.nums;
+      var winNums=DATA_1228.nums;
+      var bonus=DATA_1228.bonus;
+      var match=0;
+      myNums.forEach(function(n){ if(winNums.indexOf(n)>=0) match++; });
+      var hasBonus=myNums.indexOf(bonus)>=0;
+      var grade=0;
+      if(match===6) grade=1;
+      else if(match===5&&hasBonus) grade=2;
+      else if(match===5) grade=3;
+      else if(match===4) grade=4;
+      else if(match===3) grade=5;
+      entry.grade=grade;
+      // 당첨금
+      var prize=0;
+      if(grade===1) prize=DATA_1228.prize1;
+      else if(grade===2) prize=DATA_1228.prize2;
+      else if(grade===3) prize=DATA_1228.prize3;
+      else if(grade===4) prize=50000;
+      else if(grade===5) prize=5000;
+      entry.prizeMoney=prize;
+      updated++;
+      if(grade>0) log('🏆 1228회 '+grade+'등 당첨! '+prize.toLocaleString()+'원','ok');
+    }
+  });
+  localStorage.setItem('mll_entries', JSON.stringify(entries));
+  log('✅ '+updated+'개 항목 추첨후로 전환 완료','ok');
+  log('→ 3단계로 결과를 확인하세요!','warn');
+}
+
+function step3(){
+  log('=== 결과 확인 ===','warn');
+  var entries=JSON.parse(localStorage.getItem('mll_entries')||'[]');
+  var r1228=entries.filter(function(e){return Number(e.round)===1228;});
+  log('1228회 항목 수: '+r1228.length,'info');
+  r1228.forEach(function(e,i){
+    log((i+1)+'번: status='+e.status+' grade='+e.grade+' prize='+(e.prizeMoney||0),'ok');
+  });
+  var results=JSON.parse(localStorage.getItem('mll_results')||'{}');
+  log('당첨결과 키: ['+Object.keys(results).join(',')+']','info');
+}
+
+function goCheck(){
+  location.href='lotto_input_page_v4.html';
+}
+
+window.step1=step1; window.step2=step2; window.step3=step3; window.goCheck=goCheck;
+</script>
+</body>
+</html>
