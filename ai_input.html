@@ -242,12 +242,12 @@ function getRoundStatus(round){
 }
 
 function getRoundDeadline(round){
-  // 해당 회차의 추첨 마감 시간 계산 (토요일 20:00)
   const drawTime=new Date(ROUND1_DATE+(round-1)*WEEK_MS);
   const y=drawTime.getFullYear();
   const m=String(drawTime.getMonth()+1).padStart(2,'0');
   const d=String(drawTime.getDate()).padStart(2,'0');
-  return`${y}/${m}/${d} 토 20:00 마감`;
+  const label=round===THIS_ROUND?'금주 추첨예정분 · ':'';
+  return`${label}${y}/${m}/${d} 토 20:00 마감`;
 }
 
 // 등록 차단 여부 및 사유
@@ -454,10 +454,21 @@ function extractNums(str){
 // ── 직접 번호 파싱 ──
 function extractDirectNumbers(t,round){
   const results=[];
-  const labels=['A','B','C','D','E','F','G','H','I','J'];
   const numPattern=/\b([1-9]|[1-3][0-9]|4[0-5])\b/g;
   let allNums=[],m;
   while((m=numPattern.exec(t))!==null)allNums.push(parseInt(m[1]));
+  const validGroups=[];
+  for(let i=0;i<=allNums.length-6;i+=6){
+    const g=allNums.slice(i,i+6);
+    if(new Set(g).size===6&&g.every(n=>n>=1&&n<=45))validGroups.push(g);
+  }
+  if(!validGroups.length)return[];
+  const type=extractType(t);
+  validGroups.forEach((nums,i)=>{
+    results.push({label:String(i+1),type,nums:[...nums].sort((a,b)=>a-b),isAuto:false});
+  });
+  return results;
+}
   const validGroups=[];
   for(let i=0;i<=allNums.length-6;i+=6){
     const g=allNums.slice(i,i+6);
@@ -474,13 +485,12 @@ function extractDirectNumbers(t,round){
 // ── 게임 수 / 금액 파싱 ──
 function extractGameOrders(t){
   const results=[];
-  const labels=['A','B','C','D','E','F','G','H','I','J'];
   let idx=0;
 
   // 금액 → 게임 수
   const moneyMap={
     '천':1,'이천':2,'삼천':3,'사천':4,'오천':5,'육천':6,'칠천':7,'팔천':8,'구천':9,
-    '만':10,'이만':20,'삼만':30,'사만':40,'오만':50,'십만':100
+    '만':10,'이만':20,'삼만':30,'사만':40,'오만':50,'육만':60,'칠만':70,'팔만':80,'구만':90,'십만':100
   };
   let processed=t;
   processed=processed.replace(/(\d+)000\s*원/g,(m,n)=>`${parseInt(n)}게임`);
@@ -489,19 +499,6 @@ function extractGameOrders(t){
     processed=processed.replace(new RegExp(k+'\\s*(원어치|원)?','g'),`${v}게임`);
   });
 
-  // 자동 게임 수
-  const autoPatterns=[
-    /자동\s*(?:으로\s*)?(\d+)\s*(?:게임|장|개)/,
-    /(\d+)\s*(?:게임|장|개)\s*(?:자동|짜리|로)/,
-    /(\d+)\s*(?:게임|장|개)/
-  ];
-  // 수동 게임 수
-  const manualPatterns=[
-    /수동\s*(?:으로\s*)?(\d+)\s*(?:게임|장|개)/,
-    /(\d+)\s*(?:게임|장|개)\s*수동/
-  ];
-
-  // 구매형태별 파싱
   const typedPatterns=[
     {type:'자동',pats:[/자동\s*(?:으로\s*)?(\d+)\s*(?:게임|장|개)/,/(\d+)\s*(?:게임|장|개)\s*자동/]},
     {type:'수동',pats:[/수동\s*(?:으로\s*)?(\d+)\s*(?:게임|장|개)/,/(\d+)\s*(?:게임|장|개)\s*수동/]},
@@ -511,24 +508,23 @@ function extractGameOrders(t){
   typedPatterns.forEach(({type,pats})=>{
     pats.forEach(pat=>{
       const m=processed.match(pat);
-      if(m&&idx<10){
+      if(m&&idx<100){
         matched=true;
-        const count=Math.min(parseInt(m[1]),10-idx);
-        for(let i=0;i<count;i++)results.push({label:labels[idx++],type,nums:null,isAuto:true});
+        const count=Math.min(parseInt(m[1]),100-idx);
+        for(let i=0;i<count;i++)results.push({label:String(idx+1),type,nums:null,isAuto:true});
+        idx+=count;
       }
     });
   });
 
-  // 구매형태 없이 게임수만
   if(!matched){
     const m=processed.match(/(\d+)\s*(?:게임|장|개)/);
     if(m){
       const type=extractType(t);
-      const count=Math.min(parseInt(m[1]),10);
-      for(let i=0;i<count;i++)results.push({label:labels[i],type,nums:null,isAuto:true});
+      const count=Math.min(parseInt(m[1]),100);
+      for(let i=0;i<count;i++)results.push({label:String(i+1),type,nums:null,isAuto:true});
     }
   }
-
   return results;
 }
 
@@ -540,18 +536,14 @@ function extractType(t){
 
 // ── 번호 생성 (포함/제외 조건 적용) ──
 function genNums(include=[],exclude=[]){
-  // 포함번호 유효성 검사
   const validInclude=include.filter(n=>n>=1&&n<=45&&!exclude.includes(n));
-  if(validInclude.length>6)return null; // 불가능
-
+  if(validInclude.length>6)return null;
   const pool=[];
   for(let n=1;n<=45;n++){
     if(!exclude.includes(n)&&!validInclude.includes(n))pool.push(n);
   }
   const need=6-validInclude.length;
-  if(pool.length<need)return null; // 불가능
-
-  // 랜덤 선택
+  if(pool.length<need)return null;
   const picked=[...validInclude];
   while(picked.length<6){
     const idx=Math.floor(Math.random()*pool.length);
@@ -623,7 +615,7 @@ function showResult(round,items,include,exclude,specified=true){
   // 회차 미지정 안내 포함
   let msg='알겠어요! 아래 내용으로 등록할까요? 😊';
   if(!specified){
-    msg=`회차를 말씀하지 않으셔서 <b>제${round}회 (다음 추첨)</b>으로 등록할게요.<br>`
+    msg=`회차를 말씀하지 않으셔서 <b>제${round}회 (금주 추첨예정분)</b>으로 등록할게요.<br>`
       +`과거 회차 등록이라면 취소 후 회차를 먼저 말씀해주세요! 😊`;
   }
   if(include.length>0)msg+=`<br>✅ 포함번호: ${include.join(', ')}번`;
