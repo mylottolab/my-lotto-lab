@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab - 카메라 실구매 등록</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
 body{background:#f3f4f6;font-size:13px;}
@@ -15,18 +14,14 @@ body{background:#f3f4f6;font-size:13px;}
 .logo-text .title{font-size:14px;font-weight:700;color:#fff;}
 .logo-text .sub{font-size:9px;color:#aaa;}
 .btn-back{background:none;border:1px solid #555;color:#ccc;padding:3px 10px;border-radius:5px;font-size:11px;cursor:pointer;}
-
 .main{max-width:960px;margin:0 auto;padding:12px 14px;}
 .wrap{display:grid;grid-template-columns:420px 1fr;gap:10px;}
-
-/* 탭 */
 .tabs{display:flex;gap:0;margin-bottom:12px;background:#fff;border-radius:8px;border:1px solid #e0e0e0;overflow:hidden;}
 .tab{flex:1;padding:9px 4px;text-align:center;font-size:11px;font-weight:600;cursor:pointer;color:#888;border-bottom:3px solid transparent;line-height:1.4;}
 .tab.active{color:#1a7ad4;border-bottom:3px solid #1a7ad4;background:#f5f9ff;}
 .tab:hover:not(.active){background:#fafafa;}
 .panel{display:none;}
 .panel.active{display:block;}
-
 .card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;margin-bottom:10px;}
 .ph{padding:9px 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:12px;color:#fff;}
 .ph-green{background:#2f9e44;}
@@ -34,7 +29,7 @@ body{background:#f3f4f6;font-size:13px;}
 .ph-purple{background:#7048e8;}
 .pb{padding:12px 14px;}
 
-/* 방법1: 직접입력 */
+/* 방법1 직접입력 */
 .manual-round{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
 .manual-round label{font-size:11px;color:#555;font-weight:600;white-space:nowrap;}
 .round-in{border:1px solid #ddd;border-radius:5px;padding:5px 8px;font-size:13px;width:90px;text-align:center;font-weight:700;}
@@ -49,18 +44,19 @@ body{background:#f3f4f6;font-size:13px;}
 .btn-add{width:100%;background:#fff;border:1px dashed #1a7ad4;color:#1a7ad4;border-radius:6px;padding:7px;font-size:11px;cursor:pointer;margin-bottom:8px;}
 .btn-add:hover{background:#f0f8ff;}
 .btn-save-green{width:100%;background:#2f9e44;color:#fff;border:none;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
-.btn-save-blue{width:100%;background:#1a7ad4;color:#fff;border:none;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
 
-/* 방법2: 이미지 업로드 */
+/* 방법2 이미지 업로드 */
 .upload-area{border:2px dashed #c0d4f0;border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:#f8fbff;margin-bottom:10px;transition:all 0.2s;}
 .upload-area:hover{border-color:#1a7ad4;background:#eef6ff;}
 .upload-area.dragover{border-color:#1a7ad4;background:#ddeeff;}
 .upload-icon{font-size:36px;margin-bottom:8px;}
 .upload-text{font-size:12px;color:#555;margin-bottom:4px;}
 .upload-sub{font-size:10px;color:#aaa;}
-.btn-save-ocr{width:100%;background:#2f9e44;color:#fff;border:none;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
+.method-badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:8px;font-weight:700;margin-bottom:8px;}
+.mb-qr{background:#e8fff0;color:#2f9e44;border:1px solid #2f9e44;}
+.mb-ai{background:#e8f4ff;color:#1a7ad4;border:1px solid #1a7ad4;}
 
-/* 인식 결과 공통 */
+/* 인식결과 공통 */
 .ocr-result{background:#f0fff4;border:1px solid #2f9e44;border-radius:8px;padding:10px 12px;margin-bottom:10px;display:none;}
 .ocr-result.show{display:block;}
 .ocr-title{font-size:11px;font-weight:700;color:#2f9e44;margin-bottom:8px;}
@@ -74,47 +70,40 @@ body{background:#f3f4f6;font-size:13px;}
 .t-manual{background:#e8f4ff;color:#1a7ad4;border:1px solid #1a7ad4;}
 .row-balls{display:flex;gap:2px;flex:1;justify-content:flex-end;}
 .row-ball{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;}
+.btn-save-ocr{width:100%;background:#2f9e44;color:#fff;border:none;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
 
-/* ── 방법3: QR 스캔 ── */
-.qr-wrap{position:relative;width:100%;background:#111;border-radius:8px;overflow:hidden;margin-bottom:8px;}
-.qr-wrap video{width:100%;display:block;border-radius:8px;}
-.qr-wrap canvas{display:none;}
-.qr-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
-.qr-frame{
-  width:65%;aspect-ratio:1;
-  border:3px solid #f5c518;border-radius:12px;
-  box-shadow:0 0 0 9999px rgba(0,0,0,0.52);
-  position:relative;
-}
-.qr-corner{position:absolute;width:18px;height:18px;border-color:#f5c518;border-style:solid;}
-.qr-corner.tl{top:-3px;left:-3px;border-width:3px 0 0 3px;border-radius:4px 0 0 0;}
-.qr-corner.tr{top:-3px;right:-3px;border-width:3px 3px 0 0;border-radius:0 4px 0 0;}
-.qr-corner.bl{bottom:-3px;left:-3px;border-width:0 0 3px 3px;border-radius:0 0 0 4px;}
-.qr-corner.br{bottom:-3px;right:-3px;border-width:0 3px 3px 0;border-radius:0 0 4px 0;}
-.qr-scan-line{position:absolute;width:100%;height:2px;background:linear-gradient(90deg,transparent,#f5c518,transparent);animation:scan 1.8s ease-in-out infinite;top:0;}
-@keyframes scan{0%,100%{top:5%}50%{top:90%}}
-.qr-label{color:#f5c518;font-size:10px;font-weight:700;margin-top:10px;text-shadow:0 1px 3px rgba(0,0,0,.7);}
-.qr-tip{position:absolute;bottom:0;left:0;right:0;text-align:center;color:#fff;font-size:9px;background:rgba(0,0,0,0.6);padding:5px;}
+/* 방법3 QR 카메라 */
+.qr-reader-wrap{width:100%;margin-bottom:8px;border-radius:8px;overflow:hidden;background:#111;}
+#qr-reader{width:100%;}
+#qr-reader video{width:100%!important;border-radius:0!important;}
+#qr-reader img{display:none!important;}
+.qr-overlay-custom{position:relative;width:100%;background:#111;border-radius:8px;overflow:hidden;margin-bottom:8px;}
+.qr-overlay-custom video{width:100%;display:block;}
+.qr-frame-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.qr-box{width:60%;aspect-ratio:1;border:2px solid #f5c518;border-radius:10px;position:relative;box-shadow:0 0 0 9999px rgba(0,0,0,0.5);}
+.qr-scan-anim{position:absolute;width:100%;height:2px;background:linear-gradient(90deg,transparent,#f5c518,transparent);animation:sc 1.8s ease-in-out infinite;}
+@keyframes sc{0%,100%{top:5%}50%{top:90%}}
+.qr-hint-txt{color:#f5c518;font-size:10px;font-weight:700;margin-top:10px;text-shadow:0 1px 3px rgba(0,0,0,.8);}
+.qr-tip-bar{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:#fff;font-size:9px;text-align:center;padding:5px;}
+.flash-overlay{position:absolute;inset:0;background:rgba(47,158,68,0.4);display:none;pointer-events:none;}
+.flash-overlay.show{display:block;animation:fl 0.5s ease-out forwards;}
+@keyframes fl{0%{opacity:1}100%{opacity:0}}
 
-/* QR 성공 플래시 */
-.qr-success-flash{position:absolute;inset:0;background:rgba(47,158,68,0.35);border-radius:8px;display:none;pointer-events:none;}
-.qr-success-flash.show{display:block;animation:flash 0.5s ease-out forwards;}
-@keyframes flash{0%{opacity:1}100%{opacity:0}}
+/* QR 가이드 박스 */
+.qr-guide-box{background:#f5f0ff;border:1px solid #c0a8f0;border-radius:8px;padding:14px;margin-bottom:10px;text-align:center;}
+.qr-guide-icon{font-size:28px;margin-bottom:6px;}
+.qr-guide-title{font-size:12px;font-weight:700;color:#5a3db8;margin-bottom:4px;}
+.qr-guide-desc{font-size:10px;color:#666;line-height:1.7;}
 
+/* 버튼 */
 .qr-btns{display:flex;gap:6px;margin-bottom:6px;}
 .btn-qr{flex:1;border:none;border-radius:6px;padding:8px;font-size:11px;font-weight:700;cursor:pointer;}
 .btn-qr-start{background:#7048e8;color:#fff;}
 .btn-qr-stop{background:#666;color:#fff;}
-
-/* URL 수동 입력 */
-.url-input-wrap{margin-top:8px;}
-.url-input-label{font-size:10px;color:#888;margin-bottom:4px;font-weight:600;}
-.url-row{display:flex;gap:6px;}
+.url-row{display:flex;gap:6px;margin-top:8px;}
 .url-in{flex:1;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:11px;}
 .url-in:focus{border-color:#7048e8;outline:none;}
 .btn-url-parse{background:#7048e8;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;}
-
-/* QR 인식 결과 */
 .qr-result{background:#f0fff4;border:1px solid #2f9e44;border-radius:8px;padding:10px 12px;margin-top:8px;display:none;}
 .qr-result.show{display:block;}
 
@@ -140,7 +129,7 @@ body{background:#f3f4f6;font-size:13px;}
 
 /* 결과 카드 */
 .result-card{background:#f0fff4;border:1px solid #2f9e44;border-radius:8px;padding:10px 12px;margin-bottom:8px;}
-.result-card-title{font-size:11px;font-weight:700;color:#2f9e44;margin-bottom:6px;}
+.result-card-title{font-size:11px;font-weight:700;color:#2f9e44;margin-bottom:4px;display:flex;align-items:center;gap:5px;}
 .result-card-round{font-size:13px;font-weight:700;color:#1a7ad4;margin-bottom:6px;}
 
 /* 오른쪽 테이블 */
@@ -154,7 +143,7 @@ body{background:#f3f4f6;font-size:13px;}
 table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:400px;}
 col.c-round{width:56px;}col.c-nums{width:148px;}col.c-type{width:64px;}
 col.c-status{width:56px;}col.c-grade{width:52px;}col.c-del{width:30px;}
-th{background:#f8f8f8;padding:6px 6px;font-size:10px;font-weight:700;color:#555;border-bottom:1px solid #e0e0e0;white-space:nowrap;position:sticky;top:0;z-index:2;text-align:center;}
+th{background:#f8f8f8;padding:6px;font-size:10px;font-weight:700;color:#555;border-bottom:1px solid #e0e0e0;white-space:nowrap;position:sticky;top:0;z-index:2;text-align:center;}
 td{padding:5px 6px;font-size:10px;color:#444;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;white-space:nowrap;overflow:hidden;}
 tr:hover td{background:#fafafa;}
 .rc{background:#555;color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;}
@@ -169,14 +158,6 @@ tr:hover td{background:#fafafa;}
 .gx{color:#ddd;}
 .btn-d{background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;}
 .no-data{text-align:center;padding:30px;color:#bbb;font-size:12px;}
-
-/* QR 스캔 상태 배지 */
-.qr-status-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;margin-bottom:6px;}
-.qr-status-badge.scanning{background:#fff3cd;color:#856404;border:1px solid #ffc107;}
-.qr-status-badge.found{background:#d1e7dd;color:#0f5132;border:1px solid #2f9e44;}
-.qr-status-badge.idle{background:#f0f0f0;color:#666;border:1px solid #ddd;}
-.dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:blink 1s infinite;}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
 </style>
 </head>
 <body>
@@ -201,7 +182,7 @@ tr:hover td{background:#fafafa;}
 <div>
   <div class="tabs">
     <div class="tab active" onclick="switchTab(1)">✏️ 방법1<br>직접입력</div>
-    <div class="tab" onclick="switchTab(2)">🖼 방법2<br>이미지 AI인식</div>
+    <div class="tab" onclick="switchTab(2)">🖼 방법2<br>이미지업로드</div>
     <div class="tab" onclick="switchTab(3)">📷 방법3<br>QR 스캔</div>
   </div>
 
@@ -223,11 +204,16 @@ tr:hover td{background:#fafafa;}
     </div>
   </div>
 
-  <!-- 방법2: 이미지 업로드 (Claude AI OCR) -->
+  <!-- 방법2: 이미지 업로드 -->
   <div class="panel" id="tab2">
     <div class="card">
-      <div class="ph ph-blue">🖼 방법2 — 이미지 업로드 (AI 인식)</div>
+      <div class="ph ph-blue">🖼 방법2 — 이미지 업로드 (QR + AI 인식)</div>
       <div class="pb">
+        <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;">
+          <span class="method-badge mb-qr">① ZXing QR 인식 시도</span>
+          <span style="font-size:10px;color:#aaa;align-self:center;">→ 실패시</span>
+          <span class="method-badge mb-ai">② Claude AI OCR 보조</span>
+        </div>
         <div class="upload-area" id="dropArea"
           onclick="document.getElementById('imgInput').click()"
           ondragover="onDrag(event,true)" ondragleave="onDrag(event,false)" ondrop="onDrop(event)">
@@ -247,46 +233,24 @@ tr:hover td{background:#fafafa;}
     </div>
   </div>
 
-  <!-- 방법3: QR 스캔 -->
+  <!-- 방법3: QR 카메라 스캔 (Html5-QRCode) -->
   <div class="panel" id="tab3">
     <div class="card">
-      <div class="ph ph-purple">📷 방법3 — QR코드 자동 스캔</div>
+      <div class="ph ph-purple">📷 방법3 — QR코드 카메라 스캔</div>
       <div class="pb">
 
-        <!-- 카메라 뷰 -->
-        <div class="qr-wrap" id="qrWrap" style="display:none;">
-          <video id="qrVideo" autoplay playsinline muted></video>
-          <canvas id="qrCanvas"></canvas>
-          <div class="qr-success-flash" id="qrFlash"></div>
-          <div class="qr-overlay">
-            <div class="qr-frame">
-              <div class="qr-corner tl"></div>
-              <div class="qr-corner tr"></div>
-              <div class="qr-corner bl"></div>
-              <div class="qr-corner br"></div>
-              <div class="qr-scan-line"></div>
-            </div>
-            <div class="qr-label">QR코드를 사각형 안에 맞춰주세요</div>
-          </div>
-          <div class="qr-tip">💡 로또 용지 오른쪽 하단 QR코드를 비춰주세요</div>
-        </div>
-
-        <!-- 시작 전 안내 -->
-        <div id="qrGuide" style="background:#f5f0ff;border:1px solid #c0a8f0;border-radius:8px;padding:14px;margin-bottom:10px;text-align:center;">
-          <div style="font-size:28px;margin-bottom:6px;">📱</div>
-          <div style="font-size:12px;font-weight:700;color:#5a3db8;margin-bottom:4px;">QR코드로 완전 자동 인식</div>
-          <div style="font-size:10px;color:#666;line-height:1.7;">
-            로또 용지의 QR코드를 카메라에 비추면<br>
-            회차 · 번호 · 구매형태(자동/수동/반자동)를<br>
-            <b>자동으로 파싱</b>합니다.
+        <div class="qr-guide-box" id="qrGuide">
+          <div class="qr-guide-icon">📱</div>
+          <div class="qr-guide-title">고성능 QR 자동 인식</div>
+          <div class="qr-guide-desc">
+            로또 용지 QR코드를 카메라에 비추면<br>
+            회차 · 번호 · 구매형태를 자동으로 읽어요<br>
+            <b style="color:#7048e8;">Html5-QRCode 라이브러리 사용 (고성능)</b>
           </div>
         </div>
 
-        <div id="qrScanStatus" style="display:none;">
-          <span class="qr-status-badge scanning" id="qrBadge">
-            <span class="dot"></span> QR 스캔 중...
-          </span>
-        </div>
+        <!-- Html5-QRCode가 렌더링할 영역 -->
+        <div id="qr-reader" style="display:none;width:100%;border-radius:8px;overflow:hidden;margin-bottom:8px;"></div>
 
         <div class="qr-btns">
           <button class="btn-qr btn-qr-start" id="btnQrStart" onclick="startQrScan()">📷 QR 스캔 시작</button>
@@ -295,16 +259,14 @@ tr:hover td{background:#fafafa;}
 
         <div class="msg" id="msg3"></div>
 
-        <!-- URL 직접 붙여넣기 (보조) -->
-        <div style="border-top:1px dashed #ddd;margin:10px 0 8px;padding-top:10px;">
-          <div style="font-size:10px;color:#999;margin-bottom:6px;">📋 스마트폰으로 QR 스캔 후 URL을 복사해서 붙여넣어도 됩니다</div>
+        <div style="border-top:1px dashed #ddd;margin:8px 0;padding-top:8px;">
+          <div style="font-size:10px;color:#999;margin-bottom:5px;">📋 스마트폰으로 스캔한 URL을 직접 붙여넣어도 됩니다</div>
           <div class="url-row">
             <input class="url-in" type="text" id="urlInput" placeholder="http://qr.dhlottery.co.kr/?v=1227m06...">
             <button class="btn-url-parse" onclick="parseUrlManual()">인식</button>
           </div>
         </div>
 
-        <!-- QR 인식 결과 -->
         <div class="qr-result" id="qrResult">
           <div class="ocr-title">✅ QR 인식 결과 — 저장할 항목 선택</div>
           <div class="ocr-round-lbl" id="qrRoundLbl"></div>
@@ -345,6 +307,11 @@ tr:hover td{background:#fafafa;}
 </div>
 </div>
 
+<!-- Html5-QRCode 라이브러리 (고성능) -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- ZXing (이미지 QR 인식용) -->
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+
 <script>
 // ── 회차 계산 ──
 const ROUND1=new Date('2002-12-07T20:45:00+09:00').getTime();
@@ -364,14 +331,12 @@ const BC=n=>n<=10?'#f5c518':n<=20?'#1a7ad4':n<=30?'#e03131':n<=40?'#888':'#2f9e4
 const TC=n=>n<=10?'#7a5e00':'#fff';
 
 let data=[];
-let qrStream=null;
-let qrAnimFrame=null;
-let lastQrData=null;
-let ocrData={2:null};
 let comboCount=0;
 let imgQueue=[];
 let isProcessing=false;
 let resultCount=0;
+let qrParsedData=null;
+let html5QrScanner=null;
 
 // ── 탭 전환 ──
 function switchTab(n){
@@ -405,12 +370,10 @@ function addCombo(){
 }
 
 function autoNext(el,id,num){
-  const v=el.value.replace(/[^0-9]/g,'');
-  el.value=v;
+  const v=el.value.replace(/[^0-9]/g,'');el.value=v;
   if(v.length>=2){
     const n=parseInt(v);
-    if(n<1)el.value=1;
-    else if(n>45)el.value=45;
+    if(n<1)el.value=1;else if(n>45)el.value=45;
     if(num<6){const nx=document.getElementById(`n${id}_${num+1}`);if(nx)nx.focus();}
   }
 }
@@ -433,12 +396,11 @@ function saveManual(){
     render();
     showMsg('msg1','success',`✅ ${ok}개 저장!${skip?` (오류 ${skip}개 건너뜀)`:''}`);
     document.getElementById('combos').innerHTML='';
-    comboCount=0;
-    document.getElementById('manualRound').value='';
+    comboCount=0;document.getElementById('manualRound').value='';
   } else showMsg('msg1','error','저장 가능한 번호가 없습니다.');
 }
 
-// ── 방법2: 이미지 업로드 (Claude AI OCR) ──
+// ── 방법2: 이미지 업로드 (ZXing QR + Claude AI OCR 이중) ──
 function onDrag(e,over){e.preventDefault();document.getElementById('dropArea').classList.toggle('dragover',over);}
 function onDrop(e){e.preventDefault();onDrag(e,false);addToQueue([...e.dataTransfer.files]);}
 function onImgSelect(inp){if(inp.files.length)addToQueue([...inp.files]);inp.value='';}
@@ -467,17 +429,12 @@ function renderQueue(){
     return `<div class="queue-item" id="${q.id}">${thumb}<span class="queue-name">${q.file.name}</span><span class="queue-status ${sc}">${st}</span></div>`;
   }).join('');
   imgQueue.forEach(q=>{
-    if(!q.thumb){
-      const r=new FileReader();
-      r.onload=e=>{q.thumb=e.target.result;renderQueue();};
-      r.readAsDataURL(q.file);
-    }
+    if(!q.thumb){const r=new FileReader();r.onload=e=>{q.thumb=e.target.result;renderQueue();};r.readAsDataURL(q.file);}
   });
 }
 
 function updateQueueItem(id,status){
-  const q=imgQueue.find(x=>x.id===id);
-  if(q){q.status=status;renderQueue();}
+  const q=imgQueue.find(x=>x.id===id);if(q){q.status=status;renderQueue();}
 }
 
 async function processNext(){
@@ -485,22 +442,41 @@ async function processNext(){
   if(!next){isProcessing=false;return;}
   isProcessing=true;
   updateQueueItem(next.id,'proc');
-  showMsg('msg2','info',`🔍 "${next.file.name}" AI 인식 중...`);
+  showMsg('msg2','info',`🔍 "${next.file.name}" 인식 중...`);
   showProgress('ocrProgress','ocrBar');
   try{
+    // ① ZXing으로 QR 인식 시도
+    setProgress('ocrBar',20);
+    showMsg('msg2','info',`① QR코드 인식 시도 중...`);
+    const qrResult=await tryZxingQr(next.file);
+    if(qrResult){
+      setProgress('ocrBar',90);
+      const parsed=parseLottoQrUrl(qrResult);
+      if(parsed){
+        showResultCard(parsed,next.file.name,'qr');
+        updateQueueItem(next.id,'done');
+        showMsg('msg2','success',`✅ QR 인식 성공! 제${parsed.round}회 / ${parsed.combos.length}개`);
+        hideProgress('ocrProgress');
+        setTimeout(processNext,500);
+        return;
+      }
+    }
+    // ② Claude AI OCR 보조
+    setProgress('ocrBar',40);
+    showMsg('msg2','info',`② AI OCR 인식 중... (QR 인식 실패)`);
     const b64=await fileToBase64(next.file);
     const mediaType=next.file.type||'image/jpeg';
-    setProgress('ocrBar',30);
-    const result=await claudeOcr(b64,mediaType);
+    const aiResult=await claudeOcr(b64,mediaType);
     setProgress('ocrBar',90);
-    if(result){
-      showResultCard(result,next.file.name);
+    if(aiResult){
+      showResultCard(aiResult,next.file.name,'ai');
       updateQueueItem(next.id,'done');
+      showMsg('msg2','success',`✅ AI 인식 완료! 제${aiResult.round}회`);
     } else {
       updateQueueItem(next.id,'err');
-      showMsg('msg2','error',`"${next.file.name}" 인식 실패 — 사진을 더 선명하게 찍어주세요`);
+      showMsg('msg2','error',`"${next.file.name}" 인식 실패 — 더 선명한 사진으로 시도해주세요`);
     }
-  } catch(e){
+  }catch(e){
     updateQueueItem(next.id,'err');
     showMsg('msg2','error',`오류: ${e.message}`);
   }
@@ -508,32 +484,61 @@ async function processNext(){
   setTimeout(processNext,500);
 }
 
+// ZXing으로 이미지에서 QR 인식
+async function tryZxingQr(file){
+  return new Promise(resolve=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      try{
+        const canvas=document.createElement('canvas');
+        canvas.width=img.width;canvas.height=img.height;
+        const ctx=canvas.getContext('2d');
+        ctx.drawImage(img,0,0);
+        const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
+        const hints=new Map();
+        const formats=[ZXing.BarcodeFormat.QR_CODE];
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,formats);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+        const reader=new ZXing.MultiFormatReader();
+        reader.setHints(hints);
+        const luminanceSource=new ZXing.RGBLuminanceSource(imageData.data,canvas.width,canvas.height);
+        const binaryBitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+        const result=reader.decode(binaryBitmap);
+        URL.revokeObjectURL(url);
+        resolve(result.getText());
+      }catch(e){
+        URL.revokeObjectURL(url);
+        resolve(null);
+      }
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);resolve(null);};
+    img.src=url;
+  });
+}
+
 async function fileToBase64(file){
   return new Promise((res,rej)=>{
     const r=new FileReader();
     r.onload=e=>res(e.target.result.split(',')[1]);
-    r.onerror=rej;
-    r.readAsDataURL(file);
+    r.onerror=rej;r.readAsDataURL(file);
   });
 }
 
 async function claudeOcr(b64,mediaType){
   const prompt=`이 이미지는 한국 로또 복권 용지 사진입니다.
 아래 JSON 형식으로만 응답하세요. 다른 텍스트, 마크다운, 백틱 없이 순수 JSON만:
-{"round":회차숫자,"combos":[{"label":"A","type":"자동","nums":[n1,n2,n3,n4,n5,n6]},{"label":"B","type":"수동","nums":[...]},{"label":"C","type":"반자동","nums":[...]}]}
-
+{"round":회차숫자,"combos":[{"label":"A","type":"자동","nums":[n1,n2,n3,n4,n5,n6]},{"label":"B","type":"수동","nums":[...]}]}
 규칙:
 - round: 용지에서 "제 XXXX 회" 숫자만
 - type: "자 동"→"자동", "수 동"→"수동", "반자동"→"반자동"
 - nums: 각 행 A~E의 숫자 6개, 앞자리 0 제거 (03→3)
 - 없는 조합은 포함하지 말 것`;
-
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
-      model:'claude-sonnet-4-6',
-      max_tokens:1000,
+      model:'claude-sonnet-4-6',max_tokens:1000,
       messages:[{role:'user',content:[
         {type:'image',source:{type:'base64',media_type:mediaType,data:b64}},
         {type:'text',text:prompt}
@@ -543,14 +548,17 @@ async function claudeOcr(b64,mediaType){
   const d=await resp.json();
   const text=d.content?.map(c=>c.text||'').join('');
   try{return JSON.parse(text.replace(/```json|```/g,'').trim());}
-  catch(e){console.error('OCR parse err:',text);return null;}
+  catch(e){return null;}
 }
 
-function showResultCard(result,filename){
+function showResultCard(result,filename,method){
   resultCount++;
   const rid='res'+resultCount;
   const div=document.createElement('div');
   div.className='result-card';div.id=rid;
+  const methodBadge=method==='qr'
+    ?'<span class="method-badge mb-qr">QR 인식</span>'
+    :'<span class="method-badge mb-ai">AI OCR</span>';
   const rows=result.combos.map((c,i)=>{
     const tc=c.type==='자동'?'t-auto':c.type==='반자동'?'t-semi':'t-manual';
     const balls=c.nums.map(n=>`<span class="row-ball" style="background:${BC(n)};color:${TC(n)}">${n}</span>`).join('');
@@ -562,7 +570,7 @@ function showResultCard(result,filename){
     </div>`;
   }).join('');
   div.innerHTML=`
-    <div class="result-card-title">✅ ${filename}</div>
+    <div class="result-card-title">${methodBadge} ${filename}</div>
     <div class="result-card-round">제 ${result.round}회</div>
     ${rows}
     <button class="btn-save-ocr" style="margin-top:6px;" onclick="saveResultCard('${rid}',${result.round},${JSON.stringify(result.combos)})">⬇ 선택 항목 저장</button>`;
@@ -585,130 +593,86 @@ function saveResultCard(rid,round,combos){
   }
 }
 
-// ── 방법3: QR 스캔 ──
+// ── 방법3: Html5-QRCode (고성능 카메라 QR 스캔) ──
+async function startQrScan(){
+  try{
+    document.getElementById('qrGuide').style.display='none';
+    document.getElementById('qr-reader').style.display='block';
+    document.getElementById('btnQrStart').style.display='none';
+    document.getElementById('btnQrStop').style.display='flex';
+    document.getElementById('qrResult').classList.remove('show');
+    qrParsedData=null;
 
-// 동행복권 QR URL 파싱
-// 형식: http://qr.dhlottery.co.kr/?v=1227m062126334243m031518293342q...
-// 1227 = 회차
-// m = 수동(manual), q = 자동(quick), s = 반자동(semi) 추정
-// 이후 2자리씩 6개 숫자 = 번호 조합
+    html5QrScanner=new Html5Qrcode('qr-reader');
+    const config={
+      fps:15,
+      qrbox:{width:220,height:220},
+      aspectRatio:1.0,
+      experimentalFeatures:{useBarCodeDetectorIfSupported:true}
+    };
+
+    await html5QrScanner.start(
+      {facingMode:'environment'},
+      config,
+      (decodedText)=>{
+        // 성공 콜백
+        if(decodedText.includes('dhlottery')||decodedText.includes('qr.dh')){
+          const result=parseLottoQrUrl(decodedText);
+          if(result){
+            if(navigator.vibrate)navigator.vibrate([100,50,100]);
+            renderQrResult(result);
+            stopQrScan();
+            showMsg('msg3','success',`✅ QR 인식 성공! 제${result.round}회 / ${result.combos.length}개 조합`);
+          }
+        }
+      },
+      ()=>{} // 실패 콜백 (무시 - 계속 스캔)
+    );
+    showMsg('msg3','info','📷 QR코드를 화면 중앙에 맞춰주세요!');
+  }catch(e){
+    document.getElementById('qrGuide').style.display='block';
+    document.getElementById('qr-reader').style.display='none';
+    document.getElementById('btnQrStart').style.display='flex';
+    document.getElementById('btnQrStop').style.display='none';
+    showMsg('msg3','error','카메라를 사용할 수 없습니다. 아래 URL 붙여넣기를 이용해주세요.');
+  }
+}
+
+async function stopQrScan(){
+  if(html5QrScanner){
+    try{await html5QrScanner.stop();html5QrScanner.clear();}catch(e){}
+    html5QrScanner=null;
+  }
+  document.getElementById('qr-reader').style.display='none';
+  document.getElementById('qrGuide').style.display='block';
+  document.getElementById('btnQrStart').style.display='flex';
+  document.getElementById('btnQrStop').style.display='none';
+}
+
+// ── QR URL 파싱 ──
 function parseLottoQrUrl(url){
   try{
-    // v= 파라미터 추출
     const match=url.match(/[?&]v=([^&]+)/);
     if(!match)return null;
     const v=match[1];
-
-    // 회차: 맨 앞 숫자들 (보통 4자리)
     const roundMatch=v.match(/^(\d+)/);
     if(!roundMatch)return null;
     const round=parseInt(roundMatch[1]);
-
-    // 조합 파싱: m, q, s 로 구분되는 조합들
-    // 각 타입 문자 + 12자리 숫자(2자리*6개)
     const comboPattern=/([mqs])(\d{12})/g;
     const combos=[];
     const labels=['A','B','C','D','E','F','G','H','I','J'];
-    let comboMatch;
-    while((comboMatch=comboPattern.exec(v))!==null){
-      const typeChar=comboMatch[1];
-      const numsStr=comboMatch[2];
-      const type=typeChar==='m'?'수동':typeChar==='q'?'자동':'반자동';
+    let m;
+    while((m=comboPattern.exec(v))!==null){
+      const type=m[1]==='m'?'수동':m[1]==='q'?'자동':'반자동';
       const nums=[];
-      for(let i=0;i<12;i+=2){
-        nums.push(parseInt(numsStr.slice(i,i+2)));
-      }
-      // 유효성 검사
+      for(let i=0;i<12;i+=2)nums.push(parseInt(m[2].slice(i,i+2)));
       if(nums.length===6&&nums.every(n=>n>=1&&n<=45)&&new Set(nums).size===6){
         combos.push({label:labels[combos.length],type,nums});
       }
     }
     if(!round||!combos.length)return null;
-    return {round,combos};
-  }catch(e){
-    console.error('QR parse error:',e);
-    return null;
-  }
-}
-
-let qrParsedData=null;
-
-async function startQrScan(){
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}
-    });
-    qrStream=stream;
-    const video=document.getElementById('qrVideo');
-    video.srcObject=stream;
-    await video.play();
-
-    document.getElementById('qrWrap').style.display='block';
-    document.getElementById('qrGuide').style.display='none';
-    document.getElementById('qrScanStatus').style.display='block';
-    document.getElementById('btnQrStart').style.display='none';
-    document.getElementById('btnQrStop').style.display='flex';
-    document.getElementById('qrResult').classList.remove('show');
-    qrParsedData=null;
-    lastQrData=null;
-
-    showMsg('msg3','info','📷 카메라 시작! QR코드를 사각형 안에 비춰주세요.');
-    scanLoop();
-  }catch(e){
-    showMsg('msg3','error','카메라를 사용할 수 없습니다. 아래 URL 붙여넣기를 이용해주세요.');
-  }
-}
-
-function stopQrScan(){
-  if(qrAnimFrame){cancelAnimationFrame(qrAnimFrame);qrAnimFrame=null;}
-  if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null;}
-  const video=document.getElementById('qrVideo');
-  if(video)video.srcObject=null;
-  document.getElementById('qrWrap').style.display='none';
-  document.getElementById('qrGuide').style.display='block';
-  document.getElementById('qrScanStatus').style.display='none';
-  document.getElementById('btnQrStart').style.display='flex';
-  document.getElementById('btnQrStop').style.display='none';
-}
-
-function scanLoop(){
-  const video=document.getElementById('qrVideo');
-  const canvas=document.getElementById('qrCanvas');
-  if(!qrStream){return;}
-
-  if(video.readyState===video.HAVE_ENOUGH_DATA){
-    canvas.width=video.videoWidth;
-    canvas.height=video.videoHeight;
-    const ctx=canvas.getContext('2d');
-    ctx.drawImage(video,0,0);
-    const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
-    const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:'dontInvert'});
-
-    if(code&&code.data&&code.data!==lastQrData){
-      lastQrData=code.data;
-      // 동행복권 URL인지 확인
-      if(code.data.includes('dhlottery')||code.data.includes('qr.dh')){
-        const result=parseLottoQrUrl(code.data);
-        if(result){
-          // 성공 플래시
-          const flash=document.getElementById('qrFlash');
-          flash.classList.remove('show');
-          void flash.offsetWidth;
-          flash.classList.add('show');
-          // 진동 (모바일)
-          if(navigator.vibrate)navigator.vibrate([100,50,100]);
-          renderQrResult(result);
-          stopQrScan();
-          showMsg('msg3','success',`✅ QR 인식 성공! 제${result.round}회 / ${result.combos.length}개 조합`);
-          return;
-        }
-      }
-      // 동행복권 URL이 아닌 경우
-      showMsg('msg3','error','로또 QR코드가 아닙니다. 로또 용지의 QR코드를 비춰주세요.');
-      lastQrData=null;
-    }
-  }
-  qrAnimFrame=requestAnimationFrame(scanLoop);
+    return{round,combos};
+  }catch(e){return null;}
 }
 
 function parseUrlManual(){
@@ -719,8 +683,8 @@ function parseUrlManual(){
     renderQrResult(result);
     showMsg('msg3','success',`✅ 파싱 성공! 제${result.round}회 / ${result.combos.length}개 조합`);
     document.getElementById('urlInput').value='';
-  } else {
-    showMsg('msg3','error','인식 실패. 동행복권 QR URL 형식인지 확인해주세요.\n예) http://qr.dhlottery.co.kr/?v=1227m06...');
+  }else{
+    showMsg('msg3','error','인식 실패. 동행복권 QR URL인지 확인해주세요.');
   }
 }
 
@@ -742,7 +706,7 @@ function renderQrResult(result){
 
 function saveQrResult(){
   if(!qrParsedData)return;
-  const {round,combos}=qrParsedData;
+  const{round,combos}=qrParsedData;
   const status=round<=CURRENT?'추첨후':'추첨전';
   let cnt=0;
   combos.forEach((c,i)=>{
@@ -758,19 +722,15 @@ function saveQrResult(){
   }
 }
 
-// ── 진행바 ──
+// ── 공통 ──
 function showProgress(pid,bid){document.getElementById(pid).style.display='block';setProgress(bid,0);}
 function hideProgress(pid){document.getElementById(pid).style.display='none';}
 function setProgress(bid,pct){document.getElementById(bid).style.width=pct+'%';}
-
-// ── 메시지 ──
 function showMsg(id,type,text){
   const el=document.getElementById(id);
   el.className='msg '+type+' show';el.textContent=text;
   if(type==='success')setTimeout(()=>el.classList.remove('show'),4000);
 }
-
-// ── 테이블 렌더 ──
 function render(){
   const fv=document.getElementById('fs').value;
   let list=fv?data.filter(x=>String(x.round)===fv):[...data];
@@ -780,8 +740,7 @@ function render(){
   tb.innerHTML=list.map(item=>{
     const ri=data.indexOf(item);
     const balls=[...item.nums].sort((a,b)=>a-b).map(n=>
-      `<span class="ball" style="background:${BC(n)};color:${TC(n)}">${n}</span>`
-    ).join('');
+      `<span class="ball" style="background:${BC(n)};color:${TC(n)}">${n}</span>`).join('');
     const ttag=item.type==='수동'?'tm':item.type==='자동'?'ta':'ts';
     const stag=item.status==='추첨전'?'<span class="tbf">추첨전</span>':'<span class="tba">추첨후</span>';
     return `<tr>
@@ -800,24 +759,3 @@ render();
 </script>
 </body>
 </html>
-<script type="module">
-// Firebase 연동 — 저장/불러오기를 Firebase로 교체
-import { saveNumbers, loadNumbers, deleteNumber, calcCurrentRound as fbCalc } from './js/firebase-db.js';
-
-// 페이지 로드 시 Firebase에서 데이터 불러오기
-async function initFirebase() {
-  try {
-    const items = await loadNumbers();
-    data.length = 0;
-    items.forEach(i => data.push(i));
-    render();
-  } catch(e) { console.warn('Firebase 로드 실패, 로컬 사용:', e.message); }
-}
-
-// 저장 함수 오버라이드 (기존 data.unshift → Firebase 저장)
-const origSaveManual = window.saveManual;
-// data 배열에 push할 때 Firebase도 저장하도록 패치
-const origDataUnshift = Array.prototype.unshift;
-
-initFirebase();
-</script>
