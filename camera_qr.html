@@ -258,7 +258,8 @@ tr:hover td{background:#fafafa;}
           <div class="qr-guide-title">고성능 QR 자동 인식 + 디지털 줌</div>
           <div class="qr-guide-desc">
             카메라로 QR코드를 비추면 자동 인식<br>
-            슬라이더로 <b>디지털 줌 1x~4x</b> 조절 가능
+            슬라이더로 <b>디지털 줌 1x~4x</b> 조절 가능<br>
+            <span id="detectorBadge" style="display:inline-block;margin-top:4px;font-size:9px;padding:2px 8px;border-radius:8px;font-weight:700;"></span>
           </div>
         </div>
 
@@ -609,22 +610,38 @@ async function recognizeItem(id){
   showProgress('ocrProgress','ocrBar');
   showMsg('msg2','info',`🔍 "${item.file.name}" QR 인식 중...`);
   try{
-    let imageData;
     const img=await loadImage(item.objectUrl);
     const canvas=document.createElement('canvas');
     if(item.cropData){
-      // 크롭 영역만 인식
       const {x,y,w,h}=item.cropData;
       canvas.width=w;canvas.height=h;
-      const ctx=canvas.getContext('2d');
-      ctx.drawImage(img,x,y,w,h,0,0,w,h);
+      canvas.getContext('2d').drawImage(img,x,y,w,h,0,0,w,h);
     } else {
       canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
       canvas.getContext('2d').drawImage(img,0,0);
     }
-    setProgress('ocrBar',40);
-    imageData=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height);
-    const url=await zxingDecode(imageData,canvas.width,canvas.height);
+    setProgress('ocrBar',30);
+    let url=null;
+
+    // ① BarcodeDetector (네이티브, Chrome/Safari 지원)
+    if('BarcodeDetector' in window){
+      showMsg('msg2','info','🚀 네이티브 BarcodeDetector로 인식 중...');
+      try{
+        const detector=new BarcodeDetector({formats:['qr_code']});
+        const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.95));
+        const bmp=await createImageBitmap(blob);
+        const codes=await detector.detect(bmp);
+        if(codes.length>0)url=codes[0].rawValue;
+      }catch(e){}
+    }
+
+    // ② ZXing 폴백
+    if(!url){
+      showMsg('msg2','info','🔍 ZXing으로 인식 중...');
+      const imageData=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height);
+      url=await zxingDecode(imageData,canvas.width,canvas.height);
+    }
+
     setProgress('ocrBar',90);
     if(url){
       const parsed=parseLottoQrUrl(url);
@@ -637,7 +654,7 @@ async function recognizeItem(id){
       }
     }
     item.status='err';renderImgList();
-    showMsg('msg2','error',`인식 실패 — ✂️ 크롭 버튼으로 QR 영역만 선택 후 다시 시도해보세요`);
+    showMsg('msg2','error','인식 실패 — ✂️ 크롭으로 QR 영역만 선택 후 다시 시도해보세요');
   }catch(e){
     item.status='err';renderImgList();
     showMsg('msg2','error',`오류: ${e.message}`);
@@ -740,7 +757,17 @@ function stopCamScan(){
   document.getElementById('zoomVal').textContent='1.0x';
 }
 
-function camLoop(){
+// BarcodeDetector 지원 여부 확인
+const hasBarcodeDetector='BarcodeDetector' in window;
+let barcodeDetector=null;
+if(hasBarcodeDetector){
+  BarcodeDetector.getSupportedFormats().then(formats=>{
+    if(formats.includes('qr_code'))
+      barcodeDetector=new BarcodeDetector({formats:['qr_code']});
+  }).catch(()=>{});
+}
+
+async function camLoop(){
   const video=document.getElementById('camVideo');
   const canvas=document.getElementById('camCanvas');
   const zoomCvs=document.getElementById('zoomCanvas');
@@ -758,32 +785,42 @@ function camLoop(){
     const zctx=zoomCvs.getContext('2d');
     zctx.drawImage(canvas,zx,zy,zw,zh,0,0,vw,vh);
 
-    // 줌된 이미지에서 QR 인식
-    const imageData=zctx.getImageData(0,0,vw,vh);
+    let qrText=null;
     try{
-      const hints=new Map();
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE]);
-      hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-      const reader=new ZXing.MultiFormatReader();
-      reader.setHints(hints);
-      const src=new ZXing.RGBLuminanceSource(imageData.data,vw,vh);
-      const bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
-      const result=reader.decode(bitmap);
-      const qrText=result.getText();
-      if(qrText&&qrText!==lastQrData){
-        lastQrData=qrText;
-        if(qrText.includes('dhlottery')||qrText.includes('qr.dh')){
-          const parsed=parseLottoQrUrl(qrText);
-          if(parsed){
-            if(navigator.vibrate)navigator.vibrate([100,50,100]);
-            renderQrResult(parsed);
-            stopCamScan();
-            showMsg('msg3','success',`✅ QR 인식 성공! 제${parsed.round}회 / ${parsed.combos.length}개 조합`);
-            return;
-          }
+      // ① BarcodeDetector (네이티브, 빠름)
+      if(barcodeDetector){
+        const bitmap=await createImageBitmap(zoomCvs);
+        const codes=await barcodeDetector.detect(bitmap);
+        if(codes.length>0)qrText=codes[0].rawValue;
+      }
+      // ② ZXing 폴백
+      if(!qrText){
+        const imageData=zctx.getImageData(0,0,vw,vh);
+        const hints=new Map();
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE]);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+        const reader=new ZXing.MultiFormatReader();
+        reader.setHints(hints);
+        const src=new ZXing.RGBLuminanceSource(imageData.data,vw,vh);
+        const bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
+        const result=reader.decode(bitmap);
+        qrText=result.getText();
+      }
+    }catch(e){}
+
+    if(qrText&&qrText!==lastQrData){
+      lastQrData=qrText;
+      if(qrText.includes('dhlottery')||qrText.includes('qr.dh')){
+        const parsed=parseLottoQrUrl(qrText);
+        if(parsed){
+          if(navigator.vibrate)navigator.vibrate([100,50,100]);
+          renderQrResult(parsed);
+          stopCamScan();
+          showMsg('msg3','success',`✅ QR 인식 성공! 제${parsed.round}회 / ${parsed.combos.length}개 조합`);
+          return;
         }
       }
-    }catch(e){}// 인식 안되면 계속 스캔
+    }
   }
   camAnimFrame=requestAnimationFrame(camLoop);
 }
@@ -867,6 +904,18 @@ function render(){
 function del(i){if(confirm('삭제하시겠습니까?')){data.splice(i,1);render();}}
 
 addCombo();render();
+
+// BarcodeDetector 지원 배지 표시
+window.addEventListener('load',()=>{
+  const badge=document.getElementById('detectorBadge');
+  if('BarcodeDetector' in window){
+    badge.style.background='#e8fff0';badge.style.color='#2f9e44';badge.style.border='1px solid #2f9e44';
+    badge.textContent='✅ 네이티브 BarcodeDetector 지원 (고성능)';
+  } else {
+    badge.style.background='#fff3e0';badge.style.color='#e67700';badge.style.border='1px solid #e67700';
+    badge.textContent='⚠️ ZXing 모드 (Chrome Android에서 더 빠름)';
+  }
+});
 </script>
 </body>
 </html>
