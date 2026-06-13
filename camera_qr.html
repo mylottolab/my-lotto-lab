@@ -19,14 +19,11 @@ body{background:#f3f4f6;font-size:13px;}
 .tabs{display:flex;margin-bottom:12px;background:#fff;border-radius:8px;border:1px solid #e0e0e0;overflow:hidden;}
 .tab{flex:1;padding:9px 4px;text-align:center;font-size:11px;font-weight:600;cursor:pointer;color:#888;border-bottom:3px solid transparent;line-height:1.4;}
 .tab.active{color:#1a7ad4;border-bottom:3px solid #1a7ad4;background:#f5f9ff;}
-.tab:hover:not(.active){background:#fafafa;}
 .panel{display:none;}.panel.active{display:block;}
 .card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;margin-bottom:10px;}
 .ph{padding:9px 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:12px;color:#fff;}
 .ph-green{background:#2f9e44;}.ph-blue{background:#1a7ad4;}.ph-purple{background:#7048e8;}
 .pb{padding:12px 14px;}
-
-/* 방법1 */
 .manual-round{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
 .manual-round label{font-size:11px;color:#555;font-weight:600;white-space:nowrap;}
 .round-in{border:1px solid #ddd;border-radius:5px;padding:5px 8px;font-size:13px;width:90px;text-align:center;font-weight:700;}
@@ -39,29 +36,22 @@ body{background:#f3f4f6;font-size:13px;}
 .num-in{border:1px solid #ddd;border-radius:5px;padding:6px 2px;font-size:12px;text-align:center;font-weight:600;width:100%;}
 .num-in:focus{border-color:#1a7ad4;outline:none;background:#f0f8ff;}
 .btn-add{width:100%;background:#fff;border:1px dashed #1a7ad4;color:#1a7ad4;border-radius:6px;padding:7px;font-size:11px;cursor:pointer;margin-bottom:8px;}
-.btn-add:hover{background:#f0f8ff;}
 .btn-save-green{width:100%;background:#2f9e44;color:#fff;border:none;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
-
-/* 방법2 */
 .upload-area{border:2px dashed #c0d4f0;border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:#f8fbff;margin-bottom:8px;transition:all 0.2s;}
 .upload-area:hover,.upload-area.dragover{border-color:#1a7ad4;background:#eef6ff;}
 .upload-icon{font-size:36px;margin-bottom:8px;}
 .upload-text{font-size:12px;color:#555;margin-bottom:4px;}
 .upload-sub{font-size:10px;color:#aaa;}
-
-/* 처리 상태 */
 .proc-status{background:#e8f4ff;border:1px solid #1a7ad4;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:none;}
 .proc-status.show{display:block;}
 .proc-bar-wrap{height:6px;background:#ddd;border-radius:3px;margin:6px 0;}
 .proc-bar{height:100%;background:#1a7ad4;border-radius:3px;transition:width 0.3s;}
 .proc-text{font-size:10px;color:#1a5a9e;font-weight:600;}
-
-/* 방법3 */
 .qr-guide-box{background:#f5f0ff;border:1px solid #c0a8f0;border-radius:8px;padding:14px;margin-bottom:10px;text-align:center;}
 .qr-guide-title{font-size:12px;font-weight:700;color:#5a3db8;margin-bottom:4px;}
 .qr-guide-desc{font-size:10px;color:#666;line-height:1.7;}
 #qr-reader{display:none;width:100%;margin-bottom:8px;border-radius:8px;overflow:hidden;}
-#qr-reader video{width:100%!important;border-radius:0!important;}
+#qr-reader video{width:100%!important;}
 #qr-reader img{display:none!important;}
 .zoom-wrap{background:#f8f8f8;border:1px solid #eee;border-radius:7px;padding:8px 10px;margin-bottom:8px;display:none;}
 .zoom-label{font-size:10px;color:#555;font-weight:600;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;}
@@ -75,53 +65,25 @@ body{background:#f3f4f6;font-size:13px;}
 .url-in{flex:1;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:11px;}
 .url-in:focus{border-color:#7048e8;outline:none;}
 .btn-url-parse{background:#7048e8;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;}
-
-/* 공통 메시지 */
 .msg{border-radius:6px;padding:7px 10px;font-size:11px;margin:6px 0;display:none;line-height:1.5;}
 .msg.show{display:block;}
 .msg.success{background:#e8fff0;border:1px solid #2f9e44;color:#1a6b2e;}
 .msg.error{background:#fff0f0;border:1px solid #e03131;color:#c00;}
 .msg.info{background:#e8f4ff;border:1px solid #1a7ad4;color:#1a5a9e;}
-
-/* 테이블 */
 .rp{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
 .rph{padding:8px 12px;display:flex;align-items:center;gap:7px;border-bottom:1px solid #eee;flex-wrap:wrap;}
 .rpt{font-size:13px;font-weight:700;color:#333;}
 .cb{background:#1a7ad4;color:#fff;font-size:10px;padding:1px 7px;border-radius:8px;}
-.cb-real{background:#f5c518;color:#7a5e00;font-size:10px;padding:1px 7px;border-radius:8px;margin-left:2px;}
+.cb-real{font-size:10px;padding:1px 7px;border-radius:8px;margin-left:2px;background:#f5c518;color:#7a5e00;}
 .fsel{border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:10px;}
 .btn-q{background:#fff;border:1px solid #1a7ad4;color:#1a7ad4;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;}
 .tw{overflow-x:auto;overflow-y:auto;max-height:600px;}
-table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:440px;}
-col.c-round{width:52px;}col.c-nums{width:145px;}col.c-type{width:55px;}
-col.c-real{width:50px;}col.c-status{width:50px;}col.c-grade{width:46px;}col.c-del{width:28px;}
+table{width:100%;border-collapse:collapse;min-width:520px;}
 th{background:#f8f8f8;padding:6px;font-size:10px;font-weight:700;color:#555;border-bottom:1px solid #e0e0e0;white-space:nowrap;position:sticky;top:0;z-index:2;text-align:center;}
-td{padding:5px 6px;font-size:10px;color:#444;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;white-space:nowrap;overflow:hidden;}
-tr:hover td{background:#fafafa;}
-/* 추첨전 강조 */
-tr.pre-draw td{background:#fff8e1;}
-tr.pre-draw:hover td{background:#fff3cc;}
-/* 추첨후 실구매 강조 */
-tr.post-real td{background:#f0fff4;}
-tr.post-real:hover td{background:#e8ffe8;}
-.section-divider td{background:#f0f0f0;padding:3px 6px;font-size:9px;font-weight:700;color:#888;text-align:left;}
-.rc{background:#555;color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;}
-.rc-pre{background:#e03131;}
-.bm{display:flex;gap:2px;align-items:center;justify-content:center;}
-.ball{width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;}
-.tg{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;white-space:nowrap;}
-.tm{background:#e8f4ff;color:#1a7ad4;}.ta{background:#e8fff0;color:#2f9e44;}.ts{background:#fff3e0;color:#e67700;}
-.real-badge{background:#f5c518;color:#7a5e00;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;white-space:nowrap;}
-.virtual-badge{background:#eee;color:#999;font-size:8px;padding:1px 4px;border-radius:3px;}
-.status-pre{color:#e03131;font-weight:700;font-size:9px;}
-.status-post{color:#999;font-size:9px;}
-.gx{color:#ddd;}
-.btn-d{background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;}
-.no-data{text-align:center;padding:30px;color:#bbb;font-size:12px;}
+td{padding:5px 6px;font-size:10px;color:#444;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;}
 </style>
 </head>
 <body>
-
 <div class="header">
   <div class="header-inner">
     <div class="logo-left">
@@ -135,8 +97,7 @@ tr.post-real:hover td{background:#e8ffe8;}
   </div>
 </div>
 
-<div class="main">
-<div class="wrap">
+<div class="main"><div class="wrap">
 <div>
   <div class="tabs">
     <div class="tab active" onclick="switchTab(1)">✏️ 방법1<br>직접입력</div>
@@ -179,13 +140,10 @@ tr.post-real:hover td{background:#e8ffe8;}
           <div class="upload-sub">여러 장 동시 선택 가능 · JPG · PNG · HEIC</div>
         </div>
         <input type="file" id="imgInput" accept="image/*" multiple style="display:none" onchange="onImgSelect(this)">
-
-        <!-- 처리 상태 -->
         <div class="proc-status" id="procStatus">
           <div class="proc-text" id="procText">처리 중...</div>
           <div class="proc-bar-wrap"><div class="proc-bar" id="procBar" style="width:0%"></div></div>
         </div>
-
         <div class="msg" id="msg2"></div>
       </div>
     </div>
@@ -238,179 +196,164 @@ tr.post-real:hover td{background:#e8ffe8;}
   <div class="rph">
     <span class="rpt">🎫 저장된 번호</span>
     <span class="cb" id="totalCount">0</span>
-    <span class="cb-real" id="realCount" style="background:#f5c518;color:#7a5e00;">실구매 0</span>
+    <span class="cb-real" id="realCount">실구매 0</span>
     <div style="margin-left:auto;display:flex;gap:5px;align-items:center;">
       <select class="fsel" id="fs" onchange="refreshTable()"><option value="">전체</option></select>
       <button class="btn-q" onclick="refreshTable()">조회</button>
     </div>
   </div>
   <div class="tw">
-    <table style="min-width:500px;">
-      <thead>
-        <tr>
-          <th style="width:52px;">회차</th>
-          <th style="width:160px;">번호</th>
-          <th style="width:54px;">구매형태</th>
-          <th style="width:50px;">구분</th>
-          <th style="width:50px;">추첨</th>
-          <th style="width:46px;">결과</th>
-          <th style="width:80px;">당첨금</th>
-          <th style="width:28px;">삭제</th>
-        </tr>
-      </thead>
+    <table>
+      <thead><tr>
+        <th style="width:52px;">회차</th>
+        <th style="width:155px;">번호</th>
+        <th style="width:54px;">구매형태</th>
+        <th style="width:50px;">구분</th>
+        <th style="width:50px;">추첨</th>
+        <th style="width:40px;">결과</th>
+        <th style="width:75px;">당첨금</th>
+        <th style="width:28px;">삭제</th>
+      </tr></thead>
       <tbody id="tb"></tbody>
     </table>
   </div>
 </div>
-</div>
-</div>
+</div></div>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
-
 <script>
-// ── MLL 로드 확인 ──
-if (typeof window.MLL === 'undefined') {
-  console.error('[MLL] common.js가 로드되지 않았습니다. GitHub에 common.js가 있는지 확인하세요.');
-  window.MLL = { // 최소 폴백
-    getSession:function(){return 'camera_'+Date.now();},
-    addEntry:function(){},
-    deleteEntry:function(){},
-    renderTable:function(id){document.getElementById(id).innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:#e03131;">common.js 로드 실패. GitHub에 common.js를 업로드해주세요.</td></tr>';},
-    getLottoInfo:function(){var n=Math.floor((Date.now()-new Date('2002-12-07T20:00:00+09:00').getTime())/(7*24*60*60*1000))+1;return{thisRound:n,nextRound:n+1,soldOut:false};}
-  };
-}
+// ── 세션 및 회차 ──
+var SESSION_TAG = MLL.getSession('camera');
+var INFO        = MLL.getLottoInfo();
+var THIS_ROUND  = INFO.thisRound;
+var NEXT_ROUND  = INFO.nextRound;
 
-// ── 기본 설정 ──
-const CURRENT=MLL.getLottoInfo().thisRound, NEXT=MLL.getLottoInfo().nextRound;
+// 회차 필터 드롭다운
 (function(){
-  const sel=document.getElementById('fs');
-  for(let r=NEXT;r>=Math.max(1,NEXT-19);r--){
-    const o=document.createElement('option');o.value=r;o.textContent=r+'회';sel.appendChild(o);
+  var sel = document.getElementById('fs');
+  for(var r=NEXT_ROUND; r>=Math.max(1,NEXT_ROUND-19); r--){
+    var o=document.createElement('option'); o.value=r; o.textContent=r+'회'; sel.appendChild(o);
   }
 })();
-const BC=n=>n<=10?'#f5c518':n<=20?'#1a7ad4':n<=30?'#e03131':n<=40?'#888':'#2f9e44';
-const TC=n=>n<=10?'#7a5e00':'#fff';
-let data=[],comboCount=0;
 
 // ── 탭 ──
 function switchTab(n){
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n-1));
-  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',i===n-1));
-  if(n!==3)stopCamScan();
+  document.querySelectorAll('.tab').forEach(function(t,i){ t.classList.toggle('active',i===n-1); });
+  document.querySelectorAll('.panel').forEach(function(p,i){ p.classList.toggle('active',i===n-1); });
+  if(n!==3) stopCamScan();
 }
 
 // ── 방법1: 직접입력 ──
-const LABELS=['A','B','C','D','E','F','G','H','I','J'];
+var comboCount = 0;
+var LABELS = ['A','B','C','D','E','F','G','H','I','J'];
+
 function addCombo(){
-  comboCount++;const id=comboCount;
-  const div=document.createElement('div');
-  div.className='combo-block';div.id='cb'+id;
-  div.innerHTML=`<div class="combo-top">
-    <span class="combo-lbl">${LABELS[(id-1)%10]}</span>
-    <select class="type-sel" id="tp${id}">
-      <option value="자동">자동</option><option value="반자동">반자동</option><option value="수동">수동</option>
-    </select>
-    <button class="combo-del" onclick="document.getElementById('cb${id}').remove()">✕</button>
-  </div>
-  <div class="num-grid">${[1,2,3,4,5,6].map(n=>`<input class="num-in" type="number" id="n${id}_${n}" min="1" max="45" placeholder="${n}" oninput="autoNext(this,${id},${n})">`).join('')}</div>`;
+  comboCount++;
+  var id = comboCount;
+  var div = document.createElement('div');
+  div.className = 'combo-block'; div.id = 'cb'+id;
+  var numInputs = '';
+  for(var n=1;n<=6;n++) numInputs += '<input class="num-in" type="number" id="n'+id+'_'+n+'" min="1" max="45" placeholder="'+n+'" oninput="autoNext(this,'+id+','+n+')">';
+  div.innerHTML = '<div class="combo-top">' +
+    '<span class="combo-lbl">'+(id)+'</span>' +
+    '<select class="type-sel" id="tp'+id+'"><option value="자동">자동</option><option value="반자동">반자동</option><option value="수동">수동</option></select>' +
+    '<button class="combo-del" onclick="document.getElementById(\'cb'+id+'\').remove()">✕</button>' +
+    '</div><div class="num-grid">'+numInputs+'</div>';
   document.getElementById('combos').appendChild(div);
 }
+
 function autoNext(el,id,num){
-  const v=el.value.replace(/[^0-9]/g,'');el.value=v;
-  if(v.length>=2){const n=parseInt(v);if(n<1)el.value=1;else if(n>45)el.value=45;
-    if(num<6){const nx=document.getElementById(`n${id}_${num+1}`);if(nx)nx.focus();}}
+  var v=el.value.replace(/[^0-9]/g,''); el.value=v;
+  if(v.length>=2){
+    var n=parseInt(v); if(n<1)el.value=1; else if(n>45)el.value=45;
+    if(num<6){ var nx=document.getElementById('n'+id+'_'+(num+1)); if(nx)nx.focus(); }
+  }
 }
+
 function saveManual(){
-  const round=parseInt(document.getElementById('manualRound').value);
-  if(!round||round<1){showMsg('msg1','error','회차를 입력해주세요.');return;}
-  const blocks=document.querySelectorAll('.combo-block');
-  if(!blocks.length){showMsg('msg1','error','번호조합을 추가해주세요.');return;}
-  const status=round<=CURRENT?'추첨후':'추첨전';
-  let ok=0,skip=0;
-  blocks.forEach(b=>{
-    const id=b.id.replace('cb','');
-    const type=document.getElementById('tp'+id).value;
-    const nums=[1,2,3,4,5,6].map(n=>parseInt(document.getElementById(`n${id}_${n}`)?.value||''));
-    if(nums.some(isNaN)||nums.some(n=>n<1||n>45)||new Set(nums).size!==6){skip++;return;}
-    pushData({round,nums,type,status,grade:null,isReal:true});ok++;
+  var round=parseInt(document.getElementById('manualRound').value);
+  if(!round||round<1){ showMsg('msg1','error','회차를 입력해주세요.'); return; }
+  var blocks=document.querySelectorAll('.combo-block');
+  if(!blocks.length){ showMsg('msg1','error','번호조합을 추가해주세요.'); return; }
+  var ok=0, skip=0;
+  blocks.forEach(function(b){
+    var id=b.id.replace('cb','');
+    var type=document.getElementById('tp'+id).value;
+    var nums=[];
+    for(var n=1;n<=6;n++){
+      var el=document.getElementById('n'+id+'_'+n);
+      nums.push(el ? parseInt(el.value) : NaN);
+    }
+    if(nums.some(isNaN)||nums.some(function(n){return n<1||n>45;})||new Set(nums).size!==6){ skip++; return; }
+    MLL.addEntry({ round:round, nums:nums, type:type, isReal:true, inputMethod:'camera', sessionTag:SESSION_TAG });
+    ok++;
   });
-  if(ok>0){render();showMsg('msg1','success',`✅ ${ok}개 실구매 저장!${skip?` (오류 ${skip}개 건너뜀)`:''}`);
-    document.getElementById('combos').innerHTML='';comboCount=0;document.getElementById('manualRound').value='';}
-  else showMsg('msg1','error','저장 가능한 번호가 없습니다.');
+  if(ok>0){
+    refreshTable();
+    showMsg('msg1','success','✅ '+ok+'개 실구매 저장!'+(skip?' (오류 '+skip+'개 건너뜀)':''));
+    document.getElementById('combos').innerHTML='';
+    comboCount=0;
+    document.getElementById('manualRound').value='';
+  } else {
+    showMsg('msg1','error','저장 가능한 번호가 없습니다.');
+  }
 }
 
-// ── 방법2: 이미지 업로드 → 자동 인식 → 자동 저장 ──
-let imgQueue=[];
-let isProcessing=false;
+// ── 방법2: 이미지 업로드 ──
+var imgQueue=[], isProcessing=false;
 
-function onDrag(e,over){e.preventDefault();document.getElementById('dropArea').classList.toggle('dragover',over);}
-function onDrop(e){e.preventDefault();onDrag(e,false);addImages([...e.dataTransfer.files]);}
-function onImgSelect(inp){if(inp.files.length)addImages([...inp.files]);inp.value='';}
+function onDrag(e,over){ e.preventDefault(); document.getElementById('dropArea').classList.toggle('dragover',over); }
+function onDrop(e){ e.preventDefault(); onDrag(e,false); addImages(Array.from(e.dataTransfer.files)); }
+function onImgSelect(inp){ if(inp.files.length) addImages(Array.from(inp.files)); inp.value=''; }
 
 function addImages(files){
-  const imgs=files.filter(f=>f.type.startsWith('image/'));
-  if(!imgs.length){showMsg('msg2','error','이미지 파일만 업로드 가능합니다.');return;}
-  imgs.forEach(f=>imgQueue.push(f));
-  if(!isProcessing)processQueue();
+  var imgs=files.filter(function(f){return f.type.startsWith('image/');});
+  if(!imgs.length){ showMsg('msg2','error','이미지 파일만 업로드 가능합니다.'); return; }
+  imgs.forEach(function(f){ imgQueue.push(f); });
+  if(!isProcessing) processQueue();
 }
 
 async function processQueue(){
-  if(!imgQueue.length){isProcessing=false;hideProcStatus();return;}
+  if(!imgQueue.length){ isProcessing=false; hideProcStatus(); return; }
   isProcessing=true;
-  const file=imgQueue.shift();
-  const total=imgQueue.length+1;
-  const done=total-imgQueue.length-1;
-  showProcStatus(`📷 "${file.name}" 인식 중... (${done+1}/${total})`,((done)/total)*100);
-
+  var file=imgQueue.shift();
+  var total=imgQueue.length+1;
+  showProcStatus('"'+file.name+'" 인식 중...', 30);
   try{
-    const url=URL.createObjectURL(file);
-    const img=await loadImage(url);
-    const canvas=document.createElement('canvas');
-    canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+    var url=URL.createObjectURL(file);
+    var img=await loadImage(url);
+    var canvas=document.createElement('canvas');
+    canvas.width=img.naturalWidth; canvas.height=img.naturalHeight;
     canvas.getContext('2d').drawImage(img,0,0);
     URL.revokeObjectURL(url);
-
-    let qrText=null;
-
-    // ① BarcodeDetector
+    var qrText=null;
     if('BarcodeDetector' in window){
       try{
-        const det=new BarcodeDetector({formats:['qr_code']});
-        const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.95));
-        const bmp=await createImageBitmap(blob);
-        const codes=await det.detect(bmp);
-        if(codes.length>0)qrText=codes[0].rawValue;
+        var det=new BarcodeDetector({formats:['qr_code']});
+        var blob=await new Promise(function(r){canvas.toBlob(r,'image/jpeg',0.95);});
+        var bmp=await createImageBitmap(blob);
+        var codes=await det.detect(bmp);
+        if(codes.length>0) qrText=codes[0].rawValue;
       }catch(e){}
     }
-    // ② ZXing 폴백
     if(!qrText){
-      const imageData=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height);
+      var imageData=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height);
       qrText=await zxingDecode(imageData,canvas.width,canvas.height);
     }
-
     if(qrText){
-      const parsed=parseLottoQrUrl(qrText);
+      var parsed=parseLottoQrUrl(qrText);
       if(parsed){
-        // 자동 저장
-        parsed.combos.forEach(c=>{
-          pushData({round:parsed.round,nums:[...c.nums],type:c.type,
-            status:parsed.round<=CURRENT?'추첨후':'추첨전',grade:null,isReal:true});
+        parsed.combos.forEach(function(c){
+          MLL.addEntry({ round:parsed.round, nums:c.nums.slice(), type:c.type, isReal:true, inputMethod:'camera', sessionTag:SESSION_TAG });
         });
-        render();
-        showMsg('msg2','success',`✅ "${file.name}" 인식 성공! 제${parsed.round}회 ${parsed.combos.length}개 자동 저장됨`);
-      } else {
-        showMsg('msg2','error',`"${file.name}" — QR 인식됐지만 로또 데이터가 아닙니다`);
-      }
-    } else {
-      showMsg('msg2','error',`"${file.name}" — QR 인식 실패. 로또 용지 QR 부분을 크게 찍어주세요`);
-    }
-  }catch(e){
-    showMsg('msg2','error',`"${file.name}" 오류: ${e.message}`);
-  }
-
-  setProgress(((total-imgQueue.length)/total)*100);
-  setTimeout(processQueue,300);
+        refreshTable();
+        showMsg('msg2','success','✅ "'+file.name+'" 인식 성공! 제'+parsed.round+'회 '+parsed.combos.length+'개 저장됨');
+      } else { showMsg('msg2','error','"'+file.name+'" — 로또 QR이 아닙니다'); }
+    } else { showMsg('msg2','error','"'+file.name+'" — QR 인식 실패. QR 부분을 크게 찍어주세요'); }
+  }catch(e){ showMsg('msg2','error','"'+file.name+'" 오류: '+e.message); }
+  setProgress(100);
+  setTimeout(processQueue, 300);
 }
 
 function showProcStatus(text,pct){
@@ -418,23 +361,16 @@ function showProcStatus(text,pct){
   document.getElementById('procText').textContent=text;
   document.getElementById('procBar').style.width=pct+'%';
 }
-function hideProcStatus(){
-  setTimeout(()=>document.getElementById('procStatus').classList.remove('show'),1500);
-}
-function setProgress(pct){document.getElementById('procBar').style.width=pct+'%';}
+function hideProcStatus(){ setTimeout(function(){document.getElementById('procStatus').classList.remove('show');},1500); }
+function setProgress(pct){ document.getElementById('procBar').style.width=pct+'%'; }
 
-// ── 방법3: Html5-QRCode → 자동 저장 ──
-let html5Qr=null,zoomLevel=1.0;
+// ── 방법3: QR 스캔 ──
+var html5Qr=null, zoomLevel=1.0;
 
 function onZoom(val){
   zoomLevel=val/10;
   document.getElementById('zoomVal').textContent=zoomLevel.toFixed(1)+'x';
-  if(html5Qr){
-    try{
-      const cap=html5Qr.getRunningTrackCapabilities();
-      if(cap&&cap.zoom)html5Qr.applyVideoConstraints({advanced:[{zoom:zoomLevel}]});
-    }catch(e){}
-  }
+  if(html5Qr){ try{ html5Qr.applyVideoConstraints({advanced:[{zoom:zoomLevel}]}); }catch(e){} }
 }
 
 async function startCamScan(){
@@ -444,14 +380,11 @@ async function startCamScan(){
     document.getElementById('btnQrStart').style.display='none';
     document.getElementById('btnQrStop').style.display='flex';
     document.getElementById('zoomWrap').style.display='block';
-
     html5Qr=new Html5Qrcode('qr-reader');
     await html5Qr.start(
       {facingMode:'environment'},
-      {fps:15,qrbox:{width:230,height:230},aspectRatio:1.0,
-       experimentalFeatures:{useBarCodeDetectorIfSupported:true}},
-      (text)=>handleQrSuccess(text),
-      ()=>{}
+      {fps:15,qrbox:{width:230,height:230},aspectRatio:1.0,experimentalFeatures:{useBarCodeDetectorIfSupported:true}},
+      function(text){ handleQrSuccess(text); }, function(){}
     );
     showMsg('msg3','info','📷 QR코드를 화면 중앙에 맞춰주세요!');
   }catch(e){
@@ -465,132 +398,106 @@ async function startCamScan(){
 }
 
 async function stopCamScan(){
-  if(html5Qr){try{await html5Qr.stop();html5Qr.clear();}catch(e){}html5Qr=null;}
-  const reader=document.getElementById('qr-reader');
-  reader.style.display='none';reader.innerHTML='';
+  if(html5Qr){ try{await html5Qr.stop(); html5Qr.clear();}catch(e){} html5Qr=null; }
+  var reader=document.getElementById('qr-reader');
+  reader.style.display='none'; reader.innerHTML='';
   document.getElementById('qrGuide').style.display='block';
   document.getElementById('btnQrStart').style.display='flex';
   document.getElementById('btnQrStop').style.display='none';
   document.getElementById('zoomWrap').style.display='none';
   document.getElementById('zoomSlider').value=10;
-  zoomLevel=1.0;document.getElementById('zoomVal').textContent='1.0x';
+  zoomLevel=1.0; document.getElementById('zoomVal').textContent='1.0x';
 }
 
 function handleQrSuccess(text){
-  if(!text)return;
+  if(!text) return;
   if(text.includes('dhlottery')||text.includes('qr.dh')){
-    const parsed=parseLottoQrUrl(text);
+    var parsed=parseLottoQrUrl(text);
     if(parsed){
-      if(navigator.vibrate)navigator.vibrate([100,50,100]);
-      // 자동 저장
-      parsed.combos.forEach(c=>{
-        pushData({round:parsed.round,nums:[...c.nums],type:c.type,
-          status:parsed.round<=CURRENT?'추첨후':'추첨전',grade:null,isReal:true});
+      if(navigator.vibrate) navigator.vibrate([100,50,100]);
+      parsed.combos.forEach(function(c){
+        MLL.addEntry({ round:parsed.round, nums:c.nums.slice(), type:c.type, isReal:true, inputMethod:'camera', sessionTag:SESSION_TAG });
       });
-      render();
+      refreshTable();
       stopCamScan();
-      showMsg('msg3','success',`✅ QR 인식 성공! 제${parsed.round}회 ${parsed.combos.length}개 자동 저장됨`);
+      showMsg('msg3','success','✅ QR 인식 성공! 제'+parsed.round+'회 '+parsed.combos.length+'개 저장됨');
     }
   }
 }
 
 function parseUrlManual(){
-  const url=document.getElementById('urlInput').value.trim();
-  if(!url){showMsg('msg3','error','URL을 입력해주세요.');return;}
-  const parsed=parseLottoQrUrl(url);
+  var url=document.getElementById('urlInput').value.trim();
+  if(!url){ showMsg('msg3','error','URL을 입력해주세요.'); return; }
+  var parsed=parseLottoQrUrl(url);
   if(parsed){
-    parsed.combos.forEach(c=>{
-      pushData({round:parsed.round,nums:[...c.nums],type:c.type,
-        status:parsed.round<=CURRENT?'추첨후':'추첨전',grade:null,isReal:true});
+    parsed.combos.forEach(function(c){
+      MLL.addEntry({ round:parsed.round, nums:c.nums.slice(), type:c.type, isReal:true, inputMethod:'camera', sessionTag:SESSION_TAG });
     });
-    render();
-    showMsg('msg3','success',`✅ 파싱 성공! 제${parsed.round}회 ${parsed.combos.length}개 자동 저장됨`);
+    refreshTable();
+    showMsg('msg3','success','✅ 파싱 성공! 제'+parsed.round+'회 '+parsed.combos.length+'개 저장됨');
     document.getElementById('urlInput').value='';
-  } else {
-    showMsg('msg3','error','인식 실패. 동행복권 QR URL인지 확인해주세요.');
-  }
+  } else { showMsg('msg3','error','인식 실패. 동행복권 QR URL인지 확인해주세요.'); }
 }
 
-// ── QR URL 파싱 ──
 function parseLottoQrUrl(url){
   try{
-    const match=url.match(/[?&]v=([^&]+)/);if(!match)return null;
-    const v=match[1];
-    const roundMatch=v.match(/^(\d+)/);if(!roundMatch)return null;
-    const round=parseInt(roundMatch[1]);
-    const combos=[],labels=['A','B','C','D','E','F','G','H','I','J'];
-    let m;const pat=/([mqs])(\d{12})/g;
+    var match=url.match(/[?&]v=([^&]+)/); if(!match) return null;
+    var v=match[1];
+    var roundMatch=v.match(/^(\d+)/); if(!roundMatch) return null;
+    var round=parseInt(roundMatch[1]);
+    var combos=[]; var pat=/([mqs])(\d{12})/g; var m;
     while((m=pat.exec(v))!==null){
-      const type=m[1]==='m'?'수동':m[1]==='q'?'자동':'반자동';
-      const nums=[];for(let i=0;i<12;i+=2)nums.push(parseInt(m[2].slice(i,i+2)));
-      if(nums.length===6&&nums.every(n=>n>=1&&n<=45)&&new Set(nums).size===6)
-        combos.push({label:labels[combos.length],type,nums});
+      var type=m[1]==='m'?'수동':m[1]==='q'?'자동':'반자동';
+      var nums=[]; for(var i=0;i<12;i+=2) nums.push(parseInt(m[2].slice(i,i+2)));
+      if(nums.length===6&&nums.every(function(n){return n>=1&&n<=45;})&&new Set(nums).size===6)
+        combos.push({type:type,nums:nums});
     }
-    if(!round||!combos.length)return null;
-    return{round,combos};
+    if(!round||!combos.length) return null;
+    return{round:round,combos:combos};
   }catch(e){return null;}
 }
 
-// ── ZXing 디코드 ──
 function zxingDecode(imageData,w,h){
-  return new Promise(resolve=>{
+  return new Promise(function(resolve){
     try{
-      const hints=new Map();
+      var hints=new Map();
       hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE]);
       hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-      const reader=new ZXing.MultiFormatReader();reader.setHints(hints);
-      const src=new ZXing.RGBLuminanceSource(imageData.data,w,h);
-      const bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
+      var reader=new ZXing.MultiFormatReader(); reader.setHints(hints);
+      var src=new ZXing.RGBLuminanceSource(imageData.data,w,h);
+      var bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
       resolve(reader.decode(bitmap).getText());
     }catch(e){resolve(null);}
   });
 }
 
 function loadImage(src){
-  return new Promise((res,rej)=>{const img=new Image();img.onload=()=>res(img);img.onerror=rej;img.src=src;});
+  return new Promise(function(res,rej){var img=new Image();img.onload=function(){res(img);};img.onerror=rej;img.src=src;});
 }
 
-// ── 데이터 저장 (common.js 사용) ──
-var SESSION_TAG = MLL.getSession('camera');
-
-function pushData(item){
-  item.inputMethod = 'camera';
-  item.isReal      = true;
-  item.sessionTag  = SESSION_TAG;
-  MLL.addEntry(item);
-  refreshTable();
-}
-
-// ── 테이블 렌더 (common.js 사용) ──
+// ── 테이블 렌더 (common.js) ──
 function refreshTable(){
-  var fv = document.getElementById('fs').value;
-  MLL.renderTable('tb', SESSION_TAG, fv || null);
+  var fv=document.getElementById('fs').value;
+  MLL.renderTable('tb', SESSION_TAG, fv||null);
+  // 카운트 업데이트
+  var entries=MLL.loadEntries();
+  document.getElementById('totalCount').textContent=entries.length;
+  document.getElementById('realCount').textContent='실구매 '+entries.filter(function(e){return e.isReal;}).length;
 }
 
-function del(id){ MLL.deleteEntry(id); refreshTable(); }
-
-// ── 공통 ──
 function showMsg(id,type,text){
-  const el=document.getElementById(id);
-  el.className='msg '+type+' show';el.textContent=text;
-  if(type==='success')setTimeout(()=>el.classList.remove('show'),5000);
+  var el=document.getElementById(id);
+  el.className='msg '+type+' show'; el.textContent=text;
+  if(type==='success') setTimeout(function(){el.classList.remove('show');},5000);
 }
 
-addCombo(); refreshTable();
+// ── 초기화 ──
+addCombo();
+refreshTable();
 
-// 회차 필터 드롭다운
-(function(){
-  var info = MLL.getLottoInfo();
-  var sel  = document.getElementById('fs');
-  for(var r=info.nextRound; r>=Math.max(1,info.nextRound-19); r--){
-    var o=document.createElement('option'); o.value=r; o.textContent=r+'회'; sel.appendChild(o);
-  }
-})();
-
-// BarcodeDetector 배지
-window.addEventListener('load', function(){
-  var badge = document.getElementById('detectorBadge');
-  if ('BarcodeDetector' in window) {
+window.addEventListener('load',function(){
+  var badge=document.getElementById('detectorBadge');
+  if('BarcodeDetector' in window){
     badge.style.cssText='background:#e8fff0;color:#2f9e44;border:1px solid #2f9e44;';
     badge.textContent='✅ 네이티브 BarcodeDetector 지원 (고성능)';
   } else {
