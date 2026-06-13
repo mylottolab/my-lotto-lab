@@ -341,7 +341,9 @@ function processInput(text) {
 }
 
 function extractRound(t) {
-  var m = t.match(/(\d{3,4})\s*회/);
+  // 금액 관련 단어 제거 후 회차 파싱 (예: "1220회 자동만원" → "만원"이 회차에 영향 안 주도록)
+  var cleaned = t.replace(/(\d+)\s*만\s*(원어치|원|게임|장|개)/g, function(m,n){ return n+'0게임'; });
+  var m = cleaned.match(/(\d{3,5})\s*회/);
   if (m) return { round: parseInt(m[1]), specified: true };
   if (/이번|금번|이번주/.test(t)) return { round: THIS_ROUND, specified: true };
   if (/다음|다음주/.test(t)) return { round: NEXT_ROUND, specified: true };
@@ -396,11 +398,12 @@ function extractDirectNumbers(t) {
 
 function extractGameOrders(t) {
   var results = [];
+  // 먼저 회차 부분 제거 (예: "1220회" → 게임수 계산에서 제외)
+  var processed = t.replace(/\d{3,5}\s*회/g, '');
   var moneyMap = {
     '천':1,'이천':2,'삼천':3,'사천':4,'오천':5,'육천':6,'칠천':7,'팔천':8,'구천':9,
     '만':10,'이만':20,'삼만':30,'사만':40,'오만':50,'육만':60,'칠만':70,'팔만':80,'구만':90,'십만':100
   };
-  var processed = t;
   processed = processed.replace(/(\d+)000\s*원/g, function(m,n){ return parseInt(n)+'게임'; });
   processed = processed.replace(/(\d+)만\s*(원어치|원)?/g, function(m,n){ return (parseInt(n)*10)+'게임'; });
   Object.keys(moneyMap).forEach(function(k) {
