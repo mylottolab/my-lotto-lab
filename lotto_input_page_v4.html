@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 번호 입력</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
+body{background:#f3f4f6;font-size:14px;}
+.wrap{display:grid;grid-template-columns:300px 1fr 300px;gap:10px;padding:10px;max-width:1280px;margin:0 auto;}
+.panel{background:#fff;border-radius:9px;overflow:hidden;border:1px solid #e0e0e0;margin-bottom:8px;}
+.ph{padding:9px 14px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:#fff;}
+.ph-blue{background:#1a7ad4;}
+.ph-gray{background:#666;}
+.pb{padding:11px 13px;}
+.round-badge{background:#f5c518;color:#7a5e00;font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;}
+.di{font-size:11px;color:#999;margin:5px 0 7px;}
+.sr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.sc{background:#1a7ad4;color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;}
+.mi{border:1px solid #ddd;border-radius:5px;padding:4px 8px;font-size:11px;width:110px;}
+.sd{background:#f8f8f8;border:1px solid #eee;border-radius:5px;padding:6px 9px;font-size:11px;color:#aaa;min-height:26px;margin-bottom:7px;display:flex;align-items:center;gap:3px;flex-wrap:wrap;}
+.sb{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;flex-shrink:0;}
+.faded{opacity:0.38;}
+.ng{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:8px;}
+.nb{width:100%;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;cursor:pointer;border:none;outline:none;transition:transform 0.1s;}
+.nb:hover{transform:scale(1.1);}
+.nb.on{box-shadow:0 0 0 2px #fff,0 0 0 3px #222;}
+.y{background:#f5c518;color:#7a5e00;}
+.bl{background:#1a7ad4;color:#fff;}
+.r{background:#e03131;color:#fff;}
+.gy{background:#888;color:#fff;}
+.gr{background:#2f9e44;color:#fff;}
+.br{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.btn-rst{background:#fff;border:1px solid #ccc;border-radius:4px;padding:4px 10px;font-size:11px;color:#666;cursor:pointer;}
+.cnt-box{display:flex;align-items:center;gap:3px;margin-left:auto;}
+.cnt-in{width:46px;border:1px solid #ddd;border-radius:4px;text-align:center;padding:2px;font-size:12px;font-weight:600;}
+.btn-auto{background:#2f9e44;color:#fff;border:none;border-radius:4px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+.btn-save{width:100%;background:#1a7ad4;color:#fff;border:none;border-radius:5px;padding:8px;font-size:13px;font-weight:700;cursor:pointer;}
+.rsel{width:100%;border:1px solid #ddd;border-radius:5px;padding:5px 8px;font-size:12px;margin-bottom:6px;}
+/* 테이블 패널 */
+.rp{background:#fff;border-radius:9px;border:1px solid #e0e0e0;overflow:hidden;}
+.rph{padding:11px 15px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #eee;flex-wrap:wrap;}
+.rpt{font-size:15px;font-weight:700;color:#333;}
+.cb{background:#1a7ad4;color:#fff;font-size:10px;padding:1px 7px;border-radius:8px;}
+.fsel{border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:10px;}
+.btn-q{background:#fff;border:1px solid #1a7ad4;color:#1a7ad4;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;}
+.btn-res{background:#2f9e44;color:#fff;border:none;border-radius:4px;padding:3px 9px;font-size:10px;cursor:pointer;}
+.tw{overflow-x:hidden;overflow-y:auto;max-height:580px;}
+table{width:100%;border-collapse:collapse;table-layout:fixed;}
+col.c-round{width:72px;}
+col.c-nums{width:195px;}
+col.c-memo{width:125px;}
+col.c-type{width:80px;}
+col.c-status{width:80px;}
+col.c-grade{width:84px;}
+col.c-del{width:46px;}
+th{background:#f8f8f8;padding:8px 10px;font-size:12px;font-weight:700;color:#555;border-bottom:1px solid #e0e0e0;white-space:nowrap;position:sticky;top:0;z-index:2;text-align:center;overflow:hidden;}
+th.s{cursor:pointer;user-select:none;}
+th.s:hover{background:#eef2ff;color:#1a7ad4;}
+td{padding:7px 10px;font-size:12px;color:#444;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;overflow:hidden;}
+tr:hover td{background:#fafafa;}
+.rc{background:#555;color:#fff;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:700;}
+.bm{display:flex;gap:2px;align-items:center;justify-content:center;flex-wrap:nowrap;}
+.ball{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.tg{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:600;}
+.tm{background:#e8f4ff;color:#1a7ad4;}
+.ta{background:#e8fff0;color:#2f9e44;}
+.ts{background:#fff3e0;color:#e67700;}
+.tbf{color:#e03131;font-weight:700;font-size:11px;}
+.tba{color:#999;font-size:11px;}
+.gx{color:#ddd;}
+.g5{background:#e8f4ff;color:#1a7ad4;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:700;}
+.g4{background:#e8fff0;color:#2f9e44;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:700;}
+.g3{background:#fff3cd;color:#e67700;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:700;}
+.btn-d{background:none;border:1px solid #fcc;border-radius:3px;padding:2px 6px;color:#e03131;cursor:pointer;font-size:11px;}
+.tip{position:relative;display:inline-block;}
+.tip .tb{visibility:hidden;background:#222;color:#fff;font-size:10px;padding:6px 10px;border-radius:6px;position:absolute;top:26px;left:50%;transform:translateX(-50%);white-space:nowrap;z-index:99;box-shadow:0 2px 8px rgba(0,0,0,.3);}
+.tip .tb::before{content:'';position:absolute;top:-5px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top:none;border-bottom-color:#222;}
+.tip:hover .tb{visibility:visible;}
+.sa{font-size:8px;}
+.sa.asc::after{content:' ▲';color:#1a7ad4;}
+.sa.desc::after{content:' ▼';color:#1a7ad4;}
+.sa:not(.asc):not(.desc)::after{content:' ⇅';color:#bbb;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- TEST 1 (왼쪽) -->
+<div>
+  <div class="panel">
+    <div class="ph ph-blue">📋 TEST 1 &nbsp;|&nbsp; 이번주 추첨예정분 모의 테스트</div>
+    <div class="pb">
+      <div style="display:flex;align-items:center;gap:6px;"><span class="round-badge" id="t1badge"></span><span class="di" id="t1date"></span></div>
+      <div class="sr"><span style="font-size:10px;color:#444;">선택된 번호 <span class="sc" id="c1">0</span>/6</span><input class="mi" placeholder="메모 (선택)" id="m1"></div>
+      <div class="sd" id="d1"><span style="color:#bbb;font-size:9px;">번호를 선택하세요</span></div>
+      <div class="ng" id="g1"></div>
+      <div class="br">
+        <button class="btn-rst" onclick="rst(1)">⊗ 초기화</button>
+        <div class="cnt-box"><input class="cnt-in" type="number" value="1" min="1" max="10" id="ci1"><span style="font-size:9px;color:#888;">개</span></div>
+        <button class="btn-auto" onclick="auto1(1)">✦ AUTO</button>
+      </div>
+      <button class="btn-save" onclick="sv(1)">⬇ 이 번호 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 가운데 테이블 -->
+<div class="rp">
+  <div class="rph">
+    <span class="rpt">🎫 저장된 번호</span><span class="cb" id="tc">0</span><span class="rpt">개</span>
+    <div style="margin-left:auto;display:flex;gap:5px;align-items:center;">
+      <select class="fsel" id="fs" onchange="render()"><option value="">전체</option></select>
+      <button class="btn-q" onclick="render()">조회</button>
+      <button class="btn-res" onclick="showRes()">✔ 결과 확인</button>
+    </div>
+  </div>
+  <div class="tw">
+    <table>
+      <colgroup>
+        <col class="c-round"><col class="c-nums"><col class="c-memo">
+        <col class="c-type"><col class="c-status"><col class="c-grade"><col class="c-del">
+      </colgroup>
+      <thead><tr>
+        <th class="s" onclick="srt('round')">회차<span class="sa" id="sa-round"></span></th>
+        <th>선택한 번호</th>
+        <th>선택사유(메모)</th>
+        <th class="s" onclick="srt('type')">구매형태<span class="sa" id="sa-type"></span></th>
+        <th class="s" onclick="srt('status')">추첨유무<span class="sa" id="sa-status"></span></th>
+        <th class="s tip" onclick="srt('grade')">추첨결과?<span class="sa" id="sa-grade"></span><div class="tb">상세한 추첨결과는 메인페이지 추첨결과를 클릭하세요!</div></th>
+        <th>삭제</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TEST 2 (오른쪽) -->
+<div>
+  <div class="panel">
+    <div class="ph ph-gray">🕐 TEST 2 &nbsp;|&nbsp; 지난 추첨분 모의 테스트</div>
+    <div class="pb">
+      <select class="rsel" id="rsel2"><option value="">— 회차를 선택하세요 —</option></select>
+      <div style="font-size:9px;color:#bbb;margin-bottom:5px;">선택직후 결과가 나옵니다.</div>
+      <div class="sr"><span style="font-size:10px;color:#444;">선택된 번호 <span class="sc" id="c2">0</span>/6</span><input class="mi" placeholder="메모 (선택)" id="m2"></div>
+      <div class="sd" id="d2"><span style="color:#bbb;font-size:9px;">번호를 선택하세요</span></div>
+      <div class="ng" id="g2"></div>
+      <div class="br">
+        <button class="btn-rst" onclick="rst(2)">⊗ 초기화</button>
+        <div class="cnt-box"><input class="cnt-in" type="number" value="1" min="1" max="10" id="ci2"><span style="font-size:9px;color:#888;">개</span></div>
+        <button class="btn-auto" onclick="auto1(2)">✦ AUTO</button>
+      </div>
+      <button class="btn-save" onclick="sv(2)">⬇ 이 번호 저장</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+// ── 회차 계산 ──
+const ROUND1_DRAW_KST = new Date('2002-12-07T20:45:00+09:00').getTime();
+const WEEK_MS = 7*24*60*60*1000;
+function getRoundDate(r){
+  const d=new Date(ROUND1_DRAW_KST+(r-1)*WEEK_MS);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function calcCurrentRound(){
+  const elapsed=Date.now()-ROUND1_DRAW_KST;
+  if(elapsed<0)return 0;
+  return Math.floor(elapsed/WEEK_MS)+1;
+}
+const CURRENT_ROUND=calcCurrentRound();
+const NEXT_ROUND=CURRENT_ROUND+1;
+
+// TEST1 배지
+document.getElementById('t1badge').textContent='제'+NEXT_ROUND+'회';
+document.getElementById('t1date').textContent=getRoundDate(NEXT_ROUND)+' 추첨예정 — 추첨직후 결과가 나옵니다.';
+
+// TEST2 회차 셀렉트
+(function(){
+  const sel=document.getElementById('rsel2');
+  for(let r=CURRENT_ROUND;r>=1;r--){
+    const opt=document.createElement('option');
+    opt.value=r;
+    opt.textContent='제'+r+'회 ('+getRoundDate(r)+')';
+    sel.appendChild(opt);
+  }
+})();
+
+// 필터 셀렉트 최근 20회
+(function(){
+  const sel=document.getElementById('fs');
+  for(let r=NEXT_ROUND;r>=Math.max(1,NEXT_ROUND-19);r--){
+    const opt=document.createElement('option');
+    opt.value=r;opt.textContent=r+'회';
+    sel.appendChild(opt);
+  }
+})();
+
+// ── 색상 ──
+const BC=(n)=>n<=10?'#f5c518':n<=20?'#1a7ad4':n<=30?'#e03131':n<=40?'#888':'#2f9e44';
+const TC=(n)=>n<=10?'#7a5e00':'#fff';
+const CLS=(n)=>n<=10?'y':n<=20?'bl':n<=30?'r':n<=40?'gy':'gr';
+
+let ST={1:{sel:[],auto:[],cnt:1},2:{sel:[],auto:[],cnt:1}};
+let resShown=false;
+let sortCol=null,sortDir=1;
+let data=[
+  {round:NEXT_ROUND,nums:[5,8,12,13,38,43],an:[],memo:'차번호',type:'수동',status:'추첨전',grade:null},
+  {round:NEXT_ROUND,nums:[2,11,18,35,38,39],an:[],memo:'생일날짜 이용 조합',type:'수동',status:'추첨전',grade:null},
+  {round:NEXT_ROUND,nums:[3,4,5,21,38,44],an:[38,44],memo:'',type:'반자동',status:'추첨전',grade:null},
+  {round:NEXT_ROUND,nums:[1,2,3,24,29,32],an:[29,32],memo:'2,3,32본인선택',type:'반자동',status:'추첨전',grade:null},
+  {round:CURRENT_ROUND,nums:[3,18,25,30,38,43],an:[],memo:'',type:'자동',status:'추첨후',grade:null},
+  {round:CURRENT_ROUND,nums:[1,4,10,22,32,38],an:[],memo:'',type:'자동',status:'추첨후',grade:null},
+  {round:CURRENT_ROUND,nums:[1,8,12,19,25,29],an:[19,25,29],memo:'',type:'반자동',status:'추첨후',grade:null},
+  {round:CURRENT_ROUND-1,nums:[5,17,24,36,40,42],an:[],memo:'',type:'수동',status:'추첨후',grade:5},
+];
+
+function buildGrid(p){
+  const g=document.getElementById('g'+p);
+  g.innerHTML='';
+  for(let i=1;i<=45;i++){
+    const b=document.createElement('button');
+    b.className='nb '+CLS(i);
+    b.textContent=i;
+    b.id='btn'+p+'_'+i;
+    b.onclick=(()=>{const n=i;return()=>tog(p,n);})();
+    g.appendChild(b);
+  }
+}
+
+function tog(p,n){
+  const s=ST[p];const i=s.sel.indexOf(n);
+  if(i>=0)s.sel.splice(i,1);else if(s.sel.length<6)s.sel.push(n);
+  s.auto=[];upd(p);
+}
+
+function upd(p){
+  const s=ST[p];const all=[...s.sel,...s.auto];
+  for(let i=1;i<=45;i++){
+    const el=document.getElementById('btn'+p+'_'+i);
+    if(el)el.classList.toggle('on',all.includes(i));
+  }
+  document.getElementById('c'+p).textContent=all.length;
+  const d=document.getElementById('d'+p);
+  if(!all.length){d.innerHTML='<span style="color:#bbb;font-size:9px;">번호를 선택하세요</span>';return;}
+  d.innerHTML=all.map(n=>`<span class="sb${s.auto.includes(n)&&s.sel.length>0?' faded':''}" style="background:${BC(n)};color:${TC(n)}">${n}</span>`).join('');
+}
+
+function auto1(p){
+  const cnt=parseInt(document.getElementById('ci'+p).value)||1;
+  const s=ST[p];
+  const pool=[];
+  for(let i=1;i<=45;i++)if(!s.sel.includes(i))pool.push(i);
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  s.auto=pool.slice(0,6-s.sel.length);
+  s.cnt=cnt;
+  upd(p);
+}
+
+function rst(p){
+  ST[p]={sel:[],auto:[],cnt:1};
+  upd(p);
+  document.getElementById('m'+p).value='';
+  document.getElementById('ci'+p).value=1;
+}
+
+function sv(p){
+  const s=ST[p];const all=[...s.sel,...s.auto];
+  if(all.length!==6){alert('6개의 번호를 완성해주세요.');return;}
+  const type=s.sel.length===0?'자동':s.auto.length>0?'반자동':'수동';
+  const round=p===1?NEXT_ROUND:parseInt(document.getElementById('rsel2').value)||CURRENT_ROUND;
+  const status=p===1?'추첨전':'추첨후';
+  const memo=document.getElementById('m'+p).value;
+  const cnt=s.cnt||1;
+
+  if(cnt<=1||s.sel.length>0){
+    data.unshift({round,nums:all,an:[...s.auto],memo,type,status,grade:null});
+  } else {
+    for(let k=0;k<cnt;k++){
+      const pool=[];
+      for(let i=1;i<=45;i++)pool.push(i);
+      for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+      const autoNums=pool.slice(0,6);
+      data.unshift({round,nums:autoNums,an:autoNums,memo,type:'자동',status,grade:null});
+    }
+  }
+  rst(p);resShown=false;render();
+  setTimeout(()=>{
+    const t=document.getElementById('tb');
+    if(t)t.closest('table').scrollIntoView({behavior:'smooth',block:'start'});
+  },100);
+}
+
+function srt(col){
+  if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}
+  ['round','type','status','grade'].forEach(c=>{
+    const el=document.getElementById('sa-'+c);
+    if(el){el.className='sa';if(c===col)el.classList.add(sortDir===1?'asc':'desc');}
+  });
+  render();
+}
+
+function showRes(){
+  resShown=true;
+  data.forEach(item=>{
+    if(item.status==='추첨후'&&item.grade===null){
+      const r=Math.random();item.grade=r<0.04?5:r<0.008?4:0;
+    }
+  });
+  render();
+}
+
+function render(){
+  const fv=document.getElementById('fs').value;
+  let list=fv?data.filter(x=>String(x.round)===fv):[...data];
+  if(sortCol){
+    list.sort((a,b)=>{
+      const av=sortCol==='round'?a.round:sortCol==='grade'?(a.grade||0):a[sortCol]||'';
+      const bv=sortCol==='round'?b.round:sortCol==='grade'?(b.grade||0):b[sortCol]||'';
+      return av<bv?-sortDir:av>bv?sortDir:0;
+    });
+  }
+  document.getElementById('tc').textContent=data.length;
+  const tb=document.getElementById('tb');
+  tb.innerHTML=list.map(item=>{
+    const ri=data.indexOf(item);
+    const balls=[...item.nums].sort((a,b)=>a-b).map(n=>
+      `<span class="ball${item.an.includes(n)&&item.type!=='자동'?' faded':''}" style="background:${BC(n)};color:${TC(n)}">${n}</span>`
+    ).join('');
+    const ttag=item.type==='수동'?'tm':item.type==='자동'?'ta':'ts';
+    const stag=item.status==='추첨전'?'<span class="tbf">추첨전</span>':'<span class="tba">추첨후</span>';
+    let gr='<span class="gx">-</span>';
+    if(resShown&&item.status==='추첨후'){
+      gr=item.grade?`<span class="g${item.grade}">${item.grade}등</span>`:'<span class="gx">낙첨</span>';
+    }
+    return `<tr><td><span class="rc">${item.round}회</span></td><td><div class="bm">${balls}</div></td><td style="color:#999;font-size:8px;text-align:left;">${item.memo||''}</td><td><span class="tg ${ttag}">${item.type}</span></td><td>${stag}</td><td>${gr}</td><td><button class="btn-d" onclick="del(${ri})">🗑</button></td></tr>`;
+  }).join('');
+}
+
+function del(i){if(confirm('삭제하시겠습니까?')){data.splice(i,1);render();}}
+
+buildGrid(1);
+buildGrid(2);
+render();
+</script>
+</body>
+</html>
