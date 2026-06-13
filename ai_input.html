@@ -468,19 +468,6 @@ function extractDirectNumbers(t,round){
     results.push({label:String(i+1),type,nums:[...nums].sort((a,b)=>a-b),isAuto:false});
   });
   return results;
-}
-  const validGroups=[];
-  for(let i=0;i<=allNums.length-6;i+=6){
-    const g=allNums.slice(i,i+6);
-    if(new Set(g).size===6&&g.every(n=>n>=1&&n<=45))validGroups.push(g);
-  }
-  if(!validGroups.length)return[];
-  const type=extractType(t);
-  validGroups.forEach((nums,i)=>{
-    results.push({label:labels[i],type,nums:[...nums].sort((a,b)=>a-b),isAuto:false});
-  });
-  return results;
-}
 
 // ── 게임 수 / 금액 파싱 ──
 function extractGameOrders(t){
