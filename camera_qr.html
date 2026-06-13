@@ -644,7 +644,6 @@ td{padding:5px 6px;font-size:10px;color:#444;border-bottom:1px solid #f0f0f0;ver
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
 // ── 세션 및 회차 ──
 var SESSION_TAG = MLL.getSession('camera');
 var INFO        = MLL.getLottoInfo();
@@ -917,6 +916,20 @@ function showMsg(id,type,text){
 addCombo();
 refreshTable();
 
+// ── onclick 전역 등록 ──
+window.switchTab    = switchTab;
+window.addCombo     = addCombo;
+window.autoNext     = autoNext;
+window.saveManual   = saveManual;
+window.onDrag       = onDrag;
+window.onDrop       = onDrop;
+window.onImgSelect  = onImgSelect;
+window.onZoom       = onZoom;
+window.startCamScan = startCamScan;
+window.stopCamScan  = stopCamScan;
+window.parseUrlManual = parseUrlManual;
+window.refreshTable = refreshTable;
+
 window.addEventListener('load',function(){
   var badge=document.getElementById('detectorBadge');
   if('BarcodeDetector' in window){
@@ -928,7 +941,6 @@ window.addEventListener('load',function(){
   }
 });
 
-}); // DOMContentLoaded 끝
 </script>
 </body>
 </html>

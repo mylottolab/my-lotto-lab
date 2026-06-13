@@ -593,7 +593,6 @@ tr.pre-draw td{background:#fff8e1;}
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
 // ── MLL 로드 확인 ──
 if (typeof window.MLL === 'undefined') {
   console.error('[MLL] common.js가 로드되지 않았습니다.');
@@ -1053,6 +1052,17 @@ function delItem(id) {
 
 renderTable();
 
+// ── onclick 전역 등록 ──
+window.toggleMic    = toggleMic;
+window.sendInput    = sendInput;
+window.onKeyDown    = onKeyDown;
+window.fillEx       = fillEx;
+window.saveResult   = saveResult;
+window.regenResult  = regenResult;
+window.cancelResult = cancelResult;
+window.renderTable  = renderTable;
+window.delItem      = delItem;
+
 // 회차 드롭다운
 (function() {
   var info = MLL.getLottoInfo();
@@ -1062,7 +1072,6 @@ renderTable();
   }
 })();
 
-}); // DOMContentLoaded 끝
 </script>
 </body>
 </html>
