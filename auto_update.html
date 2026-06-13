@@ -383,19 +383,26 @@ MLL.renderRow = function(entry, sessionTag, opts) {
   opts = opts || {};
   var isSession = sessionTag && entry.sessionTag === sessionTag;
   var result    = MLL.getResult(entry.round);
-  var winNums   = result ? result.nums   : [];
-  var bonusNum  = result ? result.bonus  : null;
+  var winNums   = result ? result.nums  : [];
+  var bonusNum  = result ? result.bonus : null;
+
+  // status 실시간 재판단 (당첨결과 적용 후 반영)
+  var actualStatus = entry.status;
+  if (result && entry.status === '추첨전') actualStatus = '추첨후';
+
+  // 반자동: autoNums 필드(시스템 채운 번호) 저장되어 있으면 사용
+  var autoNums = entry.autoNums || [];
 
   // 번호 정렬 후 매치 표시
   var sorted = entry.nums.slice().sort(function(a,b){return a-b;});
   var ballsHTML = sorted.map(function(n) {
     var isMatch = winNums.indexOf(n) >= 0;
     var isBonus = n === bonusNum && !isMatch;
-    var bg  = isBonus ? '#fff'    : MLL.BC(n);
-    var tc  = isBonus ? '#555'    : MLL.TC(n);
-    var brd = isMatch  ? '2px solid #f5c518' :
-              isBonus  ? '2px solid #aaa'    : 'none';
-    var op  = (entry.type==='반자동' && !entry.isReal) ? '0.45' : '1';
+    var bg  = isBonus ? '#fff' : MLL.BC(n);
+    var tc  = isBonus ? '#555' : MLL.TC(n);
+    var brd = isMatch ? '2px solid #f5c518' : isBonus ? '2px solid #aaa' : 'none';
+    // 반자동: 시스템이 채운 번호(autoNums)만 흐리게, 사용자 선택번호는 진하게
+    var op = (entry.type==='반자동' && autoNums.length>0 && autoNums.indexOf(n)>=0) ? '0.4' : '1';
     return '<span style="width:19px;height:19px;border-radius:50%;display:inline-flex;' +
       'align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;' +
       'background:'+bg+';color:'+tc+';border:'+brd+';margin:1px;opacity:'+op+';">'+n+'</span>';
@@ -412,14 +419,14 @@ MLL.renderRow = function(entry, sessionTag, opts) {
     ? '<span style="background:#f5c518;color:#7a5e00;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;">실구매</span>'
     : '<span style="background:#eee;color:#999;font-size:8px;padding:1px 4px;border-radius:3px;">가상</span>';
 
-  // 추첨상태
-  var statusHTML = entry.status==='추첨전'
+  // 추첨상태 (실시간 재판단 적용)
+  var statusHTML = actualStatus==='추첨전'
     ? '<span style="color:#e03131;font-weight:700;font-size:9px;">추첨전</span>'
     : '<span style="color:#999;font-size:9px;">추첨후</span>';
 
   // 당첨결과
   var gradeHTML = '<span style="color:#ddd;">-</span>';
-  if (entry.status==='추첨후' && entry.grade !== null) {
+  if (actualStatus==='추첨후' && entry.grade !== null) {
     if (entry.grade === 0) {
       gradeHTML = '<span style="color:#aaa;font-size:9px;">낙첨</span>';
     } else {
@@ -435,12 +442,12 @@ MLL.renderRow = function(entry, sessionTag, opts) {
       entry.prizeMoney.toLocaleString()+'원</span>';
   }
 
-  // 세션 하이라이트 (현재 입력창에서 입력한 항목)
+  // 세션 하이라이트
   var rowStyle = isSession
     ? 'border-left:3px solid #1a7ad4;background:#f0f8ff;'
-    : (entry.status==='추첨전' ? 'background:#fff8e1;' : '');
+    : (actualStatus==='추첨전' ? 'background:#fff8e1;' : '');
 
-  var rcColor = entry.status==='추첨전' ? '#e03131' : '#555';
+  var rcColor = actualStatus==='추첨전' ? '#e03131' : '#555';
 
   var delBtn = opts.noDelete ? '' :
     '<button onclick="MLL.deleteEntry(\''+entry.id+'\');if(window.refreshTable)refreshTable();" ' +

@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - AI 도우미 등록</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
+body{background:#f3f4f6;font-size:13px;}
+.header-inner{max-width:1000px;margin:0 auto;padding:0 14px;height:44px;display:flex;align-items:center;justify-content:space-between;background:#1c1c2e;border-radius:0 0 8px 8px;}
+.logo-left{display:flex;align-items:center;gap:9px;}
+.logo-icon{width:30px;height:30px;background:#1a7ad4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-text .title{font-size:14px;font-weight:700;color:#fff;}
+.logo-text .sub{font-size:9px;color:#aaa;}
+.btn-back{background:none;border:1px solid #555;color:#ccc;padding:3px 10px;border-radius:5px;font-size:11px;cursor:pointer;}
+.main{max-width:960px;margin:0 auto;padding:12px 14px;}
+.wrap{display:grid;grid-template-columns:420px 1fr;gap:10px;}
+.card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;margin-bottom:10px;}
+.ph{padding:9px 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:12px;color:#fff;background:linear-gradient(135deg,#7048e8,#4c2fb0);}
+
+/* 채팅 */
+.chat-wrap{height:400px;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:#f8f8fc;}
+.bubble{max-width:88%;padding:9px 12px;border-radius:12px;font-size:11px;line-height:1.6;}
+.bubble.ai{background:#fff;border:1px solid #e0e0e0;align-self:flex-start;border-radius:4px 12px 12px 12px;}
+.bubble.ai .ai-label{font-size:9px;color:#7048e8;font-weight:700;margin-bottom:3px;}
+.bubble.user{background:#7048e8;color:#fff;align-self:flex-end;border-radius:12px 4px 12px 12px;}
+
+/* 마이크 상태 배너 */
+.mic-banner{display:none;background:#e03131;color:#fff;text-align:center;padding:8px;font-size:12px;font-weight:700;animation:blink-bg 1s infinite;}
+.mic-banner.show{display:block;}
+@keyframes blink-bg{0%,100%{background:#e03131;}50%{background:#c00;}}
+
+/* 예시 */
+.examples{padding:8px 12px;border-top:1px solid #eee;background:#fafafa;}
+.ex-label{font-size:10px;color:#aaa;margin-bottom:5px;font-weight:600;}
+.ex-btns{display:flex;flex-wrap:wrap;gap:4px;}
+.ex-btn{background:#fff;border:1px solid #ddd;border-radius:12px;padding:3px 9px;font-size:10px;color:#555;cursor:pointer;white-space:nowrap;}
+.ex-btn:hover{border-color:#7048e8;color:#7048e8;background:#f5f0ff;}
+
+/* 입력 영역 */
+.input-wrap{padding:10px 12px;border-top:1px solid #eee;background:#fff;}
+.input-row{display:flex;gap:6px;align-items:flex-end;}
+.text-input{flex:1;border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:12px;resize:none;height:60px;outline:none;font-family:sans-serif;}
+.text-input:focus{border-color:#7048e8;}
+.btn-mic{width:42px;height:42px;border:none;border-radius:50%;background:#f0ecff;color:#7048e8;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.2s;border:2px solid #d0c0ff;}
+.btn-mic.recording{background:#e03131;color:#fff;border-color:#c00;animation:pulse 1s infinite;}
+.btn-send{width:42px;height:42px;border:none;border-radius:50%;background:#7048e8;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.btn-send:hover{background:#5a3db8;}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+.input-hint{font-size:9px;color:#aaa;margin-top:4px;text-align:center;}
+
+/* 결과 카드 */
+.result-card{background:#f0fff4;border:1px solid #2f9e44;border-radius:8px;padding:10px 12px;margin-top:4px;}
+.result-round{font-size:12px;font-weight:700;color:#1a7ad4;margin-bottom:4px;}
+.result-cond{font-size:10px;margin-bottom:6px;display:flex;gap:6px;flex-wrap:wrap;}
+.cond-tag{padding:2px 7px;border-radius:8px;font-weight:700;font-size:9px;}
+.cond-inc{background:#e8f4ff;color:#1a7ad4;border:1px solid #1a7ad4;}
+.cond-exc{background:#fff0f0;color:#e03131;border:1px solid #e03131;}
+.result-row{display:flex;align-items:center;gap:5px;margin-bottom:4px;padding:5px 8px;background:#fff;border-radius:5px;border:1px solid #e0e0e0;}
+.row-label{font-size:11px;font-weight:700;color:#555;width:16px;}
+.row-type{font-size:9px;padding:2px 5px;border-radius:3px;font-weight:700;white-space:nowrap;}
+.t-auto{background:#e8fff0;color:#2f9e44;border:1px solid #2f9e44;}
+.t-manual{background:#e8f4ff;color:#1a7ad4;border:1px solid #1a7ad4;}
+.row-balls{display:flex;gap:2px;flex:1;justify-content:flex-end;}
+.row-ball{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;}
+.chk{width:15px;height:15px;cursor:pointer;flex-shrink:0;}
+.result-btns{display:flex;gap:6px;margin-top:6px;}
+.btn-save-result{flex:2;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;}
+.btn-regen{flex:1;background:#1a7ad4;color:#fff;border:none;border-radius:6px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;}
+
+/* 테이블 */
+.rp{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
+.rph{padding:8px 12px;display:flex;align-items:center;gap:7px;border-bottom:1px solid #eee;flex-wrap:wrap;}
+.rpt{font-size:13px;font-weight:700;color:#333;}
+.cb{background:#1a7ad4;color:#fff;font-size:10px;padding:1px 7px;border-radius:8px;}
+.fsel{border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:10px;}
+.btn-q{background:#fff;border:1px solid #1a7ad4;color:#1a7ad4;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;}
+.tw{overflow-x:auto;overflow-y:auto;max-height:580px;}
+table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:400px;}
+col.c-round{width:52px;}col.c-nums{width:148px;}col.c-type{width:55px;}
+col.c-status{width:50px;}col.c-grade{width:46px;}col.c-del{width:28px;}
+th{background:#f8f8f8;padding:6px;font-size:10px;font-weight:700;color:#555;border-bottom:1px solid #e0e0e0;white-space:nowrap;position:sticky;top:0;z-index:2;text-align:center;}
+td{padding:5px 6px;font-size:10px;color:#444;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;white-space:nowrap;overflow:hidden;}
+tr:hover td{background:#fafafa;}
+tr.pre-draw td{background:#fff8e1;}
+tr.pre-draw:hover td{background:#fff3cc;}
+.section-divider td{background:#f0f0f0;padding:3px 6px;font-size:9px;font-weight:700;color:#888;text-align:left;}
+.rc{background:#555;color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;}
+.rc-pre{background:#e03131;}
+.bm{display:flex;gap:2px;align-items:center;justify-content:center;}
+.ball{width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;}
+.tg{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;}
+.tm{background:#e8f4ff;color:#1a7ad4;}.ta{background:#e8fff0;color:#2f9e44;}
+.status-pre{color:#e03131;font-weight:700;font-size:9px;}
+.status-post{color:#999;font-size:9px;}
+.gx{color:#ddd;}
+.btn-d{background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;}
+.no-data{text-align:center;padding:30px;color:#bbb;font-size:12px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo-left">
+      <div class="logo-icon">🎱</div>
+      <div class="logo-text">
+        <div class="title">My Lotto Lab</div>
+        <div class="sub">AI 도우미 말로 등록</div>
+      </div>
+    </div>
+    <button class="btn-back" onclick="location.href='main_page.html'">← 메인으로</button>
+  </div>
+</div>
+
+<div class="main">
+<div class="wrap">
+<div>
+  <div class="card">
+    <div class="ph">✨ AI 도우미 — 말로 번호 등록</div>
+
+    <!-- 음성 인식 중 배너 -->
+    <div class="mic-banner" id="micBanner">🎤 음성으로 주문하세요!</div>
+
+    <!-- 채팅창 -->
+    <div class="chat-wrap" id="chatWrap">
+      <div class="bubble ai">
+        <div class="ai-label">✨ AI 도우미</div>
+        안녕하세요! 로또 번호를 말로 등록해드릴게요 😊<br><br>
+        <b>이렇게 말씀해보세요:</b><br>
+        • "1227회 자동 3게임 수동 2게임"<br>
+        • "자동으로 만원어치 줘"<br>
+        • "2번 11번은 꼭 넣고 오천원어치 줘"<br>
+        • "1, 3, 7번은 절대 넣지 말고 만원어치 줘"<br>
+        • "15, 25번 꼭 넣고 41, 43번 빼고 만원어치"<br><br>
+        ✏️ 텍스트 입력 또는 🎤 마이크 버튼으로 음성 입력
+      </div>
+    </div>
+
+    <!-- 예시 버튼 -->
+    <div class="examples">
+      <div class="ex-label">💡 예시 클릭</div>
+      <div class="ex-btns">
+        <button class="ex-btn" onclick="fillEx('자동으로 만원어치 줘')">자동 만원어치</button>
+        <button class="ex-btn" onclick="fillEx('이번주 자동 5게임')">이번주 자동 5게임</button>
+        <button class="ex-btn" onclick="fillEx('1227회 자동 3게임 수동 2게임')">자동3 수동2 혼합</button>
+        <button class="ex-btn" onclick="fillEx('2번 11번은 꼭 넣고 오천원어치 줘')">특정번호 포함</button>
+        <button class="ex-btn" onclick="fillEx('1, 3, 7번은 절대 넣지 말고 만원어치 줘')">특정번호 제외</button>
+        <button class="ex-btn" onclick="fillEx('15, 25번 꼭 넣고 41, 43번 빼고 만원어치')">포함+제외 혼합</button>
+        <button class="ex-btn" onclick="fillEx('1227회 A 6 21 26 33 42 43 수동')">번호 직접 입력</button>
+      </div>
+    </div>
+
+    <!-- 과거 회차 안내 -->
+    <div id="roundNotice" style="border-top:1px solid #ffe0b2;padding:8px 12px;font-size:10px;line-height:1.7;"></div>
+
+    <!-- 입력 영역 -->
+    <div class="input-wrap">
+      <div class="input-row">
+        <textarea class="text-input" id="textInput"
+          placeholder="예) 자동으로 만원어치 줘 / 2번 꼭 넣고 오천원어치..."
+          onkeydown="onKeyDown(event)"></textarea>
+        <button class="btn-mic" id="btnMic" onclick="toggleMic()" title="음성 입력 ON/OFF">🎤</button>
+        <button class="btn-send" onclick="sendInput()">▶</button>
+      </div>
+      <div class="input-hint" id="inputHint">✏️ 텍스트 입력 모드 · 🎤 버튼을 누르면 음성 입력으로 전환</div>
+    </div>
+  </div>
+</div>
+
+<!-- 오른쪽 테이블 -->
+<div class="rp">
+  <div class="rph">
+    <span class="rpt">🎫 저장된 번호</span>
+    <span class="cb" id="tc">0</span>
+    <div style="margin-left:auto;display:flex;gap:5px;">
+      <select class="fsel" id="fs" onchange="render()"><option value="">전체</option></select>
+      <button class="btn-q" onclick="render()">조회</button>
+    </div>
+  </div>
+  <div class="tw">
+    <table>
+      <colgroup>
+        <col class="c-round"><col class="c-nums"><col class="c-type">
+        <col class="c-status"><col class="c-grade"><col class="c-del">
+      </colgroup>
+      <thead><tr>
+        <th>회차</th><th>번호</th><th>구매형태</th>
+        <th>추첨</th><th>결과</th><th>삭제</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+</div>
+
+<script>
+// ── 회차 및 판매 가능 여부 계산 ──
+const ROUND1_DATE=new Date('2002-12-07T20:00:00+09:00').getTime();
+const WEEK_MS=7*24*60*60*1000;
+
+function getLottoStatus(){
+  const now=new Date();
+  const koStr=now.toLocaleString('en-US',{timeZone:'Asia/Seoul'});
+  const koNow=new Date(koStr);
+  const day=koNow.getDay();   // 0=일, 6=토
+  const hour=koNow.getHours();
+  const min=koNow.getMinutes();
+
+  // 이번주 추첨 회차
+  const elapsed=now.getTime()-ROUND1_DATE;
+  const thisRound=Math.floor(elapsed/WEEK_MS)+1;
+  const nextRound=thisRound+1;
+
+  // 이번 회차 판매 중단 여부 (토 20:00 ~ 일 06:00)
+  const isSoldOut=
+    (day===6&&(hour>20||(hour===20&&min===0)))||
+    (day===0&&hour<6);
+
+  // 현재 판매 가능한 회차
+  // 일06:00~토20:00: thisRound 판매 중
+  // 토20:00~일06:00: 판매 중단 (다음 회차도 아직 안 열림)
+  const saleRound=isSoldOut?null:thisRound; // null=판매중단
+
+  // 회차 미지정 시 기본값
+  const defaultRound=isSoldOut?thisRound:thisRound; // 판매중단 시에도 thisRound (but blocked)
+
+  return{thisRound,nextRound,isSoldOut,saleRound,defaultRound};
+}
+
+const STATUS=getLottoStatus();
+const THIS_ROUND=STATUS.thisRound;
+const NEXT_ROUND=STATUS.nextRound;
+const DEFAULT_ROUND=STATUS.defaultRound;
+
+// 회차별 추첨전/후 판단
+function getRoundStatus(round){
+  if(round<THIS_ROUND)return'추첨후';
+  if(round===THIS_ROUND)return'추첨전';
+  return'추첨전';
+}
+
+function getRoundDeadline(round){
+  // 해당 회차의 추첨 마감 시간 계산 (토요일 20:00)
+  const drawTime=new Date(ROUND1_DATE+(round-1)*WEEK_MS);
+  const y=drawTime.getFullYear();
+  const m=String(drawTime.getMonth()+1).padStart(2,'0');
+  const d=String(drawTime.getDate()).padStart(2,'0');
+  return`${y}/${m}/${d} 토 20:00 마감`;
+}
+
+// 등록 차단 여부 및 사유
+function checkBlocked(round){
+  // 과거 회차: 항상 가능
+  if(round<THIS_ROUND)return{blocked:false};
+
+  // 이번 회차: 판매중단 시간대 차단
+  if(round===THIS_ROUND&&STATUS.isSoldOut)
+    return{blocked:true,reason:`제${THIS_ROUND}회는 현재 판매 중단 중입니다.\n(토요일 20:00 ~ 일요일 06:00)\n\n과거 회차 등록은 24시간 가능합니다.\n제${NEXT_ROUND}회 등록은 일요일 06:00 이후 가능합니다.`};
+
+  // 이번 회차: 판매 가능
+  if(round===THIS_ROUND)return{blocked:false};
+
+  // 미래 회차 (다음 회차 이상): 절대 불가
+  if(round>THIS_ROUND)
+    return{blocked:true,reason:`제${round}회는 아직 판매하지 않습니다.\n현재 판매 중인 회차는 제${THIS_ROUND}회입니다.\n\n새 회차(제${NEXT_ROUND}회)는 이번주 토요일 추첨 후\n일요일 06:00부터 판매 시작됩니다.`};
+
+  return{blocked:false};
+}
+(function(){
+  const sel=document.getElementById('fs');
+  for(let r=NEXT_ROUND;r>=Math.max(1,NEXT_ROUND-19);r--){
+    const o=document.createElement('option');o.value=r;o.textContent=r+'회';sel.appendChild(o);
+  }
+})();
+const BC=n=>n<=10?'#f5c518':n<=20?'#1a7ad4':n<=30?'#e03131':n<=40?'#888':'#2f9e44';
+const TC=n=>n<=10?'#7a5e00':'#fff';
+let data=[];
+
+// ── 음성 인식 (기본 OFF) ──
+let recognition=null;
+let isRecording=false;
+
+function initSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return false;
+  recognition=new SR();
+  recognition.lang='ko-KR';
+  recognition.continuous=false;
+  recognition.interimResults=true;
+  recognition.onresult=e=>{
+    const t=[...e.results].map(r=>r[0].transcript).join('');
+    document.getElementById('textInput').value=t;
+    if(e.results[e.results.length-1].isFinal){
+      stopMic();
+      setTimeout(()=>sendInput(),300);
+    }
+  };
+  recognition.onend=()=>stopMic();
+  recognition.onerror=()=>{
+    stopMic();
+    addBubble('ai','음성 인식 오류가 발생했어요. 텍스트로 입력해주세요.');
+  };
+  return true;
+}
+
+function toggleMic(){
+  if(isRecording)stopMic();
+  else startMic();
+}
+
+function startMic(){
+  if(!recognition&&!initSpeech()){
+    addBubble('ai','이 브라우저는 음성 인식을 지원하지 않아요. 텍스트로 입력해주세요.');
+    return;
+  }
+  try{
+    recognition.start();
+    isRecording=true;
+    document.getElementById('btnMic').classList.add('recording');
+    document.getElementById('btnMic').textContent='⏹';
+    document.getElementById('micBanner').classList.add('show');
+    document.getElementById('inputHint').textContent='🔴 음성 입력 중... 말씀하신 후 자동으로 처리됩니다';
+    document.getElementById('inputHint').style.color='#e03131';
+    document.getElementById('textInput').placeholder='🎤 음성으로 주문하세요!';
+    document.getElementById('textInput').focus();
+  }catch(e){stopMic();}
+}
+
+function stopMic(){
+  if(recognition)try{recognition.stop();}catch(e){}
+  isRecording=false;
+  document.getElementById('btnMic').classList.remove('recording');
+  document.getElementById('btnMic').textContent='🎤';
+  document.getElementById('micBanner').classList.remove('show');
+  document.getElementById('inputHint').textContent='✏️ 텍스트 입력 모드 · 🎤 버튼을 누르면 음성 입력으로 전환';
+  document.getElementById('inputHint').style.color='#aaa';
+  document.getElementById('textInput').placeholder='예) 자동으로 만원어치 줘 / 2번 꼭 넣고 오천원어치...';
+}
+
+// ── 채팅 ──
+function addBubble(who,content,isHTML=false){
+  const wrap=document.getElementById('chatWrap');
+  const div=document.createElement('div');
+  div.className=`bubble ${who}`;
+  if(who==='ai'){
+    const lbl=document.createElement('div');
+    lbl.className='ai-label';lbl.textContent='✨ AI 도우미';
+    div.appendChild(lbl);
+  }
+  if(isHTML){const d=document.createElement('div');d.innerHTML=content;div.appendChild(d);}
+  else div.appendChild(document.createTextNode(content));
+  wrap.appendChild(div);
+  wrap.scrollTop=wrap.scrollHeight;
+  return div;
+}
+
+function fillEx(t){
+  document.getElementById('textInput').value=t;
+  document.getElementById('textInput').focus();
+}
+
+function onKeyDown(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendInput();}
+}
+
+function sendInput(){
+  const text=document.getElementById('textInput').value.trim();
+  if(!text)return;
+  addBubble('user',text);
+  document.getElementById('textInput').value='';
+  setTimeout(()=>processInput(text),200);
+}
+
+// ── 자연어 파싱 엔진 ──
+function processInput(text){
+  const t=text.trim();
+  const {round,specified}=extractRound(t);
+
+  // 판매 가능 여부 체크
+  const {blocked,reason}=checkBlocked(round);
+  if(blocked){addBubble('ai',`⛔ ${reason}`);return;}
+
+  const {include,exclude}=extractConditions(t);
+  const directNums=extractDirectNumbers(t,round);
+  if(directNums.length>0&&include.length===0&&exclude.length===0){
+    showResult(round,directNums,include,exclude,specified);return;
+  }
+  const gameOrders=extractGameOrders(t);
+  if(gameOrders.length>0){
+    showResult(round,gameOrders,include,exclude,specified);return;
+  }
+  addBubble('ai','죄송해요, 이해하지 못했어요 😅\n\n이렇게 말씀해보세요:\n• "자동으로 만원어치 줘"\n• "2번 꼭 넣고 오천원어치 줘"\n• "1, 3번 빼고 만원어치"\n• "1227회 자동 3게임 수동 2게임"');
+}
+
+// ── 회차 추출 ──
+function extractRound(t){
+  const m=t.match(/(\d{3,4})\s*회/);
+  if(m)return{round:parseInt(m[1]),specified:true};
+  if(/이번|금번|이번주/i.test(t))return{round:THIS_ROUND,specified:true};
+  if(/다음|다음주/i.test(t))return{round:NEXT_ROUND,specified:true};
+  if(/지난|저번/i.test(t))return{round:THIS_ROUND-1,specified:true};
+  return{round:DEFAULT_ROUND,specified:false};
+}
+
+// ── 포함/제외 번호 추출 ──
+function extractConditions(t){
+  const include=[];
+  const exclude=[];
+
+  // "A번, B번은 꼭/반드시/포함" → include
+  // "A번, B번은 빼고/제외/넣지마/절대" → exclude
+
+  // 포함 패턴: "꼭 넣고", "반드시", "포함", "꼭 포함", "넣어줘"
+  const incPatterns=[
+    /([0-9,\s번]+?)\s*(?:은|는|이|가)?\s*(?:꼭|반드시|무조건)\s*(?:넣|포함|들어)/,
+    /(?:꼭|반드시|무조건)\s*([0-9,\s번]+?)\s*(?:넣|포함)/,
+  ];
+  incPatterns.forEach(pat=>{
+    const m=t.match(pat);
+    if(m){
+      const nums=extractNums(m[1]);
+      nums.forEach(n=>{if(!include.includes(n))include.push(n);});
+    }
+  });
+
+  // 제외 패턴: "빼고", "제외", "넣지마", "절대", "빼줘", "안 넣고"
+  const excPatterns=[
+    /([0-9,\s번]+?)\s*(?:은|는|이|가)?\s*(?:절대|빼|제외|넣지\s*말|빼줘|안\s*넣)/,
+    /(?:절대|빼고|제외하고|빼줘)\s*([0-9,\s번]+)/,
+  ];
+  excPatterns.forEach(pat=>{
+    const m=t.match(pat);
+    if(m){
+      const nums=extractNums(m[1]);
+      nums.forEach(n=>{if(!exclude.includes(n))exclude.push(n);});
+    }
+  });
+
+  return{include,exclude};
+}
+
+function extractNums(str){
+  const nums=[];
+  const matches=str.match(/\b([1-9]|[1-3][0-9]|4[0-5])\b/g)||[];
+  matches.forEach(m=>{
+    const n=parseInt(m);
+    if(n>=1&&n<=45)nums.push(n);
+  });
+  return nums;
+}
+
+// ── 직접 번호 파싱 ──
+function extractDirectNumbers(t,round){
+  const results=[];
+  const labels=['A','B','C','D','E','F','G','H','I','J'];
+  const numPattern=/\b([1-9]|[1-3][0-9]|4[0-5])\b/g;
+  let allNums=[],m;
+  while((m=numPattern.exec(t))!==null)allNums.push(parseInt(m[1]));
+  const validGroups=[];
+  for(let i=0;i<=allNums.length-6;i+=6){
+    const g=allNums.slice(i,i+6);
+    if(new Set(g).size===6&&g.every(n=>n>=1&&n<=45))validGroups.push(g);
+  }
+  if(!validGroups.length)return[];
+  const type=extractType(t);
+  validGroups.forEach((nums,i)=>{
+    results.push({label:labels[i],type,nums:[...nums].sort((a,b)=>a-b),isAuto:false});
+  });
+  return results;
+}
+
+// ── 게임 수 / 금액 파싱 ──
+function extractGameOrders(t){
+  const results=[];
+  const labels=['A','B','C','D','E','F','G','H','I','J'];
+  let idx=0;
+
+  // 금액 → 게임 수
+  const moneyMap={
+    '천':1,'이천':2,'삼천':3,'사천':4,'오천':5,'육천':6,'칠천':7,'팔천':8,'구천':9,
+    '만':10,'이만':20,'삼만':30,'사만':40,'오만':50,'십만':100
+  };
+  let processed=t;
+  processed=processed.replace(/(\d+)000\s*원/g,(m,n)=>`${parseInt(n)}게임`);
+  processed=processed.replace(/(\d+)만\s*(원어치|원)?/g,(m,n)=>`${parseInt(n)*10}게임`);
+  Object.entries(moneyMap).forEach(([k,v])=>{
+    processed=processed.replace(new RegExp(k+'\\s*(원어치|원)?','g'),`${v}게임`);
+  });
+
+  // 자동 게임 수
+  const autoPatterns=[
+    /자동\s*(?:으로\s*)?(\d+)\s*(?:게임|장|개)/,
+    /(\d+)\s*(?:게임|장|개)\s*(?:자동|짜리|로)/,
+    /(\d+)\s*(?:게임|장|개)/
+  ];
+  // 수동 게임 수
+  const manualPatterns=[
+    /수동\s*(?:으로\s*)?(\d+)\s*(?:게임|장|개)/,
+    /(\d+)\s*(?:게임|장|개)\s*수동/
+  ];
+
+  // 구매형태별 파싱
+  const typedPatterns=[
+    {type:'자동',pats:[/자동\s*(?:으로\s*)?(\d+)\s*(?:게임|장|개)/,/(\d+)\s*(?:게임|장|개)\s*자동/]},
+    {type:'수동',pats:[/수동\s*(?:으로\s*)?(\d+)\s*(?:게임|장|개)/,/(\d+)\s*(?:게임|장|개)\s*수동/]},
+  ];
+
+  let matched=false;
+  typedPatterns.forEach(({type,pats})=>{
+    pats.forEach(pat=>{
+      const m=processed.match(pat);
+      if(m&&idx<10){
+        matched=true;
+        const count=Math.min(parseInt(m[1]),10-idx);
+        for(let i=0;i<count;i++)results.push({label:labels[idx++],type,nums:null,isAuto:true});
+      }
+    });
+  });
+
+  // 구매형태 없이 게임수만
+  if(!matched){
+    const m=processed.match(/(\d+)\s*(?:게임|장|개)/);
+    if(m){
+      const type=extractType(t);
+      const count=Math.min(parseInt(m[1]),10);
+      for(let i=0;i<count;i++)results.push({label:labels[i],type,nums:null,isAuto:true});
+    }
+  }
+
+  return results;
+}
+
+// ── 구매형태 추출 ──
+function extractType(t){
+  if(/수동/.test(t))return'수동';
+  return'자동';
+}
+
+// ── 번호 생성 (포함/제외 조건 적용) ──
+function genNums(include=[],exclude=[]){
+  // 포함번호 유효성 검사
+  const validInclude=include.filter(n=>n>=1&&n<=45&&!exclude.includes(n));
+  if(validInclude.length>6)return null; // 불가능
+
+  const pool=[];
+  for(let n=1;n<=45;n++){
+    if(!exclude.includes(n)&&!validInclude.includes(n))pool.push(n);
+  }
+  const need=6-validInclude.length;
+  if(pool.length<need)return null; // 불가능
+
+  // 랜덤 선택
+  const picked=[...validInclude];
+  while(picked.length<6){
+    const idx=Math.floor(Math.random()*pool.length);
+    picked.push(pool.splice(idx,1)[0]);
+  }
+  return picked.sort((a,b)=>a-b);
+}
+
+// ── 결과 표시 ──
+let pendingItems=null,pendingRound=null,pendingCond=null;
+let resultCount=0;
+
+function showResult(round,items,include,exclude,specified=true){
+  const status=getRoundStatus(round);
+  const deadline=getRoundDeadline(round);
+  const roundLabel=round<THIS_ROUND
+    ?`제${round}회 (추첨 완료)`
+    :`제${round}회 — ${deadline}`;
+
+  // 번호 생성
+  let failed=false;
+  items.forEach(item=>{
+    if(item.isAuto){
+      const nums=genNums(include,exclude);
+      if(!nums)failed=true;
+      else item.nums=nums;
+    }
+  });
+  if(failed){
+    addBubble('ai','포함/제외 조건이 너무 많아서 번호 조합이 불가능해요 😅\n조건을 줄여서 다시 말씀해주세요.');
+    return;
+  }
+
+  pendingItems=items;pendingRound=round;pendingCond={include,exclude,status};
+  resultCount++;const rid='r'+resultCount;
+
+  // 조건 태그
+  let condHTML='';
+  if(include.length>0)condHTML+=include.map(n=>`<span class="cond-tag cond-inc">✅ ${n}번 포함</span>`).join('');
+  if(exclude.length>0)condHTML+=exclude.map(n=>`<span class="cond-tag cond-exc">❌ ${n}번 제외</span>`).join('');
+
+  const rows=items.map((item,i)=>{
+    const tc=item.type==='자동'?'t-auto':'t-manual';
+    const balls=item.nums.map(n=>{
+      const isInc=include.includes(n);
+      const style=isInc
+        ?`background:${BC(n)};color:${TC(n)};box-shadow:0 0 0 2px #1a7ad4;`
+        :`background:${BC(n)};color:${TC(n)};`;
+      return `<span class="row-ball" style="${style}">${n}</span>`;
+    }).join('');
+    return `<div class="result-row">
+      <input class="chk" type="checkbox" id="${rid}c${i}" checked>
+      <span class="row-label">${item.label}</span>
+      <span class="row-type ${tc}">${item.type}</span>
+      <div class="row-balls">${balls}</div>
+    </div>`;
+  }).join('');
+
+  const html=`<div class="result-card" id="${rid}">
+    <div class="result-round">📋 ${roundLabel} — ${items.length}개 조합</div>
+    ${condHTML?`<div class="result-cond">${condHTML}</div>`:''}
+    ${rows}
+    <div class="result-btns">
+      <button class="btn-save-result" onclick="saveResult('${rid}')">⬇ 저장</button>
+      <button class="btn-regen" onclick="regenResult('${rid}')">🔄 재생성</button>
+    </div>
+  </div>`;
+
+  // 회차 미지정 안내 포함
+  let msg='알겠어요! 아래 내용으로 등록할까요? 😊';
+  if(!specified){
+    msg=`회차를 말씀하지 않으셔서 <b>제${round}회 (다음 추첨)</b>으로 등록할게요.<br>`
+      +`과거 회차 등록이라면 취소 후 회차를 먼저 말씀해주세요! 😊`;
+  }
+  if(include.length>0)msg+=`<br>✅ 포함번호: ${include.join(', ')}번`;
+  if(exclude.length>0)msg+=`<br>❌ 제외번호: ${exclude.join(', ')}번`;
+  if(include.length>0)msg+=`<br><span style="font-size:9px;color:#888;">(파란 테두리 = 포함번호)</span>`;
+
+  addBubble('ai',msg+`<br><br>${html}`,true);
+}
+
+function saveResult(rid){
+  if(!pendingItems||!pendingCond)return;
+  const{status}=pendingCond;
+  let cnt=0;
+  pendingItems.forEach((item,i)=>{
+    if(document.getElementById(`${rid}c${i}`)?.checked){
+      data.unshift({round:pendingRound,nums:[...item.nums],type:item.type,status,grade:null,isReal:false});cnt++;
+    }
+  });
+  if(cnt>0){
+    render();
+    document.getElementById(rid).style.opacity='0.5';
+    document.getElementById(rid).style.pointerEvents='none';
+    addBubble('ai',`✅ ${cnt}개 번호가 저장됐어요! 더 등록하시겠어요?`);
+    pendingItems=null;pendingRound=null;pendingCond=null;
+  }
+}
+
+function regenResult(rid){
+  if(!pendingItems||!pendingCond)return;
+  const{include,exclude}=pendingCond;
+  let failed=false;
+  pendingItems.forEach(item=>{
+    if(item.isAuto){
+      const nums=genNums(include,exclude);
+      if(!nums){failed=true;}else item.nums=nums;
+    }
+  });
+  if(failed){addBubble('ai','번호 재생성에 실패했어요.');return;}
+  // UI 업데이트
+  const card=document.getElementById(rid);
+  if(!card)return;
+  pendingItems.forEach((item,i)=>{
+    const ballsEl=card.querySelectorAll('.result-row')[i]?.querySelector('.row-balls');
+    if(ballsEl){
+      ballsEl.innerHTML=item.nums.map(n=>{
+        const isInc=include.includes(n);
+        const style=isInc?`background:${BC(n)};color:${TC(n)};box-shadow:0 0 0 2px #1a7ad4;`:`background:${BC(n)};color:${TC(n)};`;
+        return `<span class="row-ball" style="${style}">${n}</span>`;
+      }).join('');
+    }
+  });
+}
+
+// ── 테이블 렌더 ──
+function render(){
+  const fv=document.getElementById('fs').value;
+  let list=fv?data.filter(x=>String(x.round)===fv):[...data];
+  document.getElementById('tc').textContent=data.length;
+  const preDraw=list.filter(x=>x.status==='추첨전').sort((a,b)=>b.round-a.round);
+  const postDraw=list.filter(x=>x.status==='추첨후').sort((a,b)=>b.round-a.round);
+  const tb=document.getElementById('tb');
+  if(!list.length){tb.innerHTML='<tr><td colspan="6" class="no-data">저장된 번호가 없습니다.</td></tr>';return;}
+  let html='';
+  if(preDraw.length){
+    html+=`<tr class="section-divider"><td colspan="6">🔴 추첨 예정 (${preDraw.length}개)</td></tr>`;
+    html+=preDraw.map(item=>{
+      const ri=data.indexOf(item);
+      const balls=[...item.nums].sort((a,b)=>a-b).map(n=>`<span class="ball" style="background:${BC(n)};color:${TC(n)}">${n}</span>`).join('');
+      const ttag=item.type==='수동'?'tm':'ta';
+      const deadline=getRoundDeadline(item.round);
+      return `<tr class="pre-draw">
+        <td><span class="rc rc-pre">${item.round}회</span></td>
+        <td><div class="bm">${balls}</div></td>
+        <td><span class="tg ${ttag}">${item.type}</span></td>
+        <td><span class="status-pre" title="${deadline}">추첨전</span></td>
+        <td><span class="gx">-</span></td>
+        <td><button class="btn-d" onclick="del(${ri})">🗑</button></td>
+      </tr>`;
+    }).join('');
+  }
+  if(postDraw.length){
+    html+=`<tr class="section-divider"><td colspan="6">✅ 추첨 완료 (${postDraw.length}개)</td></tr>`;
+    html+=postDraw.map(item=>{
+      const ri=data.indexOf(item);
+      const balls=[...item.nums].sort((a,b)=>a-b).map(n=>`<span class="ball" style="background:${BC(n)};color:${TC(n)}">${n}</span>`).join('');
+      const ttag=item.type==='수동'?'tm':'ta';
+      return `<tr>
+        <td><span class="rc">${item.round}회</span></td>
+        <td><div class="bm">${balls}</div></td>
+        <td><span class="tg ${ttag}">${item.type}</span></td>
+        <td><span class="status-post">추첨후</span></td>
+        <td><span class="gx">-</span></td>
+        <td><button class="btn-d" onclick="del(${ri})">🗑</button></td>
+      </tr>`;
+    }).join('');
+  }
+  tb.innerHTML=html;
+}
+function del(i){if(confirm('삭제하시겠습니까?')){data.splice(i,1);render();}}
+
+render();
+
+// ── 시간대별 안내 문구 ──
+(function(){
+  const el=document.getElementById('roundNotice');
+  if(STATUS.isSoldOut){
+    el.style.background='#fce4ec';
+    el.style.color='#c62828';
+    el.innerHTML=`⛔ <b>제${THIS_ROUND}회 판매 중단 중</b> (토 20:00 ~ 일 06:00)<br>
+      • 과거 회차 등록은 <b>24시간 가능</b> — 회차를 먼저 말씀해 주세요<br>
+      • 제${NEXT_ROUND}회 등록은 <b>일요일 06:00 이후</b>부터 가능합니다`;
+  } else {
+    el.style.background='#fff3e0';
+    el.style.color='#e65100';
+    el.innerHTML=`📌 현재 판매 중인 회차: <b>제${THIS_ROUND}회</b> (일 06:00 ~ 토 20:00)<br>
+      • 과거 회차는 <b>24시간 언제든 등록 가능</b> — 회차를 먼저 말씀해 주세요<br>
+      • <span style="color:#c00;font-weight:700;">제${NEXT_ROUND}회 이후 미래 회차는 등록 불가</span> (이번주 추첨 후 일 06:00부터 가능)<br>
+      <span style="color:#aaa;">회차 미지정 시 → <b>제${THIS_ROUND}회</b>로 자동 등록됩니다</span>`;
+  }
+})();
+
+render();
+</script>
+</body>
+</html>
