@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>My Lotto Lab - QR 스캔</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+body{background:#0f0f1a;color:#fff;min-height:100vh;display:flex;flex-direction:column;}
+
+/* 헤더 */
+.header{background:#1c1c2e;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a40;}
+.logo{display:flex;align-items:center;gap:8px;}
+.logo-icon{width:28px;height:28px;background:#1a7ad4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.logo-text{font-size:14px;font-weight:700;color:#fff;}
+.btn-home{color:#aaa;font-size:11px;border:1px solid #444;padding:4px 10px;border-radius:5px;background:none;cursor:pointer;text-decoration:none;}
+
+/* 탭 */
+.tabs{display:flex;background:#1c1c2e;border-bottom:1px solid #2a2a40;}
+.tab{flex:1;padding:11px 4px;text-align:center;font-size:11px;font-weight:600;color:#666;cursor:pointer;border-bottom:2px solid transparent;}
+.tab.active{color:#f5c518;border-bottom-color:#f5c518;}
+
+/* 카메라 뷰 */
+.cam-section{flex:1;display:flex;flex-direction:column;padding:12px;}
+.cam-wrap{position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;margin-bottom:12px;}
+.cam-wrap video{width:100%;display:block;}
+.cam-wrap canvas{display:none;}
+
+/* QR 오버레이 */
+.qr-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.qr-frame{width:60%;aspect-ratio:1;border:2px solid #f5c518;border-radius:10px;position:relative;box-shadow:0 0 0 9999px rgba(0,0,0,0.55);}
+.qr-corner{position:absolute;width:16px;height:16px;border-color:#f5c518;border-style:solid;}
+.qr-corner.tl{top:-2px;left:-2px;border-width:2px 0 0 2px;border-radius:4px 0 0 0;}
+.qr-corner.tr{top:-2px;right:-2px;border-width:2px 2px 0 0;border-radius:0 4px 0 0;}
+.qr-corner.bl{bottom:-2px;left:-2px;border-width:0 0 2px 2px;border-radius:0 0 0 4px;}
+.qr-corner.br{bottom:-2px;right:-2px;border-width:0 2px 2px 0;border-radius:0 0 4px 0;}
+.qr-scan-line{position:absolute;width:100%;height:2px;background:linear-gradient(90deg,transparent,#f5c518,transparent);animation:scan 1.8s ease-in-out infinite;}
+@keyframes scan{0%,100%{top:5%}50%{top:90%}}
+.qr-hint{color:#f5c518;font-size:10px;font-weight:600;margin-top:10px;text-shadow:0 1px 4px rgba(0,0,0,.8);}
+.qr-tip{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);color:#ccc;font-size:9px;text-align:center;padding:5px;}
+
+/* 성공 플래시 */
+.flash{position:absolute;inset:0;background:rgba(47,158,68,0.4);display:none;pointer-events:none;border-radius:12px;}
+.flash.show{display:block;animation:flash 0.5s ease-out forwards;}
+@keyframes flash{0%{opacity:1}100%{opacity:0}}
+
+/* 버튼 */
+.btn-start{width:100%;background:#7048e8;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;}
+.btn-stop{width:100%;background:#444;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;}
+
+/* 가이드 박스 */
+.guide{background:#1c1c2e;border:1px solid #2a2a40;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;}
+.guide-icon{font-size:36px;margin-bottom:8px;}
+.guide-title{font-size:13px;font-weight:700;color:#f5c518;margin-bottom:6px;}
+.guide-desc{font-size:11px;color:#888;line-height:1.7;}
+
+/* URL 입력 */
+.url-section{background:#1c1c2e;border:1px solid #2a2a40;border-radius:10px;padding:12px;margin-bottom:12px;}
+.url-label{font-size:10px;color:#888;margin-bottom:6px;}
+.url-row{display:flex;gap:6px;}
+.url-in{flex:1;background:#0f0f1a;border:1px solid #333;border-radius:8px;padding:9px 12px;font-size:12px;color:#fff;}
+.url-in:focus{border-color:#7048e8;outline:none;}
+.btn-parse{background:#7048e8;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+
+/* 상태 메시지 */
+.msg{border-radius:8px;padding:9px 12px;font-size:11px;margin-bottom:8px;display:none;line-height:1.5;}
+.msg.show{display:block;}
+.msg.success{background:#0d2b1a;border:1px solid #2f9e44;color:#6fcf97;}
+.msg.error{background:#2b0d0d;border:1px solid #e03131;color:#ff8a8a;}
+.msg.info{background:#0d1a2b;border:1px solid #1a7ad4;color:#74b9ff;}
+
+/* 인식 결과 */
+.result-box{background:#0d2b1a;border:1px solid #2f9e44;border-radius:10px;padding:12px;margin-bottom:12px;display:none;}
+.result-box.show{display:block;}
+.result-title{font-size:11px;font-weight:700;color:#6fcf97;margin-bottom:4px;}
+.result-round{font-size:16px;font-weight:700;color:#f5c518;margin-bottom:10px;}
+.combo-row{display:flex;align-items:center;gap:6px;background:#0f1f14;border-radius:7px;padding:8px 10px;margin-bottom:6px;}
+.chk{width:16px;height:16px;cursor:pointer;flex-shrink:0;accent-color:#2f9e44;}
+.combo-label{font-size:11px;font-weight:700;color:#aaa;width:16px;}
+.type-badge{font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;white-space:nowrap;}
+.t-auto{background:#0d2b1a;color:#6fcf97;border:1px solid #2f9e44;}
+.t-semi{background:#2b1a0d;color:#f39c12;border:1px solid #e67700;}
+.t-manual{background:#0d1a2b;color:#74b9ff;border:1px solid #1a7ad4;}
+.balls{display:flex;gap:3px;flex:1;justify-content:flex-end;}
+.ball{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;}
+.btn-save{width:100%;background:#2f9e44;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;}
+
+/* 직접입력 탭 */
+.input-section{padding:12px;}
+.field-label{font-size:11px;color:#888;margin-bottom:5px;font-weight:600;}
+.round-input{width:100%;background:#1c1c2e;border:1px solid #333;border-radius:8px;padding:10px 14px;font-size:16px;color:#fff;margin-bottom:12px;text-align:center;font-weight:700;}
+.round-input:focus{border-color:#f5c518;outline:none;}
+.combo-block{background:#1c1c2e;border:1px solid #2a2a40;border-radius:8px;padding:10px;margin-bottom:8px;}
+.combo-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.combo-lbl-text{font-size:12px;font-weight:700;color:#f5c518;width:20px;}
+.type-sel{background:#0f0f1a;border:1px solid #333;color:#fff;border-radius:6px;padding:5px 8px;font-size:11px;flex:1;}
+.combo-del-btn{background:none;border:none;color:#e03131;cursor:pointer;font-size:18px;padding:0 4px;}
+.num-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;}
+.num-in{background:#0f0f1a;border:1px solid #333;border-radius:6px;padding:8px 2px;font-size:14px;text-align:center;font-weight:700;color:#fff;width:100%;}
+.num-in:focus{border-color:#1a7ad4;outline:none;background:#0d1a2b;}
+.btn-add-combo{width:100%;background:none;border:1px dashed #333;color:#888;border-radius:8px;padding:10px;font-size:12px;cursor:pointer;margin-bottom:10px;}
+.btn-add-combo:hover{border-color:#7048e8;color:#7048e8;}
+.btn-save-manual{width:100%;background:#2f9e44;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;}
+
+/* 저장목록 탭 */
+.list-section{padding:12px;}
+.list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.list-title{font-size:13px;font-weight:700;color:#fff;}
+.list-count{background:#1a7ad4;color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;}
+.list-item{background:#1c1c2e;border:1px solid #2a2a40;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.item-round{background:#555;color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;white-space:nowrap;}
+.item-balls{display:flex;gap:2px;flex:1;flex-wrap:wrap;}
+.item-ball{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;}
+.item-type{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;white-space:nowrap;}
+.item-del{background:none;border:1px solid #3a1a1a;color:#e03131;border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer;}
+.no-data{text-align:center;padding:40px 20px;color:#555;font-size:12px;}
+.loading{text-align:center;padding:30px;color:#888;font-size:12px;}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">🎱</div>
+    <div class="logo-text">My Lotto Lab</div>
+  </div>
+  <a class="btn-home" href="index.html">🏠 홈</a>
+</div>
+
+<!-- 탭 -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('qr')">📷 QR 스캔</div>
+  <div class="tab" onclick="switchTab('input')">✏️ 직접 입력</div>
+  <div class="tab" onclick="switchTab('list')">🎫 저장 목록</div>
+</div>
+
+<!-- QR 스캔 탭 -->
+<div id="tabQr" class="cam-section">
+
+  <!-- 카메라 뷰 -->
+  <div class="cam-wrap" id="camWrap" style="display:none;">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div class="flash" id="flash"></div>
+    <div class="qr-overlay">
+      <div class="qr-frame">
+        <div class="qr-corner tl"></div>
+        <div class="qr-corner tr"></div>
+        <div class="qr-corner bl"></div>
+        <div class="qr-corner br"></div>
+        <div class="qr-scan-line"></div>
+      </div>
+      <div class="qr-hint">QR코드를 사각형 안에 맞춰주세요</div>
+    </div>
+    <div class="qr-tip">💡 로또 용지 오른쪽 하단 QR코드를 비춰주세요</div>
+  </div>
+
+  <!-- 안내 박스 -->
+  <div class="guide" id="guide">
+    <div class="guide-icon">📱</div>
+    <div class="guide-title">QR코드 자동 인식</div>
+    <div class="guide-desc">
+      로또 용지의 QR코드를 카메라에 비추면<br>
+      회차 · 번호 · 구매형태를 자동으로 읽어요
+    </div>
+  </div>
+
+  <button class="btn-start" id="btnStart" onclick="startScan()">📷 QR 스캔 시작</button>
+  <button class="btn-stop" id="btnStop" onclick="stopScan()" style="display:none;">⏹ 스캔 종료</button>
+
+  <div class="msg" id="msgQr"></div>
+
+  <!-- URL 붙여넣기 -->
+  <div class="url-section">
+    <div class="url-label">📋 또는 QR 스캔 후 나온 URL을 직접 붙여넣으세요</div>
+    <div class="url-row">
+      <input class="url-in" type="text" id="urlInput" placeholder="http://qr.dhlottery.co.kr/?v=1227m...">
+      <button class="btn-parse" onclick="parseUrl()">인식</button>
+    </div>
+  </div>
+
+  <!-- 인식 결과 -->
+  <div class="result-box" id="resultBox">
+    <div class="result-title">✅ QR 인식 결과 — 저장할 항목 선택</div>
+    <div class="result-round" id="resultRound"></div>
+    <div id="resultRows"></div>
+    <button class="btn-save" onclick="saveResult()">⬇ 선택 항목 저장</button>
+  </div>
+
+</div>
+
+<!-- 직접 입력 탭 -->
+<div id="tabInput" style="display:none;">
+  <div class="input-section">
+    <div class="field-label">회차</div>
+    <input class="round-input" type="number" id="manualRound" placeholder="예) 1227">
+    <div id="manualCombos"></div>
+    <button class="btn-add-combo" onclick="addCombo()">＋ 번호조합 추가</button>
+    <div class="msg" id="msgInput"></div>
+    <button class="btn-save-manual" onclick="saveManual()">⬇ 저장</button>
+  </div>
+</div>
+
+<!-- 저장 목록 탭 -->
+<div id="tabList" style="display:none;">
+  <div class="list-section">
+    <div class="list-header">
+      <span class="list-title">🎫 저장된 번호</span>
+      <span class="list-count" id="listCount">0개</span>
+    </div>
+    <div id="listBody"><div class="loading">불러오는 중...</div></div>
+  </div>
+</div>
+
+<script type="module">
+import { saveNumbers, loadNumbers, deleteNumber, calcCurrentRound, BC, TC, parseLottoQrUrl } from '../js/firebase-db.js';
+
+const CURRENT = calcCurrentRound();
+let qrStream = null;
+let qrAnimFrame = null;
+let lastQrData = null;
+let parsedResult = null;
+let comboCount = 0;
+let allData = [];
+const LABELS = ['A','B','C','D','E','F','G','H','I','J'];
+
+// ── 탭 전환 ──
+window.switchTab = function(tab) {
+  ['qr','input','list'].forEach(t => {
+    document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1)).style.display = t===tab ? 'flex' : 'none';
+    if(t==='qr') document.getElementById('tabQr').style.display = t===tab ? 'flex' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el,i) => {
+    el.classList.toggle('active', ['qr','input','list'][i]===tab);
+  });
+  if(tab==='list') loadList();
+  if(tab!=='qr') stopScan();
+};
+
+// 탭 초기화
+document.getElementById('tabQr').style.display='flex';
+document.getElementById('tabQr').style.flexDirection='column';
+
+// ── QR 스캔 ──
+window.startScan = async function() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} }
+    });
+    qrStream = stream;
+    const video = document.getElementById('video');
+    video.srcObject = stream;
+    await video.play();
+    document.getElementById('camWrap').style.display = 'block';
+    document.getElementById('guide').style.display = 'none';
+    document.getElementById('btnStart').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'block';
+    document.getElementById('resultBox').classList.remove('show');
+    lastQrData = null;
+    showMsg('msgQr','info','📷 QR코드를 사각형 안에 비춰주세요!');
+    scanLoop();
+  } catch(e) {
+    showMsg('msgQr','error','카메라를 사용할 수 없습니다. URL 붙여넣기를 이용해주세요.');
+  }
+};
+
+window.stopScan = function() {
+  if(qrAnimFrame){cancelAnimationFrame(qrAnimFrame);qrAnimFrame=null;}
+  if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null;}
+  document.getElementById('video').srcObject = null;
+  document.getElementById('camWrap').style.display = 'none';
+  document.getElementById('guide').style.display = 'block';
+  document.getElementById('btnStart').style.display = 'block';
+  document.getElementById('btnStop').style.display = 'none';
+};
+
+function scanLoop() {
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  if (!qrStream) return;
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {inversionAttempts:'dontInvert'});
+    if (code && code.data && code.data !== lastQrData) {
+      lastQrData = code.data;
+      if (code.data.includes('dhlottery') || code.data.includes('qr.dh')) {
+        const result = parseLottoQrUrl(code.data);
+        if (result) {
+          // 성공!
+          const flash = document.getElementById('flash');
+          flash.classList.remove('show');
+          void flash.offsetWidth;
+          flash.classList.add('show');
+          if (navigator.vibrate) navigator.vibrate([100,50,100]);
+          renderResult(result);
+          stopScan();
+          showMsg('msgQr','success',`✅ 인식 완료! 제${result.round}회 / ${result.combos.length}개 조합`);
+          return;
+        }
+      }
+      showMsg('msgQr','error','로또 QR이 아닙니다. 로또 용지 QR을 비춰주세요.');
+      lastQrData = null;
+    }
+  }
+  qrAnimFrame = requestAnimationFrame(scanLoop);
+}
+
+window.parseUrl = function() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { showMsg('msgQr','error','URL을 입력해주세요.'); return; }
+  const result = parseLottoQrUrl(url);
+  if (result) {
+    renderResult(result);
+    showMsg('msgQr','success',`✅ 파싱 성공! 제${result.round}회 / ${result.combos.length}개 조합`);
+    document.getElementById('urlInput').value = '';
+  } else {
+    showMsg('msgQr','error','인식 실패. 동행복권 QR URL인지 확인해주세요.');
+  }
+};
+
+function renderResult(result) {
+  parsedResult = result;
+  document.getElementById('resultRound').textContent = `제 ${result.round}회`;
+  document.getElementById('resultRows').innerHTML = result.combos.map((c,i) => {
+    const tc = c.type==='자동'?'t-auto':c.type==='반자동'?'t-semi':'t-manual';
+    const balls = c.nums.map(n=>`<span class="ball" style="background:${BC(n)};color:${TC(n)}">${n}</span>`).join('');
+    return `<div class="combo-row">
+      <input class="chk" type="checkbox" id="rchk${i}" checked>
+      <span class="combo-label">${c.label}</span>
+      <span class="type-badge ${tc}">${c.type}</span>
+      <div class="balls">${balls}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('resultBox').classList.add('show');
+}
+
+window.saveResult = async function() {
+  if (!parsedResult) return;
+  const {round, combos} = parsedResult;
+  const status = round <= CURRENT ? '추첨후' : '추첨전';
+  const items = combos.filter((_,i) => document.getElementById(`rchk${i}`)?.checked)
+    .map(c => ({round, nums:[...c.nums], type:c.type, status, grade:null}));
+  if (!items.length) return;
+  try {
+    await saveNumbers(items);
+    document.getElementById('resultBox').classList.remove('show');
+    parsedResult = null;
+    showMsg('msgQr','success',`✅ ${items.length}개 저장 완료!`);
+  } catch(e) {
+    showMsg('msgQr','error','저장 실패: '+e.message);
+  }
+};
+
+// ── 직접 입력 ──
+window.addCombo = function() {
+  comboCount++;
+  const id = comboCount;
+  const div = document.createElement('div');
+  div.className = 'combo-block'; div.id = 'mcb'+id;
+  div.innerHTML = `
+    <div class="combo-top">
+      <span class="combo-lbl-text">${LABELS[(id-1)%10]}</span>
+      <select class="type-sel" id="mtp${id}">
+        <option value="자동">자동</option>
+        <option value="반자동">반자동</option>
+        <option value="수동">수동</option>
+      </select>
+      <button class="combo-del-btn" onclick="document.getElementById('mcb${id}').remove()">✕</button>
+    </div>
+    <div class="num-grid">
+      ${[1,2,3,4,5,6].map(n=>`<input class="num-in" type="number" id="mn${id}_${n}" min="1" max="45" placeholder="${n}">`).join('')}
+    </div>`;
+  document.getElementById('manualCombos').appendChild(div);
+};
+
+window.saveManual = async function() {
+  const round = parseInt(document.getElementById('manualRound').value);
+  if (!round || round < 1) { showMsg('msgInput','error','회차를 입력해주세요.'); return; }
+  const blocks = document.querySelectorAll('.combo-block');
+  if (!blocks.length) { showMsg('msgInput','error','번호조합을 추가해주세요.'); return; }
+  const status = round <= CURRENT ? '추첨후' : '추첨전';
+  const items = [];
+  let skip = 0;
+  blocks.forEach(b => {
+    const id = b.id.replace('mcb','');
+    const type = document.getElementById('mtp'+id).value;
+    const nums = [1,2,3,4,5,6].map(n=>parseInt(document.getElementById(`mn${id}_${n}`)?.value||''));
+    if (nums.some(isNaN)||nums.some(n=>n<1||n>45)||new Set(nums).size!==6){skip++;return;}
+    items.push({round,nums,type,status,grade:null});
+  });
+  if (!items.length) { showMsg('msgInput','error','올바른 번호가 없습니다.'); return; }
+  try {
+    await saveNumbers(items);
+    document.getElementById('manualCombos').innerHTML='';
+    document.getElementById('manualRound').value='';
+    comboCount=0;
+    showMsg('msgInput','success',`✅ ${items.length}개 저장!${skip?` (오류 ${skip}개 건너뜀)`:''}`);
+  } catch(e) {
+    showMsg('msgInput','error','저장 실패: '+e.message);
+  }
+};
+
+// ── 목록 ──
+async function loadList() {
+  const body = document.getElementById('listBody');
+  body.innerHTML = '<div class="loading">불러오는 중...</div>';
+  try {
+    allData = await loadNumbers();
+    document.getElementById('listCount').textContent = allData.length+'개';
+    if (!allData.length) { body.innerHTML='<div class="no-data">저장된 번호가 없습니다</div>'; return; }
+    body.innerHTML = allData.map(item => {
+      const balls = [...item.nums].sort((a,b)=>a-b).map(n=>
+        `<span class="item-ball" style="background:${BC(n)};color:${TC(n)}">${n}</span>`).join('');
+      const ttag = item.type==='수동'?'tm':item.type==='자동'?'ta':'ts';
+      return `<div class="list-item">
+        <span class="item-round">${item.round}회</span>
+        <div class="item-balls">${balls}</div>
+        <span class="item-type tg ${ttag}">${item.type}</span>
+        <button class="item-del" onclick="delItem('${item.id}')">🗑</button>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    body.innerHTML = '<div class="no-data">불러오기 실패: '+e.message+'</div>';
+  }
+}
+
+window.delItem = async function(id) {
+  if (!confirm('삭제하시겠습니까?')) return;
+  await deleteNumber(id);
+  loadList();
+};
+
+// ── 메시지 ──
+function showMsg(id, type, text) {
+  const el = document.getElementById(id);
+  el.className = 'msg '+type+' show';
+  el.textContent = text;
+  if (type==='success') setTimeout(()=>el.classList.remove('show'),4000);
+}
+
+// 초기 콤보 추가
+addCombo();
+</script>
+</body>
+</html>

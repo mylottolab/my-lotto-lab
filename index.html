@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>My Lotto Lab</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+body{background:#0f0f1a;color:#fff;min-height:100vh;}
+.header{background:#1c1c2e;padding:14px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #2a2a40;}
+.logo-icon{width:32px;height:32px;background:#1a7ad4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-title{font-size:15px;font-weight:700;color:#fff;}
+.logo-sub{font-size:9px;color:#666;margin-top:1px;}
+.main{padding:14px;}
+
+/* 최근 당첨 */
+.win-card{background:#1c1c2e;border:1px solid #2a2a40;border-radius:12px;padding:14px;margin-bottom:12px;}
+.win-title{font-size:11px;font-weight:700;color:#f5c518;margin-bottom:8px;display:flex;align-items:center;gap:5px;}
+.win-round{font-size:11px;color:#888;margin-bottom:8px;}
+.balls-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+.ball{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.y{background:#f5c518;color:#7a5e00;}
+.bl{background:#1a7ad4;color:#fff;}
+.r{background:#e03131;color:#fff;}
+.gy{background:#888;color:#fff;}
+.gr{background:#2f9e44;color:#fff;}
+.bonus{background:#1c1c2e;border:2px solid #555;color:#aaa;}
+.plus{color:#555;font-size:14px;}
+
+/* 내 현황 */
+.stat-card{background:#1c1c2e;border:1px solid #2a2a40;border-radius:12px;padding:14px;margin-bottom:14px;}
+.stat-title{font-size:11px;font-weight:700;color:#1a7ad4;margin-bottom:10px;}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.stat-item{background:#0f0f1a;border-radius:8px;padding:10px;}
+.stat-label{font-size:9px;color:#666;margin-bottom:4px;}
+.stat-value{font-size:16px;font-weight:700;color:#fff;}
+
+/* 메뉴 */
+.section-label{font-size:12px;font-weight:700;color:#888;margin-bottom:8px;padding-left:2px;}
+.menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.menu-card{background:#1c1c2e;border:1px solid #2a2a40;border-radius:12px;padding:16px 12px;cursor:pointer;text-align:center;transition:border-color 0.2s;}
+.menu-card:hover{border-color:#1a7ad4;}
+.menu-card:active{background:#151525;}
+.menu-icon{font-size:24px;margin-bottom:6px;}
+.menu-title{font-size:12px;font-weight:700;color:#fff;margin-bottom:2px;}
+.menu-sub{font-size:10px;color:#666;}
+.menu-card.highlight{border-color:#7048e8;background:#1a1530;}
+.menu-card.highlight .menu-title{color:#b39dff;}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo-icon">🎱</div>
+  <div>
+    <div class="logo-title">My Lotto Lab</div>
+    <div class="logo-sub">가상 로또 등록 · 당첨 분석</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- 최근 당첨번호 -->
+  <div class="win-card">
+    <div class="win-title">🏆 최근 한국 로또 당첨 번호</div>
+    <div class="win-round">제 1227회 (2026/06/06)</div>
+    <div class="balls-row">
+      <span class="ball y">1</span>
+      <span class="ball bl">14</span>
+      <span class="ball bl">16</span>
+      <span class="ball r">34</span>
+      <span class="ball gr">41</span>
+      <span class="ball gr">44</span>
+      <span class="plus">+</span>
+      <span class="ball bonus">13</span>
+    </div>
+    <div style="font-size:10px;color:#888;">1등: <b style="color:#f5c518;">2,674,808,455원</b> (11게임)</div>
+  </div>
+
+  <!-- 내 현황 -->
+  <div class="stat-card">
+    <div class="stat-title">📊 내 현황</div>
+    <div class="stat-grid">
+      <div class="stat-item">
+        <div class="stat-label">저장된 번호 조합</div>
+        <div class="stat-value" id="statTotal">-</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">누적 당첨금</div>
+        <div class="stat-value" id="statPrize">-</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 번호 입력 -->
+  <div class="section-label">번호 입력</div>
+  <div class="menu-grid">
+    <div class="menu-card highlight" onclick="location.href='qr_scan.html'">
+      <div class="menu-icon">📷</div>
+      <div class="menu-title">QR 스캔 등록</div>
+      <div class="menu-sub">실구매 로또 등록</div>
+    </div>
+    <div class="menu-card" onclick="location.href='qr_scan.html#input'">
+      <div class="menu-icon">✏️</div>
+      <div class="menu-title">직접 입력</div>
+      <div class="menu-sub">번호 직접 등록</div>
+    </div>
+    <div class="menu-card" onclick="location.href='../excel_upload.html'">
+      <div class="menu-icon">📄</div>
+      <div class="menu-title">엑셀 업로드</div>
+      <div class="menu-sub">.xlsx / .csv</div>
+    </div>
+    <div class="menu-card">
+      <div class="menu-icon">✨</div>
+      <div class="menu-title">AI 말로 등록</div>
+      <div class="menu-sub">자연어 입력</div>
+    </div>
+  </div>
+
+  <!-- 결과 확인 -->
+  <div class="section-label">결과 확인</div>
+  <div class="menu-grid">
+    <div class="menu-card" onclick="location.href='qr_scan.html#list'">
+      <div class="menu-icon">📋</div>
+      <div class="menu-title">등록 현황</div>
+      <div class="menu-sub">저장된 번호 조회</div>
+    </div>
+    <div class="menu-card">
+      <div class="menu-icon">🏆</div>
+      <div class="menu-title">추첨 결과</div>
+      <div class="menu-sub">당첨 결과 확인</div>
+    </div>
+    <div class="menu-card">
+      <div class="menu-icon">📈</div>
+      <div class="menu-title">통계 보기</div>
+      <div class="menu-sub">당첨 현황 · 비율</div>
+    </div>
+    <div class="menu-card" onclick="location.href='../main_page.html'">
+      <div class="menu-icon">🖥️</div>
+      <div class="menu-title">PC 화면으로</div>
+      <div class="menu-sub">전체 기능 보기</div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+import { loadNumbers, calcCurrentRound } from '../js/firebase-db.js';
+try {
+  const data = await loadNumbers();
+  document.getElementById('statTotal').textContent = data.length.toLocaleString()+'개';
+  document.getElementById('statPrize').textContent = '-';
+} catch(e) {
+  document.getElementById('statTotal').textContent = '오류';
+}
+</script>
+</body>
+</html>
