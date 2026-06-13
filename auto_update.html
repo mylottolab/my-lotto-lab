@@ -333,7 +333,8 @@ MLL.applyResults = function(resultsObj) {
   var entries = MLL.loadEntries();
   var updated = 0;
   entries.forEach(function(entry) {
-    var res = resultsObj[entry.round];
+    // round가 숫자/문자열 둘 다 처리
+    var res = resultsObj[entry.round] || resultsObj[String(entry.round)] || resultsObj[parseInt(entry.round)];
     if (res) {
       entry.status     = '추첨후';
       entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);

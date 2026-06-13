@@ -184,7 +184,8 @@ MLL.applyResults = function(resultsObj) {
   var entries = MLL.loadEntries();
   var updated = 0;
   entries.forEach(function(entry) {
-    var res = resultsObj[entry.round];
+    // round가 숫자/문자열 둘 다 처리
+    var res = resultsObj[entry.round] || resultsObj[String(entry.round)] || resultsObj[parseInt(entry.round)];
     if (res) {
       entry.status     = '추첨후';
       entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
@@ -777,10 +778,11 @@ function refreshTable(){
 
   function renderRows(list){
     return list.map(function(entry){
-      var result    = MLL.getResult(entry.round);
+      var result    = MLL.getResult(entry.round) || MLL.loadResults()[entry.round] || MLL.loadResults()[String(entry.round)];
       var winNums   = result ? result.nums  : [];
       var bonusNum  = result ? result.bonus : null;
-      var actualSt  = (result && entry.status==='추첨전') ? '추첨후' : entry.status;
+      // 당첨결과가 있거나 status가 추첨후면 추첨후로 표시
+      var actualSt  = (result || entry.status==='추첨후') ? '추첨후' : '추첨전';
       var autoNums  = entry.autoNums || [];
       var isSession = entry.sessionTag === SESSION_TAG;
 
