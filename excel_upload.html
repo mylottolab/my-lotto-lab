@@ -82,6 +82,18 @@ table.list tr.pre-draw td{background:#fff8e1;}
 .sdiv td{background:#f0f0f0!important;padding:3px 8px;font-size:9px;font-weight:700;color:#888;text-align:left;}
 .no-data{text-align:center;padding:30px;color:#bbb;font-size:12px;}
 </style>
+
+<script>
+function toggleNav(){
+  var m=document.getElementById('navMenu');
+  if(m) m.style.display=m.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',function(e){
+  var btn=document.getElementById('navBtn');
+  var menu=document.getElementById('navMenu');
+  if(menu&&btn&&!btn.contains(e.target)&&!menu.contains(e.target)) menu.style.display='none';
+});
+</script>
 </head>
 <body>
 <div class="header">

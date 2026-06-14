@@ -490,6 +490,18 @@ th{background:#f8f8f8;padding:6px 8px;font-size:11px;font-weight:700;color:#555;
 td{padding:5px 6px;font-size:10px;color:#444;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;}
 tr:hover td{background:#fafafa;}
 </style>
+
+<script>
+function toggleNav(){
+  var m=document.getElementById('navMenu');
+  if(m) m.style.display=m.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',function(e){
+  var btn=document.getElementById('navBtn');
+  var menu=document.getElementById('navMenu');
+  if(menu&&btn&&!btn.contains(e.target)&&!menu.contains(e.target)) menu.style.display='none';
+});
+</script>
 </head>
 <body>
 <div class="header">

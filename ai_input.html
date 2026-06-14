@@ -513,6 +513,18 @@ tr.pre-draw td{background:#fff8e1;}
 .btn-d{background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;}
 .no-data{text-align:center;padding:30px;color:#bbb;font-size:12px;}
 </style>
+
+<script>
+function toggleNav(){
+  var m=document.getElementById('navMenu');
+  if(m) m.style.display=m.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',function(e){
+  var btn=document.getElementById('navBtn');
+  var menu=document.getElementById('navMenu');
+  if(menu&&btn&&!btn.contains(e.target)&&!menu.contains(e.target)) menu.style.display='none';
+});
+</script>
 </head>
 <body>
 <div class="header">
