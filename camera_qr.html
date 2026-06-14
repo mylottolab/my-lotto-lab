@@ -208,15 +208,22 @@ MLL.applyResults = function(resultsObj) {
 
 MLL.sortEntries = function(entries) {
   var info = MLL.getLottoInfo();
-  // 1. 추첨전: status=추첨전 && round >= thisRound (회차 내림차순)
-  var preDraw = entries.filter(function(e){ return e.status==='추첨전' && e.round >= info.thisRound; })
-                       .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  // 2. 미확인: status=추첨전 && round < thisRound (회차 내림차순)
-  var unconfirmed = entries.filter(function(e){ return e.status==='추첨전' && e.round < info.thisRound; })
-                           .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  // 3. 추첨후 확인분 (회차 내림차순)
-  var post = entries.filter(function(e){ return e.status!=='추첨전'; })
-                    .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  // 1. 추첨전: status=추첨전 && round >= thisRound
+  var preDraw = entries.filter(function(e){
+    return e.status==='추첨전' && e.round >= info.thisRound;
+  }).sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+
+  // 2. 미확인: (status=추첨전 && round < thisRound) 또는 (status=추첨후 && grade=null)
+  var unconfirmed = entries.filter(function(e){
+    return (e.status==='추첨전' && e.round < info.thisRound) ||
+           (e.status==='추첨후' && (e.grade===null || e.grade===undefined));
+  }).sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+
+  // 3. 추첨후 확인분: status=추첨후 && grade !== null
+  var post = entries.filter(function(e){
+    return e.status==='추첨후' && e.grade!==null && e.grade!==undefined;
+  }).sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+
   return preDraw.concat(unconfirmed).concat(post);
 };
 
@@ -399,12 +406,16 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
   if (!tbody) return;
 
   // 3단계 분류
-  // 1. 추첨전: status=추첨전 이고 round >= THIS_ROUND (아직 추첨 안 됨)
-  // 2. 미확인: status=추첨전 이고 round < THIS_ROUND (추첨됐는데 결과 미반영)
-  // 3. 확인완료: status=추첨후
-  var preDraw    = sorted.filter(function(e){ return e.status==='추첨전' && e.round >= info.thisRound; });
-  var unconfirmed= sorted.filter(function(e){ return e.status==='추첨전' && e.round <  info.thisRound; });
-  var postDraw   = sorted.filter(function(e){ return e.status!=='추첨전'; });
+  var preDraw    = sorted.filter(function(e){
+    return e.status==='추첨전' && e.round >= info.thisRound;
+  });
+  var unconfirmed= sorted.filter(function(e){
+    return (e.status==='추첨전' && e.round < info.thisRound) ||
+           (e.status==='추첨후' && (e.grade===null || e.grade===undefined));
+  });
+  var postDraw   = sorted.filter(function(e){
+    return e.status==='추첨후' && e.grade!==null && e.grade!==undefined;
+  });
 
   // 배지 업데이트
   var badgeEl = document.getElementById('sectionBadge');
