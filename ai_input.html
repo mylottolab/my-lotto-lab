@@ -320,9 +320,62 @@ MLL.renderRow = function(entry, sessionTag, opts) {
 };
 
 // 섹션 구분선
-MLL.renderDivider = function(label, count) {
-  return '<tr><td colspan="8" style="background:#f0f0f0;padding:3px 8px;font-size:9px;font-weight:700;color:#888;">'+
-    label+' ('+count+'개)</td></tr>';
+MLL.renderDivider = function(label, count, extra) {
+  return '<tr><td colspan="8" style="background:#f0f0f0;padding:4px 8px;font-size:9px;font-weight:700;color:#888;">' +
+    label + ' (' + count + '개)' + (extra||'') + '</td></tr>';
+};
+
+// 즉시확인 버튼 HTML 생성
+MLL.renderCheckBtn = function(sessionTag) {
+  return '<span onclick="MLL.applyCheck(\''+sessionTag+'\')" ' +
+    'style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;' +
+    'background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;' +
+    'font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;' +
+    'cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2);' +
+    'animation:pulse-btn 1.5s infinite;">' +
+    '⚡ 즉시확인 Click!</span>' +
+    '<style>@keyframes pulse-btn{0%,100%{opacity:1;}50%{opacity:0.7;}}</style>';
+};
+
+// 즉시확인 실행
+MLL.applyCheck = function(sessionTag) {
+  var results = MLL.loadResults();
+  var resultRounds = Object.keys(results).map(Number);
+  if (!resultRounds.length) {
+    alert('당첨결과가 없습니다.\nadmin.html에서 엑셀을 업로드해주세요.');
+    return;
+  }
+
+  // 선택 다이얼로그
+  var choice = confirm(
+    '미확인 번호를 어떤 범위로 확인하시겠습니까?\n\n' +
+    '확인(OK) → 미확인분 전체\n' +
+    '취소(Cancel) → 지금 입력분만'
+  );
+
+  var entries = MLL.loadEntries();
+  var info    = MLL.getLottoInfo();
+  var updated = 0;
+
+  entries.forEach(function(entry) {
+    // 미확인 조건: status=추첨전이고 round < THIS_ROUND
+    var isUnconfirmed = entry.status === '추첨전' && entry.round < info.thisRound;
+    if (!isUnconfirmed) return;
+    // 지금 입력분만: sessionTag 일치하는 것만
+    if (!choice && entry.sessionTag !== sessionTag) return;
+
+    var res = results[entry.round] || results[String(entry.round)];
+    if (res) {
+      entry.status     = '추첨후';
+      entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
+      entry.prizeMoney = MLL.calcPrize(entry.grade, res);
+      updated++;
+    }
+  });
+
+  MLL.saveEntries(entries);
+  alert('✅ ' + updated + '개 항목 확인 완료!\n당첨결과가 업데이트됐습니다.');
+  if (window.refreshTable) refreshTable();
 };
 
 // 전체 테이블 렌더
@@ -330,31 +383,71 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
   var entries = MLL.loadEntries();
   if (filterRound) entries = entries.filter(function(e){ return e.round == filterRound; });
   var sorted  = MLL.sortEntries(entries);
-  var pre     = sorted.filter(function(e){ return e.status==='추첨전'; });
-  var post    = sorted.filter(function(e){ return e.status!=='추첨전'; });
+  var info    = MLL.getLottoInfo();
   var tbody   = document.getElementById(tbodyId);
   if (!tbody) return;
 
-  var html = '';
-  if (!sorted.length) {
-    html = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';
-  } else {
-    if (pre.length) {
-      html += MLL.renderDivider('🔴 추첨 예정', pre.length);
-      pre.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
+  // 3단계 분류
+  // 1. 추첨전: status=추첨전 이고 round >= THIS_ROUND (아직 추첨 안 됨)
+  // 2. 미확인: status=추첨전 이고 round < THIS_ROUND (추첨됐는데 결과 미반영)
+  // 3. 확인완료: status=추첨후
+  var preDraw    = sorted.filter(function(e){ return e.status==='추첨전' && e.round >= info.thisRound; });
+  var unconfirmed= sorted.filter(function(e){ return e.status==='추첨전' && e.round <  info.thisRound; });
+  var postDraw   = sorted.filter(function(e){ return e.status!=='추첨전'; });
+
+  // 배지 업데이트
+  var badgeEl = document.getElementById('sectionBadge');
+  if (badgeEl) {
+    var badgeHtml =
+      '<span style="color:#e03131;font-weight:700;">🔴추첨전 '+preDraw.length+'개</span>' +
+      ' &nbsp;|&nbsp; ';
+    if (unconfirmed.length > 0) {
+      badgeHtml +=
+        '<span style="color:#e67700;font-weight:700;">🟡미확인 '+unconfirmed.length+'개</span>' +
+        MLL.renderCheckBtn(sessionTag);
+    } else {
+      badgeHtml += '<span style="color:#e67700;">🟡미확인 0개</span>';
     }
-    if (post.length) {
-      html += MLL.renderDivider('✅ 추첨 완료', post.length);
-      post.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
-    }
+    badgeHtml += ' &nbsp;|&nbsp; <span style="color:#555;">✅확인완료 '+postDraw.length+'개</span>';
+    badgeEl.innerHTML = badgeHtml;
   }
-  tbody.innerHTML = html;
 
   // 카운트 업데이트
   var tcEl = document.getElementById('totalCount');
   if (tcEl) tcEl.textContent = entries.length;
   var realEl = document.getElementById('realCount');
   if (realEl) realEl.textContent = entries.filter(function(e){return e.isReal;}).length;
+
+  var html = '';
+  if (!sorted.length) {
+    html = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';
+  } else {
+    // 추첨전 섹션
+    if (preDraw.length) {
+      html += MLL.renderDivider('🔴 추첨 전', preDraw.length);
+      preDraw.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
+    }
+    // 미확인 섹션 (주황 배경)
+    if (unconfirmed.length) {
+      html += '<tr><td colspan="8" style="background:#fff3e0;padding:4px 8px;font-size:9px;font-weight:700;color:#e67700;">' +
+        '🟡 추첨됐으나 미확인 (' + unconfirmed.length + '개)' +
+        MLL.renderCheckBtn(sessionTag) +
+        '</td></tr>';
+      unconfirmed.forEach(function(e){
+        var row = MLL.renderRow(e, sessionTag);
+        // 미확인 행은 주황 배경
+        row = row.replace('style="background:#fff8e1;', 'style="background:#fff3e0;');
+        row = row.replace('style="', 'style="background:#fff3e0;');
+        html += row;
+      });
+    }
+    // 확인완료 섹션
+    if (postDraw.length) {
+      html += MLL.renderDivider('✅ 추첨후 확인분', postDraw.length);
+      postDraw.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
+    }
+  }
+  tbody.innerHTML = html;
 };
 
 // 테이블 헤더 HTML

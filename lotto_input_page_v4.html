@@ -760,28 +760,13 @@ function sv(p){
   }
 }
 
-// ── 정렬 상태 ──
-var sortCol = 'round', sortDir = -1; // 기본: 회차 내림차순
-
-function sortBy(col){
-  if(sortCol===col){ sortDir*=-1; }
-  else { sortCol=col; sortDir=-1; }
-  // 헤더 아이콘 업데이트
-  ['round','memo','type','status','grade','prizeMoney'].forEach(function(c){
-    var el=document.getElementById('sa-'+c);
-    if(!el) return;
-    el.className='sa';
-    if(c===sortCol) el.classList.add(sortDir===-1?'desc':'asc');
-  });
-  refreshTable();
-}
-
 function refreshTable(){
   var fv  = document.getElementById('fs').value;
   var entries = MLL.loadEntries();
   if(fv) entries = entries.filter(function(e){return String(e.round)===fv;});
-
   document.getElementById('totalCount').textContent = MLL.loadEntries().length;
+
+  var info = MLL.getLottoInfo();
 
   // 정렬
   entries.sort(function(a,b){
@@ -798,43 +783,49 @@ function refreshTable(){
     return 0;
   });
 
-  // 정렬이 회차 기본일 때만 추첨전/후 섹션 구분
+  // 3단계 분류
   var useSections = (sortCol==='round');
-  var pre  = useSections ? entries.filter(function(e){return e.status==='추첨전';}) : [];
-  var post = useSections ? entries.filter(function(e){return e.status!=='추첨전';}) : entries;
+  var preDraw     = useSections ? entries.filter(function(e){ return e.status==='추첨전' && e.round >= info.thisRound; }) : [];
+  var unconfirmed = useSections ? entries.filter(function(e){ return e.status==='추첨전' && e.round <  info.thisRound; }) : [];
+  var postDraw    = useSections ? entries.filter(function(e){ return e.status!=='추첨전'; }) : entries;
 
   // 섹션 배지
   var badge = document.getElementById('sectionBadge');
   if(useSections){
-    badge.innerHTML = '<span style="color:#e03131;">🔴추첨예정 '+pre.length+'개</span>' +
-      ' &nbsp;|&nbsp; <span style="color:#888;">✅추첨완료 '+post.length+'개</span>';
+    var bHtml =
+      '<span style="color:#e03131;font-weight:700;">🔴추첨전 '+preDraw.length+'개</span> &nbsp;|&nbsp; ';
+    if(unconfirmed.length>0){
+      bHtml += '<span style="color:#e67700;font-weight:700;">🟡미확인 '+unconfirmed.length+'개</span>' +
+        '<span onclick="MLL.applyCheck(\''+SESSION_TAG+'\')" ' +
+        'style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;' +
+        'background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;' +
+        'font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;cursor:pointer;">⚡ 즉시확인 Click!</span>';
+    } else {
+      bHtml += '<span style="color:#e67700;">🟡미확인 0개</span>';
+    }
+    bHtml += ' &nbsp;|&nbsp; <span style="color:#555;">✅확인완료 '+postDraw.length+'개</span>';
+    badge.innerHTML = bHtml;
   } else { badge.textContent=''; }
 
-  var tb   = document.getElementById('tb');
-  if(!entries.length){
-    tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';
-    return;
-  }
+  var tb = document.getElementById('tb');
+  if(!entries.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';return;}
 
-  function renderRows(list){
+  function renderRows(list, bgColor){
     return list.map(function(entry){
-      var result    = MLL.getResult(entry.round) || MLL.loadResults()[entry.round] || MLL.loadResults()[String(entry.round)];
+      var result    = MLL.getResult(entry.round) || MLL.loadResults()[String(entry.round)];
       var winNums   = result ? result.nums  : [];
       var bonusNum  = result ? result.bonus : null;
-      // 당첨결과가 있거나 status가 추첨후면 추첨후로 표시
-      var actualSt  = (result || entry.status==='추첨후') ? '추첨후' : '추첨전';
+      var actualSt  = (result || entry.status==='추첨후') ? '추첨후' : entry.status;
       var autoNums  = entry.autoNums || [];
       var isSession = entry.sessionTag === SESSION_TAG;
 
       var balls = entry.nums.slice().sort(function(a,b){return a-b;}).map(function(n){
         var isMatch = winNums.indexOf(n)>=0;
-        var isBonus = n===bonusNum && !isMatch;
+        var isBonus = n===bonusNum&&!isMatch;
         var bg  = isBonus?'#fff':MLL.BC(n);
         var tc  = isBonus?'#555':MLL.TC(n);
         var brd = isMatch?'2px solid #f5c518':isBonus?'2px solid #aaa':'none';
-        // 반자동: 시스템번호는 흐리게 — 추첨전/후 항상 유지, 당첨번호 일치 시만 예외
-        var op = (entry.type==='반자동'&&autoNums.length>0&&autoNums.indexOf(n)>=0) ? '0.4' : '1';
-        if(isMatch) op='1';
+        var op  = (entry.type==='반자동'&&autoNums.length>0&&autoNums.indexOf(n)>=0&&!isMatch)?'0.4':'1';
         return '<span style="width:19px;height:19px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;'+
           'font-size:8px;font-weight:700;flex-shrink:0;background:'+bg+';color:'+tc+';border:'+brd+';margin:1px;opacity:'+op+';">'+n+'</span>';
       }).join('');
@@ -842,30 +833,26 @@ function refreshTable(){
       var typeColor = entry.type==='자동'?'#2f9e44':entry.type==='반자동'?'#e67700':'#1a7ad4';
       var typeBg    = entry.type==='자동'?'#e8fff0':entry.type==='반자동'?'#fff3e0':'#e8f4ff';
       var typeHTML  = '<span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;color:'+typeColor+';background:'+typeBg+';border:1px solid '+typeColor+';">'+entry.type+'</span>';
-
       var realHTML  = entry.isReal
         ?'<span style="background:#f5c518;color:#7a5e00;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;">실구매</span>'
         :'<span style="background:#eee;color:#999;font-size:8px;padding:1px 4px;border-radius:3px;">가상</span>';
-
       var statusHTML = actualSt==='추첨전'
         ?'<span style="color:#e03131;font-weight:700;font-size:9px;">추첨전</span>'
         :'<span style="color:#999;font-size:9px;">추첨후</span>';
-
       var gradeHTML = '<span style="color:#ddd;">-</span>';
       if(actualSt==='추첨후'&&entry.grade!==null){
         gradeHTML = entry.grade===0
           ?'<span style="color:#aaa;font-size:9px;">낙첨</span>'
           :'<span style="color:'+MLL.GRADE_COLOR[entry.grade]+';font-weight:700;font-size:9px;">'+MLL.GRADE_LABEL[entry.grade]+'</span>';
       }
-
       var prizeHTML = '<span style="color:#ddd;">-</span>';
-      if(entry.prizeMoney&&entry.prizeMoney>0){
+      if(entry.prizeMoney&&entry.prizeMoney>0)
         prizeHTML='<span style="color:#e03131;font-weight:700;font-size:9px;">'+entry.prizeMoney.toLocaleString()+'원</span>';
-      }
 
       var rcColor  = actualSt==='추첨전'?'#e03131':'#555';
-      var rowStyle = isSession?'border-left:3px solid #1a7ad4;background:#f0f8ff;'
-        :actualSt==='추첨전'?'background:#fff8e1;':'';
+      var rowBg    = isSession ? '#f0f8ff' : (bgColor || (actualSt==='추첨전'?'#fff8e1':''));
+      var borderL  = isSession ? 'border-left:3px solid #1a7ad4;' : '';
+      var rowStyle = borderL + 'background:'+rowBg+';';
 
       return '<tr style="'+rowStyle+'">'
         +'<td style="text-align:center;padding:4px;"><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">'+entry.round+'회</span></td>'
@@ -884,16 +871,23 @@ function refreshTable(){
 
   var html='';
   if(useSections){
-    if(pre.length){
-      html+='<tr class="sdiv"><td colspan="9">🔴 추첨 예정 ('+pre.length+'개)</td></tr>';
-      html+=renderRows(pre);
+    if(preDraw.length){
+      html+='<tr class="sdiv"><td colspan="9">🔴 추첨 전 ('+preDraw.length+'개)</td></tr>';
+      html+=renderRows(preDraw,'#fff8e1');
     }
-    if(post.length){
-      html+='<tr class="sdiv"><td colspan="9">✅ 추첨 완료 ('+post.length+'개)</td></tr>';
-      html+=renderRows(post);
+    if(unconfirmed.length){
+      html+='<tr><td colspan="9" style="background:#fff3e0;padding:3px 8px;font-size:9px;font-weight:700;color:#e67700;">' +
+        '🟡 추첨됐으나 미확인 ('+unconfirmed.length+'개)' +
+        '<span onclick="MLL.applyCheck(\''+SESSION_TAG+'\')" style="display:inline-flex;align-items:center;margin-left:6px;background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;cursor:pointer;">⚡ 즉시확인 Click!</span>' +
+        '</td></tr>';
+      html+=renderRows(unconfirmed,'#fff3e0');
+    }
+    if(postDraw.length){
+      html+='<tr class="sdiv"><td colspan="9">✅ 추첨후 확인분 ('+postDraw.length+'개)</td></tr>';
+      html+=renderRows(postDraw,'');
     }
   } else {
-    html=renderRows(entries);
+    html=renderRows(entries,'');
   }
   tb.innerHTML=html;
 }
