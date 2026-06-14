@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>데이터 복원</title>
+<style>
+body{background:#0f0f1a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;}
+.card{background:#1c1c2e;border:1px solid #2a2a40;border-radius:14px;padding:32px;max-width:500px;width:100%;text-align:center;}
+.btn{width:100%;background:#2f9e44;color:#fff;border:none;border-radius:8px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;margin:6px 0;}
+.btn2{width:100%;background:#1a7ad4;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;cursor:pointer;margin:4px 0;}
+.log{background:#0f0f1a;border:1px solid #333;border-radius:8px;padding:12px;margin-top:12px;text-align:left;font-size:11px;line-height:1.9;max-height:200px;overflow-y:auto;}
+.ok{color:#6fcf97;}.err{color:#ff8a8a;}.info{color:#74b9ff;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div style="font-size:36px;margin-bottom:10px;">🔄</div>
+  <h2 style="margin-bottom:6px;">데이터 복원</h2>
+  <p style="font-size:11px;color:#888;margin-bottom:20px;">로컬 파일의 데이터를 GitHub Pages로 이전합니다</p>
+  <button class="btn" onclick="doRestore()">✅ 데이터 복원 실행</button>
+  <button class="btn2" onclick="location.href='main_page.html'">← 메인으로</button>
+  <div class="log" id="log"></div>
+</div>
+<script>
+function log(msg, cls){ var d=document.getElementById('log'); d.innerHTML+='<div class="'+(cls||'info')+'">'+msg+'</div>'; d.scrollTop=d.scrollHeight; }
+
+function doRestore(){
+  try{
+    var entries = [{"round":1229,"nums":[10,11,4,21,7,15],"type":"반자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","id":"1c6d04a8-afc7-4d0c-a201-f1c550f2ad60","createdAt":1781375144623,"grade":null,"prizeMoney":0,"status":"추첨전"},{"round":1228,"nums":[10,25,27,31,33,41],"type":"수동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","id":"d0fab785-184b-4189-a09f-a86c4f95f406","createdAt":1781375173554,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1229,"nums":[14,15,18,19,20,25],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","id":"4fa11e27-f3c2-4b31-b48c-971dbba9a07f","createdAt":1781375484350,"grade":null,"prizeMoney":0,"status":"추첨전"},{"round":1229,"nums":[4,25,28,29,36,41],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","id":"58770953-93bb-44c6-94f1-d5d5ab5e2c58","createdAt":1781375484350,"grade":null,"prizeMoney":0,"status":"추첨전"},{"round":1229,"nums":[3,8,16,17,19,27],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","id":"026ecfff-183f-4441-8325-1fe05ab657cd","createdAt":1781375484350,"grade":null,"prizeMoney":0,"status":"추첨전"},{"round":1229,"nums":[11,24,30,39,42,45],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","id":"2551ff6b-2e1e-4d32-a261-c126f5f4dc49","createdAt":1781375484350,"grade":null,"prizeMoney":0,"status":"추첨전"},{"round":1229,"nums":[4,6,8,9,17,38],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","id":"f476b45c-2493-451e-8ad8-c98c345cc3f9","createdAt":1781375484350,"grade":null,"prizeMoney":0,"status":"추첨전"},{"round":1229,"nums":[34,19,26,27,41,6],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","id":"d15d8432-9239-4cf9-8ea2-df1b036db04e","createdAt":1781375502881,"grade":null,"prizeMoney":0,"status":"추첨전"},{"round":1229,"nums":[27,33,34,12,21,31],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","id":"d368b70e-3ecc-48e1-83b5-6f12de73955a","createdAt":1781375548221,"grade":null,"prizeMoney":0,"status":"추첨전"},{"round":1228,"nums":[24,26,11,12,9,2],"type":"반자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","id":"de0ed4f3-7e24-4123-9947-fd438e65febc","createdAt":1781375592400,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1228,"nums":[6,10,11,12,15,20],"type":"반자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","autoNums":[6,20,15],"id":"1993c17f-eac5-4cbd-893f-98247337e480","createdAt":1781379465021,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1228,"nums":[16,19,20,28,30,44],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","autoNums":[],"id":"337f7c32-b0e0-41ed-b18f-922053f6420a","createdAt":1781379507392,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1228,"nums":[8,11,12,17,35,40],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","autoNums":[],"id":"f0df9e28-fb40-4ac3-ad8f-d58ba53d2054","createdAt":1781379507392,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1228,"nums":[11,18,33,37,41,42],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","autoNums":[],"id":"4c4b0eb2-8180-458e-ac0b-ae981b179a3b","createdAt":1781379507392,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1228,"nums":[15,18,24,25,28,31],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","autoNums":[],"id":"2bbef81a-931d-4d98-9eae-5b1382cf6920","createdAt":1781379507392,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1228,"nums":[7,9,21,25,35,41],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","autoNums":[],"id":"426c0d1e-3af9-48ac-9b23-ea2540aeed66","createdAt":1781379507392,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1228,"nums":[3,6,13,22,38,43],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","autoNums":[],"id":"75b799eb-3318-4ef1-9397-b26d03529440","createdAt":1781379507392,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1228,"nums":[13,21,29,33,43,44],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","autoNums":[],"id":"7286a0ec-fd7c-49ec-b585-f4b52e1e91f0","createdAt":1781379507393,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1228,"nums":[13,25,27,29,42,45],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","autoNums":[],"id":"6d9dae81-a17f-443f-8e9e-d07b150e8f0a","createdAt":1781379507393,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1228,"nums":[9,17,20,21,40,43],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","autoNums":[],"id":"0db8f431-936c-46a7-9a79-993904ac5f97","createdAt":1781379507393,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1228,"nums":[3,4,18,20,37,41],"type":"자동","isReal":false,"inputMethod":"general","sessionTag":"general_1781375125240","memo":"","autoNums":[],"id":"46558cbc-8716-4a85-85f5-c222bec3a4fe","createdAt":1781379507393,"grade":0,"prizeMoney":0,"status":"추첨후"},{"round":1229,"nums":[11,13,15,22,24,41],"type":"자동","isReal":true,"inputMethod":"camera","sessionTag":"camera_1781371077656","id":"2420d272-9b48-48a2-b14c-e0d7a680b053","createdAt":1781388268055,"grade":null,"prizeMoney":0,"status":"추첨전"}];
+
+    localStorage.setItem('mll_entries', JSON.stringify(entries));
+    log('✅ entries 복원: '+entries.length+'개', 'ok');
+
+    // 1228회 당첨결과도 함께 복원
+    var results = {};
+    results[1228] = {"nums":[24,29,30,31,35,44],"bonus":1,"winners1":11,"prize1":2698334421,"autoWin":10,"semiWin":0,"manualWin":1,"winnerShops":"감만정보통신,일등복권방,나라복권,복돼지복권방,바른,돈벼락,이마트24백석동문점,복권나라,동네복권,로또명당,중앙복권방","winners2":83,"prize2":59601765,"winners3":2836,"prize3":1744340};
+    localStorage.setItem('mll_results', JSON.stringify(results));
+    log('✅ 1228회 당첨결과 복원 완료', 'ok');
+    log('✅ 총 '+entries.length+'개 항목 복원 완료!', 'ok');
+    log('3초 후 메인페이지로 이동합니다...', 'info');
+    setTimeout(function(){ location.href='main_page.html'; }, 3000);
+  } catch(e){
+    log('❌ 오류: '+e.message, 'err');
+  }
+}
+</script>
+</body>
+</html>
