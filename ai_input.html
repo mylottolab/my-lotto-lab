@@ -517,7 +517,7 @@ tr.pre-draw td{background:#fff8e1;}
 <body>
 <div class="header">
   <div class="header-inner">
-    <div class="logo-left">
+    <div class="logo-left" onclick="location.href='main_page.html'" style="cursor:pointer;" title="메인으로">
       <div class="logo-icon">🎱</div>
       <div class="logo-text">
         <div class="title">My Lotto Lab</div>
@@ -652,11 +652,22 @@ function getDeadline(round) {
 }
 
 function checkBlocked(round) {
+  // 과거 회차: 24시간 항상 가능
   if (round < THIS_ROUND) return null;
+
+  // 이번 회차 판매중단 시간 (토20:00~일06:00)
   if (round === THIS_ROUND && SOLD_OUT)
     return '제' + THIS_ROUND + '회는 현재 판매 중단 중입니다.\n(토요일 20:00 ~ 일요일 06:00)\n\n과거 회차 등록은 24시간 가능합니다.\n제' + NEXT_ROUND + '회 등록은 일요일 06:00 이후 가능합니다.';
-  if (round > THIS_ROUND)
-    return '제' + round + '회는 아직 판매하지 않습니다.\n현재 판매 중인 회차는 제' + THIS_ROUND + '회입니다.\n\n새 회차(제' + NEXT_ROUND + '회)는 이번주 토요일 추첨 후\n일요일 06:00부터 판매 시작됩니다.';
+
+  // 이번 회차: 정상 판매 가능
+  if (round === THIS_ROUND) return null;
+
+  // 현재 판매 회차가 THIS_ROUND일 때 → NEXT_ROUND 이상은 모두 차단
+  // 현재 판매 회차가 NEXT_ROUND일 때(일06:00 이후) → NEXT_ROUND+1 이상 차단
+  var saleRound = SOLD_OUT ? NEXT_ROUND : THIS_ROUND;
+  if (round > saleRound)
+    return '제' + round + '회는 아직 판매하지 않습니다.\n\n현재 판매 중인 회차: 제' + saleRound + '회\n(판매 가능 회차를 초과할 수 없습니다.)';
+
   return null;
 }
 

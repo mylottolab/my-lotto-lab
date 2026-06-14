@@ -494,7 +494,7 @@ tr:hover td{background:#fafafa;}
 <body>
 <div class="header">
   <div class="header-inner">
-    <div class="logo-left">
+    <div class="logo-left" onclick="location.href='main_page.html'" style="cursor:pointer;" title="메인으로">
       <div class="logo-icon">🎱</div>
       <div class="logo-text">
         <div class="title">My Lotto Lab</div>
@@ -608,12 +608,18 @@ var SESSION_TAG = MLL.getSession('general');
 var INFO        = MLL.getLottoInfo();
 var THIS_ROUND  = INFO.thisRound;
 var NEXT_ROUND  = INFO.nextRound;
+var SOLD_OUT    = INFO.soldOut;
 
-// 배지 및 날짜
-document.getElementById('t1badge').textContent = '제'+NEXT_ROUND+'회';
-document.getElementById('t1date').textContent  = '추첨일: '+MLL.getDrawDate(NEXT_ROUND);
+// 현재 판매 가능한 최대 회차
+// 토20:00~일06:00(판매중단): NEXT_ROUND가 아직 안 열렸으므로 THIS_ROUND까지만
+// 그 외: THIS_ROUND 판매 중 (NEXT_ROUND는 아직 판매 안 함)
+var SALE_ROUND = SOLD_OUT ? NEXT_ROUND : THIS_ROUND;
 
-// 회차 셀렉트 (지난 추첨분)
+// TEST1 배지: 현재 판매 회차
+document.getElementById('t1badge').textContent = '제'+SALE_ROUND+'회';
+document.getElementById('t1date').textContent  = '추첨일: '+MLL.getDrawDate(SALE_ROUND);
+
+// 회차 셀렉트 (지난 추첨분) - THIS_ROUND까지만 (과거 회차)
 (function(){
   var sel=document.getElementById('rsel2');
   for(var r=THIS_ROUND;r>=Math.max(1,THIS_ROUND-99);r--){
@@ -626,7 +632,7 @@ document.getElementById('t1date').textContent  = '추첨일: '+MLL.getDrawDate(N
 // 필터 셀렉트
 (function(){
   var sel=document.getElementById('fs');
-  for(var r=NEXT_ROUND;r>=Math.max(1,NEXT_ROUND-19);r--){
+  for(var r=SALE_ROUND;r>=Math.max(1,SALE_ROUND-19);r--){
     var o=document.createElement('option');
     o.value=r; o.textContent=r+'회'; sel.appendChild(o);
   }
@@ -690,10 +696,21 @@ function sv(p){
   var s=ST[p]; var all=s.sel.concat(s.auto);
   if(all.length!==6){ alert('6개의 번호를 완성해주세요.'); return; }
   var type=s.sel.length===0?'자동':s.auto.length>0?'반자동':'수동';
-  var round=p===1?NEXT_ROUND:parseInt(document.getElementById('rsel2').value)||THIS_ROUND;
+  var round=p===1?SALE_ROUND:parseInt(document.getElementById('rsel2').value)||THIS_ROUND;
   var memo=document.getElementById('m'+p).value;
   var cnt=parseInt(document.getElementById('ci'+p).value)||1;
   cnt=Math.min(cnt,10000);
+
+  // 판매 가능 회차 초과 차단
+  if(round > SALE_ROUND){
+    alert('⛔ 제'+round+'회는 아직 판매하지 않습니다.\n현재 판매 중인 회차: 제'+SALE_ROUND+'회');
+    return;
+  }
+  // 판매중단 시간대 현재 회차 차단
+  if(SOLD_OUT && round===THIS_ROUND){
+    alert('⛔ 제'+THIS_ROUND+'회는 현재 판매 중단 중입니다.\n(토요일 20:00 ~ 일요일 06:00)');
+    return;
+  }
 
   if(cnt<=1||s.sel.length>0){
     // 단건 or 반자동/수동 — autoNums(시스템이 채운 번호) 별도 저장
