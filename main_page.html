@@ -59,7 +59,13 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
 .menu-icon{font-size:22px;margin-bottom:7px;}
 .menu-title{font-size:14px;font-weight:700;color:#222;margin-bottom:3px;}
 .menu-sub{font-size:11px;color:#aaa;}
-.badge-new{background:#e03131;color:#fff;font-size:8px;padding:1px 5px;border-radius:6px;margin-left:5px;vertical-align:middle;}
+.lotto-item{padding:10px 14px;font-size:11px;color:#ccc;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a40;}
+.lotto-item:last-child{border-bottom:none;}
+.lotto-item:hover{background:#2a2a40;color:#fff;}
+.lotto-item.active{color:#f5c518;font-weight:700;}
+.lotto-item.coming{color:#666;cursor:default;}
+.lotto-item.coming:hover{background:none;color:#666;}
+.soon{background:#333;color:#888;font-size:9px;padding:1px 5px;border-radius:3px;}
 </style>
 </head>
 <body>
@@ -74,7 +80,25 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
         <div class="sub">가상 로또 등록 · 당첨 분석 · 통계 플렛폼</div>
       </div>
     </div>
-    <div class="header-right">▶ 한국 로또 ▾</div>
+    <div style="position:relative;">
+      <button onclick="toggleLottoMenu()" id="lottoBtn" style="display:flex;align-items:center;gap:5px;color:#ddd;font-size:11px;cursor:pointer;border:1px solid #555;padding:4px 10px;border-radius:5px;background:none;">
+        ▶ <span id="lottoBtnText">한국 로또</span> ▾
+      </button>
+      <div id="lottoMenu" style="display:none;position:absolute;right:0;top:36px;background:#1c1c2e;border:1px solid #2a2a40;border-radius:8px;overflow:hidden;min-width:160px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+        <div class="lotto-item active" onclick="selectLotto('korea','한국 로또','main_page.html')">
+          🇰🇷 한국 로또
+        </div>
+        <div class="lotto-item coming" onclick="selectLotto('powerball','미국 파워볼','powerball.html')">
+          🇺🇸 미국 파워볼 <span class="soon">준비중</span>
+        </div>
+        <div class="lotto-item coming" onclick="selectLotto('mega','미국 메가밀리언스','mega.html')">
+          🇺🇸 미국 메가밀리언스 <span class="soon">준비중</span>
+        </div>
+        <div class="lotto-item coming" onclick="selectLotto('euro','유로밀리언스','euro.html')">
+          🇪🇺 유로밀리언스 <span class="soon">준비중</span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -682,8 +706,31 @@ function loadMyStats(){
   });
 }
 
-// ── 초기화 ──
-loadLatestResult();
+// ── 복권 선택 드롭다운 ──
+function toggleLottoMenu(){
+  var m=document.getElementById('lottoMenu');
+  m.style.display=m.style.display==='none'?'block':'none';
+}
+function selectLotto(type, name, url){
+  if(type!=='korea'){
+    alert('준비 중인 서비스입니다.\n곧 오픈할 예정이에요! 😊');
+    document.getElementById('lottoMenu').style.display='none';
+    return;
+  }
+  document.getElementById('lottoBtnText').textContent=name;
+  document.getElementById('lottoMenu').style.display='none';
+  if(location.pathname.indexOf(url)<0) location.href=url;
+}
+// 외부 클릭 시 메뉴 닫기
+document.addEventListener('click',function(e){
+  var btn=document.getElementById('lottoBtn');
+  var menu=document.getElementById('lottoMenu');
+  if(menu&&btn&&!btn.contains(e.target)&&!menu.contains(e.target)){
+    menu.style.display='none';
+  }
+});
+window.toggleLottoMenu=toggleLottoMenu;
+window.selectLotto=selectLotto;
 loadMyStats();
 
 // 다른 탭에서 데이터 변경 시 자동 갱신

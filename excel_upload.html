@@ -659,19 +659,56 @@ function buildGrid(){
   for(var i=0;i<GRID_ROWS;i++){
     html+='<tr id="gr'+i+'">'
       +'<td class="rn">'+(i+1)+'</td>'
-      +'<td class="round-cell"><input type="number" id="g_r'+i+'" placeholder="'+SALE_ROUND+'" min="1" max="9999"></td>'
-      +'<td class="num-cell"><input type="number" id="g_n'+i+'_1" min="1" max="45" placeholder="-"></td>'
-      +'<td class="num-cell"><input type="number" id="g_n'+i+'_2" min="1" max="45" placeholder="-"></td>'
-      +'<td class="num-cell"><input type="number" id="g_n'+i+'_3" min="1" max="45" placeholder="-"></td>'
-      +'<td class="num-cell"><input type="number" id="g_n'+i+'_4" min="1" max="45" placeholder="-"></td>'
-      +'<td class="num-cell"><input type="number" id="g_n'+i+'_5" min="1" max="45" placeholder="-"></td>'
-      +'<td class="num-cell"><input type="number" id="g_n'+i+'_6" min="1" max="45" placeholder="-"></td>'
+      +'<td class="round-cell"><input type="number" id="g_r'+i+'" placeholder="'+SALE_ROUND+'" min="1" max="9999" onkeydown="gridKey(event,'+i+',0)"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_1" min="1" max="45" placeholder="-" oninput="gridAutoNext(this,'+i+',1)" onkeydown="gridKey(event,'+i+',1)"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_2" min="1" max="45" placeholder="-" oninput="gridAutoNext(this,'+i+',2)" onkeydown="gridKey(event,'+i+',2)"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_3" min="1" max="45" placeholder="-" oninput="gridAutoNext(this,'+i+',3)" onkeydown="gridKey(event,'+i+',3)"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_4" min="1" max="45" placeholder="-" oninput="gridAutoNext(this,'+i+',4)" onkeydown="gridKey(event,'+i+',4)"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_5" min="1" max="45" placeholder="-" oninput="gridAutoNext(this,'+i+',5)" onkeydown="gridKey(event,'+i+',5)"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_6" min="1" max="45" placeholder="-" oninput="gridAutoNext(this,'+i+',6)" onkeydown="gridKey(event,'+i+',6)"></td>'
       +'<td><button class="toggle-btn tb-real-n" id="g_real'+i+'" onclick="toggleReal('+i+')">N</button></td>'
       +'<td><button class="toggle-btn tb-auto-n" id="g_auto'+i+'" onclick="toggleAuto('+i+')">N</button></td>'
-      +'<td class="memo-cell"><input type="text" id="g_memo'+i+'" placeholder="메모"></td>'
+      +'<td class="memo-cell"><input type="text" id="g_memo'+i+'" placeholder="메모" onkeydown="gridKey(event,'+i+',7)"></td>'
       +'</tr>';
   }
   tbody.innerHTML=html;
+}
+
+// 번호 2자리 입력 시 자동으로 다음 칸 이동
+function gridAutoNext(el, row, col){
+  var v = el.value.replace(/[^0-9]/g,'');
+  el.value = v;
+  if(v.length >= 2){
+    var n = parseInt(v);
+    if(n < 1) el.value = '1';
+    else if(n > 45) el.value = '45';
+    // 다음 번호 칸으로 이동
+    if(col < 6){
+      var next = document.getElementById('g_n'+row+'_'+(col+1));
+      if(next){ next.focus(); next.select(); }
+    } else {
+      // 6번째 번호 입력 완료 → 다음 행 회차로
+      var nextRow = document.getElementById('g_r'+(row+1));
+      if(nextRow){ nextRow.focus(); nextRow.select(); }
+    }
+  }
+}
+
+// Enter/Tab 키로 칸 이동
+function gridKey(e, row, col){
+  if(e.key==='Enter'){
+    e.preventDefault();
+    // col: 0=회차, 1~6=번호, 7=메모
+    if(col===0){
+      var n1=document.getElementById('g_n'+row+'_1'); if(n1){n1.focus();n1.select();}
+    } else if(col>=1&&col<6){
+      var nx=document.getElementById('g_n'+row+'_'+(col+1)); if(nx){nx.focus();nx.select();}
+    } else if(col===6){
+      var nr=document.getElementById('g_r'+(row+1)); if(nr){nr.focus();nr.select();}
+    } else if(col===7){
+      var nr2=document.getElementById('g_r'+(row+1)); if(nr2){nr2.focus();nr2.select();}
+    }
+  }
 }
 
 function toggleReal(i){
@@ -991,6 +1028,7 @@ window.uploadFile=uploadFile; window.refreshTable=refreshTable;
 window.sortBy=sortBy; window.delEntry=delEntry;
 window.toggleReal=toggleReal; window.toggleAuto=toggleAuto;
 window.clearGrid=clearGrid; window.saveGrid=saveGrid;
+window.gridAutoNext=gridAutoNext; window.gridKey=gridKey;
 
 buildGrid();
 refreshTable();
