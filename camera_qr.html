@@ -38,8 +38,13 @@ MLL.getLottoInfo = function() {
   var elapsed   = now.getTime() - MLL.ROUND1_TS;
   var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
   var nextRound = thisRound + 1;
-  var soldOut   = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
-  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut };
+  // 판매중단: 토요일 20:00 ~ 일요일 06:00
+  var soldOut = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
+  // 현재 판매 가능한 최대 회차
+  // - 판매중단 시간: nextRound도 아직 안 열림 → thisRound 판매 안 됨
+  // - 그 외: nextRound가 현재 판매 회차
+  var saleRound = soldOut ? thisRound : nextRound;
+  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound };
 };
 
 MLL.getDrawDate = function(round) {
@@ -202,11 +207,17 @@ MLL.applyResults = function(resultsObj) {
 // =====================================================
 
 MLL.sortEntries = function(entries) {
-  var pre  = entries.filter(function(e){ return e.status==='추첨전'; })
-                    .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  var info = MLL.getLottoInfo();
+  // 1. 추첨전: status=추첨전 && round >= thisRound (회차 내림차순)
+  var preDraw = entries.filter(function(e){ return e.status==='추첨전' && e.round >= info.thisRound; })
+                       .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  // 2. 미확인: status=추첨전 && round < thisRound (회차 내림차순)
+  var unconfirmed = entries.filter(function(e){ return e.status==='추첨전' && e.round < info.thisRound; })
+                           .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  // 3. 추첨후 확인분 (회차 내림차순)
   var post = entries.filter(function(e){ return e.status!=='추첨전'; })
                     .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  return pre.concat(post);
+  return preDraw.concat(unconfirmed).concat(post);
 };
 
 // =====================================================
