@@ -14,38 +14,57 @@ body{background:#f3f4f6;font-size:13px;}
 .logo-text .sub{font-size:9px;color:#aaa;}
 .btn-back{background:none;border:1px solid #555;color:#ccc;padding:3px 10px;border-radius:5px;font-size:11px;cursor:pointer;}
 .main{max-width:1100px;margin:0 auto;padding:12px 14px;}
-.wrap{display:grid;grid-template-columns:380px 1fr;gap:10px;}
-
-/* 왼쪽 패널 */
+.wrap{display:grid;grid-template-columns:420px 1fr;gap:10px;}
 .panel{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
 .ph{padding:10px 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:#fff;background:#2f9e44;}
-.pb{padding:14px;}
+.pb{padding:12px 14px;}
 .upload-label{font-size:11px;font-weight:600;color:#555;margin-bottom:4px;}
-.upload-sub{font-size:10px;color:#aaa;margin-bottom:8px;}
+.upload-sub{font-size:10px;color:#aaa;margin-bottom:6px;}
 .file-input-wrap{display:flex;align-items:center;gap:8px;border:1px solid #ddd;border-radius:6px;padding:6px 10px;background:#fafafa;margin-bottom:6px;}
 .file-btn{background:#fff;border:1px solid #ccc;border-radius:5px;padding:4px 10px;font-size:11px;color:#555;cursor:pointer;white-space:nowrap;}
 .file-name{font-size:11px;color:#999;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-
-/* 실구매 여부 */
-.real-toggle{display:flex;align-items:center;gap:8px;background:#fff8e1;border:1px solid #f5c518;border-radius:6px;padding:7px 10px;margin-bottom:8px;font-size:11px;}
-.real-toggle label{color:#7a5e00;font-weight:600;cursor:pointer;}
-.real-toggle input{width:15px;height:15px;cursor:pointer;accent-color:#f5c518;}
-
 .btn-row{display:flex;gap:8px;margin-bottom:8px;}
 .btn-upload{flex:1;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
 .btn-download{flex:1;background:#fff;color:#2f9e44;border:2px solid #2f9e44;border-radius:6px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
-.result-box{display:none;border-radius:6px;padding:8px 12px;font-size:11px;line-height:1.7;}
+.result-box{display:none;border-radius:6px;padding:8px 12px;font-size:11px;line-height:1.7;margin-bottom:6px;}
 .result-box.show{display:block;}
 .result-box.success{background:#e8fff0;border:1px solid #2f9e44;color:#1a6b2e;}
 .result-box.error{background:#fff0f0;border:1px solid #e03131;color:#c00;}
-.guide-box{background:#e8f9ff;border:1px solid #b0e0f5;border-radius:8px;padding:12px 14px;}
-.guide-title{font-size:12px;font-weight:700;color:#1a7ad4;margin-bottom:8px;}
-.guide-table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:10px;}
-.guide-table th{background:#1a7ad4;color:#fff;padding:5px 6px;text-align:center;font-weight:600;}
-.guide-table td{background:#fff;padding:4px 6px;text-align:center;border:1px solid #c0dff5;color:#444;}
-.guide-notes{list-style:none;font-size:10px;color:#555;line-height:2.0;}
+
+/* 가이드 */
+.guide-box{background:#e8f9ff;border:1px solid #b0e0f5;border-radius:8px;padding:10px 12px;margin-bottom:10px;}
+.guide-title{font-size:11px;font-weight:700;color:#1a7ad4;margin-bottom:6px;}
+.guide-table{width:100%;border-collapse:collapse;font-size:9px;margin-bottom:6px;}
+.guide-table th{background:#1a7ad4;color:#fff;padding:4px 5px;text-align:center;font-weight:600;}
+.guide-table td{background:#fff;padding:3px 5px;text-align:center;border:1px solid #c0dff5;color:#444;}
+.guide-notes{list-style:none;font-size:9px;color:#555;line-height:1.9;}
 .guide-notes li::before{content:"• ";color:#1a7ad4;}
 
+/* 직접 입력 그리드 */
+.direct-section{border:1px solid #ddd;border-radius:8px;overflow:hidden;margin-top:10px;}
+.direct-header{background:#f0f8e8;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;}
+.direct-title{font-size:11px;font-weight:700;color:#2f9e44;}
+.btn-direct-save{background:#2f9e44;color:#fff;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;}
+.btn-direct-clear{background:#fff;color:#888;border:1px solid #ddd;border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;margin-right:5px;}
+.dgrid{width:100%;border-collapse:collapse;font-size:10px;}
+.dgrid th{background:#f8f8f8;padding:5px 3px;text-align:center;font-size:9px;font-weight:700;color:#555;border-bottom:2px solid #ddd;white-space:nowrap;}
+.dgrid td{border-bottom:1px solid #f0f0f0;border-right:1px solid #f0f0f0;padding:2px;}
+.dgrid tr:hover td{background:#fafff8;}
+.rn{width:22px;text-align:center;font-size:9px;color:#bbb;background:#fafafa!important;}
+.num-cell input{width:100%;border:none;padding:3px 2px;font-size:10px;text-align:center;background:transparent;outline:none;}
+.num-cell input:focus{background:#f0f8ff;}
+.toggle-btn{width:100%;padding:4px 2px;border:none;border-radius:3px;font-size:9px;font-weight:700;cursor:pointer;transition:all 0.15s;}
+/* 실구매 토글 */
+.tb-real-n{background:#f0f0f0;color:#888;}
+.tb-real-y{background:#f5c518;color:#7a5e00;}
+/* 자동 토글 */
+.tb-auto-n{background:#e8f4ff;color:#1a7ad4;}
+.tb-auto-y{background:#e8fff0;color:#2f9e44;}
+.tb-auto-b{background:#fff3e0;color:#e67700;}
+/* 회차 입력 */
+.round-cell input{width:100%;border:none;padding:3px 2px;font-size:10px;text-align:center;background:transparent;outline:none;font-weight:700;}
+.round-cell input:focus{background:#fff8e1;}
+.memo-cell input{width:100%;border:none;padding:3px 4px;font-size:9px;background:transparent;outline:none;color:#888;}
 /* 오른쪽 테이블 */
 .rp{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
 .rph{padding:8px 12px;display:flex;align-items:center;gap:7px;border-bottom:1px solid #eee;flex-wrap:wrap;}
@@ -54,22 +73,12 @@ body{background:#f3f4f6;font-size:13px;}
 .fsel{border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:10px;}
 .btn-q{background:#fff;border:1px solid #1a7ad4;color:#1a7ad4;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;}
 .tw{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 120px);}
-table{width:100%;border-collapse:collapse;table-layout:fixed;}
-colgroup col:nth-child(1){width:54px;}
-colgroup col:nth-child(2){width:168px;}
-colgroup col:nth-child(3){width:80px;}
-colgroup col:nth-child(4){width:58px;}
-colgroup col:nth-child(5){width:48px;}
-colgroup col:nth-child(6){width:50px;}
-colgroup col:nth-child(7){width:44px;}
-colgroup col:nth-child(8){width:72px;}
-colgroup col:nth-child(9){width:30px;}
-th{background:#f8f8f8;padding:6px 5px;font-size:10px;font-weight:700;color:#555;border-bottom:1px solid #e0e0e0;white-space:nowrap;position:sticky;top:0;z-index:2;text-align:center;cursor:pointer;user-select:none;}
-th:hover{background:#eef2ff;color:#1a7ad4;}
-th .sa{font-size:8px;margin-left:2px;}
-td{padding:4px 5px;font-size:10px;color:#444;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;overflow:hidden;}
-tr:hover td{background:#fafafa;}
-tr.pre-draw td{background:#fff8e1;}
+table.list{width:100%;border-collapse:collapse;table-layout:fixed;}
+table.list th{background:#f8f8f8;padding:6px 4px;font-size:10px;font-weight:700;color:#555;border-bottom:1px solid #e0e0e0;white-space:nowrap;position:sticky;top:0;z-index:2;text-align:center;cursor:pointer;user-select:none;}
+table.list th:hover{background:#eef2ff;color:#1a7ad4;}
+table.list td{padding:4px 4px;font-size:10px;color:#444;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;overflow:hidden;}
+table.list tr:hover td{background:#fafafa;}
+table.list tr.pre-draw td{background:#fff8e1;}
 .sdiv td{background:#f0f0f0!important;padding:3px 8px;font-size:9px;font-weight:700;color:#888;text-align:left;}
 .no-data{text-align:center;padding:30px;color:#bbb;font-size:12px;}
 </style>
@@ -89,11 +98,9 @@ tr.pre-draw td{background:#fff8e1;}
 </div>
 
 <div class="main"><div class="wrap">
-
-<!-- 왼쪽: 업로드 패널 -->
 <div>
   <div class="panel">
-    <div class="ph">📊 엑셀/CSV 대량 입력</div>
+    <div class="ph">📊 엑셀/CSV 파일 업로드</div>
     <div class="pb">
       <div class="upload-label">파일 업로드</div>
       <div class="upload-sub">파일 선택 (.xlsx 또는 .csv)</div>
@@ -102,42 +109,65 @@ tr.pre-draw td{background:#fff8e1;}
         <span class="file-name" id="fileName">선택된 파일 없음</span>
       </div>
       <input type="file" id="fileInput" accept=".xlsx,.csv" style="display:none;" onchange="onFileSelect(this)">
-
-      <!-- 실구매 여부 선택 -->
-      <div class="real-toggle">
-        <input type="checkbox" id="isRealChk">
-        <label for="isRealChk">🟡 실구매 번호 등록 (QR 없이 수동 입력)</label>
-      </div>
-
       <div class="btn-row">
         <button class="btn-upload" onclick="uploadFile()">⬆ 업로드 및 저장</button>
         <button class="btn-download" onclick="downloadTemplate()">⬇ 양식 다운로드</button>
       </div>
       <div class="result-box" id="resultBox"></div>
 
-      <div class="guide-box" style="margin-top:10px;">
-        <div class="guide-title">ℹ 파일 형식 안내</div>
-        <div style="font-size:10px;color:#555;margin-bottom:8px;text-align:center;">1행은 헤더로 똑같은 명칭을 넣어주세요.</div>
+      <div class="guide-box">
+        <div class="guide-title">ℹ 엑셀 파일 형식 (양식 다운로드 권장)</div>
         <table class="guide-table">
-          <thead><tr><th>회차</th><th>번호1</th><th>번호2</th><th>번호3</th><th>번호4</th><th>번호5</th><th>번호6</th><th>메모</th></tr></thead>
+          <thead><tr><th>회차</th><th>번호1~6</th><th>실구매<br>(Y/N)</th><th>자동<br>(Y/B/N)</th><th>메모</th></tr></thead>
           <tbody>
-            <tr><td>1229</td><td>3</td><td>14</td><td>22</td><td>31</td><td>38</td><td>45</td><td>생일번호</td></tr>
-            <tr><td>1228</td><td>7</td><td>11</td><td>19</td><td>27</td><td>33</td><td>42</td><td></td></tr>
+            <tr><td>1229</td><td>3,14,22,31,38,45</td><td style="color:#2f9e44;font-weight:700;">N</td><td style="color:#2f9e44;font-weight:700;">Y</td><td>가상자동</td></tr>
+            <tr><td>1229</td><td>비워두기</td><td>N</td><td style="color:#2f9e44;font-weight:700;">Y</td><td>번호자동생성</td></tr>
+            <tr><td>1229</td><td>7,11,19,27,33,42</td><td style="color:#e03131;font-weight:700;">Y</td><td>N</td><td>실구매수동</td></tr>
+            <tr><td>1228</td><td>5,12,23,34,41,44</td><td>N</td><td style="color:#e67700;font-weight:700;">B</td><td>반자동</td></tr>
           </tbody>
         </table>
         <ul class="guide-notes">
-          <li>번호는 1~45 사이의 서로 다른 숫자 6개여야 합니다.</li>
-          <li>한 행이 하나의 번호 조합입니다.</li>
-          <li>오류가 있는 행은 건너뜁니다.</li>
-          <li>회차 기준으로 추첨전/후 자동 판단됩니다.</li>
-          <li>실구매 체크 시 🟡 실구매로 등록됩니다.</li>
+          <li><b>실구매(Y/N)</b>: Y=🟡실구매, N=가상 (기본N)</li>
+          <li><b>자동(Y/B/N)</b>: Y=자동, B=반자동, N=수동 (기본N)</li>
+          <li>번호 비워두면 자동 생성 (자동/반자동만)</li>
+          <li>실구매인데 번호 일부만 입력 → 해당행 SKIP</li>
         </ul>
+      </div>
+
+      <!-- 직접 입력 그리드 -->
+      <div class="direct-section">
+        <div class="direct-header">
+          <span class="direct-title">✏️ 직접 입력 (최대 15행)</span>
+          <div>
+            <button class="btn-direct-clear" onclick="clearGrid()">초기화</button>
+            <button class="btn-direct-save" onclick="saveGrid()">⬇ 저장</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+        <table class="dgrid" id="directGrid">
+          <thead><tr>
+            <th style="width:20px;">#</th>
+            <th style="width:40px;">회차</th>
+            <th style="width:26px;">번호1</th>
+            <th style="width:26px;">번호2</th>
+            <th style="width:26px;">번호3</th>
+            <th style="width:26px;">번호4</th>
+            <th style="width:26px;">번호5</th>
+            <th style="width:26px;">번호6</th>
+            <th style="width:34px;">실구매</th>
+            <th style="width:34px;">자동</th>
+            <th>메모</th>
+          </tr></thead>
+          <tbody id="directBody"></tbody>
+        </table>
+        </div>
+        <div id="gridMsg" style="font-size:10px;padding:5px 10px;display:none;"></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 오른쪽: 테이블 -->
+<!-- 오른쪽 테이블 -->
 <div class="rp">
   <div class="rph">
     <span class="rpt">🎫 저장된 번호</span>
@@ -149,24 +179,27 @@ tr.pre-draw td{background:#fff8e1;}
     </div>
   </div>
   <div class="tw">
-    <table>
-      <colgroup><col><col><col><col><col><col><col><col><col></colgroup>
+    <table class="list">
+      <colgroup>
+        <col style="width:54px;"><col style="width:168px;"><col style="width:72px;">
+        <col style="width:58px;"><col style="width:48px;"><col style="width:50px;">
+        <col style="width:44px;"><col style="width:72px;"><col style="width:30px;">
+      </colgroup>
       <thead><tr>
-        <th onclick="sortBy('round')">회차<span class="sa" id="sa-round"></span></th>
+        <th onclick="sortBy('round')">회차<span id="sa-round"> ▼</span></th>
         <th>번호</th>
-        <th onclick="sortBy('memo')">메모<span class="sa" id="sa-memo"></span></th>
-        <th onclick="sortBy('type')">구매형태<span class="sa" id="sa-type"></span></th>
+        <th onclick="sortBy('memo')">메모<span id="sa-memo"> ⇅</span></th>
+        <th onclick="sortBy('type')">구매형태<span id="sa-type"> ⇅</span></th>
         <th>구분</th>
-        <th onclick="sortBy('status')">추첨<span class="sa" id="sa-status"></span></th>
-        <th onclick="sortBy('grade')">결과<span class="sa" id="sa-grade"></span></th>
-        <th onclick="sortBy('prizeMoney')">당첨금<span class="sa" id="sa-prizeMoney"></span></th>
+        <th onclick="sortBy('status')">추첨<span id="sa-status"> ⇅</span></th>
+        <th onclick="sortBy('grade')">결과<span id="sa-grade"> ⇅</span></th>
+        <th onclick="sortBy('prizeMoney')">당첨금<span id="sa-prizeMoney"> ⇅</span></th>
         <th>삭제</th>
       </tr></thead>
       <tbody id="tb"></tbody>
     </table>
   </div>
 </div>
-
 </div></div>
 
 <script>
@@ -618,19 +651,152 @@ var SALE_ROUND  = SOLD_OUT ? NEXT_ROUND : THIS_ROUND;
   }
 })();
 
+// ── 직접 입력 그리드 초기화 ──
+var GRID_ROWS = 15;
+function buildGrid(){
+  var tbody=document.getElementById('directBody');
+  var html='';
+  for(var i=0;i<GRID_ROWS;i++){
+    html+='<tr id="gr'+i+'">'
+      +'<td class="rn">'+(i+1)+'</td>'
+      +'<td class="round-cell"><input type="number" id="g_r'+i+'" placeholder="'+SALE_ROUND+'" min="1" max="9999"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_1" min="1" max="45" placeholder="-"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_2" min="1" max="45" placeholder="-"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_3" min="1" max="45" placeholder="-"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_4" min="1" max="45" placeholder="-"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_5" min="1" max="45" placeholder="-"></td>'
+      +'<td class="num-cell"><input type="number" id="g_n'+i+'_6" min="1" max="45" placeholder="-"></td>'
+      +'<td><button class="toggle-btn tb-real-n" id="g_real'+i+'" onclick="toggleReal('+i+')">N</button></td>'
+      +'<td><button class="toggle-btn tb-auto-n" id="g_auto'+i+'" onclick="toggleAuto('+i+')">N</button></td>'
+      +'<td class="memo-cell"><input type="text" id="g_memo'+i+'" placeholder="메모"></td>'
+      +'</tr>';
+  }
+  tbody.innerHTML=html;
+}
+
+function toggleReal(i){
+  var btn=document.getElementById('g_real'+i);
+  if(btn.textContent==='N'){
+    btn.textContent='Y'; btn.className='toggle-btn tb-real-y';
+  } else {
+    btn.textContent='N'; btn.className='toggle-btn tb-real-n';
+  }
+}
+
+function toggleAuto(i){
+  var btn=document.getElementById('g_auto'+i);
+  var cur=btn.textContent;
+  if(cur==='N'){
+    btn.textContent='Y'; btn.className='toggle-btn tb-auto-y';
+  } else if(cur==='Y'){
+    btn.textContent='B'; btn.className='toggle-btn tb-auto-b';
+  } else {
+    btn.textContent='N'; btn.className='toggle-btn tb-auto-n';
+  }
+}
+
+function clearGrid(){
+  buildGrid();
+  hideGridMsg();
+}
+
+function saveGrid(){
+  var items=[]; var ok=0; var skip=0; var blocked=0;
+  for(var i=0;i<GRID_ROWS;i++){
+    var rEl=document.getElementById('g_r'+i);
+    var round=parseInt(rEl.value)||SALE_ROUND;
+    var isReal=document.getElementById('g_real'+i).textContent==='Y';
+    var autoVal=document.getElementById('g_auto'+i).textContent;
+    var type=autoVal==='Y'?'자동':autoVal==='B'?'반자동':'수동';
+    var memo=document.getElementById('g_memo'+i).value.trim();
+
+    // 번호 읽기
+    var nums=[];
+    for(var n=1;n<=6;n++){
+      var v=parseInt(document.getElementById('g_n'+i+'_'+n).value);
+      if(!isNaN(v)) nums.push(v);
+    }
+    var hasAnyNum=nums.length>0;
+    var hasAllNum=nums.length===6;
+
+    // 빈 행 스킵 (회차 기본값이고 번호도 없고 메모도 없으면)
+    if(!rEl.value && !hasAnyNum && !memo && !isReal) continue;
+
+    // 판매 가능 회차 체크
+    if(round>SALE_ROUND){ blocked++; continue; }
+    if(SOLD_OUT&&round===THIS_ROUND){ blocked++; continue; }
+
+    // 실구매인데 번호 일부만 입력 → SKIP
+    if(isReal && hasAnyNum && !hasAllNum){ skip++; continue; }
+
+    // 번호 처리
+    var finalNums;
+    if(!hasAnyNum && (type==='자동'||type==='반자동')){
+      // 번호 비워두면 자동 생성
+      var pool=[];
+      for(var p=1;p<=45;p++) pool.push(p);
+      for(var p=pool.length-1;p>0;p--){var q=Math.floor(Math.random()*(p+1));var tmp=pool[p];pool[p]=pool[q];pool[q]=tmp;}
+      finalNums=pool.slice(0,6).sort(function(a,b){return a-b;});
+    } else if(hasAllNum){
+      // 중복/범위 체크
+      if(new Set(nums).size!==6||nums.some(function(n){return n<1||n>45;})){skip++;continue;}
+      finalNums=nums.sort(function(a,b){return a-b;});
+    } else {
+      skip++; continue;
+    }
+
+    items.push({
+      round:round, nums:finalNums, type:type,
+      isReal:isReal, inputMethod:'excel',
+      sessionTag:SESSION_TAG, memo:memo, autoNums:[]
+    });
+    ok++;
+  }
+
+  if(items.length) MLL.addEntries(items);
+  refreshTable();
+
+  var msg='✅ '+ok+'개 저장!';
+  if(skip>0) msg+=' (오류/미완성 '+skip+'개 건너뜀)';
+  if(blocked>0) msg+=' (판매불가 '+blocked+'개 차단)';
+  showGridMsg(msg, ok>0?'#2f9e44':'#e03131');
+  if(ok>0) clearGrid();
+}
+
+function showGridMsg(msg,color){
+  var el=document.getElementById('gridMsg');
+  el.style.display='block'; el.style.color=color; el.textContent=msg;
+  setTimeout(function(){el.style.display='none';},5000);
+}
+function hideGridMsg(){ document.getElementById('gridMsg').style.display='none'; }
+
+// ── 엑셀 파일 업로드 ──
 function onFileSelect(inp){
-  document.getElementById('fileName').textContent = inp.files[0] ? inp.files[0].name : '선택된 파일 없음';
+  document.getElementById('fileName').textContent=inp.files[0]?inp.files[0].name:'선택된 파일 없음';
 }
 
 function downloadTemplate(){
   var wb=XLSX.utils.book_new();
-  var wsData=[
-    ['회차','번호1','번호2','번호3','번호4','번호5','번호6','메모'],
-    [SALE_ROUND,3,14,22,31,38,45,'생일번호'],
-    [THIS_ROUND,7,11,19,27,33,42,''],
+  var wsData=[['회차','번호1','번호2','번호3','번호4','번호5','번호6','실구매(Y/N)','자동(Y/B/N)','메모'],
+    [SALE_ROUND,3,14,22,31,38,45,'N','Y','가상자동'],
+    [SALE_ROUND,'','','','','','','N','Y','번호자동생성'],
+    [SALE_ROUND,7,11,19,27,33,42,'Y','N','실구매수동'],
+    [THIS_ROUND,5,12,23,34,41,44,'N','B','반자동'],
   ];
   var ws=XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols']=[{wch:8},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:20}];
+
+  // 실구매(Y/N) 드롭다운 - H열(index 7)
+  // 자동(Y/B/N) 드롭다운 - I열(index 8)
+  if(!ws['!dataValidations']) ws['!dataValidations']=[];
+  for(var row=2;row<=101;row++){
+    ws['!dataValidations'].push({
+      sqref:'H'+row, type:'list', formula1:'"Y,N"', showDropDown:false
+    });
+    ws['!dataValidations'].push({
+      sqref:'I'+row, type:'list', formula1:'"Y,B,N"', showDropDown:false
+    });
+  }
+  ws['!cols']=[{wch:8},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:12},{wch:12},{wch:20}];
   XLSX.utils.book_append_sheet(wb,ws,'번호입력');
   XLSX.writeFile(wb,'lotto_template.xlsx');
 }
@@ -638,7 +804,6 @@ function downloadTemplate(){
 function uploadFile(){
   var inp=document.getElementById('fileInput');
   if(!inp.files.length){ showResult('error','파일을 먼저 선택해주세요.'); return; }
-  var isReal=document.getElementById('isRealChk').checked;
   var file=inp.files[0];
   var reader=new FileReader();
   reader.onload=function(e){
@@ -649,90 +814,79 @@ function uploadFile(){
         var headers=lines[0].split(',').map(function(h){return h.trim();});
         for(var i=1;i<lines.length;i++){
           var cols=lines[i].split(',').map(function(c){return c.trim();});
-          var obj={};
-          headers.forEach(function(h,j){obj[h]=cols[j]||'';});
-          rows.push(obj);
+          var obj={}; headers.forEach(function(h,j){obj[h]=cols[j]||'';}); rows.push(obj);
         }
       } else {
-        var wb=XLSX.read(e.target.result,{type:'array'});
-        var ws=wb.Sheets[wb.SheetNames[0]];
-        rows=XLSX.utils.sheet_to_json(ws);
+        var wb2=XLSX.read(e.target.result,{type:'array'});
+        var ws2=wb2.Sheets[wb2.SheetNames[0]];
+        rows=XLSX.utils.sheet_to_json(ws2,{defval:''});
       }
-      processRows(rows, isReal);
+      processRows(rows);
     } catch(err){ showResult('error','파일 읽기 오류: '+err.message); }
   };
   if(file.name.toLowerCase().endsWith('.csv')) reader.readAsText(file,'utf-8');
   else reader.readAsArrayBuffer(file);
 }
 
-function processRows(rows, isReal){
-  var ok=0, skip=0, blocked=0, items=[];
+function processRows(rows){
+  var ok=0,skip=0,blocked=0,items=[];
   rows.forEach(function(row){
     try{
       var round=parseInt(row['회차']);
-      var nums=[parseInt(row['번호1']),parseInt(row['번호2']),parseInt(row['번호3']),
-                parseInt(row['번호4']),parseInt(row['번호5']),parseInt(row['번호6'])];
-      var memo=String(row['메모']||'').trim();
+      var n1=row['번호1'],n2=row['번호2'],n3=row['번호3'],n4=row['번호4'],n5=row['번호5'],n6=row['번호6'];
+      var nums=[n1,n2,n3,n4,n5,n6].map(function(v){return parseInt(v);}).filter(function(v){return !isNaN(v);});
+      var memo   = String(row['메모']||'').trim();
+      var isReal = String(row['실구매(Y/N)']||'N').trim().toUpperCase()==='Y';
+      var autoV  = String(row['자동(Y/B/N)']||'N').trim().toUpperCase();
+      var type   = autoV==='Y'?'자동':autoV==='B'?'반자동':'수동';
 
       if(!round||round<1) throw new Error('회차 오류');
-      if(nums.some(isNaN)||nums.some(function(n){return n<1||n>45;})) throw new Error('번호 오류');
-      if(new Set(nums).size!==6) throw new Error('중복 번호');
+      if(round>SALE_ROUND){ blocked++; return; }
+      if(SOLD_OUT&&round===THIS_ROUND){ blocked++; return; }
 
-      // 판매 가능 회차 초과 차단
-      if(round > SALE_ROUND){
-        blocked++;
-        return;
-      }
-      // 판매중단 시간대 현재 회차 차단
-      if(SOLD_OUT && round===THIS_ROUND){
-        blocked++;
-        return;
-      }
+      // 실구매인데 번호 일부만 있으면 SKIP
+      if(isReal && nums.length>0 && nums.length<6){ skip++; return; }
 
-      items.push({
-        round: round,
-        nums: nums.sort(function(a,b){return a-b;}),
-        type: '수동',
-        isReal: isReal,
-        inputMethod: 'excel',
-        sessionTag: SESSION_TAG,
-        memo: memo,
-        autoNums: []
-      });
+      var finalNums;
+      if(nums.length===0 && (type==='자동'||type==='반자동')){
+        // 번호 비워두면 자동 생성
+        var pool=[];
+        for(var i=1;i<=45;i++) pool.push(i);
+        for(var i=pool.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=pool[i];pool[i]=pool[j];pool[j]=tmp;}
+        finalNums=pool.slice(0,6).sort(function(a,b){return a-b;});
+      } else if(nums.length===6){
+        if(new Set(nums).size!==6||nums.some(function(n){return n<1||n>45;})) throw new Error('번호 오류');
+        finalNums=nums.sort(function(a,b){return a-b;});
+      } else { throw new Error('번호 개수 오류'); }
+
+      items.push({round:round,nums:finalNums,type:type,isReal:isReal,
+        inputMethod:'excel',sessionTag:SESSION_TAG,memo:memo,autoNums:[]});
       ok++;
     } catch(e){ skip++; }
   });
-
   if(items.length) MLL.addEntries(items);
   refreshTable();
-
   var msg='✅ '+ok+'개 저장 완료!';
-  if(skip>0) msg+=' (오류 '+skip+'개 건너뜀)';
-  if(blocked>0) msg+=' (판매불가 회차 '+blocked+'개 차단)';
-  showResult('success', msg);
+  if(skip>0) msg+=' (오류/SKIP '+skip+'개)';
+  if(blocked>0) msg+=' (판매불가 '+blocked+'개 차단)';
+  showResult('success',msg);
   document.getElementById('fileInput').value='';
   document.getElementById('fileName').textContent='선택된 파일 없음';
 }
 
-function showResult(type, msg){
+function showResult(type,msg){
   var rb=document.getElementById('resultBox');
-  rb.className='result-box '+type+' show';
-  rb.textContent=msg;
+  rb.className='result-box '+type+' show'; rb.textContent=msg;
   setTimeout(function(){rb.classList.remove('show');},6000);
 }
 
 // ── 정렬 ──
-var sortCol='round', sortDir=-1;
-
+var sortCol='round',sortDir=-1;
 function sortBy(col){
-  if(sortCol===col) sortDir*=-1;
-  else { sortCol=col; sortDir=-1; }
+  if(sortCol===col) sortDir*=-1; else {sortCol=col;sortDir=-1;}
   ['round','memo','type','status','grade','prizeMoney'].forEach(function(c){
-    var el=document.getElementById('sa-'+c);
-    if(!el) return;
-    el.className='sa';
-    if(c===sortCol) el.textContent=(sortDir===-1?'▼':'▲');
-    else el.textContent='⇅';
+    var el=document.getElementById('sa-'+c); if(!el) return;
+    el.textContent=c===sortCol?(sortDir===-1?' ▼':' ▲'):' ⇅';
   });
   refreshTable();
 }
@@ -746,13 +900,13 @@ function refreshTable(){
 
   entries.sort(function(a,b){
     var av,bv;
-    if(sortCol==='round')         {av=a.round;         bv=b.round;}
-    else if(sortCol==='memo')     {av=a.memo||'';      bv=b.memo||'';}
-    else if(sortCol==='type')     {av=a.type||'';      bv=b.type||'';}
-    else if(sortCol==='status')   {av=a.status||'';    bv=b.status||'';}
-    else if(sortCol==='grade')    {av=a.grade==null?-1:a.grade; bv=b.grade==null?-1:b.grade;}
-    else if(sortCol==='prizeMoney'){av=a.prizeMoney||0; bv=b.prizeMoney||0;}
-    else {av=a.round; bv=b.round;}
+    if(sortCol==='round'){av=a.round;bv=b.round;}
+    else if(sortCol==='memo'){av=a.memo||'';bv=b.memo||'';}
+    else if(sortCol==='type'){av=a.type||'';bv=b.type||'';}
+    else if(sortCol==='status'){av=a.status||'';bv=b.status||'';}
+    else if(sortCol==='grade'){av=a.grade==null?-1:a.grade;bv=b.grade==null?-1:b.grade;}
+    else if(sortCol==='prizeMoney'){av=a.prizeMoney||0;bv=b.prizeMoney||0;}
+    else{av=a.round;bv=b.round;}
     return av<bv?sortDir:av>bv?-sortDir:0;
   });
 
@@ -761,15 +915,11 @@ function refreshTable(){
   var post=useSections?entries.filter(function(e){return e.status!=='추첨전';}):entries;
 
   var badge=document.getElementById('sectionBadge');
-  if(useSections){
-    badge.innerHTML='<span style="color:#e03131;">🔴추첨예정 '+pre.length+'개</span> &nbsp;|&nbsp; <span style="color:#888;">✅추첨완료 '+post.length+'개</span>';
-  } else badge.textContent='';
+  if(useSections) badge.innerHTML='<span style="color:#e03131;">🔴추첨예정 '+pre.length+'개</span> &nbsp;|&nbsp; <span style="color:#888;">✅추첨완료 '+post.length+'개</span>';
+  else badge.textContent='';
 
   var tb=document.getElementById('tb');
-  if(!entries.length){
-    tb.innerHTML='<tr><td colspan="9" class="no-data">저장된 번호가 없습니다.</td></tr>';
-    return;
-  }
+  if(!entries.length){tb.innerHTML='<tr><td colspan="9" class="no-data">저장된 번호가 없습니다.</td></tr>';return;}
 
   function makeRows(list){
     return list.map(function(entry){
@@ -778,14 +928,15 @@ function refreshTable(){
       var bonusNum=result?result.bonus:null;
       var actualSt=(result||entry.status==='추첨후')?'추첨후':entry.status;
       var isSession=entry.sessionTag===SESSION_TAG;
+      var autoNums=entry.autoNums||[];
 
       var balls=entry.nums.slice().sort(function(a,b){return a-b;}).map(function(n){
         var isMatch=winNums.indexOf(n)>=0;
         var isBonus=n===bonusNum&&!isMatch;
-        var bg=isBonus?'#fff':MLL.BC(n);
-        var tc=isBonus?'#555':MLL.TC(n);
+        var bg=isBonus?'#fff':MLL.BC(n); var tc=isBonus?'#555':MLL.TC(n);
         var brd=isMatch?'2px solid #f5c518':isBonus?'2px solid #aaa':'none';
-        return '<span style="width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;background:'+bg+';color:'+tc+';border:'+brd+';margin:1px;">'+n+'</span>';
+        var op=(entry.type==='반자동'&&autoNums.length>0&&autoNums.indexOf(n)>=0&&!isMatch)?'0.4':'1';
+        return '<span style="width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;background:'+bg+';color:'+tc+';border:'+brd+';margin:1px;opacity:'+op+';">'+n+'</span>';
       }).join('');
 
       var typeColor=entry.type==='자동'?'#2f9e44':entry.type==='반자동'?'#e67700':'#1a7ad4';
@@ -799,8 +950,7 @@ function refreshTable(){
         :'<span style="color:#999;font-size:9px;">추첨후</span>';
       var gradeHTML='<span style="color:#ddd;">-</span>';
       if(actualSt==='추첨후'&&entry.grade!==null){
-        gradeHTML=entry.grade===0
-          ?'<span style="color:#aaa;font-size:9px;">낙첨</span>'
+        gradeHTML=entry.grade===0?'<span style="color:#aaa;font-size:9px;">낙첨</span>'
           :'<span style="color:'+MLL.GRADE_COLOR[entry.grade]+';font-weight:700;font-size:9px;">'+MLL.GRADE_LABEL[entry.grade]+'</span>';
       }
       var prizeHTML='<span style="color:#ddd;">-</span>';
@@ -826,17 +976,9 @@ function refreshTable(){
 
   var html='';
   if(useSections){
-    if(pre.length){
-      html+='<tr class="sdiv"><td colspan="9">🔴 추첨 예정 ('+pre.length+'개)</td></tr>';
-      html+=makeRows(pre);
-    }
-    if(post.length){
-      html+='<tr class="sdiv"><td colspan="9">✅ 추첨 완료 ('+post.length+'개)</td></tr>';
-      html+=makeRows(post);
-    }
-  } else {
-    html=makeRows(entries);
-  }
+    if(pre.length){ html+='<tr class="sdiv"><td colspan="9">🔴 추첨 예정 ('+pre.length+'개)</td></tr>'; html+=makeRows(pre); }
+    if(post.length){ html+='<tr class="sdiv"><td colspan="9">✅ 추첨 완료 ('+post.length+'개)</td></tr>'; html+=makeRows(post); }
+  } else html=makeRows(entries);
   tb.innerHTML=html;
 }
 
@@ -844,19 +986,13 @@ function delEntry(id){
   if(confirm('삭제하시겠습니까?')){ MLL.deleteEntry(id); refreshTable(); }
 }
 
-window.onFileSelect=onFileSelect;
-window.downloadTemplate=downloadTemplate;
-window.uploadFile=uploadFile;
-window.refreshTable=refreshTable;
-window.sortBy=sortBy;
-window.delEntry=delEntry;
+window.onFileSelect=onFileSelect; window.downloadTemplate=downloadTemplate;
+window.uploadFile=uploadFile; window.refreshTable=refreshTable;
+window.sortBy=sortBy; window.delEntry=delEntry;
+window.toggleReal=toggleReal; window.toggleAuto=toggleAuto;
+window.clearGrid=clearGrid; window.saveGrid=saveGrid;
 
-// 초기 헤더 아이콘
-document.getElementById('sa-round').textContent='▼';
-['memo','type','status','grade','prizeMoney'].forEach(function(c){
-  var el=document.getElementById('sa-'+c); if(el) el.textContent='⇅';
-});
-
+buildGrid();
 refreshTable();
 </script>
 </body>
