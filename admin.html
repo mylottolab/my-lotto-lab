@@ -95,8 +95,8 @@ MLL.addEntry = function(item) {
   if (!item.grade)       item.grade       = null;
   if (!item.prizeMoney)  item.prizeMoney  = 0;
   if (!item.sessionTag)  item.sessionTag  = '';
-  // status 자동 판단
-  item.status = MLL.getRoundStatus(item.round);
+  // 항상 추첨전으로 저장 → 미확인 섹션에서 사용자가 확인하도록
+  item.status = '추첨전';
   entries.push(item);
   MLL.saveEntries(entries);
   return item;
@@ -111,7 +111,8 @@ MLL.addEntries = function(items) {
     if (!item.grade)      item.grade      = null;
     if (!item.prizeMoney) item.prizeMoney = 0;
     if (!item.sessionTag) item.sessionTag = '';
-    item.status = MLL.getRoundStatus(item.round);
+    // 항상 추첨전으로 저장 → 미확인 섹션에서 사용자가 확인하도록
+    item.status = '추첨전';
     entries.push(item);
   });
   MLL.saveEntries(entries);
@@ -339,7 +340,7 @@ MLL.renderRow = function(entry, sessionTag, opts) {
 
 // 섹션 구분선
 MLL.renderDivider = function(label, count, extra) {
-  return '<tr><td colspan="8" style="background:#f0f0f0;padding:4px 8px;font-size:9px;font-weight:700;color:#888;">' +
+  return '<tr><td colspan="9" style="background:#f0f0f0;padding:4px 8px;font-size:9px;font-weight:700;color:#888;">' +
     label + ' (' + count + '개)' + (extra||'') + '</td></tr>';
 };
 
@@ -376,13 +377,16 @@ MLL.applyCheck = function(sessionTag) {
   var updated = 0;
 
   entries.forEach(function(entry) {
-    // 미확인 조건: status=추첨전이고 round < THIS_ROUND
-    var isUnconfirmed = entry.status === '추첨전' && entry.round < info.thisRound;
+    // 미확인 조건
+    var isUnconfirmed =
+      (entry.status === '추첨전' && Number(entry.round) < info.thisRound) ||
+      (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
     if (!isUnconfirmed) return;
-    // 지금 입력분만: sessionTag 일치하는 것만
+    // 지금 입력분만: sessionTag 일치
     if (!choice && entry.sessionTag !== sessionTag) return;
 
-    var res = results[entry.round] || results[String(entry.round)];
+    // 숫자/문자열 둘 다 시도
+    var res = results[entry.round] || results[Number(entry.round)] || results[String(entry.round)];
     if (res) {
       entry.status     = '추첨후';
       entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
@@ -442,7 +446,7 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
 
   var html = '';
   if (!sorted.length) {
-    html = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';
+    html = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';
   } else {
     // 추첨전 섹션
     if (preDraw.length) {
@@ -451,7 +455,7 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
     }
     // 미확인 섹션 (주황 배경)
     if (unconfirmed.length) {
-      html += '<tr><td colspan="8" style="background:#fff3e0;padding:4px 8px;font-size:9px;font-weight:700;color:#e67700;">' +
+      html += '<tr><td colspan="9" style="background:#fff3e0;padding:4px 8px;font-size:9px;font-weight:700;color:#e67700;">' +
         '🟡 추첨됐으나 미확인 (' + unconfirmed.length + '개)' +
         MLL.renderCheckBtn(sessionTag) +
         '</td></tr>';
