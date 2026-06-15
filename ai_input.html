@@ -339,7 +339,7 @@ MLL.renderRow = function(entry, sessionTag, opts) {
 
 // 섹션 구분선
 MLL.renderDivider = function(label, count, extra) {
-  return '<tr><td colspan="8" style="background:#f0f0f0;padding:4px 8px;font-size:9px;font-weight:700;color:#888;">' +
+  return '<tr><td colspan="9" style="background:#f0f0f0;padding:4px 8px;font-size:9px;font-weight:700;color:#888;">' +
     label + ' (' + count + '개)' + (extra||'') + '</td></tr>';
 };
 
@@ -442,7 +442,7 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
 
   var html = '';
   if (!sorted.length) {
-    html = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';
+    html = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';
   } else {
     // 추첨전 섹션
     if (preDraw.length) {
@@ -451,7 +451,7 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
     }
     // 미확인 섹션 (주황 배경)
     if (unconfirmed.length) {
-      html += '<tr><td colspan="8" style="background:#fff3e0;padding:4px 8px;font-size:9px;font-weight:700;color:#e67700;">' +
+      html += '<tr><td colspan="9" style="background:#fff3e0;padding:4px 8px;font-size:9px;font-weight:700;color:#e67700;">' +
         '🟡 추첨됐으나 미확인 (' + unconfirmed.length + '개)' +
         MLL.renderCheckBtn(sessionTag) +
         '</td></tr>';
@@ -715,10 +715,11 @@ document.addEventListener('click',function(e){
 <div class="rp">
   <div class="rph">
     <span class="rpt">🎫 저장된 번호</span>
-    <span class="cb" id="tc">0</span>
-    <div style="margin-left:auto;display:flex;gap:5px;">
-      <select class="fsel" id="fs" onchange="renderTable()"><option value="">전체</option></select>
-      <button class="btn-q" onclick="renderTable()">조회</button>
+    <span class="cb" id="totalCount">0</span>
+    <span id="sectionBadge" style="font-size:10px;color:#888;margin-left:4px;"></span>
+    <div style="margin-left:auto;display:flex;gap:5px;align-items:center;">
+      <select class="fsel" id="fs" onchange="refreshTable()"><option value="">전체</option></select>
+      <button class="btn-q" onclick="refreshTable()">조회</button>
     </div>
   </div>
   <div class="tw">
@@ -1129,7 +1130,7 @@ function saveResult(rid) {
     }
   });
   if (cnt > 0) {
-    renderTable();
+    refreshTable();
     var card = document.getElementById(rid);
     if (card) { card.style.opacity='0.5'; card.style.pointerEvents='none'; }
     addBubble('ai', '✅ '+cnt+'개 번호가 저장됐어요!\n\n추가 등록을 원하시면:\n🎤 마이크 버튼을 누른 후 음성으로 주문하시거나\n아래 입력창에 문자로 주문 후 ▶ 버튼을 눌러주세요!');
@@ -1192,7 +1193,7 @@ function saveResult(rid) {
     }
   });
   if (cnt > 0) {
-    renderTable();
+    refreshTable();
     var card = document.getElementById(rid);
     if (card) { card.style.opacity='0.5'; card.style.pointerEvents='none'; }
     addBubble('ai', '✅ '+cnt+'개 번호가 저장됐어요!\n\n추가 등록을 원하시면:\n🎤 마이크 버튼을 누른 후 음성으로 주문하시거나\n아래 입력창에 문자로 주문 후 ▶ 버튼을 눌러주세요!');
@@ -1200,16 +1201,16 @@ function saveResult(rid) {
   }
 }
 
-function renderTable() {
+function refreshTable() {
   var fv = document.getElementById('fs').value;
-  MLL.renderTable('tb', SESSION_TAG, fv || null);
+  MLL.renderTable('tb', SESSION_TAG, fv||null);
 }
 
 function delItem(id) {
-  if (confirm('삭제하시겠습니까?')) { MLL.deleteEntry(id); renderTable(); }
+  if (confirm('삭제하시겠습니까?')) { MLL.deleteEntry(id); refreshTable(); }
 }
 
-renderTable();
+refreshTable();
 
 // ── onclick 전역 등록 ──
 window.toggleMic    = toggleMic;
@@ -1219,7 +1220,7 @@ window.fillEx       = fillEx;
 window.saveResult   = saveResult;
 window.regenResult  = regenResult;
 window.cancelResult = cancelResult;
-window.renderTable  = renderTable;
+window.refreshTable = refreshTable;
 window.delItem      = delItem;
 
 // 회차 드롭다운

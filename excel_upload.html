@@ -560,7 +560,7 @@ MLL.renderRow = function(entry, sessionTag, opts) {
 
 // 섹션 구분선
 MLL.renderDivider = function(label, count, extra) {
-  return '<tr><td colspan="8" style="background:#f0f0f0;padding:4px 8px;font-size:9px;font-weight:700;color:#888;">' +
+  return '<tr><td colspan="9" style="background:#f0f0f0;padding:4px 8px;font-size:9px;font-weight:700;color:#888;">' +
     label + ' (' + count + '개)' + (extra||'') + '</td></tr>';
 };
 
@@ -663,7 +663,7 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
 
   var html = '';
   if (!sorted.length) {
-    html = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';
+    html = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';
   } else {
     // 추첨전 섹션
     if (preDraw.length) {
@@ -672,7 +672,7 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
     }
     // 미확인 섹션 (주황 배경)
     if (unconfirmed.length) {
-      html += '<tr><td colspan="8" style="background:#fff3e0;padding:4px 8px;font-size:9px;font-weight:700;color:#e67700;">' +
+      html += '<tr><td colspan="9" style="background:#fff3e0;padding:4px 8px;font-size:9px;font-weight:700;color:#e67700;">' +
         '🟡 추첨됐으나 미확인 (' + unconfirmed.length + '개)' +
         MLL.renderCheckBtn(sessionTag) +
         '</td></tr>';
