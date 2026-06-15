@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>당첨결과 일괄 적용</title>
+<style>
+body{background:#0f0f1a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;}
+.card{background:#1c1c2e;border:1px solid #2a2a40;border-radius:14px;padding:32px;max-width:520px;width:100%;text-align:center;}
+.btn{width:100%;background:#2f9e44;color:#fff;border:none;border-radius:8px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;margin:6px 0;}
+.btn2{width:100%;background:#1a7ad4;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;cursor:pointer;margin:4px 0;}
+.log{background:#0f0f1a;border:1px solid #333;border-radius:8px;padding:12px;margin-top:12px;text-align:left;font-size:11px;line-height:2;max-height:300px;overflow-y:auto;}
+.ok{color:#6fcf97;}.err{color:#ff8a8a;}.info{color:#74b9ff;}.warn{color:#f5c518;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div style="font-size:36px;margin-bottom:10px;">🏆</div>
+  <h2 style="margin-bottom:6px;">당첨결과 일괄 적용</h2>
+  <p style="font-size:11px;color:#888;margin-bottom:20px;">1224회 ~ 1228회 당첨결과를 한번에 적용합니다</p>
+  <button class="btn" onclick="applyAll()">✅ 1224~1228회 결과 일괄 적용</button>
+  <button class="btn2" onclick="location.href='main_page.html'">← 메인으로</button>
+  <div class="log" id="log"></div>
+</div>
+<script>
+var RESULTS = {
+  1224: {nums:[9,18,21,27,44,45],bonus:28,winners1:12,prize1:2414855250,autoWin:11,semiWin:0,manualWin:1,
+    winnerShops:'가로판매점,인터넷복권판매사이트,토큰박스,노다지노원역점,마곡점빵,복권판매점명지국제신도시점,복권전문점,365대박찬스,로또복권방,웅진,복권나라,미니슈퍼',
+    winners2:70,prize2:68995865,winners3:3373,prize3:1431874,note:''},
+  1225: {nums:[8,9,19,25,41,42],bonus:33,winners1:13,prize1:2228133087,autoWin:12,semiWin:0,manualWin:1,
+    winnerShops:'행운복권방,무지개로또,한솔복권&마트,로또명당,복돼지복권방,월산리주고받는로또,행운의집,만복편의점,신천하명당,복권명당,지에스뉴양산혜인점,인터넷복권판매사이트,빙그레돈벼락맞는곳',
+    winners2:76,prize2:63521338,winners3:3333,prize3:1448432,note:''},
+  1226: {nums:[4,6,13,17,26,28],bonus:41,winners1:10,prize1:2815230113,autoWin:8,semiWin:0,manualWin:2,
+    winnerShops:'팡팡로또중랑점,복권나라(광진구),거봉마트,노다지로또,드림,보람복권방,복권나라(포천시),가판점교통카드충전소,행운을주는로또판매점,로또명당상동점',
+    winners2:75,prize2:62560670,winners3:3557,prize3:1319104,note:''},
+  1227: {nums:[1,14,16,34,41,44],bonus:13,winners1:11,prize1:2674808455,autoWin:8,semiWin:1,manualWin:2,
+    winnerShops:'진흥수퍼,행운의집,복권명당(서부점),복권명당,홍이복권방,로또복권방,로또편의점,해피마트,마이더스로또복권방,왕대박복권편의점,복이데굴데굴',
+    winners2:70,prize2:70054508,winners3:3042,prize3:1612037,note:''},
+  1228: {nums:[24,29,30,31,35,44],bonus:1,winners1:11,prize1:2698334421,autoWin:10,semiWin:0,manualWin:1,
+    winnerShops:'부산감만정보통신,일등복권방,인천나라복권,경기복돼지복권방,바른,돈벼락,이마트24백석동문점,충북중앙복권방,전남복권나라,경북동네복권,경남로또명당',
+    winners2:83,prize2:59601765,winners3:2836,prize3:1744340,note:'서울지역1등당첨없음'}
+};
+
+function log(msg,cls){ var d=document.getElementById('log'); d.innerHTML+='<div class="'+(cls||'info')+'">'+msg+'</div>'; d.scrollTop=d.scrollHeight; }
+
+function calcGrade(nums, winNums, bonus){
+  var m=0; nums.forEach(function(n){if(winNums.indexOf(n)>=0)m++;});
+  var b=nums.indexOf(bonus)>=0;
+  return m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
+}
+
+function applyAll(){
+  log('=== 당첨결과 일괄 적용 시작 ===','warn');
+
+  // 기존 결과 로드 + 새 결과 병합
+  var results = JSON.parse(localStorage.getItem('mll_results')||'{}');
+  Object.keys(RESULTS).forEach(function(round){
+    results[round] = RESULTS[round];
+    results[String(round)] = RESULTS[round];
+    log('✅ '+round+'회 당첨결과 저장: '+RESULTS[round].nums.join(',')+' (보너스:'+RESULTS[round].bonus+')','ok');
+  });
+  localStorage.setItem('mll_results', JSON.stringify(results));
+
+  // entries 업데이트
+  var entries = JSON.parse(localStorage.getItem('mll_entries')||'[]');
+  var updated = 0;
+  entries.forEach(function(e){
+    var r = RESULTS[e.round] || RESULTS[String(e.round)];
+    if(r && (e.status==='추첨전' || e.grade===null || e.grade===undefined)){
+      e.status     = '추첨후';
+      e.grade      = calcGrade(e.nums, r.nums, r.bonus);
+      e.prizeMoney = e.grade===1?r.prize1:e.grade===2?r.prize2:e.grade===3?r.prize3:e.grade===4?50000:e.grade===5?5000:0;
+      updated++;
+      if(e.grade>0) log('🏆 '+e.round+'회 '+e.grade+'등 당첨! '+e.prizeMoney.toLocaleString()+'원','warn');
+    }
+  });
+  localStorage.setItem('mll_entries', JSON.stringify(entries));
+
+  log('✅ 총 '+updated+'개 항목 업데이트 완료!','ok');
+  log('3초 후 메인페이지로 이동합니다...','info');
+  document.querySelector('.btn').disabled=true;
+  document.querySelector('.btn').textContent='✅ 적용 완료';
+  document.querySelector('.btn').style.background='#555';
+  setTimeout(function(){ location.href='main_page.html'; }, 3000);
+}
+</script>
+</body>
+</html>
