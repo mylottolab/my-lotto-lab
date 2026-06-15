@@ -1086,17 +1086,33 @@ function refreshTable(){
   });
 
   var useSections=(sortCol==='round');
-  var pre =useSections?entries.filter(function(e){return e.status==='추첨전';}):[];
-  var post=useSections?entries.filter(function(e){return e.status!=='추첨전';}):entries;
+  var info=MLL.getLottoInfo();
+  var preDraw    =useSections?entries.filter(function(e){return e.status==='추첨전'&&e.round>=info.thisRound;}):[];
+  var unconfirmed=useSections?entries.filter(function(e){
+    return (e.status==='추첨전'&&e.round<info.thisRound)||(e.status==='추첨후'&&(e.grade===null||e.grade===undefined));
+  }):[];
+  var postDraw   =useSections?entries.filter(function(e){return e.status==='추첨후'&&e.grade!==null&&e.grade!==undefined;}):entries;
 
   var badge=document.getElementById('sectionBadge');
-  if(useSections) badge.innerHTML='<span style="color:#e03131;">🔴추첨예정 '+pre.length+'개</span> &nbsp;|&nbsp; <span style="color:#888;">✅추첨완료 '+post.length+'개</span>';
-  else badge.textContent='';
+  if(useSections){
+    var bHtml='<span style="color:#e03131;font-weight:700;">🔴추첨전 '+preDraw.length+'개</span> &nbsp;|&nbsp; ';
+    if(unconfirmed.length>0){
+      bHtml+='<span style="color:#e67700;font-weight:700;">🟡미확인 '+unconfirmed.length+'개</span>'+
+        '<span onclick="MLL.applyCheck(\''+SESSION_TAG+'\')" '+
+        'style="display:inline-flex;align-items:center;margin-left:6px;'+
+        'background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;'+
+        'font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;cursor:pointer;">⚡ 즉시확인 Click!</span>';
+    } else {
+      bHtml+='<span style="color:#e67700;">🟡미확인 0개</span>';
+    }
+    bHtml+=' &nbsp;|&nbsp; <span style="color:#555;">✅확인완료 '+postDraw.length+'개</span>';
+    badge.innerHTML=bHtml;
+  } else badge.textContent='';
 
   var tb=document.getElementById('tb');
   if(!entries.length){tb.innerHTML='<tr><td colspan="9" class="no-data">저장된 번호가 없습니다.</td></tr>';return;}
 
-  function makeRows(list){
+  function makeRows(list, bgColor){
     return list.map(function(entry){
       var result  =MLL.getResult(entry.round)||MLL.loadResults()[String(entry.round)];
       var winNums =result?result.nums:[];
@@ -1133,7 +1149,9 @@ function refreshTable(){
         prizeHTML='<span style="color:#e03131;font-weight:700;font-size:9px;">'+entry.prizeMoney.toLocaleString()+'원</span>';
 
       var rcColor=actualSt==='추첨전'?'#e03131':'#555';
-      var rowStyle=isSession?'border-left:3px solid #1a7ad4;background:#f0f8ff;':actualSt==='추첨전'?'background:#fff8e1;':'';
+      var rowBg=isSession?'#f0f8ff':(bgColor||(actualSt==='추첨전'?'#fff8e1':''));
+      var borderL=isSession?'border-left:3px solid #1a7ad4;':'';
+      var rowStyle=borderL+'background:'+rowBg+';';
 
       return '<tr style="'+rowStyle+'">'
         +'<td><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">'+entry.round+'회</span></td>'
@@ -1151,9 +1169,22 @@ function refreshTable(){
 
   var html='';
   if(useSections){
-    if(pre.length){ html+='<tr class="sdiv"><td colspan="9">🔴 추첨 예정 ('+pre.length+'개)</td></tr>'; html+=makeRows(pre); }
-    if(post.length){ html+='<tr class="sdiv"><td colspan="9">✅ 추첨 완료 ('+post.length+'개)</td></tr>'; html+=makeRows(post); }
-  } else html=makeRows(entries);
+    if(preDraw.length){
+      html+='<tr class="sdiv"><td colspan="9">🔴 추첨 전 ('+preDraw.length+'개)</td></tr>';
+      html+=makeRows(preDraw,'#fff8e1');
+    }
+    if(unconfirmed.length){
+      html+='<tr><td colspan="9" style="background:#fff3e0;padding:3px 8px;font-size:9px;font-weight:700;color:#e67700;">'+
+        '🟡 추첨됐으나 미확인 ('+unconfirmed.length+'개)'+
+        '<span onclick="MLL.applyCheck(\''+SESSION_TAG+'\')" style="display:inline-flex;align-items:center;margin-left:6px;background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;cursor:pointer;">⚡ 즉시확인 Click!</span>'+
+        '</td></tr>';
+      html+=makeRows(unconfirmed,'#fff3e0');
+    }
+    if(postDraw.length){
+      html+='<tr class="sdiv"><td colspan="9">✅ 추첨후 확인분 ('+postDraw.length+'개)</td></tr>';
+      html+=makeRows(postDraw,'');
+    }
+  } else html=makeRows(entries,'');
   tb.innerHTML=html;
 }
 
