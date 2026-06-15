@@ -380,22 +380,31 @@ MLL.applyResults = function(resultsObj) {
 // =====================================================
 
 MLL.sortEntries = function(entries) {
-  var info = MLL.getLottoInfo();
-  // 1. 추첨전: status=추첨전 && round >= thisRound
-  var preDraw = entries.filter(function(e){
-    return e.status==='추첨전' && e.round >= info.thisRound;
-  }).sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  var info    = MLL.getLottoInfo();
+  var results = MLL.loadResults();
 
-  // 2. 미확인: (status=추첨전 && round < thisRound) 또는 (status=추첨후 && grade=null)
-  var unconfirmed = entries.filter(function(e){
-    return (e.status==='추첨전' && e.round < info.thisRound) ||
-           (e.status==='추첨후' && (e.grade===null || e.grade===undefined));
-  }).sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  function isConfirmed(entry) {
+    // 당첨결과가 있고 grade가 계산된 경우
+    return entry.status === '추첨후' && entry.grade !== null && entry.grade !== undefined;
+  }
+  function isUnconfirmed(entry) {
+    // 추첨됐는데 아직 결과 미반영: 당첨결과가 있는 회차인데 grade=null
+    var hasResult = !!(results[entry.round] || results[Number(entry.round)] || results[String(entry.round)]);
+    return (entry.status === '추첨전' && hasResult) ||
+           (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
+  }
+  function isPreDraw(entry) {
+    // 진짜 추첨전: 당첨결과가 없는 회차
+    var hasResult = !!(results[entry.round] || results[Number(entry.round)] || results[String(entry.round)]);
+    return entry.status === '추첨전' && !hasResult;
+  }
 
-  // 3. 추첨후 확인분: status=추첨후 && grade !== null
-  var post = entries.filter(function(e){
-    return e.status==='추첨후' && e.grade!==null && e.grade!==undefined;
-  }).sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  var preDraw     = entries.filter(isPreDraw)
+                           .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  var unconfirmed = entries.filter(isUnconfirmed)
+                           .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  var post        = entries.filter(isConfirmed)
+                           .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
 
   return preDraw.concat(unconfirmed).concat(post);
 };
@@ -559,12 +568,12 @@ MLL.applyCheck = function(sessionTag) {
     var info    = MLL.getLottoInfo();
     var updated = 0;
     entries.forEach(function(entry) {
+      var res = results[entry.round] || results[Number(entry.round)] || results[String(entry.round)];
       var isUnconfirmed =
-        (entry.status === '추첨전' && Number(entry.round) < info.thisRound) ||
+        (entry.status === '추첨전' && !!res) ||
         (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
       if (!isUnconfirmed) return;
       if (!allItems && entry.sessionTag !== sessionTag) return;
-      var res = results[entry.round] || results[Number(entry.round)] || results[String(entry.round)];
       if (res) {
         entry.status     = '추첨후';
         entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
@@ -592,12 +601,14 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
   var tbody   = document.getElementById(tbodyId);
   if (!tbody) return;
 
-  // 3단계 분류
+  // 3단계 분류 - 당첨결과 존재 여부 기준
+  var rr = MLL.loadResults();
+  function hr(round){ return !!(rr[round]||rr[Number(round)]||rr[String(round)]); }
   var preDraw    = sorted.filter(function(e){
-    return e.status==='추첨전' && e.round >= info.thisRound;
+    return e.status==='추첨전' && !hr(e.round);
   });
   var unconfirmed= sorted.filter(function(e){
-    return (e.status==='추첨전' && e.round < info.thisRound) ||
+    return (e.status==='추첨전' && hr(e.round)) ||
            (e.status==='추첨후' && (e.grade===null || e.grade===undefined));
   });
   var postDraw   = sorted.filter(function(e){
