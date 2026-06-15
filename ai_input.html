@@ -797,42 +797,38 @@ function getLottoInfo() {
   return { thisRound: thisRound, nextRound: nextRound, soldOut: soldOut };
 }
 
-var INFO = getLottoInfo();
-var THIS_ROUND = INFO.thisRound;
-var NEXT_ROUND = INFO.nextRound;
-var SOLD_OUT = INFO.soldOut;
-var DEFAULT_ROUND = THIS_ROUND;
+var INFO = MLL.getLottoInfo();
+var THIS_ROUND  = INFO.thisRound;
+var NEXT_ROUND  = INFO.nextRound;
+var SOLD_OUT    = INFO.soldOut;
+var SALE_ROUND  = INFO.saleRound;
+var DEFAULT_ROUND = SALE_ROUND; // 기본 등록 회차 = 현재 판매 회차
 
 function getRoundStatus(round) {
-  return round < THIS_ROUND ? '추첨후' : '추첨전';
+  // 당첨결과가 있으면 추첨후, 없으면 추첨전
+  var results = MLL.loadResults();
+  var hasResult = !!(results[round] || results[Number(round)] || results[String(round)]);
+  return hasResult ? '추첨후' : '추첨전';
 }
 
 function getDeadline(round) {
-  var d = new Date(ROUND1_TS + (round - 1) * WEEK_MS);
+  var d = new Date(MLL.ROUND1_TS + (round - 1) * MLL.WEEK_MS);
   var y = d.getFullYear();
   var m = String(d.getMonth()+1).padStart(2,'0');
   var day = String(d.getDate()).padStart(2,'0');
-  var label = (round === THIS_ROUND) ? '금주 추첨예정분 · ' : '';
+  var label = (round === SALE_ROUND) ? '금주 추첨예정분 · ' : '';
   return label + y + '/' + m + '/' + day + ' 토 20:00 마감';
 }
 
 function checkBlocked(round) {
   // 과거 회차: 24시간 항상 가능
   if (round < THIS_ROUND) return null;
-
-  // 이번 회차 판매중단 시간 (토20:00~일06:00)
-  if (round === THIS_ROUND && SOLD_OUT)
-    return '제' + THIS_ROUND + '회는 현재 판매 중단 중입니다.\n(토요일 20:00 ~ 일요일 06:00)\n\n과거 회차 등록은 24시간 가능합니다.\n제' + NEXT_ROUND + '회 등록은 일요일 06:00 이후 가능합니다.';
-
-  // 이번 회차: 정상 판매 가능
-  if (round === THIS_ROUND) return null;
-
-  // 현재 판매 회차가 THIS_ROUND일 때 → NEXT_ROUND 이상은 모두 차단
-  // 현재 판매 회차가 NEXT_ROUND일 때(일06:00 이후) → NEXT_ROUND+1 이상 차단
-  var saleRound = SOLD_OUT ? NEXT_ROUND : THIS_ROUND;
-  if (round > saleRound)
-    return '제' + round + '회는 아직 판매하지 않습니다.\n\n현재 판매 중인 회차: 제' + saleRound + '회\n(판매 가능 회차를 초과할 수 없습니다.)';
-
+  // 판매중단 시간대
+  if (SOLD_OUT && round === THIS_ROUND)
+    return '제' + THIS_ROUND + '회는 현재 판매 중단 중입니다.\n(토요일 20:00 ~ 일요일 06:00)';
+  // 현재 판매 회차까지만 허용
+  if (round > SALE_ROUND)
+    return '제' + round + '회는 아직 판매하지 않습니다.\n현재 판매 중인 회차: 제' + SALE_ROUND + '회';
   return null;
 }
 
@@ -866,7 +862,7 @@ var data = [];
     el.innerHTML = '📌 현재 판매 중인 회차: <b>제' + THIS_ROUND + '회</b> (일 06:00 ~ 토 20:00)<br>' +
       '• 과거 회차는 <b>24시간 언제든 등록 가능</b> — 회차를 먼저 말씀해 주세요<br>' +
       '• <span style="color:#c00;font-weight:700;">제' + NEXT_ROUND + '회 이후 미래 회차는 등록 불가</span><br>' +
-      '<span style="color:#aaa;">회차 미지정 시 → <b>제' + THIS_ROUND + '회 (금주 추첨예정분)</b>으로 자동 등록됩니다</span>';
+      '<span style="color:#aaa;">회차 미지정 시 → <b>제' + SALE_ROUND + '회 (금주 추첨예정분)</b>으로 자동 등록됩니다</span>';
   }
 })();
 
@@ -1137,8 +1133,7 @@ function showResult(round, items, include, exclude, specified) {
 
   var msg = specified
     ? '알겠어요! 아래 내용으로 등록할까요? 😊'
-    : '회차를 말씀하지 않으셔서 <b>제'+round+'회 (금주 추첨예정분)</b>으로 등록할게요.<br>과거 회차 등록이라면 취소 후 회차를 먼저 말씀해주세요! 😊';
-  if (include.length > 0) msg += '<br>✅ 포함번호: ' + include.join(', ') + '번';
+    : '회차를 말씀하지 않으셔서 <b>제'+round+'회 (금주 추첨예정분)</b>으로 등록할게요.<br>과거 회차 등록이라면 취소 후 회차를 먼저 말씀해주세요! 😊';  if (include.length > 0) msg += '<br>✅ 포함번호: ' + include.join(', ') + '번';
   if (exclude.length > 0) msg += '<br>❌ 제외번호: ' + exclude.join(', ') + '번';
 
   addBubble('ai', msg + '<br><br>' + html, true);
