@@ -70,12 +70,15 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
 
 /* Lotto Battles */
 .battles-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
-.battle-card{background:#1c1c2e;border-radius:10px;border:1px solid #2a2a40;padding:14px 16px;cursor:pointer;transition:box-shadow 0.15s;}
+.battle-card{background:#2a2a40;border-radius:10px;border:1px solid #3a3a50;padding:14px 16px;cursor:pointer;transition:box-shadow 0.15s;}
 .battle-card:hover{box-shadow:0 2px 12px rgba(0,0,0,0.3);border-color:#7048e8;}
-.battle-card.disabled{opacity:0.5;cursor:default;}
+.battle-card.disabled{opacity:0.6;cursor:default;}
+.battle-card.disabled:hover{box-shadow:none;border-color:#3a3a50;}
 .battle-type{font-size:18px;font-weight:700;color:#f5c518;margin-bottom:4px;}
 .battle-limit{font-size:10px;color:#aaa;}
 .battle-badge{display:inline-block;background:#7048e8;color:#fff;font-size:8px;padding:1px 6px;border-radius:8px;margin-bottom:6px;}
+.strategy-card{background:#1c1c2e;border-radius:8px;padding:14px 16px;cursor:pointer;transition:box-shadow 0.15s,border 0.15s;border:1px solid #3a3a50;}
+.strategy-card:hover{box-shadow:0 2px 12px rgba(112,72,232,0.3);border-color:#7048e8;}
 
 /* 드롭다운 */
 .lotto-item{padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a40;}
@@ -183,32 +186,31 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
     </div>
   </div>
 
-  <!-- 전략 등록 (2행 4열) -->
-  <div class="section-wrap">
+  <!-- 전략 등록 -->
+  <div class="section-wrap" style="background:#1c1c2e;border-radius:12px;padding:14px;margin-bottom:14px;">
     <div class="section-header">
-      <span class="section-title">🎯 전략 등록</span>
-      <span class="section-badge purple">Coming Soon</span>
+      <span class="section-title" style="color:#fff;">🎯 전략 등록</span>
     </div>
-    <div class="menu-grid menu-grid-4">
-      <div class="menu-card" onclick="location.href='strategy_manager.html'">
-        <div class="menu-icon">🧠</div>
-        <div class="menu-title">전략 수립</div>
-        <div class="menu-sub">Lotto Master Pro 이용 전략수립</div>
+    <div style="background:#2a2a40;border-radius:10px;padding:16px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;">
+      <div class="strategy-card" onclick="location.href='strategy_manager.html'">
+        <div style="font-size:20px;margin-bottom:6px;">🧠</div>
+        <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;">전략 수립</div>
+        <div style="font-size:10px;color:#aaa;">Lotto Master Pro 이용 전략수립</div>
       </div>
-      <div class="menu-card" onclick="location.href='number_generator.html'">
-        <div class="menu-icon">🎲</div>
-        <div class="menu-title">전략번호 생성</div>
-        <div class="menu-sub">각 전략별 번호조합 생성</div>
+      <div class="strategy-card" onclick="location.href='number_generator.html'">
+        <div style="font-size:20px;margin-bottom:6px;">🎲</div>
+        <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;">전략번호 생성</div>
+        <div style="font-size:10px;color:#aaa;">각 전략별 번호조합 생성</div>
       </div>
-      <div class="menu-card" onclick="location.href='strategy_compare.html'">
-        <div class="menu-icon">📈</div>
-        <div class="menu-title">전략 비교평가</div>
-        <div class="menu-sub">추첨후 전략별 비교평가</div>
+      <div class="strategy-card" onclick="location.href='strategy_compare.html'">
+        <div style="font-size:20px;margin-bottom:6px;">📈</div>
+        <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;">전략 비교평가</div>
+        <div style="font-size:10px;color:#aaa;">추첨후 전략별 비교평가</div>
       </div>
-      <div class="menu-card" onclick="location.href='strategy_storage.html'">
-        <div class="menu-icon">💾</div>
-        <div class="menu-title">최종전략 DATA 저장소</div>
-        <div class="menu-sub">최애번호/전략DATA/Battle번호/기타</div>
+      <div class="strategy-card" onclick="location.href='strategy_storage.html'">
+        <div style="font-size:20px;margin-bottom:6px;">💾</div>
+        <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;">최종전략 DATA 저장소</div>
+        <div style="font-size:10px;color:#aaa;">최애번호/전략DATA/Battle번호/기타</div>
       </div>
     </div>
   </div>
@@ -246,9 +248,9 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
   </div>
 
   <!-- Lotto Battles -->
-  <div class="section-wrap">
+  <div class="section-wrap" style="background:#1c1c2e;border-radius:12px;padding:14px;margin-bottom:14px;">
     <div class="section-header">
-      <span class="section-title">⚔️ Lotto Battles</span>
+      <span class="section-title" style="color:#fff;">⚔️ Lotto Battles</span>
       <span class="section-badge orange">매주 일요일 24시 ~ 토요일 오후 8시 신청</span>
       <span class="section-badge gray">준비중</span>
     </div>
