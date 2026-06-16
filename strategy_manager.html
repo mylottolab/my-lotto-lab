@@ -1195,7 +1195,11 @@ function renderList(){
     if(s.last_week_mode&&s.last_week_mode!=='무관') badges.push('지난주:'+s.last_week_mode);
     badges.push('생성 '+sc+'개');
     return '<div class="strategy-item'+active+'" onclick="selectStrategy(\''+s.id+'\')">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;">'+
       '<div class="si-name">'+s.name+'</div>'+
+      '<button onclick="event.stopPropagation();goGenerate(\''+s.id+'\')" '+
+      'style="background:#e67700;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;">🎲 번호생성 →</button>'+
+      '</div>'+
       '<div class="si-info"><span>'+dt+'</span></div>'+
       '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">'+
       badges.map(function(b){return '<span class="si-badge">'+b+'</span>';}).join('')+
@@ -1203,9 +1207,13 @@ function renderList(){
   }).join('');
 }
 
+function goGenerate(id){
+  location.href = 'number_generator.html?strategy=' + id;
+}
+
 window.saveStrategy=saveStrategy; window.updateStrategy=updateStrategy;
 window.deleteStrategy=deleteStrategy; window.clearForm=clearForm;
-window.selectStrategy=selectStrategy;
+window.selectStrategy=selectStrategy; window.goGenerate=goGenerate;
 
 updateEst();
 renderList();

@@ -1367,6 +1367,13 @@ window.downloadPDF=downloadPDF;
 
 updateEst();
 renderStrategyList();
+
+// URL 파라미터로 전략 자동 선택
+(function(){
+  var params = new URLSearchParams(location.search);
+  var sid = params.get('strategy');
+  if(sid) selectStrategy(sid);
+})();
 </script>
 </body>
 </html>
