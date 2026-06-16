@@ -1042,31 +1042,65 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 });
 
-// 전략별 역대최고/직전등수 계산
-function getStrategyStats(strategyId){
-  var srList = MLL.loadStrategyResults().filter(function(sr){
-    return sr.strategyId === strategyId && sr.result && sr.result.grades;
-  });
-  if(!srList.length) return {best:'-', last:'-'};
+// 번호조합의 역대최고/직전등수 계산
+function calcNumStats(nums){
+  var results = MLL.loadResults();
+  var rounds = Object.keys(results).map(Number).sort(function(a,b){return b-a;});
+  if(!rounds.length) return {best:'-', last:'-'};
 
-  // 역대최고
   var bestGrade = null;
-  srList.forEach(function(sr){
-    sr.result.grades.forEach(function(g){
-      if(g>0 && (bestGrade===null || g<bestGrade)) bestGrade=g;
-    });
-  });
-
-  // 직전등수 (가장 최근 결과)
-  srList.sort(function(a,b){ return b.createdAt-a.createdAt; });
   var lastGrade = null;
-  srList[0].result.grades.forEach(function(g){
-    if(g>0 && (lastGrade===null || g<lastGrade)) lastGrade=g;
+  var lastRound = rounds[0]; // 가장 최근 추첨회차
+
+  rounds.forEach(function(round){
+    var r = results[round];
+    if(!r||!r.nums) return;
+    var m=0; nums.forEach(function(n){if(r.nums.indexOf(n)>=0)m++;});
+    var b=nums.indexOf(r.bonus)>=0;
+    var g=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
+    if(g>0){
+      if(bestGrade===null||g<bestGrade) bestGrade=g;
+    }
+    if(round===lastRound) lastGrade=g;
   });
 
   return {
-    best: bestGrade ? bestGrade+'등' : '낙첨',
-    last: lastGrade ? lastGrade+'등 ('+srList[0].round+'회)' : '낙첨 ('+srList[0].round+'회)'
+    best: bestGrade ? bestGrade+'등' : '-',
+    last: lastGrade>0 ? lastGrade+'등' : '낙첨'
+  };
+}
+
+// 전략 목록용 - 전략 전체 통계 (저장된 번호들의 역대최고)
+function getStrategyStats(strategyId){
+  var srList = MLL.loadStrategyResults().filter(function(sr){
+    return sr.strategyId === strategyId && sr.numbers && sr.numbers.length;
+  });
+  if(!srList.length) return {best:'-', last:'-'};
+
+  var results = MLL.loadResults();
+  var rounds = Object.keys(results).map(Number).sort(function(a,b){return b-a;});
+  if(!rounds.length) return {best:'미추첨', last:'미추첨'};
+
+  var lastRound = rounds[0];
+  var overallBest = null, lastBest = null;
+
+  srList.forEach(function(sr){
+    sr.numbers.forEach(function(nums){
+      rounds.forEach(function(round){
+        var r=results[round];
+        if(!r||!r.nums) return;
+        var m=0; nums.forEach(function(n){if(r.nums.indexOf(n)>=0)m++;});
+        var b=nums.indexOf(r.bonus)>=0;
+        var g=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
+        if(g>0 && (overallBest===null||g<overallBest)) overallBest=g;
+        if(round===lastRound && g>0 && (lastBest===null||g<lastBest)) lastBest=g;
+      });
+    });
+  });
+
+  return {
+    best: overallBest ? overallBest+'등' : '낙첨',
+    last: lastBest ? lastBest+'등 ('+lastRound+'회)' : '낙첨 ('+lastRound+'회)'
   };
 }
 
@@ -1292,8 +1326,10 @@ function renderResult(result, round, strategy){
       grade=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
     }
 
-    var trStyle = grade>0 ? ' style="background:#fffde0;"' : '';
+    // 역대최고/직전등수 계산
+    var numStats = calcNumStats(nums);
     var gradeColors=['','#e03131','#e67700','#1a7ad4','#2f9e44','#888'];
+    var trStyle = grade>0 ? ' style="background:#fffde0;"' : '';
 
     html+='<tr'+trStyle+'>';
     html+='<td style="color:#aaa;font-size:9px;">'+(idx+1)+'</td>';
@@ -1307,8 +1343,8 @@ function renderResult(result, round, strategy){
         html+='<td style="text-align:center;color:'+gradeColors[g]+';font-weight:700;font-size:10px;">'+(gradeCounts[g]>0&&grade===g?'✓':'-')+'</td>';
       });
     }
-    html+='<td style="font-size:9px;text-align:center;">'+prevBest+'</td>';
-    html+='<td style="font-size:9px;text-align:center;">'+prevLast+'</td>';
+    html+='<td style="font-size:9px;text-align:center;color:'+(numStats.best!=='-'?'#e03131':'#bbb')+';">'+numStats.best+'</td>';
+    html+='<td style="font-size:9px;text-align:center;color:'+(numStats.last!=='낙첨'&&numStats.last!=='-'?'#1a7ad4':'#bbb')+';">'+numStats.last+'</td>';
     html+='<td style="text-align:center;"><button onclick="delGenEntry('+idx+')" style="background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;">🗑</button></td>';
     html+='</tr>';
   });
