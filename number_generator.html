@@ -1036,8 +1036,10 @@ function updateEst(){
   else if(total<100) note.innerHTML='<span style="color:#e67700;">⚠️ 100개 생성 권장</span>';
   else note.innerHTML='<span style="color:#aaa;">100개 생성 시 공정한 비교 가능</span>';
 }
-['g-set-count','g-repeat-count'].forEach(function(id){
-  document.getElementById(id).addEventListener('input', updateEst);
+document.addEventListener('DOMContentLoaded', function(){
+  ['g-set-count','g-repeat-count'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', updateEst);
+  });
 });
 
 // 전략 목록 렌더
@@ -1481,15 +1483,14 @@ window.delGenEntry=delGenEntry;
 window.downloadExcel=downloadExcel;
 window.downloadPDF=downloadPDF;
 
-updateEst();
-renderStrategyList();
-
-// URL 파라미터로 전략 자동 선택
-(function(){
+document.addEventListener('DOMContentLoaded', function(){
+  updateEst();
+  renderStrategyList();
+  // URL 파라미터로 전략 자동 선택
   var params = new URLSearchParams(location.search);
   var sid = params.get('strategy');
   if(sid) selectStrategy(sid);
-})();
+});
 </script>
 </body>
 </html>
