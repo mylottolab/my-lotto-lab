@@ -1427,38 +1427,80 @@ function downloadPDF(){
     topRows+='</tr>';
   }
 
-  // 번호 조합 - 세로 50개씩 3열 (A4 기준 최대 150개)
+  // 추첨 상태
+  var lottRes = MLL.loadResults();
+  var winData = lottRes[r.round]||lottRes[Number(r.round)]||lottRes[String(r.round)];
+  var isDrawn = !!winData;
+  var roundLabel = r.round+'회 '+(isDrawn?'추첨후':'추첨전')+' 기준';
+
+  // 번호조합 - 2열 (좌:001~050, 우:051~100), 각 행에 역대/직전 표시
   var allNums = r.result.numbers;
-  var col1='', col2='', col3='';
-  for(var i=0;i<allNums.length;i++){
-    var nums=allNums[i];
-    var line=(i+1).toString().padStart(3,'0')+': '+nums.map(function(n){return (''+n).padStart(2,'0');}).join(' ');
-    if(i<50) col1+=line+'<br>';
-    else if(i<100) col2+=line+'<br>';
-    else col3+=line+'<br>';
+  var col1='', col2='';
+  var winNums = isDrawn ? winData.nums : [];
+  var winBonus = isDrawn ? winData.bonus : null;
+  var allRounds = Object.keys(lottRes).map(Number).sort(function(a,b){return b-a;});
+  var lastRound = allRounds[0]||0;
+
+  function calcStats(nums){
+    var best=null, last=null;
+    allRounds.forEach(function(rnd){
+      var wr=lottRes[rnd]; if(!wr||!wr.nums) return;
+      var m=0; nums.forEach(function(n){if(wr.nums.indexOf(n)>=0)m++;});
+      var b=nums.indexOf(wr.bonus)>=0;
+      var g=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
+      if(g>0&&(best===null||g<best)) best=g;
+      if(rnd===lastRound) last=g;
+    });
+    return {
+      best: best?best+'등':'-',
+      last: (last&&last>0)?last+'등':'낙첨'
+    };
   }
+
+  function numLine(i){
+    var nums=allNums[i];
+    var s=calcStats(nums);
+    var numStr=nums.map(function(n){return (''+n).padStart(2,'0');}).join(' ');
+    return '<tr>'+
+      '<td style="color:#888;font-size:8px;text-align:right;padding:1px 4px;">'+(i+1).toString().padStart(3,'0')+'</td>'+
+      '<td style="font-family:monospace;font-size:9px;padding:1px 6px;white-space:nowrap;">'+numStr+'</td>'+
+      '<td style="font-size:8px;text-align:center;padding:1px 4px;color:'+(s.best!=='-'?'#c00':'#bbb')+';">'+s.best+'</td>'+
+      '<td style="font-size:8px;text-align:center;padding:1px 4px;color:'+(s.last!=='낙첨'?'#00c':'#bbb')+';">'+s.last+'</td>'+
+      '</tr>';
+  }
+
+  var leftRows='', midRows='', rightRows='';
+  for(var i=0;i<Math.min(50,allNums.length);i++) leftRows+=numLine(i);
+  for(var i=50;i<Math.min(100,allNums.length);i++) midRows+=numLine(i);
+  for(var i=100;i<Math.min(150,allNums.length);i++) rightRows+=numLine(i);
 
   var printWin = window.open('','_blank');
   printWin.document.write(
     '<!DOCTYPE html><html><head><meta charset="UTF-8">'+
     '<title>Lotto Lab Report</title>'+
     '<style>'+
-    'body{font-family:serif;margin:0;padding:20px 20px 40px;font-size:11px;}'+
-    'h1{text-align:center;font-size:22px;margin-bottom:4px;letter-spacing:2px;}'+
-    '.subtitle{text-align:center;font-size:10px;color:#888;margin-bottom:16px;}'+
-    'table{border-collapse:collapse;width:100%;margin-bottom:12px;}'+
-    'th{background:#f0f0f0;padding:4px 8px;font-size:9px;text-align:left;border:1px solid #ddd;}'+
+    'body{font-family:"맑은 고딕",serif;margin:0;padding:20px;font-size:10px;}'+
+    'h1{text-align:center;font-size:24px;font-weight:700;letter-spacing:3px;margin-bottom:4px;font-family:serif;}'+
+    '.subtitle{text-align:center;font-size:9px;color:#888;margin-bottom:4px;}'+
+    '.round-label{text-align:center;font-size:14px;font-weight:700;margin-bottom:14px;}'+
+    'table{border-collapse:collapse;width:100%;margin-bottom:10px;}'+
+    'th{background:#f5f5f5;padding:4px 8px;font-size:9px;text-align:left;border:1px solid #ccc;}'+
     'td{padding:3px 8px;font-size:10px;border:1px solid #ddd;}'+
-    '.section-title{background:#1c1c2e;color:#fff;padding:5px 10px;font-size:11px;font-weight:700;margin-bottom:6px;}'+
-    '.page-break{page-break-before:always;padding-top:20px;}'+
-    '.footer{position:running(footer);text-align:center;font-size:8px;color:#aaa;border-top:1px solid #eee;padding-top:4px;}'+
-    '.num-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 20px;border:1px solid #ddd;padding:10px;}'+
-    '.num-col{font-family:monospace;font-size:9px;line-height:1.9;}'+
-    '@page{margin:15mm 15mm 20mm;}'+
-    '@media print{.footer{position:fixed;bottom:0;left:0;right:0;}}'+
+    '.section-title{font-size:10px;font-weight:700;color:#333;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid #333;}'+
+    '.page-break{page-break-before:always;padding-top:10px;}'+
+    '.footer{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:8px;color:#aaa;border-top:1px solid #eee;padding:4px;background:#fff;}'+
+    '.two-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 10px;}'+
+    '.num-table{border-collapse:collapse;width:100%;}'+
+    '.num-table th{background:#f5f5f5;padding:3px 6px;font-size:8px;text-align:center;border:1px solid #ccc;}'+
+    '.num-table td{padding:1px 4px;border:none;border-bottom:1px solid #f0f0f0;}'+
+    '@page{margin:12mm 12mm 18mm;}'+
     '</style></head><body>'+
+
+    // 1페이지
     '<h1>Lotto Lab Report</h1>'+
     '<div class="subtitle">Generated by My Lotto Lab | LottoMaster Pro</div>'+
+    '<div class="round-label">'+roundLabel+'</div>'+
+
     '<div class="section-title">전략기준 및 설정내역</div>'+
     '<table>'+
     '<tr><th>전략명</th><td>'+r.strategy.name+'</td><th>홀짝비율</th><td>'+(r.strategy.odd_even||'무관')+'</td></tr>'+
@@ -1471,18 +1513,33 @@ function downloadPDF(){
     '<tr><th>반복출력방식</th><td>'+(r.strategy.repeat_mode||'AABBCC')+'</td><th>무작위포함</th><td>'+(r.strategy.random_mix||'N')+'</td></tr>'+
     '<tr><th>총생성개수</th><td><b>'+r.result.generated+'개</b></td><th>생성일시</th><td>'+dateStr+'</td></tr>'+
     '</table>'+
+
     '<div class="section-title">출현빈도 상세현황 (Top'+(r.strategy.top_range||topData.length)+' / 최근 '+(r.strategy.recent_rounds||history.length)+'회 기준)</div>'+
     '<table><tbody>'+topRows+'</tbody></table>'+
+
     '<div class="footer">LottoMaster Pro | 1 page</div>'+
+
+    // 2페이지
     '<div class="page-break">'+
-    '<h2 style="text-align:center;font-size:16px;margin-bottom:16px;font-family:serif;">생성된 번호조합</h2>'+
-    '<div class="num-cols">'+
-    '<div class="num-col">'+col1+'</div>'+
-    '<div class="num-col">'+col2+'</div>'+
-    '<div class="num-col">'+col3+'</div>'+
+    '<h2 style="text-align:center;font-size:18px;font-weight:700;margin-bottom:4px;font-family:serif;">생성된 번호조합</h2>'+
+    '<div style="text-align:center;font-size:12px;font-weight:700;margin-bottom:12px;">'+roundLabel+'</div>'+
+    '<div class="two-col">'+
+    '<table class="num-table">'+
+    '<thead><tr><th>#</th><th>번호조합</th><th>역대</th><th>직전</th></tr></thead>'+
+    '<tbody>'+leftRows+'</tbody>'+
+    '</table>'+
+    '<table class="num-table">'+
+    '<thead><tr><th>#</th><th>번호조합</th><th>역대</th><th>직전</th></tr></thead>'+
+    '<tbody>'+midRows+'</tbody>'+
+    '</table>'+
+    '<table class="num-table">'+
+    '<thead><tr><th>#</th><th>번호조합</th><th>역대</th><th>직전</th></tr></thead>'+
+    '<tbody>'+rightRows+'</tbody>'+
+    '</table>'+
     '</div>'+
     '<div class="footer">LottoMaster Pro | 2 page</div>'+
     '</div>'+
+
     '</body></html>'
   );
   printWin.document.close();
