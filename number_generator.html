@@ -1049,11 +1049,9 @@ function renderStrategyList(){
     return;
   }
   el.innerHTML = list.map(function(s){
-    var sc=(parseInt(s.set_count)||20)*(parseInt(s.repeat_count)||5);
     var active = selectedStrategy && selectedStrategy.id===s.id ? ' active' : '';
     return '<div class="strategy-item'+active+'" onclick="selectStrategy(\''+s.id+'\')">'+
       '<div class="si-name">'+s.name+'</div>'+
-      '<div class="si-info">홀짝: '+(s.odd_even||'무관')+' · 권장생성: '+sc+'개</div>'+
       '</div>';
   }).join('');
 }
@@ -1161,9 +1159,9 @@ function renderResult(result, round, strategy){
     document.getElementById('apTopNums').innerHTML = topBalls;
     document.getElementById('apSummary').innerHTML =
       '<div>기본생성: '+result.base_generated+'조합</div>'+
-      '<div>반복적용: '+result.generated+'개</div>'+
-      '<div>시도횟수: '+result.try_count+'회</div>'+
-      '<div>부족분: '+result.lack+'조합</div>';
+      '<div>반복횟수: '+(strategy.repeat_count||1)+'회</div>'+
+      '<div>총생성수: '+result.generated+'조합</div>'+
+      '<div style="color:'+(result.lack>0?'#e03131':'#aaa')+';">부족분: '+result.lack+'조합</div>';
   }
 
   // 번호 테이블
@@ -1179,36 +1177,36 @@ function renderResult(result, round, strategy){
   var winBonus= winData ? winData.bonus : null;
   var isDrawn = !!winData;
 
-  var html='<table class="num-table"><thead><tr>'+
-    '<th style="width:32px;">#</th>'+
-    '<th style="width:46px;">회차</th>'+
-    '<th style="width:50px;">추첨여부</th>'+
-    '<th style="width:90px;">전략명</th>'+
-    '<th>생성번호</th>'+
-    '<th style="width:36px;">상급</th>'+
-    '<th style="width:28px;">1등</th>'+
-    '<th style="width:28px;">2등</th>'+
-    '<th style="width:28px;">3등</th>'+
-    '<th style="width:28px;">4등</th>'+
-    '<th style="width:28px;">5등</th>'+
-    '<th style="width:60px;">역대최고</th>'+
-    '<th style="width:60px;">직전등수</th>'+
-    '<th style="width:28px;">삭제</th>'+
-    '</tr></thead><tbody>';
-
-  // 역대최고/직전등수 계산 (전략결과에서)
+  // 역대최고/직전등수 계산
   var srList = MLL.loadStrategyResults().filter(function(sr){
     return sr.strategyId === strategy.id;
   });
   var prevBest = '-', prevLast = '-';
   if(srList.length > 1){
-    var prev = srList[1]; // 직전 결과
+    var prev = srList[1];
     if(prev.result && prev.result.best_grade) prevBest = prev.result.best_grade+'등';
     if(prev.result && prev.result.last_grade) prevLast = prev.result.last_grade+'등';
   }
 
+  var html='<table class="num-table"><thead><tr>'+
+    '<th style="width:32px;">#</th>'+
+    '<th style="width:46px;">회차</th>'+
+    '<th style="width:54px;">추첨여부</th>'+
+    '<th style="width:90px;">전략명</th>'+
+    '<th>생성번호</th>'+
+    (isDrawn ? '<th style="width:36px;">상금</th>'+
+    '<th style="width:28px;">1등</th>'+
+    '<th style="width:28px;">2등</th>'+
+    '<th style="width:28px;">3등</th>'+
+    '<th style="width:28px;">4등</th>'+
+    '<th style="width:28px;">5등</th>' : '')+
+    '<th style="width:60px;">역대최고</th>'+
+    '<th style="width:60px;">직전등수</th>'+
+    '<th style="width:28px;">삭제</th>'+
+    '</tr></thead><tbody>';
+
   // 등수별 카운트 계산
-  var gradeCounts = [0,0,0,0,0,0]; // index 1~5
+  var gradeCounts = [0,0,0,0,0,0];
   result.numbers.forEach(function(nums){
     if(!isDrawn) return;
     var m=0; nums.forEach(function(n){if(winNums.indexOf(n)>=0)m++;});
@@ -1227,38 +1225,37 @@ function renderResult(result, round, strategy){
       return '<span class="ball-sm" style="background:'+bg+';color:'+tc+';border:'+brd+';">'+n+'</span>';
     }).join('');
 
-    // 등수 계산
-    var grade = 0, prizeStr = '-';
+    var grade = 0;
     if(isDrawn){
       var m=0; nums.forEach(function(n){if(winNums.indexOf(n)>=0)m++;});
       var b=nums.indexOf(winBonus)>=0;
       grade=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
-      if(grade>0){
-        var prizes=[0,winData.prize1,winData.prize2,winData.prize3,50000,5000];
-        prizeStr='<span style="color:#e03131;font-weight:700;">'+grade+'등</span>';
-      }
     }
 
-    // 첫 행에만 회차/전략명/집계 표시
     var isFirst = idx===0;
     var rowspan = result.numbers.length;
     var trClass = grade>0 ? ' style="background:#fffde0;"' : '';
 
     html+='<tr'+trClass+'>';
     html+='<td style="color:#aaa;font-size:9px;">'+(idx+1)+'</td>';
+
     if(isFirst){
       html+='<td rowspan="'+rowspan+'" style="font-weight:700;font-size:11px;">'+round+'회</td>';
-      html+='<td rowspan="'+rowspan+'" style="font-size:9px;color:'+(isDrawn?'#555':'#e03131')+';">'+(isDrawn?'추첨후':'추첨전')+'</td>';
+      html+='<td rowspan="'+rowspan+'" style="font-size:9px;color:'+(isDrawn?'#555':'#e03131')+';">'+(isDrawn?'추첨후':'미추첨')+'</td>';
       html+='<td rowspan="'+rowspan+'" style="font-size:9px;font-weight:600;color:#7048e8;">'+strategy.name+'</td>';
     }
+
     html+='<td><div class="num-row">'+balls+'</div></td>';
+
+    if(isFirst && isDrawn){
+      html+='<td rowspan="'+rowspan+'">'+(gradeCounts.some(function(c,i){return i>0&&c>0;})?'<span style="font-size:9px;color:#e03131;">있음</span>':'<span style="color:#aaa;">-</span>')+'</td>';
+      [1,2,3,4,5].forEach(function(g){
+        var colors=['','#e03131','#e67700','#1a7ad4','#2f9e44','#888'];
+        html+='<td rowspan="'+rowspan+'" style="color:'+colors[g]+';font-weight:700;font-size:10px;">'+(gradeCounts[g]||'-')+'</td>';
+      });
+    }
+
     if(isFirst){
-      html+='<td rowspan="'+rowspan+'">'+(isDrawn&&gradeCounts.some(function(c){return c>0;})?'<span style="font-size:9px;color:#e03131;">있음</span>':'-')+'</td>';
-      html+='<td rowspan="'+rowspan+'" style="color:#e03131;font-weight:700;font-size:10px;">'+(gradeCounts[1]||'-')+'</td>';
-      html+='<td rowspan="'+rowspan+'" style="color:#e67700;font-weight:700;font-size:10px;">'+(gradeCounts[2]||'-')+'</td>';
-      html+='<td rowspan="'+rowspan+'" style="color:#1a7ad4;font-weight:700;font-size:10px;">'+(gradeCounts[3]||'-')+'</td>';
-      html+='<td rowspan="'+rowspan+'" style="color:#2f9e44;font-weight:700;font-size:10px;">'+(gradeCounts[4]||'-')+'</td>';
-      html+='<td rowspan="'+rowspan+'" style="color:#888;font-size:10px;">'+(gradeCounts[5]||'-')+'</td>';
       html+='<td rowspan="'+rowspan+'" style="font-size:9px;">'+prevBest+'</td>';
       html+='<td rowspan="'+rowspan+'" style="font-size:9px;">'+prevLast+'</td>';
     }
@@ -1284,21 +1281,36 @@ function delGenEntry(idx){
   renderResult(generatedResult.result, generatedResult.round, generatedResult.strategy);
 }
 
-// 엑셀 다운로드
+// 엑셀 다운로드 (.xlsx)
 function downloadExcel(){
   if(!generatedResult) return;
   var r = generatedResult;
-  var rows = [['#','번호1','번호2','번호3','번호4','번호5','번호6','번호합','회차','전략명']];
-  r.result.numbers.forEach(function(nums,idx){
-    var sum=nums.reduce(function(a,b){return a+b;},0);
-    rows.push([idx+1,nums[0],nums[1],nums[2],nums[3],nums[4],nums[5],sum,r.round,r.strategy.name]);
-  });
-  var csv=rows.map(function(row){return row.join(',');}).join('\n');
-  var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='lotto_strategy_'+r.strategy.name+'_'+r.round+'회.csv';
-  a.click();
+  var now = new Date();
+  var dateStr = now.getFullYear()+
+    String(now.getMonth()+1).padStart(2,'0')+
+    String(now.getDate()).padStart(2,'0')+'_'+
+    String(now.getHours()).padStart(2,'0')+
+    String(now.getMinutes()).padStart(2,'0');
+  var fileName = r.strategy.name+'_'+r.round+'회_'+dateStr+'.xlsx';
+
+  // SheetJS로 xlsx 생성
+  var script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  script.onload = function(){
+    var rows = [['#','번호1','번호2','번호3','번호4','번호5','번호6','번호합','회차','전략명','생성일']];
+    var dateLabel = now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate();
+    r.result.numbers.forEach(function(nums, idx){
+      var sum = nums.reduce(function(a,b){return a+b;},0);
+      rows.push([idx+1, nums[0],nums[1],nums[2],nums[3],nums[4],nums[5], sum, r.round, r.strategy.name, dateLabel]);
+    });
+    var ws = XLSX.utils.aoa_to_sheet(rows);
+    // 컬럼 너비 설정
+    ws['!cols'] = [{wch:4},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:7},{wch:6},{wch:20},{wch:12}];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '생성번호');
+    XLSX.writeFile(wb, fileName);
+  };
+  document.head.appendChild(script);
 }
 
 // PDF 다운로드 (간단 프린트)
