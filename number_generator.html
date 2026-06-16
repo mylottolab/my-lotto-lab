@@ -1509,10 +1509,35 @@ function saveToMyLotto(){
   MLL.saveStrategyResults(srList);
 
   MLL.addEntries(items);
-  alert('✅ '+items.length+'개 번호가 My Lotto Lab에 저장되었습니다!\n[전략] '+r.strategy.name+' · 제'+round+'회');
-  document.getElementById('btnSave').textContent = '✅ 저장 완료!';
-  document.getElementById('btnSave').style.background = '#555';
-  document.getElementById('btnSave').disabled = true;
+
+  // 커스텀 팝업 - 전략비교 대상에 넣을지 묻기
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:14px;padding:26px 28px;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.25);">'+
+    '<div style="font-size:28px;margin-bottom:8px;">✅</div>'+
+    '<div style="font-size:14px;font-weight:700;color:#222;margin-bottom:6px;">'+items.length+'개 번호 저장 완료!</div>'+
+    '<div style="font-size:11px;color:#888;margin-bottom:20px;">[전략] '+r.strategy.name+' · 제'+round+'회</div>'+
+    '<div style="background:#f0ebff;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#7048e8;font-weight:600;">'+
+    '📊 이 번호를 전략비교평가 대상에 넣을까요?'+
+    '</div>'+
+    '<div style="display:flex;gap:10px;">'+
+    '<button id="popYes" style="flex:1;background:#7048e8;color:#fff;border:none;border-radius:8px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;">✅ 네, 넣을게요</button>'+
+    '<button id="popNo" style="flex:1;background:#f5f5f5;color:#888;border:none;border-radius:8px;padding:12px;font-size:12px;cursor:pointer;">아니요</button>'+
+    '</div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+
+  document.getElementById('popYes').onclick = function(){
+    document.body.removeChild(overlay);
+    location.href = 'strategy_compare.html';
+  };
+  document.getElementById('popNo').onclick = function(){
+    document.body.removeChild(overlay);
+    document.getElementById('btnSave').textContent = '✅ 저장 완료!';
+    document.getElementById('btnSave').style.background = '#555';
+    document.getElementById('btnSave').disabled = true;
+  };
 }
 
 window.generateNumbers=generateNumbers;
