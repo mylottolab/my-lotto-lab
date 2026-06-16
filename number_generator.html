@@ -976,6 +976,10 @@ MLL._checkSum = function(nums, min, max) {
     <span class="result-badge badge-orange" id="badgeStrategy">전략 미선택</span>
     <span class="result-badge badge-green" id="badgeCount" style="display:none;"></span>
     <span class="result-badge badge-blue" id="badgeStatus" style="display:none;"></span>
+    <div style="margin-left:auto;display:flex;gap:6px;">
+      <button onclick="downloadExcel()" id="btnExcel" style="display:none;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">📥 엑셀 다운로드</button>
+      <button onclick="downloadPDF()" id="btnPDF" style="display:none;background:#555;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">📄 PDF 다운로드</button>
+    </div>
   </div>
   <div id="analysisPanel" style="display:none;" class="analysis-panel">
     <div class="title">📈 빈도 분석 결과</div>
@@ -1168,32 +1172,139 @@ function renderResult(result, round, strategy){
     return;
   }
 
+  // 당첨결과 로드
+  var lottRes = MLL.loadResults();
+  var winData = lottRes[round] || lottRes[Number(round)] || lottRes[String(round)];
+  var winNums = winData ? winData.nums : [];
+  var winBonus= winData ? winData.bonus : null;
+  var isDrawn = !!winData;
+
   var html='<table class="num-table"><thead><tr>'+
-    '<th style="width:40px;">#</th>'+
-    '<th>번호</th>'+
-    '<th style="width:60px;">번호합</th>'+
-    '<th style="width:70px;">지난주겹침</th>'+
+    '<th style="width:32px;">#</th>'+
+    '<th style="width:46px;">회차</th>'+
+    '<th style="width:50px;">추첨여부</th>'+
+    '<th style="width:90px;">전략명</th>'+
+    '<th>생성번호</th>'+
+    '<th style="width:36px;">상급</th>'+
+    '<th style="width:28px;">1등</th>'+
+    '<th style="width:28px;">2등</th>'+
+    '<th style="width:28px;">3등</th>'+
+    '<th style="width:28px;">4등</th>'+
+    '<th style="width:28px;">5등</th>'+
+    '<th style="width:60px;">역대최고</th>'+
+    '<th style="width:60px;">직전등수</th>'+
+    '<th style="width:28px;">삭제</th>'+
     '</tr></thead><tbody>';
+
+  // 역대최고/직전등수 계산 (전략결과에서)
+  var srList = MLL.loadStrategyResults().filter(function(sr){
+    return sr.strategyId === strategy.id;
+  });
+  var prevBest = '-', prevLast = '-';
+  if(srList.length > 1){
+    var prev = srList[1]; // 직전 결과
+    if(prev.result && prev.result.best_grade) prevBest = prev.result.best_grade+'등';
+    if(prev.result && prev.result.last_grade) prevLast = prev.result.last_grade+'등';
+  }
+
+  // 등수별 카운트 계산
+  var gradeCounts = [0,0,0,0,0,0]; // index 1~5
+  result.numbers.forEach(function(nums){
+    if(!isDrawn) return;
+    var m=0; nums.forEach(function(n){if(winNums.indexOf(n)>=0)m++;});
+    var b=nums.indexOf(winBonus)>=0;
+    var g=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
+    if(g>0) gradeCounts[g]++;
+  });
 
   result.numbers.forEach(function(nums, idx){
     var balls = nums.map(function(n){
-      return '<span class="ball-sm" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+n+'</span>';
+      var isMatch = winNums.indexOf(n)>=0;
+      var isBonus = n===winBonus&&!isMatch;
+      var bg = isBonus?'#fff':MLL.BC(n);
+      var tc = isBonus?'#555':MLL.TC(n);
+      var brd = isMatch?'2px solid #f5c518':isBonus?'2px solid #aaa':'none';
+      return '<span class="ball-sm" style="background:'+bg+';color:'+tc+';border:'+brd+';">'+n+'</span>';
     }).join('');
-    var sum = nums.reduce(function(a,b){return a+b;},0);
-    var lw  = result.last_week_counts ? result.last_week_counts[idx] : 0;
-    html+='<tr>'+
-      '<td style="color:#aaa;">'+(idx+1)+'</td>'+
-      '<td><div class="num-row">'+balls+'</div></td>'+
-      '<td style="font-size:10px;color:#555;">'+sum+'</td>'+
-      '<td class="lw-badge">'+lw+'개 겹침</td>'+
-      '</tr>';
+
+    // 등수 계산
+    var grade = 0, prizeStr = '-';
+    if(isDrawn){
+      var m=0; nums.forEach(function(n){if(winNums.indexOf(n)>=0)m++;});
+      var b=nums.indexOf(winBonus)>=0;
+      grade=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
+      if(grade>0){
+        var prizes=[0,winData.prize1,winData.prize2,winData.prize3,50000,5000];
+        prizeStr='<span style="color:#e03131;font-weight:700;">'+grade+'등</span>';
+      }
+    }
+
+    // 첫 행에만 회차/전략명/집계 표시
+    var isFirst = idx===0;
+    var rowspan = result.numbers.length;
+    var trClass = grade>0 ? ' style="background:#fffde0;"' : '';
+
+    html+='<tr'+trClass+'>';
+    html+='<td style="color:#aaa;font-size:9px;">'+(idx+1)+'</td>';
+    if(isFirst){
+      html+='<td rowspan="'+rowspan+'" style="font-weight:700;font-size:11px;">'+round+'회</td>';
+      html+='<td rowspan="'+rowspan+'" style="font-size:9px;color:'+(isDrawn?'#555':'#e03131')+';">'+(isDrawn?'추첨후':'추첨전')+'</td>';
+      html+='<td rowspan="'+rowspan+'" style="font-size:9px;font-weight:600;color:#7048e8;">'+strategy.name+'</td>';
+    }
+    html+='<td><div class="num-row">'+balls+'</div></td>';
+    if(isFirst){
+      html+='<td rowspan="'+rowspan+'">'+(isDrawn&&gradeCounts.some(function(c){return c>0;})?'<span style="font-size:9px;color:#e03131;">있음</span>':'-')+'</td>';
+      html+='<td rowspan="'+rowspan+'" style="color:#e03131;font-weight:700;font-size:10px;">'+(gradeCounts[1]||'-')+'</td>';
+      html+='<td rowspan="'+rowspan+'" style="color:#e67700;font-weight:700;font-size:10px;">'+(gradeCounts[2]||'-')+'</td>';
+      html+='<td rowspan="'+rowspan+'" style="color:#1a7ad4;font-weight:700;font-size:10px;">'+(gradeCounts[3]||'-')+'</td>';
+      html+='<td rowspan="'+rowspan+'" style="color:#2f9e44;font-weight:700;font-size:10px;">'+(gradeCounts[4]||'-')+'</td>';
+      html+='<td rowspan="'+rowspan+'" style="color:#888;font-size:10px;">'+(gradeCounts[5]||'-')+'</td>';
+      html+='<td rowspan="'+rowspan+'" style="font-size:9px;">'+prevBest+'</td>';
+      html+='<td rowspan="'+rowspan+'" style="font-size:9px;">'+prevLast+'</td>';
+    }
+    html+='<td><button onclick="delGenEntry('+idx+')" style="background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;">🗑</button></td>';
+    html+='</tr>';
   });
   html+='</tbody></table>';
   document.getElementById('resultBody').innerHTML=html;
 
-  // 저장 버튼 표시
+  // 저장/비교/다운로드 버튼 표시
   document.getElementById('btnSave').style.display='block';
   document.getElementById('btnCompare').style.display='block';
+  document.getElementById('btnExcel').style.display='inline-block';
+  document.getElementById('btnPDF').style.display='inline-block';
+}
+
+// 개별 번호 삭제
+function delGenEntry(idx){
+  if(!generatedResult) return;
+  generatedResult.result.numbers.splice(idx,1);
+  if(generatedResult.result.last_week_counts) generatedResult.result.last_week_counts.splice(idx,1);
+  generatedResult.result.generated = generatedResult.result.numbers.length;
+  renderResult(generatedResult.result, generatedResult.round, generatedResult.strategy);
+}
+
+// 엑셀 다운로드
+function downloadExcel(){
+  if(!generatedResult) return;
+  var r = generatedResult;
+  var rows = [['#','번호1','번호2','번호3','번호4','번호5','번호6','번호합','회차','전략명']];
+  r.result.numbers.forEach(function(nums,idx){
+    var sum=nums.reduce(function(a,b){return a+b;},0);
+    rows.push([idx+1,nums[0],nums[1],nums[2],nums[3],nums[4],nums[5],sum,r.round,r.strategy.name]);
+  });
+  var csv=rows.map(function(row){return row.join(',');}).join('\n');
+  var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='lotto_strategy_'+r.strategy.name+'_'+r.round+'회.csv';
+  a.click();
+}
+
+// PDF 다운로드 (간단 프린트)
+function downloadPDF(){
+  if(!generatedResult) return;
+  window.print();
 }
 
 // My Lotto Lab에 저장
@@ -1250,6 +1361,9 @@ function saveToMyLotto(){
 window.generateNumbers=generateNumbers;
 window.saveToMyLotto=saveToMyLotto;
 window.selectStrategy=selectStrategy;
+window.delGenEntry=delGenEntry;
+window.downloadExcel=downloadExcel;
+window.downloadPDF=downloadPDF;
 
 updateEst();
 renderStrategyList();
