@@ -1,3 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 전략 수립</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
+body{background:#f3f4f6;font-size:13px;}
+.header-inner{max-width:1200px;margin:0 auto;padding:0 14px;height:44px;display:flex;align-items:center;justify-content:space-between;background:#1c1c2e;border-radius:0 0 8px 8px;}
+.logo-left{display:flex;align-items:center;gap:9px;cursor:pointer;}
+.logo-icon{width:30px;height:30px;background:#7048e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-text .title{font-size:14px;font-weight:700;color:#fff;}
+.logo-text .sub{font-size:9px;color:#aaa;}
+.main{max-width:1200px;margin:0 auto;padding:12px 14px;display:grid;grid-template-columns:1fr 340px;gap:12px;}
+
+/* 전략 폼 */
+.form-card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
+.form-head{background:linear-gradient(135deg,#7048e8,#5a2fc2);padding:12px 18px;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.form-body{padding:16px 18px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;margin-bottom:12px;}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-group.full{grid-column:1/-1;}
+.form-label{font-size:10px;font-weight:700;color:#555;}
+.form-label .hint{font-size:9px;color:#aaa;font-weight:400;margin-left:4px;}
+.form-input{border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:12px;outline:none;transition:border 0.15s;}
+.form-input:focus{border-color:#7048e8;}
+.form-select{border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:12px;outline:none;background:#fff;}
+.form-row{display:flex;gap:8px;align-items:center;}
+.form-row .form-input{flex:1;}
+.divider{border:none;border-top:1px dashed #eee;margin:12px 0;}
+.section-title{font-size:11px;font-weight:700;color:#7048e8;margin-bottom:8px;display:flex;align-items:center;gap:5px;}
+.est-box{background:#f5f0ff;border:1px solid #c9b8f5;border-radius:6px;padding:8px 12px;text-align:center;margin-bottom:12px;}
+.est-label{font-size:10px;color:#7048e8;margin-bottom:2px;}
+.est-val{font-size:20px;font-weight:700;color:#5a2fc2;}
+.btn-row{display:flex;gap:8px;}
+.btn{flex:1;border:none;border-radius:7px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;}
+.btn-create{background:#7048e8;color:#fff;}
+.btn-update{background:#1a7ad4;color:#fff;}
+.btn-delete{background:#e03131;color:#fff;}
+.btn-clear{background:#f5f5f5;color:#555;border:1px solid #ddd;}
+.note{font-size:9px;color:#aaa;line-height:1.7;margin-top:8px;}
+
+/* 전략 목록 */
+.list-card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;height:fit-content;}
+.list-head{background:#1c1c2e;padding:10px 14px;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between;}
+.list-count{background:#7048e8;color:#fff;font-size:10px;padding:1px 7px;border-radius:8px;}
+.list-search{width:100%;border:1px solid #333;border-radius:5px;padding:5px 10px;font-size:11px;background:#2a2a40;color:#fff;outline:none;margin:8px 0;}
+.list-search::placeholder{color:#666;}
+.strategy-item{padding:10px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:background 0.1s;}
+.strategy-item:hover{background:#f8f5ff;}
+.strategy-item.active{background:#f0ebff;border-left:3px solid #7048e8;}
+.si-name{font-size:12px;font-weight:700;color:#222;margin-bottom:2px;}
+.si-info{font-size:9px;color:#aaa;display:flex;gap:8px;flex-wrap:wrap;}
+.si-badge{background:#f0ebff;color:#7048e8;font-size:8px;padding:1px 5px;border-radius:3px;}
+.list-body{max-height:calc(100vh - 160px);overflow-y:auto;}
+.empty-list{text-align:center;padding:30px;color:#bbb;font-size:12px;}
+</style>
+</head>
+<body>
+<script>
 // =====================================================
 // My Lotto Lab - 공통 모듈 (common.js)
 // 모든 페이지에서 공유하는 데이터/함수
@@ -798,3 +859,346 @@ MLL._checkSum = function(nums, min, max) {
   if (max!==null && s>max) return false;
   return true;
 };
+
+</script>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo-left" onclick="location.href='main_page.html'" title="메인으로">
+      <div class="logo-icon">🧠</div>
+      <div class="logo-text">
+        <div class="title">My Lotto Lab</div>
+        <div class="sub">전략 수립</div>
+      </div>
+    </div>
+    <div style="position:relative;">
+      <button onclick="toggleNav()" id="navBtn" style="display:flex;align-items:center;gap:5px;color:#ccc;font-size:11px;cursor:pointer;border:1px solid #555;padding:4px 10px;border-radius:5px;background:none;white-space:nowrap;">🧭 이동 ▾</button>
+      <div id="navMenu" style="display:none;position:absolute;right:0;top:36px;background:#1c1c2e;border:1px solid #2a2a40;border-radius:8px;overflow:hidden;min-width:200px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+        <div onclick="location.href='main_page.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🏠 메인 페이지</div>
+        <div onclick="location.href='lotto_input_page_v4.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🖥️ 일반방식 편한등록</div>
+        <div onclick="location.href='camera_qr.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">📷 실구매 로또등록</div>
+        <div onclick="location.href='excel_upload.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">📊 엑셀파일 대량등록</div>
+        <div onclick="location.href='ai_input.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">✨ AI 음성·문자 등록</div>
+        <div onclick="location.href='number_generator.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🎲 전략번호 생성</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+<!-- 왼쪽: 전략 폼 -->
+<div>
+<div class="form-card">
+  <div class="form-head">🧠 전략 수립 <span style="font-size:11px;font-weight:400;opacity:0.8;" id="editModeLabel"></span></div>
+  <div class="form-body">
+
+    <!-- 전략명 -->
+    <div class="form-group full" style="margin-bottom:10px;">
+      <div class="form-label">전략명 <span style="color:#e03131;">*</span></div>
+      <input class="form-input" id="f-name" placeholder="예) 반포전략, 홀짝균형전략">
+    </div>
+
+    <div class="section-title">📊 번호 조건</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <div class="form-label">홀짝비율 <span class="hint">홀:짝</span></div>
+        <select class="form-select" id="f-odd-even">
+          <option value="">무관</option>
+          <option value="6:0">6:0</option>
+          <option value="5:1">5:1</option>
+          <option value="4:2">4:2</option>
+          <option value="3:3" selected>3:3</option>
+          <option value="2:4">2:4</option>
+          <option value="1:5">1:5</option>
+          <option value="0:6">0:6</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <div class="form-label">연속제한 <span class="hint">최대 연속 개수</span></div>
+        <input class="form-input" id="f-consecutive" placeholder="예) 2 (1,2,3 제외)">
+      </div>
+      <div class="form-group">
+        <div class="form-label">번호합 최소</div>
+        <input class="form-input" id="f-sum-min" placeholder="예) 100">
+      </div>
+      <div class="form-group">
+        <div class="form-label">번호합 최대</div>
+        <input class="form-input" id="f-sum-max" placeholder="예) 170">
+      </div>
+      <div class="form-group">
+        <div class="form-label">시작번호 <span class="hint">순환구간</span></div>
+        <input class="form-input" id="f-range-start" placeholder="예) 1">
+      </div>
+      <div class="form-group">
+        <div class="form-label">끝번호 <span class="hint">45다음 1로 순환</span></div>
+        <input class="form-input" id="f-range-end" placeholder="예) 40">
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <div class="form-label">포함수 <span class="hint">반드시 포함될 번호</span></div>
+        <input class="form-input" id="f-include" placeholder="예) 21,33 또는 1~10">
+      </div>
+      <div class="form-group">
+        <div class="form-label">제외수 <span class="hint">절대 포함 안 될 번호</span></div>
+        <input class="form-input" id="f-exclude" placeholder="예) 3,7,11">
+      </div>
+    </div>
+
+    <hr class="divider">
+    <div class="section-title">📈 빈도 분석 조건</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <div class="form-label">상위빈도범위 <span class="hint">최근 N개 중 상위 M개</span></div>
+        <input class="form-input" id="f-top-range" placeholder="예) 20 (상위 20번호)">
+      </div>
+      <div class="form-group">
+        <div class="form-label">상위번호사용 <span class="hint">조합당 몇 개 포함</span></div>
+        <input class="form-input" id="f-top-use" placeholder="예) 2">
+      </div>
+      <div class="form-group">
+        <div class="form-label">최근분석회차 <span class="hint">최근 N회 분석</span></div>
+        <input class="form-input" id="f-recent-rounds" placeholder="예) 100">
+      </div>
+      <div class="form-group">
+        <div class="form-label">지난주기준 <span class="hint">지난주 당첨번호 기준 정렬</span></div>
+        <select class="form-select" id="f-last-week">
+          <option value="무관" selected>무관</option>
+          <option value="적은순">적은순 (겹침 적은 것 우선)</option>
+          <option value="많은순">많은순 (겹침 많은 것 우선)</option>
+        </select>
+      </div>
+    </div>
+
+    <hr class="divider">
+    <div class="section-title">🔄 생성 설정</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <div class="form-label">요청 조합수 <span class="hint">기본 생성 개수</span></div>
+        <input class="form-input" id="f-set-count" placeholder="예) 20" value="20">
+      </div>
+      <div class="form-group">
+        <div class="form-label">반복생성횟수 <span class="hint">×배수 생성</span></div>
+        <input class="form-input" id="f-repeat-count" placeholder="예) 5" value="5">
+      </div>
+      <div class="form-group">
+        <div class="form-label">반복출력방식</div>
+        <select class="form-select" id="f-repeat-mode">
+          <option value="AABBCC" selected>AABBCC (동일조합 연속반복)</option>
+          <option value="ABCABC">ABCABC (조합묶음 반복)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <div class="form-label">무작위포함 (Y/N)</div>
+        <select class="form-select" id="f-random-mix">
+          <option value="N" selected>N (상위빈도 조건 적용)</option>
+          <option value="Y">Y (순수 랜덤 혼합)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 예상생성수 -->
+    <div class="est-box">
+      <div class="est-label">예상 최종 생성수 (요청조합수 × 반복횟수)</div>
+      <div class="est-val" id="estVal">100개</div>
+    </div>
+    <p class="note">※ 포함수/제외수/끝수조건은 다른 조건보다 우선 적용됩니다.<br>※ 요청 20 × 반복 5 = 100개 생성 권장 (전략 비교평가 기준)</p>
+
+    <!-- 버튼 -->
+    <div class="btn-row" style="margin-top:12px;">
+      <button class="btn btn-create" onclick="saveStrategy()">✅ 신규 전략 저장</button>
+      <button class="btn btn-update" onclick="updateStrategy()" id="btnUpdate" style="display:none;">💾 전략 수정</button>
+      <button class="btn btn-clear" onclick="clearForm()">⊗ 초기화</button>
+    </div>
+    <div class="btn-row" style="margin-top:6px;">
+      <button class="btn btn-delete" onclick="deleteStrategy()" id="btnDelete" style="display:none;">🗑 전략 삭제</button>
+    </div>
+    <div id="formMsg" style="font-size:11px;margin-top:8px;text-align:center;"></div>
+  </div>
+</div>
+</div>
+
+<!-- 오른쪽: 전략 목록 -->
+<div>
+<div class="list-card">
+  <div class="list-head">
+    <span>📋 저장된 전략</span>
+    <span class="list-count" id="strategyCount">0</span>
+  </div>
+  <div style="padding:0 10px;">
+    <input class="list-search" id="searchInput" placeholder="🔍 전략명 검색..." oninput="renderList()">
+  </div>
+  <div class="list-body" id="strategyList"></div>
+</div>
+</div>
+</div>
+
+<script>
+function toggleNav(){
+  var m=document.getElementById('navMenu');
+  m.style.display=m.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',function(e){
+  var btn=document.getElementById('navBtn'), menu=document.getElementById('navMenu');
+  if(menu&&btn&&!btn.contains(e.target)&&!menu.contains(e.target)) menu.style.display='none';
+});
+window.toggleNav=toggleNav;
+
+var editingId = null;
+
+// 예상 생성수 실시간 계산
+function updateEst(){
+  var sc = parseInt(document.getElementById('f-set-count').value)||0;
+  var rc = parseInt(document.getElementById('f-repeat-count').value)||1;
+  document.getElementById('estVal').textContent = (sc*rc)+('개');
+  var color = (sc*rc===100)?'#2f9e44':'#5a2fc2';
+  document.getElementById('estVal').style.color = color;
+}
+['f-set-count','f-repeat-count'].forEach(function(id){
+  document.getElementById(id).addEventListener('input', updateEst);
+});
+
+function getFormData(){
+  return {
+    name:          document.getElementById('f-name').value.trim(),
+    odd_even:      document.getElementById('f-odd-even').value,
+    consecutive_limit: document.getElementById('f-consecutive').value.trim(),
+    sum_min:       document.getElementById('f-sum-min').value.trim(),
+    sum_max:       document.getElementById('f-sum-max').value.trim(),
+    range_start:   document.getElementById('f-range-start').value.trim(),
+    range_end:     document.getElementById('f-range-end').value.trim(),
+    include_numbers: document.getElementById('f-include').value.trim(),
+    exclude_numbers: document.getElementById('f-exclude').value.trim(),
+    top_range:     document.getElementById('f-top-range').value.trim(),
+    top_use:       document.getElementById('f-top-use').value.trim(),
+    recent_rounds: document.getElementById('f-recent-rounds').value.trim(),
+    last_week_mode: document.getElementById('f-last-week').value,
+    set_count:     document.getElementById('f-set-count').value.trim(),
+    repeat_count:  document.getElementById('f-repeat-count').value.trim(),
+    repeat_mode:   document.getElementById('f-repeat-mode').value,
+    random_mix:    document.getElementById('f-random-mix').value,
+  };
+}
+
+function setFormData(s){
+  document.getElementById('f-name').value           = s.name||'';
+  document.getElementById('f-odd-even').value        = s.odd_even||'3:3';
+  document.getElementById('f-consecutive').value     = s.consecutive_limit||'';
+  document.getElementById('f-sum-min').value         = s.sum_min||'';
+  document.getElementById('f-sum-max').value         = s.sum_max||'';
+  document.getElementById('f-range-start').value     = s.range_start||'';
+  document.getElementById('f-range-end').value       = s.range_end||'';
+  document.getElementById('f-include').value         = s.include_numbers||'';
+  document.getElementById('f-exclude').value         = s.exclude_numbers||'';
+  document.getElementById('f-top-range').value       = s.top_range||'';
+  document.getElementById('f-top-use').value         = s.top_use||'';
+  document.getElementById('f-recent-rounds').value   = s.recent_rounds||'';
+  document.getElementById('f-last-week').value       = s.last_week_mode||'무관';
+  document.getElementById('f-set-count').value       = s.set_count||'20';
+  document.getElementById('f-repeat-count').value    = s.repeat_count||'5';
+  document.getElementById('f-repeat-mode').value     = s.repeat_mode||'AABBCC';
+  document.getElementById('f-random-mix').value      = s.random_mix||'N';
+  updateEst();
+}
+
+function clearForm(){
+  editingId = null;
+  document.getElementById('f-name').value='';
+  ['f-consecutive','f-sum-min','f-sum-max','f-range-start','f-range-end',
+   'f-include','f-exclude','f-top-range','f-top-use','f-recent-rounds'].forEach(function(id){
+    document.getElementById(id).value='';
+  });
+  document.getElementById('f-odd-even').value='3:3';
+  document.getElementById('f-last-week').value='무관';
+  document.getElementById('f-set-count').value='20';
+  document.getElementById('f-repeat-count').value='5';
+  document.getElementById('f-repeat-mode').value='AABBCC';
+  document.getElementById('f-random-mix').value='N';
+  document.getElementById('btnUpdate').style.display='none';
+  document.getElementById('btnDelete').style.display='none';
+  document.getElementById('editModeLabel').textContent='';
+  document.getElementById('formMsg').textContent='';
+  updateEst();
+  renderList();
+}
+
+function showMsg(msg, ok){
+  var el=document.getElementById('formMsg');
+  el.style.color = ok?'#2f9e44':'#e03131';
+  el.textContent = msg;
+  setTimeout(function(){el.textContent='';},3000);
+}
+
+function saveStrategy(){
+  var data = getFormData();
+  if(!data.name){ showMsg('전략명을 입력해주세요.', false); return; }
+  var ok = MLL.addStrategy(data);
+  if(!ok){ showMsg('같은 이름의 전략이 이미 있습니다.', false); return; }
+  showMsg('✅ 전략이 저장되었습니다!', true);
+  clearForm();
+}
+
+function updateStrategy(){
+  if(!editingId) return;
+  var data = getFormData();
+  if(!data.name){ showMsg('전략명을 입력해주세요.', false); return; }
+  MLL.updateStrategy(editingId, data);
+  showMsg('✅ 전략이 수정되었습니다!', true);
+  clearForm();
+}
+
+function deleteStrategy(){
+  if(!editingId) return;
+  if(!confirm('정말 삭제하시겠습니까?')) return;
+  MLL.deleteStrategy(editingId);
+  showMsg('삭제되었습니다.', true);
+  clearForm();
+}
+
+function selectStrategy(id){
+  var s = MLL.getStrategy(id);
+  if(!s) return;
+  editingId = id;
+  setFormData(s);
+  document.getElementById('btnUpdate').style.display='flex';
+  document.getElementById('btnDelete').style.display='flex';
+  document.getElementById('editModeLabel').textContent='— 수정 중';
+  renderList();
+}
+
+function renderList(){
+  var q    = document.getElementById('searchInput').value.toLowerCase();
+  var list = MLL.loadStrategies();
+  var filtered = q ? list.filter(function(s){ return s.name.toLowerCase().includes(q); }) : list;
+  document.getElementById('strategyCount').textContent = list.length;
+  var el = document.getElementById('strategyList');
+  if(!filtered.length){
+    el.innerHTML='<div class="empty-list">저장된 전략이 없습니다.<br><span style="font-size:10px;color:#ccc;">왼쪽에서 새 전략을 수립해주세요!</span></div>';
+    return;
+  }
+  el.innerHTML = filtered.map(function(s){
+    var d = new Date(s.createdAt);
+    var dt = d.getFullYear()+'/'+(d.getMonth()+1+'').padStart(2,'0')+'/'+(''+d.getDate()).padStart(2,'0')+' '+(d.getHours()+'').padStart(2,'0')+(':')+(d.getMinutes()+'').padStart(2,'0');
+    var sc = (parseInt(s.set_count)||20)*(parseInt(s.repeat_count)||5);
+    var active = s.id===editingId ? ' active' : '';
+    return '<div class="strategy-item'+active+'" onclick="selectStrategy(\''+s.id+'\')">'+
+      '<div class="si-name">'+s.name+'</div>'+
+      '<div class="si-info">'+
+      '<span>'+dt+'</span>'+
+      '<span class="si-badge">홀짝 '+(s.odd_even||'무관')+'</span>'+
+      '<span class="si-badge">생성 '+sc+'개</span>'+
+      (s.include_numbers?'<span class="si-badge">포함 '+s.include_numbers+'</span>':'')+
+      '</div></div>';
+  }).join('');
+}
+
+window.saveStrategy=saveStrategy; window.updateStrategy=updateStrategy;
+window.deleteStrategy=deleteStrategy; window.clearForm=clearForm;
+window.selectStrategy=selectStrategy;
+
+updateEst();
+renderList();
+</script>
+</body>
+</html>
