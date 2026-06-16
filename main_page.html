@@ -7,14 +7,16 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
 body{background:#f3f4f6;font-size:13px;min-height:100vh;}
-.header-inner{max-width:1000px;margin:0 auto;padding:0 14px;height:44px;display:flex;align-items:center;justify-content:space-between;background:#1c1c2e;border-radius:0 0 8px 8px;}
+.header-inner{max-width:1100px;margin:0 auto;padding:0 14px;height:44px;display:flex;align-items:center;justify-content:space-between;background:#1c1c2e;border-radius:0 0 8px 8px;}
 .logo-left{display:flex;align-items:center;gap:9px;cursor:pointer;}
 .logo-left:hover .logo-icon{background:#1565c0;}
 .logo-icon{width:30px;height:30px;background:#1a7ad4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;transition:background 0.2s;}
 .logo-text .title{font-size:14px;font-weight:700;color:#fff;}
 .logo-text .sub{font-size:9px;color:#aaa;}
-.main{max-width:960px;margin:0 auto;padding:12px 14px;}
-.top-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.main{max-width:1100px;margin:0 auto;padding:12px 14px;}
+
+/* 상단 2단 */
+.top-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
 .card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
 .card-head{padding:11px 16px;display:flex;align-items:center;gap:8px;}
 .card-head.yellow{background:#f5c518;}
@@ -24,41 +26,66 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
 .card-head.blue .ch-title{color:#fff;}
 .card-body{padding:14px 16px;}
 .draw-round{font-size:12px;color:#555;margin-bottom:9px;font-weight:600;}
-.balls-row{display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
-.ball{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
-.bonus-ball{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;background:#fff;border:2px solid #aaa;color:#555;}
-.plus-sign{color:#bbb;font-size:16px;}
-.bonus-label{font-size:9px;color:#aaa;}
+.balls-row{display:flex;align-items:center;gap:5px;margin-bottom:12px;flex-wrap:wrap;}
+.ball{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.bonus-ball{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;background:#fff;border:2px solid #aaa;color:#555;}
 .prize-row{font-size:11px;color:#444;margin-bottom:3px;}
 .prize-row b{color:#e03131;}
-.prize-type{border-left:2px solid #e0e0e0;padding-left:14px;font-size:11px;color:#444;line-height:2;}
-.prize-type .pt-title{font-weight:700;margin-bottom:2px;font-size:12px;}
-.no-result{text-align:center;padding:20px;color:#bbb;font-size:12px;}
-.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;}
-.stat-block{padding:11px 14px;border-bottom:1px solid #f3f4f6;}
+.prize-type{border-left:2px solid #e0e0e0;padding-left:12px;font-size:11px;color:#444;line-height:2;}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;}
+.stat-block{padding:10px 14px;border-bottom:1px solid #f3f4f6;}
 .stat-block:nth-child(odd){border-right:1px solid #f3f4f6;}
-.stat-label{font-size:10px;color:#888;margin-bottom:6px;font-weight:600;}
+.stat-label{font-size:10px;color:#888;margin-bottom:5px;font-weight:600;}
 .stat-row{display:flex;justify-content:space-between;font-size:10px;color:#666;margin-bottom:2px;}
 .stat-row .val{font-weight:700;color:#333;}
-.stat-total{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:#333;margin-top:5px;padding-top:4px;border-top:1px solid #eee;}
-.type-breakdown{margin-top:6px;padding-top:5px;border-top:1px solid #eee;}
+.stat-total{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:#333;margin-top:4px;padding-top:4px;border-top:1px solid #eee;}
+.type-breakdown{margin-top:5px;padding-top:4px;border-top:1px solid #eee;}
 .type-row{display:flex;justify-content:space-between;font-size:10px;color:#666;margin-bottom:1px;}
 .type-row .val{font-weight:700;color:#333;}
-.section-label{font-size:13px;font-weight:700;color:#555;margin-bottom:9px;margin-top:4px;padding-left:2px;}
-.menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
-.menu-card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;padding:16px 18px;cursor:pointer;transition:box-shadow 0.15s,border-color 0.15s;}
+
+/* 섹션 */
+.section-wrap{margin-bottom:14px;}
+.section-header{display:flex;align-items:center;gap:8px;margin-bottom:9px;padding-left:2px;}
+.section-title{font-size:13px;font-weight:700;color:#333;}
+.section-badge{font-size:9px;background:#e8f4ff;color:#1a7ad4;border:1px solid #1a7ad4;border-radius:10px;padding:1px 7px;font-weight:600;}
+.section-badge.green{background:#e8fff0;color:#2f9e44;border-color:#2f9e44;}
+.section-badge.orange{background:#fff3e0;color:#e67700;border-color:#e67700;}
+.section-badge.purple{background:#f3f0ff;color:#7048e8;border-color:#7048e8;}
+.section-badge.gray{background:#f5f5f5;color:#888;border-color:#ccc;}
+
+/* 메뉴 그리드 */
+.menu-grid{display:grid;gap:8px;}
+.menu-grid-2{grid-template-columns:1fr 1fr;}
+.menu-grid-4{grid-template-columns:1fr 1fr 1fr 1fr;}
+.menu-card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;padding:14px 16px;cursor:pointer;transition:box-shadow 0.15s,border-color 0.15s;position:relative;}
 .menu-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.09);border-color:#c0d4f0;}
-.menu-icon{font-size:22px;margin-bottom:7px;}
-.menu-title{font-size:14px;font-weight:700;color:#222;margin-bottom:3px;}
-.menu-sub{font-size:11px;color:#aaa;}
+.menu-card.disabled{cursor:default;opacity:0.7;}
+.menu-card.disabled:hover{box-shadow:none;border-color:#e0e0e0;}
+.menu-icon{font-size:20px;margin-bottom:6px;}
+.menu-title{font-size:13px;font-weight:700;color:#222;margin-bottom:2px;}
+.menu-sub{font-size:10px;color:#aaa;line-height:1.5;}
+.badge-soon{position:absolute;top:10px;right:10px;background:#f3f0ff;color:#7048e8;font-size:8px;padding:1px 6px;border-radius:8px;border:1px solid #7048e8;font-weight:600;}
+.badge-new{position:absolute;top:10px;right:10px;background:#e03131;color:#fff;font-size:8px;padding:1px 6px;border-radius:8px;font-weight:600;}
+.badge-hot{position:absolute;top:10px;right:10px;background:#f5c518;color:#7a5e00;font-size:8px;padding:1px 6px;border-radius:8px;font-weight:600;}
+
+/* Lotto Battles */
+.battles-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
+.battle-card{background:#1c1c2e;border-radius:10px;border:1px solid #2a2a40;padding:14px 16px;cursor:pointer;transition:box-shadow 0.15s;}
+.battle-card:hover{box-shadow:0 2px 12px rgba(0,0,0,0.3);border-color:#7048e8;}
+.battle-card.disabled{opacity:0.5;cursor:default;}
+.battle-type{font-size:18px;font-weight:700;color:#f5c518;margin-bottom:4px;}
+.battle-limit{font-size:10px;color:#aaa;}
+.battle-badge{display:inline-block;background:#7048e8;color:#fff;font-size:8px;padding:1px 6px;border-radius:8px;margin-bottom:6px;}
+
 /* 드롭다운 */
-.lotto-item{padding:10px 14px;font-size:11px;color:#ccc;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a40;}
+.lotto-item{padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a40;}
 .lotto-item:last-child{border-bottom:none;}
 .lotto-item:hover{background:#2a2a40;color:#fff;}
 .lotto-item.active{color:#f5c518;font-weight:700;}
 .lotto-item.coming{color:#555;cursor:default;}
 .lotto-item.coming:hover{background:none;color:#555;}
 .soon{background:#333;color:#666;font-size:9px;padding:1px 5px;border-radius:3px;}
+.no-result{text-align:center;padding:20px;color:#bbb;font-size:12px;}
 </style>
 </head>
 <body>
@@ -87,12 +114,12 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
 </div>
 
 <div class="main">
+
+  <!-- 상단: 당첨번호 + 내현황 -->
   <div class="top-row">
     <div class="card">
       <div class="card-head yellow"><span>🏆</span><span class="ch-title">최근 한국 로또 당첨 번호</span></div>
-      <div class="card-body" id="latestResult">
-        <div class="no-result">⏳ 로딩 중...</div>
-      </div>
+      <div class="card-body" id="latestResult"><div class="no-result">⏳ 로딩 중...</div></div>
     </div>
     <div class="card">
       <div class="card-head blue"><span>📊</span><span class="ch-title">내 현황</span></div>
@@ -114,8 +141,8 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
           <div class="stat-row"><span>실구매 당첨금:</span><span class="val" id="p-real">0원</span></div>
           <div class="stat-row"><span>가상구매 당첨금:</span><span class="val" id="p-virtual">0원</span></div>
           <div class="stat-total"><span>합계</span><span id="p-total">0원</span></div>
-          <div class="type-breakdown" style="margin-top:8px;">
-            <div class="stat-label" style="margin-bottom:4px;">🏆 당첨 현황</div>
+          <div class="type-breakdown" style="margin-top:6px;">
+            <div class="stat-label" style="margin-bottom:3px;">🏆 당첨 현황</div>
             <div class="type-row"><span>1등</span><span class="val" id="g-1" style="color:#e03131;">0</span></div>
             <div class="type-row"><span>2등</span><span class="val" id="g-2" style="color:#e67700;">0</span></div>
             <div class="type-row"><span>3등</span><span class="val" id="g-3" style="color:#1a7ad4;">0</span></div>
@@ -127,57 +154,146 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
     </div>
   </div>
 
-  <div class="section-label">✏️ 번호 등록</div>
-  <div class="menu-grid">
-    <div class="menu-card" onclick="location.href='lotto_input_page_v4.html'">
-      <div class="menu-icon">🖥️</div>
-      <div class="menu-title">일반 방식 편한 등록</div>
-      <div class="menu-sub">직접 번호 선택 / 자동 생성</div>
+  <!-- 번호 등록 -->
+  <div class="section-wrap">
+    <div class="section-header">
+      <span class="section-title">✏️ 번호 등록</span>
     </div>
-    <div class="menu-card" onclick="location.href='camera_qr.html'">
-      <div class="menu-icon">📷</div>
-      <div class="menu-title">실구매 로또등록 (카메라/QR/수동)</div>
-      <div class="menu-sub">로또복권 QR코드 스캔 · 직접입력</div>
-    </div>
-    <div class="menu-card" onclick="location.href='excel_upload.html'">
-      <div class="menu-icon">📊</div>
-      <div class="menu-title">엑셀 파일 대량 등록</div>
-      <div class="menu-sub">.xlsx / .csv 업로드</div>
-    </div>
-    <div class="menu-card" onclick="location.href='ai_input.html'">
-      <div class="menu-icon">✨</div>
-      <div class="menu-title">AI 도우미 음성·문자로 등록</div>
-      <div class="menu-sub">자연어 음성·문자로 번호 입력</div>
+    <div class="menu-grid menu-grid-4">
+      <div class="menu-card" onclick="location.href='lotto_input_page_v4.html'">
+        <div class="menu-icon">🖥️</div>
+        <div class="menu-title">일반 방식 편한 등록</div>
+        <div class="menu-sub">직접 번호 선택 / 자동 생성</div>
+      </div>
+      <div class="menu-card" onclick="location.href='camera_qr.html'">
+        <div class="menu-icon">📷</div>
+        <div class="menu-title">실구매 로또등록</div>
+        <div class="menu-sub">카메라/QR/수동 직접입력</div>
+      </div>
+      <div class="menu-card" onclick="location.href='excel_upload.html'">
+        <div class="menu-icon">📊</div>
+        <div class="menu-title">엑셀 파일 대량 등록</div>
+        <div class="menu-sub">.xlsx / .csv 업로드</div>
+      </div>
+      <div class="menu-card" onclick="location.href='ai_input.html'">
+        <div class="menu-icon">✨</div>
+        <div class="menu-title">AI 도우미 음성·문자로 등록</div>
+        <div class="menu-sub">자연어 음성·문자로 번호 입력</div>
+      </div>
     </div>
   </div>
 
-  <div class="section-label">📋 결과 확인</div>
-  <div class="menu-grid">
-    <div class="menu-card" onclick="location.href='lotto_input_page_v4.html'">
-      <div class="menu-icon">📋</div>
-      <div class="menu-title">등록 현황</div>
-      <div class="menu-sub">저장된 번호 목록 조회</div>
+  <!-- 전략 등록 (2행 4열) -->
+  <div class="section-wrap">
+    <div class="section-header">
+      <span class="section-title">🎯 전략 등록</span>
+      <span class="section-badge purple">Coming Soon</span>
     </div>
-    <div class="menu-card" onclick="location.href='admin.html'">
-      <div class="menu-icon">🏆</div>
-      <div class="menu-title">추첨 결과 업로드</div>
-      <div class="menu-sub">당첨결과 등록 · 통계 관리</div>
-    </div>
-    <div class="menu-card" onclick="location.href='auto_update.html'">
-      <div class="menu-icon">🔄</div>
-      <div class="menu-title">자동 업데이트</div>
-      <div class="menu-sub">토요일 당첨결과 자동 감시</div>
-    </div>
-    <div class="menu-card" onclick="location.href='admin.html'">
-      <div class="menu-icon">📈</div>
-      <div class="menu-title">통계 보기</div>
-      <div class="menu-sub">입력방법별 · 등수별 통계</div>
+    <div class="menu-grid menu-grid-4">
+      <div class="menu-card disabled">
+        <span class="badge-soon">준비중</span>
+        <div class="menu-icon">🧠</div>
+        <div class="menu-title">전략 수립</div>
+        <div class="menu-sub">Lotto Master Pro 이용 전략수립</div>
+      </div>
+      <div class="menu-card disabled">
+        <span class="badge-soon">준비중</span>
+        <div class="menu-icon">🎲</div>
+        <div class="menu-title">전략번호 생성</div>
+        <div class="menu-sub">각 전략별 번호조합 생성</div>
+      </div>
+      <div class="menu-card disabled">
+        <span class="badge-soon">준비중</span>
+        <div class="menu-icon">📈</div>
+        <div class="menu-title">전략 비교평가</div>
+        <div class="menu-sub">추첨후 전략별 비교평가</div>
+      </div>
+      <div class="menu-card disabled">
+        <span class="badge-soon">준비중</span>
+        <div class="menu-icon">💾</div>
+        <div class="menu-title">최종전략 DATA 저장소</div>
+        <div class="menu-sub">최애번호/좋은번호/재구매번호</div>
+      </div>
     </div>
   </div>
+
+  <!-- 결과 및 통계 -->
+  <div class="section-wrap">
+    <div class="section-header">
+      <span class="section-title">📋 결과 및 통계</span>
+    </div>
+    <div class="menu-grid menu-grid-4">
+      <div class="menu-card" onclick="location.href='lotto_input_page_v4.html'">
+        <div class="menu-icon">📋</div>
+        <div class="menu-title">번호등록 현황 및 당첨통계</div>
+        <div class="menu-sub">저장된 번호 목록 · 당첨 현황</div>
+      </div>
+      <div class="menu-card disabled">
+        <span class="badge-soon">준비중</span>
+        <div class="menu-icon">📊</div>
+        <div class="menu-title">전략등록 현황 및 당첨통계</div>
+        <div class="menu-sub">전략별 등록 현황 · 당첨 통계</div>
+      </div>
+      <div class="menu-card disabled">
+        <span class="badge-soon">준비중</span>
+        <div class="menu-icon">⚔️</div>
+        <div class="menu-title">Lotto Battle 현황 및 결과</div>
+        <div class="menu-sub">배틀 진행 현황 · 결과 확인</div>
+      </div>
+      <div class="menu-card disabled">
+        <span class="badge-soon">준비중</span>
+        <div class="menu-icon">📅</div>
+        <div class="menu-title">역대 회차별 통계</div>
+        <div class="menu-sub">회차별 당첨번호 · 패턴 분석</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lotto Battles -->
+  <div class="section-wrap">
+    <div class="section-header">
+      <span class="section-title">⚔️ Lotto Battles</span>
+      <span class="section-badge orange">매주 일요일 24시 ~ 토요일 오후 8시 신청</span>
+      <span class="section-badge gray">준비중</span>
+    </div>
+    <div class="battles-grid">
+      <div class="battle-card disabled">
+        <div class="battle-badge">무제한급</div>
+        <div class="battle-type">∞</div>
+        <div class="menu-title" style="color:#fff;margin-bottom:3px;">무제한</div>
+        <div class="battle-limit">1,000,000명 한정</div>
+      </div>
+      <div class="battle-card disabled">
+        <div class="battle-badge">개인전</div>
+        <div class="battle-type">1 : 1</div>
+        <div class="menu-title" style="color:#fff;margin-bottom:3px;">1대1 배틀</div>
+        <div class="battle-limit">10,000팀 한정</div>
+      </div>
+      <div class="battle-card disabled">
+        <div class="battle-badge">팀전</div>
+        <div class="battle-type">2 : 2</div>
+        <div class="menu-title" style="color:#fff;margin-bottom:3px;">2대2 배틀</div>
+        <div class="battle-limit">5,000팀 한정</div>
+      </div>
+      <div class="battle-card disabled">
+        <div class="battle-badge">팀전</div>
+        <div class="battle-type">5 : 5</div>
+        <div class="menu-title" style="color:#fff;margin-bottom:3px;">5대5 배틀</div>
+        <div class="battle-limit">2,000팀 한정</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 관리자 메뉴 (숨김) -->
+  <div style="text-align:right;margin-top:4px;">
+    <span onclick="location.href='admin.html'" style="font-size:10px;color:#ccc;cursor:pointer;">⚙️ 관리자</span>
+    &nbsp;
+    <span onclick="location.href='auto_update.html'" style="font-size:10px;color:#ccc;cursor:pointer;">🔄 자동업데이트</span>
+  </div>
+
 </div>
 
 <script>
-// ── 최소한의 로컬 데이터 함수 ──
 var STORAGE_KEY = 'mll_entries';
 var RESULTS_KEY = 'mll_results';
 var ROUND1_TS   = new Date('2002-12-07T20:00:00+09:00').getTime();
@@ -187,20 +303,17 @@ function loadEntries(){ try{return JSON.parse(localStorage.getItem(STORAGE_KEY)|
 function loadResults(){ try{return JSON.parse(localStorage.getItem(RESULTS_KEY)||'{}');}catch(e){return {};} }
 function getDrawDate(round){
   var d=new Date(ROUND1_TS+(round-1)*WEEK_MS);
-  var m=String(d.getMonth()+1).padStart(2,'0');
-  var dd=String(d.getDate()).padStart(2,'0');
-  return d.getFullYear()+'/'+m+'/'+dd;
+  return d.getFullYear()+'/'+(String(d.getMonth()+1).padStart(2,'0'))+'/'+String(d.getDate()).padStart(2,'0');
 }
 function BC(n){return n<=10?'#f5c518':n<=20?'#1a7ad4':n<=30?'#e03131':n<=40?'#888':'#2f9e44';}
 function TC(n){return n<=10?'#7a5e00':'#fff';}
 
-// ── 당첨번호 표시 ──
 function loadLatestResult(){
-  var results = loadResults();
-  var rounds  = Object.keys(results).map(Number).filter(function(n){return n>0;}).sort(function(a,b){return b-a;});
-  var el      = document.getElementById('latestResult');
+  var results=loadResults();
+  var rounds=Object.keys(results).map(Number).filter(function(n){return n>0;}).sort(function(a,b){return b-a;});
+  var el=document.getElementById('latestResult');
   if(!rounds.length){
-    el.innerHTML='<div class="no-result">📭 당첨결과가 없습니다.<br><span style="font-size:10px;color:#ccc;">admin.html에서 엑셀을 업로드해주세요.</span></div>';
+    el.innerHTML='<div class="no-result">📭 당첨결과가 없습니다.<br><span style="font-size:10px;color:#ccc;">관리자 페이지에서 엑셀을 업로드해주세요.</span></div>';
     return;
   }
   var round=rounds[0];
@@ -214,29 +327,30 @@ function loadLatestResult(){
   el.innerHTML=
     '<div class="draw-round">제 '+round+'회 (추첨일 '+getDrawDate(round)+')</div>'+
     '<div class="balls-row">'+balls+
-    '<span class="plus-sign">+</span>'+
+    '<span style="color:#bbb;font-size:14px;">+</span>'+
     '<span class="bonus-ball">'+r.bonus+'</span>'+
-    '<span class="bonus-label">(보너스)</span></div>'+
-    '<div style="display:flex;gap:20px;align-items:flex-start;">'+
+    '<span style="font-size:9px;color:#aaa;">(보너스)</span></div>'+
+    '<div style="display:flex;gap:16px;align-items:flex-start;">'+
     '<div>'+
     '<div class="prize-row">1등: <b>'+(r.prize1?r.prize1.toLocaleString()+'원':'-')+'</b> ('+r.winners1+'게임)</div>'+
     '<div class="prize-row">2등: <b>'+(r.prize2?r.prize2.toLocaleString()+'원':'-')+'</b> ('+r.winners2+'게임)</div>'+
     '<div class="prize-row">3등: <b>'+(r.prize3?r.prize3.toLocaleString()+'원':'-')+'</b> ('+r.winners3+'게임)</div>'+
     '</div>'+
     '<div class="prize-type">'+
-    '<div class="pt-title">1등 구매유형</div>'+
+    '<div style="font-weight:700;margin-bottom:2px;font-size:11px;">1등 구매유형</div>'+
     '<div>자동: <b>'+autoStr+'</b></div>'+
     '<div>반자동: <b>'+semiStr+'</b></div>'+
     '<div>수동: <b>'+manualStr+'</b></div>'+
     '</div></div>';
 }
 
-// ── 내 현황 ──
 function loadMyStats(){
   var entries=loadEntries();
+  var results=loadResults();
+  function hasResult(round){ return !!(results[round]||results[Number(round)]||results[String(round)]); }
   document.getElementById('s-real').textContent   =entries.filter(function(e){return e.isReal;}).length.toLocaleString();
-  document.getElementById('s-pre').textContent    =entries.filter(function(e){return !e.isReal&&e.status==='추첨전';}).length.toLocaleString();
-  document.getElementById('s-post').textContent   =entries.filter(function(e){return !e.isReal&&e.status==='추첨후';}).length.toLocaleString();
+  document.getElementById('s-pre').textContent    =entries.filter(function(e){return !e.isReal&&e.status==='추첨전'&&!hasResult(e.round);}).length.toLocaleString();
+  document.getElementById('s-post').textContent   =entries.filter(function(e){return !e.isReal&&(e.status==='추첨후'||hasResult(e.round));}).length.toLocaleString();
   document.getElementById('s-total').textContent  =entries.length.toLocaleString();
   document.getElementById('s-auto').textContent   =entries.filter(function(e){return e.type==='자동';}).length.toLocaleString();
   document.getElementById('s-semi').textContent   =entries.filter(function(e){return e.type==='반자동';}).length.toLocaleString();
@@ -251,7 +365,6 @@ function loadMyStats(){
   });
 }
 
-// ── 드롭다운 ──
 function toggleMenu(){
   var m=document.getElementById('lottoMenu');
   m.style.display=m.style.display==='none'?'block':'none';
@@ -266,11 +379,8 @@ document.addEventListener('click',function(e){
   if(menu&&btn&&!btn.contains(e.target)&&!menu.contains(e.target)) menu.style.display='none';
 });
 
-// ── 초기 실행 ──
 loadLatestResult();
 loadMyStats();
-
-// 다른 탭 변경 시 갱신
 window.addEventListener('storage',function(){ loadLatestResult(); loadMyStats(); });
 </script>
 </body>
