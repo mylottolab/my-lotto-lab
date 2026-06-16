@@ -1232,34 +1232,24 @@ function renderResult(result, round, strategy){
       grade=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
     }
 
-    var isFirst = idx===0;
-    var rowspan = result.numbers.length;
-    var trClass = grade>0 ? ' style="background:#fffde0;"' : '';
+    var trStyle = grade>0 ? ' style="background:#fffde0;"' : '';
+    var gradeColors=['','#e03131','#e67700','#1a7ad4','#2f9e44','#888'];
 
-    html+='<tr'+trClass+'>';
+    html+='<tr'+trStyle+'>';
     html+='<td style="color:#aaa;font-size:9px;">'+(idx+1)+'</td>';
-
-    if(isFirst){
-      html+='<td rowspan="'+rowspan+'" style="font-weight:700;font-size:11px;">'+round+'회</td>';
-      html+='<td rowspan="'+rowspan+'" style="font-size:9px;color:'+(isDrawn?'#555':'#e03131')+';">'+(isDrawn?'추첨후':'미추첨')+'</td>';
-      html+='<td rowspan="'+rowspan+'" style="font-size:9px;font-weight:600;color:#7048e8;">'+strategy.name+'</td>';
-    }
-
+    html+='<td style="font-weight:700;font-size:10px;text-align:center;">'+round+'회</td>';
+    html+='<td style="font-size:9px;text-align:center;color:'+(isDrawn?'#555':'#e03131')+';">'+(isDrawn?'추첨후':'미추첨')+'</td>';
+    html+='<td style="font-size:9px;font-weight:600;color:#7048e8;text-align:center;">'+strategy.name+'</td>';
     html+='<td><div class="num-row">'+balls+'</div></td>';
-
-    if(isFirst && isDrawn){
-      html+='<td rowspan="'+rowspan+'">'+(gradeCounts.some(function(c,i){return i>0&&c>0;})?'<span style="font-size:9px;color:#e03131;">있음</span>':'<span style="color:#aaa;">-</span>')+'</td>';
+    if(isDrawn){
+      html+='<td style="text-align:center;">'+(grade>0?'<span style="font-size:9px;color:#e03131;font-weight:700;">'+grade+'등</span>':'<span style="color:#aaa;font-size:9px;">-</span>')+'</td>';
       [1,2,3,4,5].forEach(function(g){
-        var colors=['','#e03131','#e67700','#1a7ad4','#2f9e44','#888'];
-        html+='<td rowspan="'+rowspan+'" style="color:'+colors[g]+';font-weight:700;font-size:10px;">'+(gradeCounts[g]||'-')+'</td>';
+        html+='<td style="text-align:center;color:'+gradeColors[g]+';font-weight:700;font-size:10px;">'+(gradeCounts[g]>0&&grade===g?'✓':'-')+'</td>';
       });
     }
-
-    if(isFirst){
-      html+='<td rowspan="'+rowspan+'" style="font-size:9px;">'+prevBest+'</td>';
-      html+='<td rowspan="'+rowspan+'" style="font-size:9px;">'+prevLast+'</td>';
-    }
-    html+='<td><button onclick="delGenEntry('+idx+')" style="background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;">🗑</button></td>';
+    html+='<td style="font-size:9px;text-align:center;">'+prevBest+'</td>';
+    html+='<td style="font-size:9px;text-align:center;">'+prevLast+'</td>';
+    html+='<td style="text-align:center;"><button onclick="delGenEntry('+idx+')" style="background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;">🗑</button></td>';
     html+='</tr>';
   });
   html+='</tbody></table>';
