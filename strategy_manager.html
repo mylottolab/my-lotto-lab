@@ -12,7 +12,7 @@ body{background:#f3f4f6;font-size:13px;}
 .logo-icon{width:30px;height:30px;background:#7048e8;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
 .logo-text .title{font-size:14px;font-weight:700;color:#fff;}
 .logo-text .sub{font-size:9px;color:#aaa;}
-.main{max-width:1200px;margin:0 auto;padding:12px 14px;display:grid;grid-template-columns:1fr 340px;gap:12px;}
+.main{max-width:1200px;margin:0 auto;padding:12px 14px;display:grid;grid-template-columns:520px 1fr;gap:12px;}
 
 /* 전략 폼 */
 .form-card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
@@ -22,8 +22,8 @@ body{background:#f3f4f6;font-size:13px;}
 .form-group{display:flex;flex-direction:column;gap:4px;}
 .form-group.full{grid-column:1/-1;}
 .form-label{font-size:10px;font-weight:700;color:#555;}
-.form-label .hint{font-size:9px;color:#aaa;font-weight:400;margin-left:4px;}
-.form-input{border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:12px;outline:none;transition:border 0.15s;}
+.form-label .hint{font-size:9px;color:#c0392b;font-weight:700;margin-left:4px;}
+.form-input{border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:12px;outline:none;transition:border 0.15s;} .form-input::placeholder{color:#c0392b;font-size:10px;font-weight:600;}
 .form-input:focus{border-color:#7048e8;}
 .form-select{border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:12px;outline:none;background:#fff;}
 .form-row{display:flex;gap:8px;align-items:center;}
@@ -959,7 +959,8 @@ MLL._checkSum = function(nums, min, max) {
       </div>
       <div class="form-group">
         <div class="form-label">최근분석회차 <span class="hint">최근 N회 분석</span></div>
-        <input class="form-input" id="f-recent-rounds" placeholder="예) 100">
+        <input class="form-input" id="f-recent-rounds" placeholder="예) 100" oninput="updateRoundRange()">
+        <div id="roundRangeLabel" style="font-size:9px;color:#7048e8;font-weight:600;margin-top:2px;"></div>
       </div>
       <div class="form-group">
         <div class="form-label">지난주기준 <span class="hint">지난주 당첨번호 기준 정렬</span></div>
@@ -1182,13 +1183,22 @@ function renderList(){
     var dt = d.getFullYear()+'/'+(d.getMonth()+1+'').padStart(2,'0')+'/'+(''+d.getDate()).padStart(2,'0')+' '+(d.getHours()+'').padStart(2,'0')+(':')+(d.getMinutes()+'').padStart(2,'0');
     var sc = (parseInt(s.set_count)||20)*(parseInt(s.repeat_count)||5);
     var active = s.id===editingId ? ' active' : '';
+    var badges = [];
+    if(s.odd_even) badges.push('홀짝 '+s.odd_even);
+    if(s.consecutive_limit) badges.push('연속제한 '+s.consecutive_limit);
+    if(s.sum_min||s.sum_max) badges.push('합 '+(s.sum_min||'?')+'~'+(s.sum_max||'?'));
+    if(s.range_start) badges.push('구간 '+s.range_start+'~'+s.range_end);
+    if(s.include_numbers) badges.push('포함 '+s.include_numbers);
+    if(s.exclude_numbers) badges.push('제외 '+s.exclude_numbers);
+    if(s.top_range) badges.push('빈도Top'+s.top_range+(s.top_use?'→'+s.top_use+'개':'')+'');
+    if(s.recent_rounds) badges.push('최근'+s.recent_rounds+'회');
+    if(s.last_week_mode&&s.last_week_mode!=='무관') badges.push('지난주:'+s.last_week_mode);
+    badges.push('생성 '+sc+'개');
     return '<div class="strategy-item'+active+'" onclick="selectStrategy(\''+s.id+'\')">'+
       '<div class="si-name">'+s.name+'</div>'+
-      '<div class="si-info">'+
-      '<span>'+dt+'</span>'+
-      '<span class="si-badge">홀짝 '+(s.odd_even||'무관')+'</span>'+
-      '<span class="si-badge">생성 '+sc+'개</span>'+
-      (s.include_numbers?'<span class="si-badge">포함 '+s.include_numbers+'</span>':'')+
+      '<div class="si-info"><span>'+dt+'</span></div>'+
+      '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">'+
+      badges.map(function(b){return '<span class="si-badge">'+b+'</span>';}).join('')+
       '</div></div>';
   }).join('');
 }
@@ -1199,6 +1209,21 @@ window.selectStrategy=selectStrategy;
 
 updateEst();
 renderList();
+
+// 분석회차 범위 표시
+function updateRoundRange(){
+  var n = parseInt(document.getElementById('f-recent-rounds').value)||0;
+  var el = document.getElementById('roundRangeLabel');
+  if(!n){ el.textContent=''; return; }
+  var results = MLL.loadResults();
+  var rounds = Object.keys(results).map(Number).filter(function(r){return r>0;}).sort(function(a,b){return b-a;});
+  if(!rounds.length){ el.textContent='분석: 최근 '+n+'회'; return; }
+  var latest = rounds[0];
+  var oldest = Math.max(1, latest - n + 1);
+  el.textContent = '📊 분석회차: '+latest+'회 ~ '+oldest+'회';
+}
+document.getElementById('f-recent-rounds').addEventListener('input', updateRoundRange);
+updateRoundRange();
 </script>
 </body>
 </html>
