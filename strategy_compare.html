@@ -1229,6 +1229,7 @@ function downloadSummaryExcel(sectionId, round, isDrawn){
       ? ['전략명','조합수','1등','2등','3등','4등','5등','당첨금','순위']
       : ['전략명','조합수'];
     var rows=[header];
+    var calcList=[];
     srList.forEach(function(sr){
       var g=[0,0,0,0,0,0], prize=0;
       if(isDrawn && winData && sr.numbers){
@@ -1239,9 +1240,24 @@ function downloadSummaryExcel(sectionId, round, isDrawn){
           if(grade>0){ g[grade]++; var pz=[0,winData.prize1||0,winData.prize2||0,winData.prize3||0,50000,5000]; prize+=pz[grade]||0; }
         });
       }
+      calcList.push({name:sr.strategyName, count:sr.totalCount||sr.numbers.length, g:g, prize:prize});
+    });
+    // 순위 계산 (당첨금 내림차순 > 당첨수 내림차순 > 조합수 적은순)
+    if(isDrawn){
+      var ranked = calcList.slice().sort(function(a,b){
+        if(b.prize!==a.prize) return b.prize-a.prize;
+        var aw=a.g.reduce(function(s,x){return s+x;},0), bw=b.g.reduce(function(s,x){return s+x;},0);
+        if(bw!==aw) return bw-aw;
+        return a.count-b.count;
+      });
+      var rankMap={};
+      ranked.forEach(function(r,i){ rankMap[r.name]=i+1; });
+      calcList.forEach(function(r){ r.rank=rankMap[r.name]; });
+    }
+    calcList.forEach(function(r){
       var row = isDrawn
-        ? [sr.strategyName, sr.totalCount||sr.numbers.length, g[1],g[2],g[3],g[4],g[5], prize, '']
-        : [sr.strategyName, sr.totalCount||sr.numbers.length];
+        ? [r.name, r.count, r.g[1],r.g[2],r.g[3],r.g[4],r.g[5], r.prize, r.rank]
+        : [r.name, r.count];
       rows.push(row);
     });
     var ws=XLSX.utils.aoa_to_sheet(rows);
@@ -1259,10 +1275,10 @@ function downloadSummaryPDF(sectionId, round, isDrawn){
   var winData = isDrawn ? (results[round]||results[Number(round)]||results[String(round)]) : null;
 
   var headCols = isDrawn
-    ? '<th>전략명</th><th>조합수</th><th>1등</th><th>2등</th><th>3등</th><th>4등</th><th>5등</th><th>당첨금</th>'
+    ? '<th>전략명</th><th>조합수</th><th>1등</th><th>2등</th><th>3등</th><th>4등</th><th>5등</th><th>당첨금</th><th>순위</th>'
     : '<th>전략명</th><th>조합수</th>';
 
-  var rowsHtml='';
+  var calcList=[];
   srList.forEach(function(sr){
     var g=[0,0,0,0,0,0], prize=0;
     if(isDrawn && winData && sr.numbers){
@@ -1273,12 +1289,30 @@ function downloadSummaryPDF(sectionId, round, isDrawn){
         if(grade>0){ g[grade]++; var pz=[0,winData.prize1||0,winData.prize2||0,winData.prize3||0,50000,5000]; prize+=pz[grade]||0; }
       });
     }
+    calcList.push({name:sr.strategyName, count:sr.totalCount||sr.numbers.length, g:g, prize:prize});
+  });
+
+  if(isDrawn){
+    var ranked = calcList.slice().sort(function(a,b){
+      if(b.prize!==a.prize) return b.prize-a.prize;
+      var aw=a.g.reduce(function(s,x){return s+x;},0), bw=b.g.reduce(function(s,x){return s+x;},0);
+      if(bw!==aw) return bw-aw;
+      return a.count-b.count;
+    });
+    var rankMap={};
+    ranked.forEach(function(r,i){ rankMap[r.name]=i+1; });
+    calcList.forEach(function(r){ r.rank=rankMap[r.name]; });
+  }
+
+  var rowsHtml='';
+  calcList.forEach(function(r){
     rowsHtml += isDrawn
-      ? '<tr><td>'+sr.strategyName+'</td><td style="text-align:center;">'+(sr.totalCount||sr.numbers.length)+'</td>'+
-        '<td style="text-align:center;">'+g[1]+'</td><td style="text-align:center;">'+g[2]+'</td><td style="text-align:center;">'+g[3]+'</td>'+
-        '<td style="text-align:center;">'+g[4]+'</td><td style="text-align:center;">'+g[5]+'</td>'+
-        '<td style="text-align:right;">'+prize.toLocaleString()+'</td></tr>'
-      : '<tr><td>'+sr.strategyName+'</td><td style="text-align:center;">'+(sr.totalCount||sr.numbers.length)+'</td></tr>';
+      ? '<tr><td>'+r.name+'</td><td style="text-align:center;">'+r.count+'</td>'+
+        '<td style="text-align:center;">'+r.g[1]+'</td><td style="text-align:center;">'+r.g[2]+'</td><td style="text-align:center;">'+r.g[3]+'</td>'+
+        '<td style="text-align:center;">'+r.g[4]+'</td><td style="text-align:center;">'+r.g[5]+'</td>'+
+        '<td style="text-align:right;">'+r.prize.toLocaleString()+'</td>'+
+        '<td style="text-align:center;font-weight:700;">'+r.rank+'</td></tr>'
+      : '<tr><td>'+r.name+'</td><td style="text-align:center;">'+r.count+'</td></tr>';
   });
 
   var printWin=window.open('','_blank');
