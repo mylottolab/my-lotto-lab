@@ -933,6 +933,206 @@ function setFilter(f, btn){
   document.querySelectorAll('.filter-btn').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
   renderList();
+  if(f==='all'){ showAllSummary(); } else { renderListExtra(); }
+}
+
+var sortKey = 'prize', sortDir = -1;
+
+function sortSummary(key){
+  if(sortKey===key) sortDir*=-1; else { sortKey=key; sortDir=-1; }
+  showAllSummary();
+}
+
+function showAllSummary(){
+  var srList = MLL.loadStrategyResults();
+  var results = MLL.loadResults();
+  if(!srList.length){
+    document.getElementById('detailBadge').textContent='저장된 전략번호가 없습니다.';
+    document.getElementById('statRow').style.display='none';
+    document.getElementById('detailBody').innerHTML='<div class="no-detail">전략번호를 생성하고 저장해주세요.</div>';
+    return;
+  }
+
+  var rounds = Object.keys(results).map(Number).sort(function(a,b){return b-a;});
+  var lastDrawnRound = rounds[0]||0;
+  var allRounds = srList.map(function(sr){return sr.round;});
+  var maxRound = Math.max.apply(null, allRounds);
+
+  document.getElementById('detailBadge').textContent = '전체 전략 통합 요약';
+  document.getElementById('statRow').style.display='none';
+
+  function buildSection(round, isDrawn, sectionId){
+    var winData = isDrawn ? (results[round]||results[Number(round)]||results[String(round)]) : null;
+    var srInRound = srList.filter(function(sr){ return sr.round===round; });
+    if(!srInRound.length) return '';
+
+    var rows = srInRound.map(function(sr){
+      var gradeCounts=[0,0,0,0,0,0], totalPrize=0;
+      if(isDrawn && winData && sr.numbers){
+        sr.numbers.forEach(function(nums){
+          var m=0; nums.forEach(function(n){if(winData.nums.indexOf(n)>=0)m++;});
+          var b=nums.indexOf(winData.bonus)>=0;
+          var g=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
+          if(g>0){
+            gradeCounts[g]++;
+            var prizes=[0,winData.prize1||0,winData.prize2||0,winData.prize3||0,50000,5000];
+            totalPrize+=prizes[g]||0;
+          }
+        });
+      }
+      return { name: sr.strategyName, count: sr.totalCount||(sr.numbers?sr.numbers.length:0), g: gradeCounts, prize: totalPrize };
+    });
+
+    if(isDrawn){
+      rows.sort(function(a,b){
+        var av, bv;
+        if(sortKey==='name'){ return sortDir*((a.name>b.name)?1:(a.name<b.name)?-1:0); }
+        if(sortKey==='count'){ av=a.count; bv=b.count; }
+        else if(sortKey>='1'&&sortKey<='5'){ av=a.g[parseInt(sortKey)]; bv=b.g[parseInt(sortKey)]; }
+        else { av=a.prize; bv=b.prize; }
+        return sortDir*(bv-av);
+      });
+      var ranked = rows.slice().sort(function(a,b){
+        if(b.prize!==a.prize) return b.prize-a.prize;
+        var aw=a.g.reduce(function(s,x){return s+x;},0), bw=b.g.reduce(function(s,x){return s+x;},0);
+        if(bw!==aw) return bw-aw;
+        return a.count-b.count;
+      });
+      var rankMap={};
+      ranked.forEach(function(r,i){ rankMap[r.name]=i+1; });
+      rows.forEach(function(r){ r.rank=rankMap[r.name]; });
+    } else {
+      rows.sort(function(a,b){
+        if(sortKey==='name') return sortDir*((a.name>b.name)?1:(a.name<b.name)?-1:0);
+        if(sortKey==='count') return sortDir*(b.count-a.count);
+        return 0;
+      });
+    }
+
+    var arrow = function(key){ return sortKey===key ? (sortDir===-1?' ▼':' ▲') : ''; };
+
+    var headCols = isDrawn
+      ? '<th onclick="sortSummary(\'name\')" style="cursor:pointer;">전략명'+arrow('name')+'</th>'+
+        '<th onclick="sortSummary(\'count\')" style="cursor:pointer;">조합수'+arrow('count')+'</th>'+
+        '<th onclick="sortSummary(\'1\')" style="cursor:pointer;">1등'+arrow('1')+'</th>'+
+        '<th onclick="sortSummary(\'2\')" style="cursor:pointer;">2등'+arrow('2')+'</th>'+
+        '<th onclick="sortSummary(\'3\')" style="cursor:pointer;">3등'+arrow('3')+'</th>'+
+        '<th onclick="sortSummary(\'4\')" style="cursor:pointer;">4등'+arrow('4')+'</th>'+
+        '<th onclick="sortSummary(\'5\')" style="cursor:pointer;">5등'+arrow('5')+'</th>'+
+        '<th onclick="sortSummary(\'prize\')" style="cursor:pointer;">당첨금'+arrow('prize')+'</th>'+
+        '<th>순위</th>'
+      : '<th onclick="sortSummary(\'name\')" style="cursor:pointer;">전략명'+arrow('name')+'</th>'+
+        '<th onclick="sortSummary(\'count\')" style="cursor:pointer;">조합수'+arrow('count')+'</th>';
+
+    var bodyRows = rows.map(function(r){
+      if(isDrawn){
+        return '<tr>'+
+          '<td style="font-weight:700;">'+r.name+'</td>'+
+          '<td style="text-align:center;">'+r.count+'</td>'+
+          '<td style="text-align:center;color:#e03131;font-weight:700;">'+(r.g[1]||0)+'</td>'+
+          '<td style="text-align:center;color:#e67700;font-weight:700;">'+(r.g[2]||0)+'</td>'+
+          '<td style="text-align:center;color:#1a7ad4;">'+(r.g[3]||0)+'</td>'+
+          '<td style="text-align:center;color:#2f9e44;">'+(r.g[4]||0)+'</td>'+
+          '<td style="text-align:center;color:#888;">'+(r.g[5]||0)+'</td>'+
+          '<td style="text-align:right;font-weight:700;color:#e67700;">'+(r.prize?r.prize.toLocaleString():'0')+'</td>'+
+          '<td style="text-align:center;font-weight:700;">'+(r.rank||'-')+'</td>'+
+          '</tr>';
+      }
+      return '<tr><td style="font-weight:700;">'+r.name+'</td><td style="text-align:center;">'+r.count+'</td></tr>';
+    }).join('');
+
+    return '<div style="margin-bottom:20px;">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'+
+      '<div style="font-size:12px;font-weight:700;color:#333;">🔍 전체 전략 비교 평가 현황 <span style="color:#888;font-weight:400;">— '+round+'회 '+(isDrawn?'추첨후':'추첨전')+'</span></div>'+
+      '<button onclick="toggleSectionDetail(\''+sectionId+'\')" style="background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:10px;font-weight:700;cursor:pointer;">전체 세부항목</button>'+
+      '</div>'+
+      '<table style="width:100%;border-collapse:collapse;font-size:11px;">'+
+      '<thead><tr style="border-bottom:2px solid #ddd;">'+headCols+'</tr></thead>'+
+      '<tbody>'+bodyRows+'</tbody>'+
+      '</table>'+
+      '<div id="secDetail-'+sectionId+'" style="display:none;margin-top:10px;"></div>'+
+      '</div>';
+  }
+
+  var html = '';
+  if(maxRound > lastDrawnRound || !lastDrawnRound){
+    html += buildSection(maxRound, false, 'pre');
+  }
+  if(lastDrawnRound){
+    html += buildSection(lastDrawnRound, true, 'drawn');
+  }
+  document.getElementById('detailBody').innerHTML = html || '<div class="no-detail">표시할 데이터가 없습니다.</div>';
+}
+
+function toggleSectionDetail(sectionId){
+  var results = MLL.loadResults();
+  var rounds = Object.keys(results).map(Number).sort(function(a,b){return b-a;});
+  var lastDrawnRound = rounds[0]||0;
+  var srList = MLL.loadStrategyResults();
+  var maxRound = Math.max.apply(null, srList.map(function(sr){return sr.round;}));
+  var targetRound = sectionId==='drawn' ? lastDrawnRound : maxRound;
+  var isDrawn = sectionId==='drawn';
+
+  var el = document.getElementById('secDetail-'+sectionId);
+  if(el.style.display==='block'){ el.style.display='none'; return; }
+  el.style.display='block';
+
+  var winData = isDrawn ? (results[targetRound]||results[Number(targetRound)]||results[String(targetRound)]) : null;
+  var winNums = winData?winData.nums:[];
+  var srInRound = srList.filter(function(sr){ return sr.round===targetRound; });
+  var allRounds2 = Object.keys(results).map(Number).sort(function(a,b){return b-a;});
+
+  function calcStats(nums){
+    var best=null,last=null;
+    allRounds2.forEach(function(rnd){
+      var wr=results[rnd]; if(!wr||!wr.nums) return;
+      var m=0; nums.forEach(function(n){if(wr.nums.indexOf(n)>=0)m++;});
+      var b=nums.indexOf(wr.bonus)>=0;
+      var g=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
+      if(g>0&&(best===null||g<best)) best=g;
+      if(rnd===allRounds2[0]) last=g;
+    });
+    return {best:best?best+'등':'-', last:(last&&last>0)?last+'등':'낙첨'};
+  }
+
+  var rowsHtml = '';
+  var idx=1;
+  srInRound.forEach(function(sr){
+    (sr.numbers||[]).forEach(function(nums){
+      var stats = calcStats(nums);
+      var balls = nums.map(function(n){
+        var isMatch = winNums.indexOf(n)>=0;
+        var brd = isMatch?'2px solid #f5c518':'none';
+        return '<span style="display:inline-flex;width:18px;height:18px;border-radius:50%;background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';align-items:center;justify-content:center;font-size:7px;font-weight:700;border:'+brd+';margin-right:1px;">'+n+'</span>';
+      }).join('');
+      rowsHtml += '<tr style="border-bottom:1px solid #f5f5f5;">'+
+        '<td style="font-size:9px;color:#aaa;padding:3px 4px;">'+(idx++)+'</td>'+
+        '<td style="font-size:9px;font-weight:700;padding:3px 4px;">'+sr.round+'회</td>'+
+        '<td style="font-size:9px;padding:3px 4px;color:'+(isDrawn?'#555':'#e03131')+';">'+(isDrawn?'추첨후':'미추첨')+'</td>'+
+        '<td style="font-size:9px;font-weight:600;color:#7048e8;padding:3px 4px;">'+sr.strategyName+'</td>'+
+        '<td style="padding:3px 4px;">'+balls+'</td>'+
+        '<td style="font-size:9px;text-align:center;color:#e03131;padding:3px 4px;">'+stats.best+'</td>'+
+        '<td style="font-size:9px;text-align:center;color:#1a7ad4;padding:3px 4px;">'+stats.last+'</td>'+
+        '</tr>';
+    });
+  });
+
+  el.innerHTML = '<table style="width:100%;border-collapse:collapse;">'+
+    '<thead><tr style="border-bottom:2px solid #ddd;">'+
+    '<th style="font-size:9px;padding:4px;">#</th>'+
+    '<th style="font-size:9px;padding:4px;">회차</th>'+
+    '<th style="font-size:9px;padding:4px;">추첨여부</th>'+
+    '<th style="font-size:9px;padding:4px;">전략명</th>'+
+    '<th style="font-size:9px;padding:4px;">생성번호</th>'+
+    '<th style="font-size:9px;padding:4px;">역대최고</th>'+
+    '<th style="font-size:9px;padding:4px;">직전등수</th>'+
+    '</tr></thead><tbody>'+rowsHtml+'</tbody></table>';
+}
+
+function renderListExtra(){
+  document.getElementById('detailBadge').textContent = '← 왼쪽에서 항목을 선택하세요';
+  document.getElementById('statRow').style.display='none';
+  document.getElementById('detailBody').innerHTML = '<div class="no-detail">← 왼쪽 목록에서 <b>세부사항</b> 버튼을 클릭하세요</div>';
 }
 
 function calcRank(srList){
@@ -1137,7 +1337,9 @@ function showDetail(id){
 }
 
 window.setFilter=setFilter; window.showDetail=showDetail;
+window.sortSummary=sortSummary; window.toggleSectionDetail=toggleSectionDetail;
 renderList();
+showAllSummary();
 </script>
 </body>
 </html>
