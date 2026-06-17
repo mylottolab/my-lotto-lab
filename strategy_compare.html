@@ -22,7 +22,7 @@ body{background:#f3f4f6;font-size:13px;}
 .filter-bar{padding:8px 12px;border-bottom:1px solid #f0f0f0;display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
 .filter-btn{border:1px solid #ddd;background:#fff;border-radius:5px;padding:3px 10px;font-size:10px;cursor:pointer;}
 .filter-btn.active{background:#2f9e44;color:#fff;border-color:#2f9e44;}
-.compare-item{padding:10px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:background 0.1s;}
+.compare-item{padding:7px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:background 0.1s;}
 .compare-item:hover{background:#f0fff4;}
 .compare-item.active{background:#e8fff0;border-left:3px solid #2f9e44;}
 .ci-top{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
@@ -39,7 +39,7 @@ body{background:#f3f4f6;font-size:13px;}
 .ci-badge.red{background:#fff0f0;color:#e03131;border-color:#e03131;}
 .ci-badge.blue{background:#e8f4ff;color:#1a7ad4;border-color:#1a7ad4;}
 .detail-btn{font-size:9px;background:#2f9e44;color:#fff;border:none;border-radius:4px;padding:2px 7px;cursor:pointer;white-space:nowrap;}
-.list-body{max-height:calc(100vh - 160px);overflow-y:auto;}
+.list-body{max-height:calc(100vh - 130px);overflow-y:auto;}
 .empty-list{text-align:center;padding:40px;color:#bbb;font-size:12px;}
 
 /* 오른쪽 상세 */
@@ -49,7 +49,7 @@ body{background:#f3f4f6;font-size:13px;}
 .stat-box{background:#f8f8f8;border-radius:8px;padding:8px 10px;text-align:center;}
 .stat-box-val{font-size:18px;font-weight:700;color:#2f9e44;}
 .stat-box-label{font-size:9px;color:#888;margin-top:2px;}
-.balls-wrap{padding:12px 16px;overflow-y:auto;max-height:calc(100vh - 280px);}
+.balls-wrap{padding:10px 14px;overflow-y:auto;max-height:calc(100vh - 220px);}
 .ball-row{display:flex;align-items:center;gap:4px;margin-bottom:5px;flex-wrap:wrap;}
 .ball-num{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;}
 .row-idx{font-size:9px;color:#aaa;width:24px;flex-shrink:0;}
@@ -1042,9 +1042,13 @@ function showAllSummary(){
     }).join('');
 
     return '<div style="margin-bottom:20px;">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:6px;flex-wrap:wrap;">'+
       '<div style="font-size:12px;font-weight:700;color:#333;">🔍 전체 전략 비교 평가 현황 <span style="color:#888;font-weight:400;">— '+round+'회 '+(isDrawn?'추첨후':'추첨전')+'</span></div>'+
+      '<div style="display:flex;gap:6px;">'+
       '<button onclick="toggleSectionDetail(\''+sectionId+'\')" style="background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:10px;font-weight:700;cursor:pointer;">전체 세부항목</button>'+
+      '<button onclick="downloadSummaryExcel(\''+sectionId+'\','+round+','+isDrawn+')" style="background:#1a7ad4;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:10px;font-weight:700;cursor:pointer;">📥 엑셀</button>'+
+      '<button onclick="downloadSummaryPDF(\''+sectionId+'\','+round+','+isDrawn+')" style="background:#555;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:10px;font-weight:700;cursor:pointer;">📄 PDF</button>'+
+      '</div>'+
       '</div>'+
       '<table style="width:100%;border-collapse:collapse;font-size:11px;">'+
       '<thead><tr style="border-bottom:2px solid #ddd;">'+headCols+'</tr></thead>'+
@@ -1133,6 +1137,168 @@ function renderListExtra(){
   document.getElementById('detailBadge').textContent = '← 왼쪽에서 항목을 선택하세요';
   document.getElementById('statRow').style.display='none';
   document.getElementById('detailBody').innerHTML = '<div class="no-detail">← 왼쪽 목록에서 <b>세부사항</b> 버튼을 클릭하세요</div>';
+}
+
+// 개별 전략결과 엑셀 다운로드
+function downloadItemExcel(sid){
+  var sr = MLL.loadStrategyResults().find(function(s){return s.id===sid;});
+  if(!sr) return;
+  var now=new Date();
+  var dateStr=now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+  var fileName=sr.strategyName+'_'+sr.round+'회_'+dateStr+'.xlsx';
+  var script=document.createElement('script');
+  script.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  script.onload=function(){
+    var rows=[['#','번호1','번호2','번호3','번호4','번호5','번호6','회차','전략명']];
+    (sr.numbers||[]).forEach(function(nums,idx){
+      rows.push([idx+1,nums[0],nums[1],nums[2],nums[3],nums[4],nums[5],sr.round,sr.strategyName]);
+    });
+    var ws=XLSX.utils.aoa_to_sheet(rows);
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'생성번호');
+    XLSX.writeFile(wb,fileName);
+  };
+  document.head.appendChild(script);
+}
+
+// 개별 전략결과 PDF 다운로드
+function downloadItemPDF(sid){
+  var sr = MLL.loadStrategyResults().find(function(s){return s.id===sid;});
+  if(!sr) return;
+  var results = MLL.loadResults();
+  var winData = results[sr.round]||results[Number(sr.round)]||results[String(sr.round)];
+  var isDrawn = !!winData;
+  var allRounds = Object.keys(results).map(Number).sort(function(a,b){return b-a;});
+
+  function calcStats(nums){
+    var best=null,last=null;
+    allRounds.forEach(function(rnd){
+      var wr=results[rnd]; if(!wr||!wr.nums) return;
+      var m=0; nums.forEach(function(n){if(wr.nums.indexOf(n)>=0)m++;});
+      var b=nums.indexOf(wr.bonus)>=0;
+      var g=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
+      if(g>0&&(best===null||g<best)) best=g;
+      if(rnd===allRounds[0]) last=g;
+    });
+    return {best:best?best+'등':'-', last:(last&&last>0)?last+'등':'낙첨'};
+  }
+
+  var rowsHtml='';
+  (sr.numbers||[]).forEach(function(nums,idx){
+    var s=calcStats(nums);
+    var numStr=nums.map(function(n){return (''+n).padStart(2,'0');}).join(' ');
+    rowsHtml+='<tr><td style="text-align:right;color:#888;font-size:8px;">'+(idx+1).toString().padStart(3,'0')+'</td>'+
+      '<td style="font-family:monospace;font-size:9px;">'+numStr+'</td>'+
+      '<td style="text-align:center;font-size:8px;color:'+(s.best!=='-'? '#c00':'#bbb')+';">'+s.best+'</td>'+
+      '<td style="text-align:center;font-size:8px;color:'+(s.last!=='낙첨'?'#00c':'#bbb')+';">'+s.last+'</td></tr>';
+  });
+
+  var printWin=window.open('','_blank');
+  printWin.document.write(
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lotto Lab Report</title><style>'+
+    'body{font-family:serif;margin:0;padding:20px;font-size:10px;}'+
+    'h1{text-align:center;font-size:22px;letter-spacing:2px;margin-bottom:4px;}'+
+    '.sub{text-align:center;font-size:10px;color:#888;margin-bottom:14px;}'+
+    'table{border-collapse:collapse;width:100%;}'+
+    'th{background:#f5f5f5;padding:3px 6px;font-size:8px;border:1px solid #ccc;}'+
+    'td{padding:2px 6px;border-bottom:1px solid #eee;}'+
+    '@page{margin:12mm;}'+
+    '</style></head><body>'+
+    '<h1>'+sr.strategyName+'</h1>'+
+    '<div class="sub">제'+sr.round+'회 '+(isDrawn?'추첨후':'추첨전')+' 기준 · '+(sr.numbers?sr.numbers.length:0)+'개 생성</div>'+
+    '<table><thead><tr><th>#</th><th>번호조합</th><th>역대</th><th>직전</th></tr></thead><tbody>'+rowsHtml+'</tbody></table>'+
+    '</body></html>'
+  );
+  printWin.document.close();
+  setTimeout(function(){ printWin.print(); }, 500);
+}
+
+// 요약표 전체 엑셀 다운로드
+function downloadSummaryExcel(sectionId, round, isDrawn){
+  var srList = MLL.loadStrategyResults().filter(function(sr){return sr.round===round;});
+  var results = MLL.loadResults();
+  var winData = isDrawn ? (results[round]||results[Number(round)]||results[String(round)]) : null;
+  var now=new Date();
+  var dateStr=now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0');
+  var fileName='전략비교평가_'+round+'회_'+(isDrawn?'추첨후':'추첨전')+'_'+dateStr+'.xlsx';
+
+  var script=document.createElement('script');
+  script.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  script.onload=function(){
+    var header = isDrawn
+      ? ['전략명','조합수','1등','2등','3등','4등','5등','당첨금','순위']
+      : ['전략명','조합수'];
+    var rows=[header];
+    srList.forEach(function(sr){
+      var g=[0,0,0,0,0,0], prize=0;
+      if(isDrawn && winData && sr.numbers){
+        sr.numbers.forEach(function(nums){
+          var m=0; nums.forEach(function(n){if(winData.nums.indexOf(n)>=0)m++;});
+          var b=nums.indexOf(winData.bonus)>=0;
+          var grade=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
+          if(grade>0){ g[grade]++; var pz=[0,winData.prize1||0,winData.prize2||0,winData.prize3||0,50000,5000]; prize+=pz[grade]||0; }
+        });
+      }
+      var row = isDrawn
+        ? [sr.strategyName, sr.totalCount||sr.numbers.length, g[1],g[2],g[3],g[4],g[5], prize, '']
+        : [sr.strategyName, sr.totalCount||sr.numbers.length];
+      rows.push(row);
+    });
+    var ws=XLSX.utils.aoa_to_sheet(rows);
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'전략비교');
+    XLSX.writeFile(wb,fileName);
+  };
+  document.head.appendChild(script);
+}
+
+// 요약표 전체 PDF 다운로드
+function downloadSummaryPDF(sectionId, round, isDrawn){
+  var srList = MLL.loadStrategyResults().filter(function(sr){return sr.round===round;});
+  var results = MLL.loadResults();
+  var winData = isDrawn ? (results[round]||results[Number(round)]||results[String(round)]) : null;
+
+  var headCols = isDrawn
+    ? '<th>전략명</th><th>조합수</th><th>1등</th><th>2등</th><th>3등</th><th>4등</th><th>5등</th><th>당첨금</th>'
+    : '<th>전략명</th><th>조합수</th>';
+
+  var rowsHtml='';
+  srList.forEach(function(sr){
+    var g=[0,0,0,0,0,0], prize=0;
+    if(isDrawn && winData && sr.numbers){
+      sr.numbers.forEach(function(nums){
+        var m=0; nums.forEach(function(n){if(winData.nums.indexOf(n)>=0)m++;});
+        var b=nums.indexOf(winData.bonus)>=0;
+        var grade=m===6?1:m===5&&b?2:m===5?3:m===4?4:m===3?5:0;
+        if(grade>0){ g[grade]++; var pz=[0,winData.prize1||0,winData.prize2||0,winData.prize3||0,50000,5000]; prize+=pz[grade]||0; }
+      });
+    }
+    rowsHtml += isDrawn
+      ? '<tr><td>'+sr.strategyName+'</td><td style="text-align:center;">'+(sr.totalCount||sr.numbers.length)+'</td>'+
+        '<td style="text-align:center;">'+g[1]+'</td><td style="text-align:center;">'+g[2]+'</td><td style="text-align:center;">'+g[3]+'</td>'+
+        '<td style="text-align:center;">'+g[4]+'</td><td style="text-align:center;">'+g[5]+'</td>'+
+        '<td style="text-align:right;">'+prize.toLocaleString()+'</td></tr>'
+      : '<tr><td>'+sr.strategyName+'</td><td style="text-align:center;">'+(sr.totalCount||sr.numbers.length)+'</td></tr>';
+  });
+
+  var printWin=window.open('','_blank');
+  printWin.document.write(
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>전략 비교평가</title><style>'+
+    'body{font-family:serif;margin:0;padding:20px;font-size:11px;}'+
+    'h1{text-align:center;font-size:20px;margin-bottom:4px;}'+
+    '.sub{text-align:center;font-size:11px;color:#888;margin-bottom:16px;}'+
+    'table{border-collapse:collapse;width:100%;}'+
+    'th{background:#f5f5f5;padding:6px 8px;font-size:10px;border:1px solid #ccc;}'+
+    'td{padding:5px 8px;font-size:10px;border:1px solid #ddd;}'+
+    '@page{margin:15mm;}'+
+    '</style></head><body>'+
+    '<h1>전략 비교평가 현황</h1>'+
+    '<div class="sub">제'+round+'회 '+(isDrawn?'추첨후':'추첨전')+' 기준</div>'+
+    '<table><thead><tr>'+headCols+'</tr></thead><tbody>'+rowsHtml+'</tbody></table>'+
+    '</body></html>'
+  );
+  printWin.document.close();
+  setTimeout(function(){ printWin.print(); }, 500);
 }
 
 function calcRank(srList){
@@ -1244,6 +1410,8 @@ function renderList(){
       '<span>'+dt+'</span>'+
       '<span>'+((sr.totalCount||sr.numbers&&sr.numbers.length||0))+'개 생성</span>'+
       resultHtml+
+      '<button class="detail-btn" style="background:#1a7ad4;" data-sid="'+sr.id+'" onclick="event.stopPropagation();downloadItemExcel(this.dataset.sid)">📥 엑셀다운</button>'+
+      '<button class="detail-btn" style="background:#555;" data-sid="'+sr.id+'" onclick="event.stopPropagation();downloadItemPDF(this.dataset.sid)">📄 PDF출력</button>'+
       (totalPrize>0?'<span class="ci-badge blue">💰 '+totalPrize.toLocaleString()+'원</span>':'')+
       '<button class="detail-btn" data-sid="'+sr.id+'" onclick="showDetail(this.dataset.sid)">세부사항 Click!</button>'+
       '</div></div>';
@@ -1338,6 +1506,8 @@ function showDetail(id){
 
 window.setFilter=setFilter; window.showDetail=showDetail;
 window.sortSummary=sortSummary; window.toggleSectionDetail=toggleSectionDetail;
+window.downloadItemExcel=downloadItemExcel; window.downloadItemPDF=downloadItemPDF;
+window.downloadSummaryExcel=downloadSummaryExcel; window.downloadSummaryPDF=downloadSummaryPDF;
 renderList();
 showAllSummary();
 </script>
