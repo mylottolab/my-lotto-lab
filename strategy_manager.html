@@ -1171,6 +1171,7 @@ function selectStrategy(id){
 function renderList(){
   var q    = document.getElementById('searchInput').value.toLowerCase();
   var list = MLL.loadStrategies();
+  var srList = MLL.loadStrategyResults();
   var filtered = q ? list.filter(function(s){ return s.name.toLowerCase().includes(q); }) : list;
   document.getElementById('strategyCount').textContent = list.length;
   var el = document.getElementById('strategyList');
@@ -1183,6 +1184,7 @@ function renderList(){
     var dt = d.getFullYear()+'/'+(d.getMonth()+1+'').padStart(2,'0')+'/'+(''+d.getDate()).padStart(2,'0')+' '+(d.getHours()+'').padStart(2,'0')+(':')+(d.getMinutes()+'').padStart(2,'0');
     var sc = (parseInt(s.set_count)||20)*(parseInt(s.repeat_count)||5);
     var active = s.id===editingId ? ' active' : '';
+    var hasResult = srList.some(function(sr){ return sr.strategyId === s.id && sr.compareAdded; });
     var badges = [];
     if(s.odd_even) badges.push('홀짝 '+s.odd_even);
     if(s.consecutive_limit) badges.push('연속제한 '+s.consecutive_limit);
@@ -1201,6 +1203,7 @@ function renderList(){
       'style="background:#e67700;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;">🎲 번호생성 →</button>'+
       '</div>'+
       '<div class="si-info"><span>'+dt+'</span></div>'+
+      (hasResult ? '<div style="font-size:9px;color:#e03131;font-weight:600;margin-top:3px;">📊 전략비교평가 진행중</div>' : '')+
       '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">'+
       badges.map(function(b){return '<span class="si-badge">'+b+'</span>';}).join('')+
       '</div></div>';

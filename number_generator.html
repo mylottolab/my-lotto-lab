@@ -1115,7 +1115,7 @@ function renderStrategyList(){
   }
   el.innerHTML = list.map(function(s){
     var active = selectedStrategy && selectedStrategy.id===s.id ? ' active' : '';
-    var hasResult = srList.some(function(sr){ return sr.strategyId === s.id; });
+    var hasResult = srList.some(function(sr){ return sr.strategyId === s.id && sr.compareAdded; });
     var statsHtml = hasResult
       ? '<div style="font-size:9px;margin-top:3px;color:#e03131;font-weight:600;">📊 전략비교평가 진행중</div>'
       : '';
@@ -1663,6 +1663,14 @@ function saveToMyLotto(){
   document.body.appendChild(overlay);
 
   document.getElementById('popYes').onclick = function(){
+    // compareAdded 플래그 저장
+    var srList2 = MLL.loadStrategyResults();
+    srList2.forEach(function(sr){
+      if(sr.strategyId === r.strategy.id && sr.round === round){
+        sr.compareAdded = true;
+      }
+    });
+    MLL.saveStrategyResults(srList2);
     document.body.removeChild(overlay);
     location.href = 'strategy_compare.html';
   };
