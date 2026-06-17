@@ -1107,6 +1107,7 @@ function getStrategyStats(strategyId){
 // 전략 목록 렌더
 function renderStrategyList(){
   var list = MLL.loadStrategies();
+  var srList = MLL.loadStrategyResults();
   var el   = document.getElementById('strategyList');
   if(!list.length){
     el.innerHTML='<div style="text-align:center;padding:16px;color:#bbb;font-size:11px;">저장된 전략이 없습니다.</div>';
@@ -1114,14 +1115,10 @@ function renderStrategyList(){
   }
   el.innerHTML = list.map(function(s){
     var active = selectedStrategy && selectedStrategy.id===s.id ? ' active' : '';
-    var stats = getStrategyStats(s.id);
-    var statsHtml = '';
-    if(stats.best !== '-'){
-      statsHtml = '<div style="font-size:9px;margin-top:3px;display:flex;gap:8px;">'+
-        '<span style="color:#e03131;">역대최고: <b>'+stats.best+'</b></span>'+
-        '<span style="color:#888;">직전: <b>'+stats.last+'</b></span>'+
-        '</div>';
-    }
+    var hasResult = srList.some(function(sr){ return sr.strategyId === s.id; });
+    var statsHtml = hasResult
+      ? '<div style="font-size:9px;margin-top:3px;color:#e03131;font-weight:600;">📊 전략비교평가 진행중</div>'
+      : '';
     return '<div class="strategy-item'+active+'" onclick="selectStrategy(\''+s.id+'\')">'+
       '<div class="si-name">'+s.name+'</div>'+
       statsHtml+
