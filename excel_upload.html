@@ -316,8 +316,8 @@ MLL.addEntry = function(item) {
   if (!item.grade)       item.grade       = null;
   if (!item.prizeMoney)  item.prizeMoney  = 0;
   if (!item.sessionTag)  item.sessionTag  = '';
-  // 항상 추첨전으로 저장 → 미확인 섹션에서 사용자가 확인하도록
-  item.status = '추첨전';
+  // status 자동 판단
+  item.status = MLL.getRoundStatus(item.round);
   entries.push(item);
   MLL.saveEntries(entries);
   return item;
@@ -332,8 +332,7 @@ MLL.addEntries = function(items) {
     if (!item.grade)      item.grade      = null;
     if (!item.prizeMoney) item.prizeMoney = 0;
     if (!item.sessionTag) item.sessionTag = '';
-    // 항상 추첨전으로 저장 → 미확인 섹션에서 사용자가 확인하도록
-    item.status = '추첨전';
+    item.status = MLL.getRoundStatus(item.round);
     entries.push(item);
   });
   MLL.saveEntries(entries);
@@ -429,31 +428,22 @@ MLL.applyResults = function(resultsObj) {
 // =====================================================
 
 MLL.sortEntries = function(entries) {
-  var info    = MLL.getLottoInfo();
-  var results = MLL.loadResults();
+  var info = MLL.getLottoInfo();
+  // 1. 추첨전: status=추첨전 && round >= saleRound
+  var preDraw = entries.filter(function(e){
+    return e.status==='추첨전' && e.round >= info.saleRound;
+  }).sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
 
-  function isConfirmed(entry) {
-    // 당첨결과가 있고 grade가 계산된 경우
-    return entry.status === '추첨후' && entry.grade !== null && entry.grade !== undefined;
-  }
-  function isUnconfirmed(entry) {
-    // 추첨됐는데 아직 결과 미반영: 당첨결과가 있는 회차인데 grade=null
-    var hasResult = !!(results[entry.round] || results[Number(entry.round)] || results[String(entry.round)]);
-    return (entry.status === '추첨전' && hasResult) ||
-           (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
-  }
-  function isPreDraw(entry) {
-    // 진짜 추첨전: 당첨결과가 없는 회차
-    var hasResult = !!(results[entry.round] || results[Number(entry.round)] || results[String(entry.round)]);
-    return entry.status === '추첨전' && !hasResult;
-  }
+  // 2. 미확인: (status=추첨전 && round < saleRound) 또는 (status=추첨후 && grade=null)
+  var unconfirmed = entries.filter(function(e){
+    return (e.status==='추첨전' && e.round < info.saleRound) ||
+           (e.status==='추첨후' && (e.grade===null || e.grade===undefined));
+  }).sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
 
-  var preDraw     = entries.filter(isPreDraw)
-                           .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  var unconfirmed = entries.filter(isUnconfirmed)
-                           .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  var post        = entries.filter(isConfirmed)
-                           .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  // 3. 추첨후 확인분: status=추첨후 && grade !== null
+  var post = entries.filter(function(e){
+    return e.status==='추첨후' && e.grade!==null && e.grade!==undefined;
+  }).sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
 
   return preDraw.concat(unconfirmed).concat(post);
 };
@@ -558,8 +548,7 @@ MLL.renderRow = function(entry, sessionTag, opts) {
 
   return '<tr style="'+rowStyle+'">' +
     '<td style="text-align:center;padding:4px 4px;"><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">'+entry.round+'회</span></td>' +
-    '<td style="padding:4px 6px;"><div style="display:flex;gap:1px;align-items:center;flex-wrap:nowrap;">'+ballsHTML+'</div></td>' +
-    '<td style="text-align:left;padding:4px 5px;font-size:9px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(entry.memo||'')+'</td>' +
+    '<td style="padding:4px 6px;"><div style="display:flex;gap:1px;align-items:center;flex-wrap:wrap;">'+ballsHTML+'</div></td>' +
     '<td style="text-align:center;padding:4px 4px;">'+typeHTML+'</td>' +
     '<td style="text-align:center;padding:4px 4px;">'+realHTML+'</td>' +
     '<td style="text-align:center;padding:4px 4px;">'+statusHTML+'</td>' +
@@ -596,50 +585,36 @@ MLL.applyCheck = function(sessionTag) {
     return;
   }
 
-  // 커스텀 팝업 생성
-  var overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
-  overlay.innerHTML =
-    '<div style="background:#fff;border-radius:16px;padding:28px 28px;max-width:340px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.25);">' +
-    '<div style="font-size:24px;margin-bottom:8px;">⚡</div>' +
-    '<div style="font-size:15px;font-weight:700;color:#222;margin-bottom:6px;">즉시확인</div>' +
-    '<div style="font-size:12px;color:#888;margin-bottom:22px;">어떤 범위를 확인하시겠습니까?</div>' +
-    '<div style="display:flex;gap:10px;margin-bottom:10px;">' +
-    '<button id="mll-check-all" style="flex:1;background:#e03131;color:#fff;border:none;border-radius:10px;padding:13px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(224,49,49,0.3);">📋 미확인분 전체</button>' +
-    '<button id="mll-check-cur" style="flex:1;background:#1a7ad4;color:#fff;border:none;border-radius:10px;padding:13px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(26,122,212,0.3);">✏️ 지금 입력분만</button>' +
-    '</div>' +
-    '<button id="mll-check-cancel" style="width:100%;background:#f5f5f5;border:none;border-radius:10px;padding:10px;font-size:12px;color:#888;cursor:pointer;font-weight:600;">✕ 취소 (나중에 확인)</button>' +
-    '</div>';
-  document.body.appendChild(overlay);
+  // 선택 다이얼로그
+  var choice = confirm(
+    '미확인 번호를 어떤 범위로 확인하시겠습니까?\n\n' +
+    '확인(OK) → 미확인분 전체\n' +
+    '취소(Cancel) → 지금 입력분만'
+  );
 
-  function doCheck(allItems) {
-    document.body.removeChild(overlay);
-    var entries = MLL.loadEntries();
-    var info    = MLL.getLottoInfo();
-    var updated = 0;
-    entries.forEach(function(entry) {
-      var res = results[entry.round] || results[Number(entry.round)] || results[String(entry.round)];
-      var isUnconfirmed =
-        (entry.status === '추첨전' && !!res) ||
-        (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
-      if (!isUnconfirmed) return;
-      if (!allItems && entry.sessionTag !== sessionTag) return;
-      if (res) {
-        entry.status     = '추첨후';
-        entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
-        entry.prizeMoney = MLL.calcPrize(entry.grade, res);
-        updated++;
-      }
-    });
-    MLL.saveEntries(entries);
-    alert('✅ ' + updated + '개 항목 확인 완료!');
-    if (window.refreshTable) refreshTable();
-  }
+  var entries = MLL.loadEntries();
+  var info    = MLL.getLottoInfo();
+  var updated = 0;
 
-  document.getElementById('mll-check-all').onclick    = function(){ doCheck(true); };
-  document.getElementById('mll-check-cur').onclick    = function(){ doCheck(false); };
-  document.getElementById('mll-check-cancel').onclick = function(){ document.body.removeChild(overlay); };
-  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
+  entries.forEach(function(entry) {
+    // 미확인 조건: status=추첨전이고 round < THIS_ROUND
+    var isUnconfirmed = entry.status === '추첨전' && entry.round < info.thisRound;
+    if (!isUnconfirmed) return;
+    // 지금 입력분만: sessionTag 일치하는 것만
+    if (!choice && entry.sessionTag !== sessionTag) return;
+
+    var res = results[entry.round] || results[String(entry.round)];
+    if (res) {
+      entry.status     = '추첨후';
+      entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
+      entry.prizeMoney = MLL.calcPrize(entry.grade, res);
+      updated++;
+    }
+  });
+
+  MLL.saveEntries(entries);
+  alert('✅ ' + updated + '개 항목 확인 완료!\n당첨결과가 업데이트됐습니다.');
+  if (window.refreshTable) refreshTable();
 };
 
 // 전체 테이블 렌더
@@ -651,14 +626,12 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
   var tbody   = document.getElementById(tbodyId);
   if (!tbody) return;
 
-  // 3단계 분류 - 당첨결과 존재 여부 기준
-  var rr = MLL.loadResults();
-  function hr(round){ return !!(rr[round]||rr[Number(round)]||rr[String(round)]); }
+  // 3단계 분류
   var preDraw    = sorted.filter(function(e){
-    return e.status==='추첨전' && !hr(e.round);
+    return e.status==='추첨전' && e.round >= info.saleRound;
   });
   var unconfirmed= sorted.filter(function(e){
-    return (e.status==='추첨전' && hr(e.round)) ||
+    return (e.status==='추첨전' && e.round < info.saleRound) ||
            (e.status==='추첨후' && (e.grade===null || e.grade===undefined));
   });
   var postDraw   = sorted.filter(function(e){
@@ -723,13 +696,12 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
 // 테이블 헤더 HTML
 MLL.TABLE_HEADER = '<thead><tr>' +
   '<th style="width:52px;">회차</th>' +
-  '<th style="width:152px;">번호</th>' +
-  '<th style="width:70px;">메모</th>' +
+  '<th style="width:160px;">번호</th>' +
   '<th style="width:54px;">구매형태</th>' +
-  '<th style="width:46px;">구분</th>' +
-  '<th style="width:46px;">추첨</th>' +
-  '<th style="width:40px;">결과</th>' +
-  '<th style="width:72px;">당첨금</th>' +
+  '<th style="width:50px;">구분</th>' +
+  '<th style="width:50px;">추첨</th>' +
+  '<th style="width:46px;">결과</th>' +
+  '<th style="width:80px;">당첨금</th>' +
   '<th style="width:28px;">삭제</th>' +
   '</tr></thead>';
 
@@ -798,236 +770,6 @@ MLL.getStats = function() {
 };
 
 console.log('[MLL] common.js 로드 완료');
-
-// =====================================================
-// ── 전략 관련 공통 함수 ──
-// =====================================================
-MLL.STRATEGY_KEY        = 'mll_strategies';
-MLL.STRATEGY_RESULT_KEY = 'mll_strategy_results';
-
-MLL.loadStrategies = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.STRATEGY_KEY)||'[]'); } catch(e){ return []; }
-};
-MLL.saveStrategies = function(list) {
-  localStorage.setItem(MLL.STRATEGY_KEY, JSON.stringify(list));
-};
-MLL.loadStrategyResults = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.STRATEGY_RESULT_KEY)||'[]'); } catch(e){ return []; }
-};
-MLL.saveStrategyResults = function(list) {
-  localStorage.setItem(MLL.STRATEGY_RESULT_KEY, JSON.stringify(list));
-};
-
-// 전략 저장 (최신순 - 맨앞에 추가)
-MLL.addStrategy = function(strategy) {
-  var list = MLL.loadStrategies();
-  strategy.id        = strategy.id || MLL.uuid();
-  strategy.createdAt = strategy.createdAt || Date.now();
-  // 중복 이름 체크
-  var exists = list.findIndex(function(s){ return s.name === strategy.name; });
-  if (exists >= 0) return false; // 중복
-  list.unshift(strategy); // 맨앞에 추가 (최신순)
-  MLL.saveStrategies(list);
-  return true;
-};
-
-MLL.updateStrategy = function(id, data) {
-  var list = MLL.loadStrategies();
-  var idx  = list.findIndex(function(s){ return s.id === id; });
-  if (idx < 0) return false;
-  list[idx] = Object.assign(list[idx], data);
-  MLL.saveStrategies(list);
-  return true;
-};
-
-MLL.deleteStrategy = function(id) {
-  var list = MLL.loadStrategies().filter(function(s){ return s.id !== id; });
-  MLL.saveStrategies(list);
-};
-
-MLL.getStrategy = function(id) {
-  return MLL.loadStrategies().find(function(s){ return s.id === id; }) || null;
-};
-
-// 번호 생성 엔진 (Python generator_engine.py 포팅)
-MLL.generateNumbers = function(strategy, lotto_history) {
-  var setCount      = parseInt(strategy.set_count)    || 20;
-  var repeatCount   = parseInt(strategy.repeat_count) || 1;
-  var repeatMode    = (strategy.repeat_mode || 'AABBCC').toUpperCase();
-  var consLimit     = parseInt(strategy.consecutive_limit) || 0;
-  var oddEven       = (strategy.odd_even || '').trim();
-  var includeNums   = MLL._parseNumList(strategy.include_numbers || '');
-  var excludeNums   = MLL._parseNumList(strategy.exclude_numbers || '');
-  var sumMin        = strategy.sum_min ? parseInt(strategy.sum_min) : null;
-  var sumMax        = strategy.sum_max ? parseInt(strategy.sum_max) : null;
-  var rangeStart    = strategy.range_start ? parseInt(strategy.range_start) : null;
-  var rangeEnd      = strategy.range_end   ? parseInt(strategy.range_end)   : null;
-  var topRange      = parseInt(strategy.top_range) || 0;
-  var topUse        = strategy.top_use !== '' && strategy.top_use !== undefined ? parseInt(strategy.top_use) : null;
-  var lastWeekMode  = strategy.last_week_mode || '무관';
-
-  // 기본 풀
-  var pool = MLL._buildPool(rangeStart, rangeEnd);
-  // 상위빈도 번호
-  var topNums = [];
-  if (topRange > 0 && lotto_history && lotto_history.length > 0) {
-    var recent = parseInt(strategy.recent_rounds) || lotto_history.length;
-    topNums = MLL._getTopFrequency(lotto_history, recent, topRange);
-  }
-  // 지난주 당첨번호
-  var lastWinNums = [];
-  if (lastWeekMode !== '무관' && lotto_history && lotto_history.length > 0) {
-    lastWinNums = lotto_history[0].nums || [];
-  }
-
-  var baseResults = [], used = {}, maxTry = Math.max(80000, setCount * 5000), tryCount = 0;
-  while (baseResults.length < setCount && tryCount < maxTry) {
-    tryCount++;
-    var nums = MLL._createOneSet(pool, includeNums, excludeNums, oddEven, topNums, topUse);
-    if (!nums) continue;
-    if (!MLL._checkConsecutive(nums, consLimit)) continue;
-    if (!MLL._checkSum(nums, sumMin, sumMax)) continue;
-    var key = nums.join(',');
-    if (used[key]) continue;
-    used[key] = true;
-    baseResults.push(nums);
-  }
-
-  // 지난주기준 정렬
-  if (lastWeekMode !== '무관' && lastWinNums.length > 0) {
-    baseResults.sort(function(a,b){
-      var ca = a.filter(function(n){return lastWinNums.indexOf(n)>=0;}).length;
-      var cb = b.filter(function(n){return lastWinNums.indexOf(n)>=0;}).length;
-      return lastWeekMode === '많은순' ? cb-ca : ca-cb;
-    });
-  }
-
-  // 반복 출력
-  var final = [];
-  if (repeatMode === 'ABCABC') {
-    for (var r=0; r<repeatCount; r++)
-      baseResults.forEach(function(row){ final.push(row.slice()); });
-  } else { // AABBCC
-    baseResults.forEach(function(row){
-      for (var r=0; r<repeatCount; r++) final.push(row.slice());
-    });
-  }
-
-  // 지난주 겹친수
-  var lastWeekCounts = final.map(function(row){
-    return lastWinNums.length ? row.filter(function(n){return lastWinNums.indexOf(n)>=0;}).length : 0;
-  });
-
-  return {
-    numbers: final,
-    base_generated: baseResults.length,
-    generated: final.length,
-    requested: setCount,
-    lack: Math.max(0, setCount - baseResults.length),
-    try_count: tryCount,
-    top_data: topNums,
-    last_week_counts: lastWeekCounts,
-    engine_status: baseResults.length >= setCount ? 'OK' : '조건이 강해 일부만 생성됨'
-  };
-};
-
-MLL._parseNumList = function(val) {
-  if (!val) return [];
-  var result = [];
-  String(val).split(/[,\s]+/).forEach(function(t){
-    t = t.trim();
-    var m = t.match(/^(\d+)[~\-](\d+)$/);
-    if (m) {
-      var a=parseInt(m[1]), b=parseInt(m[2]);
-      if (a<=b){ for(var i=a;i<=b;i++) if(i>=1&&i<=45) result.push(i); }
-      else { for(var i=a;i<=45;i++) result.push(i); for(var i=1;i<=b;i++) result.push(i); }
-    } else {
-      var n=parseInt(t); if(n>=1&&n<=45) result.push(n);
-    }
-  });
-  return [...new Set(result)].sort(function(a,b){return a-b;});
-};
-
-MLL._buildPool = function(start, end) {
-  if (!start || !end) return Array.from({length:45},function(_,i){return i+1;});
-  var pool=[], cur=start;
-  while(true){
-    pool.push(cur);
-    if(cur===end) break;
-    cur++; if(cur>45) cur=1;
-    if(pool.length>45) break;
-  }
-  return pool.length>=6 ? pool : Array.from({length:45},function(_,i){return i+1;});
-};
-
-MLL._getTopFrequency = function(history, recent, topN) {
-  var freq = {};
-  history.slice(0, recent).forEach(function(h){
-    (h.nums||[]).forEach(function(n){ freq[n]=(freq[n]||0)+1; });
-  });
-  return Object.keys(freq).map(function(n){ return [parseInt(n), freq[n]]; })
-    .sort(function(a,b){ return b[1]-a[1]; }).slice(0, topN).map(function(x){ return x[0]; });
-};
-
-MLL._createOneSet = function(pool, include, exclude, oddEven, topNums, topUse) {
-  var avail = pool.filter(function(n){ return exclude.indexOf(n)<0 && include.indexOf(n)<0; });
-  var fixed = include.slice();
-  if (fixed.length > 6) return null;
-  var need = 6 - fixed.length;
-  if (avail.length < need) return null;
-
-  var result;
-  if (!oddEven || oddEven==='무관' || oddEven==='') {
-    var pick = MLL._sample(avail, need);
-    if (!pick) return null;
-    result = fixed.concat(pick).sort(function(a,b){return a-b;});
-  } else {
-    var parts = oddEven.split(':');
-    var needOdd = parseInt(parts[0]), needEven = parseInt(parts[1]);
-    var fixOdd = fixed.filter(function(n){return n%2===1;}).length;
-    var fixEven = fixed.length - fixOdd;
-    var ro = needOdd-fixOdd, re = needEven-fixEven;
-    if (ro<0||re<0) return null;
-    var oddPool  = avail.filter(function(n){return n%2===1;});
-    var evenPool = avail.filter(function(n){return n%2===0;});
-    if (oddPool.length<ro || evenPool.length<re) return null;
-    result = fixed.concat(MLL._sample(oddPool,ro)||[]).concat(MLL._sample(evenPool,re)||[]).sort(function(a,b){return a-b;});
-  }
-
-  // 상위빈도 체크
-  if (topNums.length > 0 && topUse !== null) {
-    var cnt = result.filter(function(n){return topNums.indexOf(n)>=0;}).length;
-    if (cnt !== topUse) return null;
-  }
-  return result;
-};
-
-MLL._sample = function(arr, n) {
-  if (arr.length < n) return null;
-  var a = arr.slice(), result = [];
-  for (var i=0; i<n; i++) {
-    var idx = Math.floor(Math.random()*a.length);
-    result.push(a.splice(idx,1)[0]);
-  }
-  return result;
-};
-
-MLL._checkConsecutive = function(nums, limit) {
-  if (!limit || limit<=1) return true;
-  var cnt=1;
-  for (var i=1; i<nums.length; i++) {
-    if (nums[i]===nums[i-1]+1) { cnt++; if(cnt>limit) return false; }
-    else cnt=1;
-  }
-  return true;
-};
-
-MLL._checkSum = function(nums, min, max) {
-  var s=nums.reduce(function(a,b){return a+b;},0);
-  if (min!==null && s<min) return false;
-  if (max!==null && s>max) return false;
-  return true;
-};
 
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1345,9 +1087,9 @@ function refreshTable(){
 
   var useSections=(sortCol==='round');
   var info=MLL.getLottoInfo();
-  var preDraw    =useSections?entries.filter(function(e){return e.status==='추첨전'&&e.round>=info.thisRound;}):[];
+  var preDraw    =useSections?entries.filter(function(e){return e.status==='추첨전'&&e.round>=info.saleRound;}):[];
   var unconfirmed=useSections?entries.filter(function(e){
-    return (e.status==='추첨전'&&e.round<info.thisRound)||(e.status==='추첨후'&&(e.grade===null||e.grade===undefined));
+    return (e.status==='추첨전'&&e.round<info.saleRound)||(e.status==='추첨후'&&(e.grade===null||e.grade===undefined));
   }):[];
   var postDraw   =useSections?entries.filter(function(e){return e.status==='추첨후'&&e.grade!==null&&e.grade!==undefined;}):entries;
 
