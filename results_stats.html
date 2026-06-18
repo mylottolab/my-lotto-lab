@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>My Lotto Lab - 결과 및 통계</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
+body{background:#f3f4f6;font-size:13px;}
+.header-inner{max-width:1400px;margin:0 auto;padding:0 14px;height:44px;display:flex;align-items:center;justify-content:space-between;background:#1c1c2e;border-radius:0 0 8px 8px;}
+.logo-left{display:flex;align-items:center;gap:9px;cursor:pointer;}
+.logo-icon{width:30px;height:30px;background:#2f9e44;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-text .title{font-size:14px;font-weight:700;color:#fff;}
+.logo-text .sub{font-size:9px;color:#aaa;}
+.card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
+.card-head{padding:10px 16px;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.head-green{background:linear-gradient(135deg,#2f9e44,#1e7a30);}
+.head-dark{background:#1c1c2e;}
+
+/* 레이아웃: 좌측 고정 메뉴 + 우측 동적 콘텐츠 */
+.rs-main{max-width:1400px;margin:0 auto;padding:14px;display:grid;grid-template-columns:230px 1fr;gap:14px;align-items:start;}
+.rs-menu{display:flex;flex-direction:column;gap:10px;position:sticky;top:14px;}
+.rs-menu-btn{background:linear-gradient(135deg,#ff9d52,#f5750f);color:#fff;border:none;border-radius:10px;padding:18px 14px;font-size:13px;font-weight:700;text-align:center;line-height:1.5;cursor:pointer;box-shadow:0 2px 6px rgba(245,117,15,0.25);transition:transform 0.12s,box-shadow 0.12s;}
+.rs-menu-btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(245,117,15,0.35);}
+.rs-menu-btn.active{background:linear-gradient(135deg,#2f9e44,#1e7a30);box-shadow:0 2px 8px rgba(47,158,68,0.35);}
+.rs-menu-btn.special{background:linear-gradient(135deg,#94d3a2,#5fa86f);box-shadow:0 2px 6px rgba(95,168,111,0.25);}
+.rs-menu-btn.special:hover{box-shadow:0 4px 10px rgba(95,168,111,0.35);}
+.rs-menu-btn .mb-sub{display:block;font-size:10px;font-weight:400;opacity:0.85;margin-top:3px;}
+.rs-content{min-width:0;}
+
+/* 통계 패널(좌상단 카드) 공통 */
+.statpanel-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:12px;margin-bottom:12px;}
+.gradetable{width:100%;border-collapse:collapse;font-size:11px;}
+.gradetable th{text-align:left;color:#888;font-weight:600;padding:6px 8px;border-bottom:1px solid #eee;font-size:10px;}
+.gradetable td{padding:6px 8px;border-bottom:1px solid #f5f5f5;}
+.minicard-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.minicard{background:#f8f8f8;border-radius:8px;padding:10px 8px;text-align:center;}
+.minicard-icon{font-size:15px;}
+.minicard-val{font-size:18px;font-weight:700;color:#222;margin-top:2px;}
+.minicard-sub{font-size:9px;color:#888;margin-top:2px;line-height:1.4;}
+.minicard.green .minicard-val{color:#2f9e44;}
+.minicard.red .minicard-val{color:#e03131;}
+.minicard.gold .minicard-val{color:#e67700;}
+
+/* 회차 선택 영역 */
+.round-select-bar{padding:12px 16px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.round-select-bar select{border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:12px;background:#fff;cursor:pointer;}
+.round-select-bar .gobtn{background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;}
+.unconfirmed-pill{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;color:#888;}
+.unconfirmed-pill b{color:#e67700;}
+.checknow-btn{background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2);animation:pulse-btn2 1.5s infinite;}
+@keyframes pulse-btn2{0%,100%{opacity:1;}50%{opacity:0.7;}}
+
+/* 당첨번호 박스 */
+.winbox{margin:0 16px 12px;padding:12px 14px;background:linear-gradient(135deg,#fff8e1,#fffbf0);border:1px solid #ffe28a;border-radius:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.winbox-label{font-size:11px;font-weight:700;color:#7a5e00;margin-right:4px;}
+.wball{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+
+/* 요약 4칸 */
+.summary4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 16px 14px;}
+.s4box{background:#f8f8f8;border-radius:8px;padding:10px;text-align:center;}
+.s4box-val{font-size:19px;font-weight:700;color:#2f9e44;}
+.s4box-label{font-size:9px;color:#888;margin-top:2px;}
+
+/* 상세결과 테이블 */
+.detail-table-wrap{padding:0 16px 16px;overflow-x:auto;}
+table.rtbl{width:100%;border-collapse:collapse;font-size:11px;min-width:760px;}
+table.rtbl thead th{background:#f8f8f8;color:#666;font-weight:700;padding:8px 6px;border-bottom:2px solid #e8e8e8;text-align:center;cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0;}
+table.rtbl thead th:hover{background:#eef7ef;}
+table.rtbl thead th .sort-arrow{font-size:9px;color:#bbb;margin-left:2px;}
+table.rtbl thead th.sorted .sort-arrow{color:#2f9e44;}
+table.rtbl tbody td{padding:6px 6px;border-bottom:1px solid #f2f2f2;text-align:center;}
+table.rtbl tbody tr:hover{background:#fafafa;}
+.rbadge{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;color:#fff;}
+.matchnum{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#eef2ff;color:#3b5bdb;font-size:10px;font-weight:700;}
+.typebadge{font-size:9px;padding:1px 6px;border-radius:3px;font-weight:700;border:1px solid;}
+.favstar{cursor:pointer;font-size:14px;color:#ddd;transition:color 0.12s,transform 0.12s;}
+.favstar.on{color:#f5c518;}
+.favstar:hover{transform:scale(1.2);}
+.roundchip{font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;color:#fff;}
+.empty-row{text-align:center;padding:30px;color:#bbb;font-size:12px;}
+
+@media (max-width:860px){
+  .rs-main{grid-template-columns:1fr;}
+  .rs-menu{flex-direction:row;flex-wrap:wrap;position:static;}
+  .rs-menu-btn{flex:1 1 45%;padding:12px 8px;font-size:12px;}
+  .statpanel-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<script>// =====================================================
+// My Lotto Lab - 공통 모듈 (common.js)
+// 모든 페이지에서 공유하는 데이터/함수
+// =====================================================
+
+if (typeof window.MLL === 'undefined') { window.MLL = {}; }
+var MLL = window.MLL;
+
+MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
+MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
+MLL.STORAGE_KEY  = 'mll_entries';
+MLL.RESULTS_KEY  = 'mll_results';
+MLL.ADMIN_PW_KEY = 'mll_admin_auth';
+MLL.SESSION_KEY  = 'mll_session';
+
+MLL.getSession = function(tag) {
+  var key = MLL.SESSION_KEY + '_' + tag;
+  var s = sessionStorage.getItem(key);
+  if (!s) { s = tag + '_' + Date.now(); sessionStorage.setItem(key, s); }
+  return s;
+};
+
+MLL.getLottoInfo = function() {
+  var now = new Date();
+  var ko  = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+  var day = ko.getDay(), hour = ko.getHours(), min = ko.getMinutes();
+  var elapsed   = now.getTime() - MLL.ROUND1_TS;
+  var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
+  var nextRound = thisRound + 1;
+  var soldOut = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
+  var saleRound = soldOut ? thisRound : nextRound;
+  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound };
+};
+
+MLL.getDrawDate = function(round) {
+  var d = new Date(MLL.ROUND1_TS + (round - 1) * MLL.WEEK_MS);
+  var y = d.getFullYear();
+  var m = String(d.getMonth()+1).padStart(2,'0');
+  var dd= String(d.getDate()).padStart(2,'0');
+  return y+'/'+m+'/'+dd;
+};
+
+MLL.getRoundStatus = function(round) {
+  var info = MLL.getLottoInfo();
+  return round < info.thisRound ? '추첨후' : '추첨전';
+};
+
+MLL.BC = function(n) {
+  return n<=10?'#f5c518':n<=20?'#1a7ad4':n<=30?'#e03131':n<=40?'#888888':'#2f9e44';
+};
+MLL.TC = function(n) { return n<=10?'#7a5e00':'#ffffff'; };
+
+MLL.uuid = function() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
+    return v.toString(16);
+  });
+};
+
+// =====================================================
+// 데이터 CRUD
+// =====================================================
+
+MLL.loadEntries = function() {
+  try { return JSON.parse(localStorage.getItem(MLL.STORAGE_KEY) || '[]'); }
+  catch(e) { return []; }
+};
+
+MLL.saveEntries = function(entries) {
+  localStorage.setItem(MLL.STORAGE_KEY, JSON.stringify(entries));
+};
+
+MLL.addEntry = function(item) {
+  var entries = MLL.loadEntries();
+  if (!item.id)          item.id          = MLL.uuid();
+  if (!item.createdAt)   item.createdAt   = Date.now();
+  if (!item.grade)       item.grade       = null;
+  if (!item.prizeMoney)  item.prizeMoney  = 0;
+  if (!item.sessionTag)  item.sessionTag  = '';
+  if (item.isFavorite === undefined) item.isFavorite = false;
+  item.status = '추첨전';
+  entries.push(item);
+  MLL.saveEntries(entries);
+  return item;
+};
+
+MLL.addEntries = function(items) {
+  var entries = MLL.loadEntries();
+  items.forEach(function(item) {
+    if (!item.id)         item.id         = MLL.uuid();
+    if (!item.createdAt)  item.createdAt  = Date.now();
+    if (!item.grade)      item.grade      = null;
+    if (!item.prizeMoney) item.prizeMoney = 0;
+    if (!item.sessionTag) item.sessionTag = '';
+    if (item.isFavorite === undefined) item.isFavorite = false;
+    item.status = '추첨전';
+    entries.push(item);
+  });
+  MLL.saveEntries(entries);
+  return items;
+};
+
+MLL.deleteEntry = function(id) {
+  var entries = MLL.loadEntries().filter(function(e){ return e.id !== id; });
+  MLL.saveEntries(entries);
+};
+
+// 관심(즐겨찾기) 토글 — "관심번호/재구매 최애번호 저장소"와 연동
+MLL.toggleFavorite = function(id) {
+  var entries = MLL.loadEntries();
+  var e = entries.find(function(x){ return x.id === id; });
+  if (!e) return null;
+  e.isFavorite = !e.isFavorite;
+  MLL.saveEntries(entries);
+  return e.isFavorite;
+};
+
+// =====================================================
+// 당첨결과 데이터
+// =====================================================
+
+MLL.loadResults = function() {
+  try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }
+  catch(e) { return {}; }
+};
+
+MLL.saveResults = function(results) {
+  localStorage.setItem(MLL.RESULTS_KEY, JSON.stringify(results));
+};
+
+MLL.getResult = function(round) {
+  var r = MLL.loadResults();
+  return r[round] || r[Number(round)] || r[String(round)] || null;
+};
+
+MLL.calcGrade = function(myNums, winNums, bonusNum) {
+  var match = 0;
+  myNums.forEach(function(n){ if(winNums.indexOf(n) >= 0) match++; });
+  var hasBonus = myNums.indexOf(bonusNum) >= 0;
+  if (match===6)                  return 1;
+  if (match===5 && hasBonus)      return 2;
+  if (match===5)                  return 3;
+  if (match===4)                  return 4;
+  if (match===3)                  return 5;
+  return 0;
+};
+
+// 본번호 일치 개수만 (보너스 제외) — 결과/통계 테이블의 "일치" 컬럼용
+MLL.calcMatchCount = function(myNums, winNums) {
+  var match = 0;
+  myNums.forEach(function(n){ if(winNums.indexOf(n) >= 0) match++; });
+  return match;
+};
+
+MLL.calcPrize = function(grade, result) {
+  if (!result || grade===0) return 0;
+  if (grade===1) return result.prize1 || 0;
+  if (grade===2) return result.prize2 || 0;
+  if (grade===3) return result.prize3 || 0;
+  if (grade===4) return 50000;
+  if (grade===5) return 5000;
+  return 0;
+};
+
+MLL.applyResults = function(resultsObj) {
+  MLL.saveResults(resultsObj);
+  var entries = MLL.loadEntries();
+  var updated = 0;
+  entries.forEach(function(entry) {
+    var res = resultsObj[entry.round] || resultsObj[String(entry.round)] || resultsObj[parseInt(entry.round)];
+    if (res) {
+      entry.status     = '추첨후';
+      entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
+      entry.prizeMoney = MLL.calcPrize(entry.grade, res);
+      updated++;
+    }
+  });
+  MLL.saveEntries(entries);
+  return updated;
+};
+
+MLL.GRADE_LABEL = ['낙첨','1등','2등','3등','4등','5등'];
+MLL.GRADE_COLOR = ['#aaa','#e03131','#e67700','#1a7ad4','#2f9e44','#888'];
+
+// ── 미확인건(추첨일 경과 + 결과 미반영) 자동매칭 ──
+MLL.applyCheck = function(onDone) {
+  var results = MLL.loadResults();
+  var resultRounds = Object.keys(results).map(Number);
+  if (!resultRounds.length) {
+    alert('당첨결과가 없습니다.\nadmin.html에서 엑셀을 업로드해주세요.');
+    return;
+  }
+  var entries = MLL.loadEntries();
+  var updated = 0;
+  entries.forEach(function(entry) {
+    var res = results[entry.round] || results[Number(entry.round)] || results[String(entry.round)];
+    var isUnconfirmed =
+      (entry.status === '추첨전' && !!res) ||
+      (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
+    if (!isUnconfirmed || !res) return;
+    entry.status     = '추첨후';
+    entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
+    entry.prizeMoney = MLL.calcPrize(entry.grade, res);
+    updated++;
+  });
+  MLL.saveEntries(entries);
+  alert('✅ ' + updated + '개 항목 확인 완료!');
+  if (typeof onDone === 'function') onDone(updated);
+};
+</script>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo-left" onclick="location.href='main_page.html'">
+      <div class="logo-icon">📊</div>
+      <div class="logo-text">
+        <div class="title">My Lotto Lab</div>
+        <div class="sub">결과 및 통계</div>
+      </div>
+    </div>
+    <div style="position:relative;">
+      <button onclick="toggleNav()" id="navBtn" style="display:flex;align-items:center;gap:5px;color:#ccc;font-size:11px;cursor:pointer;border:1px solid #555;padding:4px 10px;border-radius:5px;background:none;white-space:nowrap;">🧭 이동 ▾</button>
+      <div id="navMenu" style="display:none;position:absolute;right:0;top:36px;background:#1c1c2e;border:1px solid #2a2a40;border-radius:8px;overflow:hidden;min-width:200px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+        <div onclick="location.href='main_page.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🏠 메인 페이지</div>
+        <div onclick="location.href='lotto_input_page_v4.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">✏️ 번호 등록</div>
+        <div onclick="location.href='strategy_manager.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🧠 전략 수립</div>
+        <div onclick="location.href='number_generator.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🎲 전략번호 생성</div>
+        <div onclick="location.href='strategy_compare.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">📊 전략 비교평가</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rs-main">
+  <!-- 좌측 고정 메뉴 -->
+  <div class="rs-menu">
+    <button class="rs-menu-btn active" data-sec="byRound" onclick="RS.switchSection('byRound',this)">회차별<br>등록현황과 결과</button>
+    <button class="rs-menu-btn" data-sec="upcoming" onclick="RS.switchSection('upcoming',this)" id="rs-btn-upcoming">제<span id="rs-upcoming-round">-</span>회<br>추첨(예정)분<br>등록현황과 결과</button>
+    <button class="rs-menu-btn" data-sec="real" onclick="RS.switchSection('real',this)">실제구매분<br>등록현황과 결과</button>
+    <button class="rs-menu-btn" data-sec="byCondition" onclick="RS.switchSection('byCondition',this)">조건별<br>등록현황과 결과</button>
+    <button class="rs-menu-btn" data-sec="habit" onclick="RS.switchSection('habit',this)">나의 구매 성향</button>
+    <button class="rs-menu-btn" data-sec="favorites" onclick="RS.switchSection('favorites',this)">관심번호/재구매<br>최애번호 저장소</button>
+    <button class="rs-menu-btn special" data-sec="printCenter" onclick="RS.switchSection('printCenter',this)">편리한 재도전 출력센터<span class="mb-sub">실제 사용 가능한 로또구매전표 작성</span></button>
+  </div>
+
+  <!-- 우측 동적 콘텐츠 -->
+  <div class="rs-content" id="rsContent"></div>
+</div>
+
+<script>
+function toggleNav(){
+  var m=document.getElementById('navMenu');
+  m.style.display=m.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',function(e){
+  var btn=document.getElementById('navBtn'),menu=document.getElementById('navMenu');
+  if(menu&&btn&&!btn.contains(e.target)&&!menu.contains(e.target)) menu.style.display='none';
+});
+
+// =====================================================
+// RS = Results & Stats 페이지 컨트롤러 (SPA 라우터)
+// =====================================================
+var RS = {};
+RS.currentSection = 'byRound';
+RS.sort = { key: 'createdAt', dir: 'desc' }; // 현재 테이블 정렬 상태
+
+RS.SECTION_RENDERERS = {}; // 섹션별 render 함수 등록소
+
+RS.switchSection = function(sec, btn) {
+  RS.currentSection = sec;
+  document.querySelectorAll('.rs-menu-btn').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  RS.sort = { key: 'createdAt', dir: 'desc' };
+  var fn = RS.SECTION_RENDERERS[sec];
+  var content = document.getElementById('rsContent');
+  if (fn) {
+    fn(content);
+  } else {
+    content.innerHTML = '<div class="card"><div class="card-head head-dark">🚧 준비 중</div>' +
+      '<div style="padding:40px;text-align:center;color:#bbb;font-size:12px;">이 섹션은 곧 추가됩니다.</div></div>';
+  }
+};
+
+// 좌측 메뉴의 "다음 회차" 라벨 갱신
+(function initUpcomingLabel(){
+  var info = MLL.getLottoInfo();
+  var el = document.getElementById('rs-upcoming-round');
+  if (el) el.textContent = info.saleRound;
+})();
+</script>
+
+<script>
+// =====================================================
+// 섹션: 회차별 등록현황과 결과 (byRound)
+// =====================================================
+
+// ── 좌측 "한국 로또 통계" 패널 데이터 계산 ──
+RS.computeGlobalStats = function() {
+  var entries = MLL.loadEntries();
+  var results = MLL.loadResults();
+  function hasResult(round){ return !!(results[round]||results[Number(round)]||results[String(round)]); }
+
+  var gradeCounts = [0,0,0,0,0,0]; // index 0=낙첨,1~5등
+  var totalSaved = entries.length;
+  var preDrawCount = 0;     // 추첨전(결과 자체가 아직 없음)
+  var unconfirmedCount = 0; // 추첨은 됐지만 결과 미반영
+  var confirmedCount = 0;   // 결과 확인 완료
+  var totalPrize = 0;
+
+  entries.forEach(function(e){
+    var rHas = hasResult(e.round);
+    var isConfirmed = e.status === '추첨후' && e.grade !== null && e.grade !== undefined;
+    if (isConfirmed) {
+      confirmedCount++;
+      gradeCounts[e.grade]++;
+      totalPrize += (e.prizeMoney || 0);
+    } else if (rHas) {
+      unconfirmedCount++;
+    } else {
+      preDrawCount++;
+    }
+  });
+
+  var totalWin = gradeCounts[1]+gradeCounts[2]+gradeCounts[3]+gradeCounts[4]+gradeCounts[5];
+  var winRate = confirmedCount ? (totalWin/confirmedCount*100) : 0;
+
+  return {
+    totalSaved: totalSaved, preDrawCount: preDrawCount, unconfirmedCount: unconfirmedCount,
+    confirmedCount: confirmedCount, gradeCounts: gradeCounts, totalWin: totalWin,
+    winRate: winRate, totalPrize: totalPrize
+  };
+};
+
+RS.renderGradeTable = function(gradeCounts, confirmedCount) {
+  var labels = [
+    {g:1,icon:'🥇',name:'1등'}, {g:2,icon:'🥈',name:'2등'}, {g:3,icon:'🥉',name:'3등'},
+    {g:4,name:'4등'}, {g:5,name:'5등'}, {g:0,name:'낙첨'}
+  ];
+  var rows = labels.map(function(l){
+    var cnt = gradeCounts[l.g] || 0;
+    var pct = confirmedCount ? (cnt/confirmedCount*100) : 0;
+    var color = MLL.GRADE_COLOR[l.g];
+    return '<tr><td style="color:'+color+';font-weight:700;">'+(l.icon||'')+' '+l.name+'</td>' +
+      '<td style="text-align:right;font-weight:700;">'+cnt+'</td>' +
+      '<td style="text-align:right;color:#888;">'+pct.toFixed(2)+'%</td></tr>';
+  }).join('');
+  return '<table class="gradetable"><thead><tr><th>등수</th><th style="text-align:right;">건수</th><th style="text-align:right;">비율</th></tr></thead>' +
+    '<tbody>'+rows+'</tbody></table>';
+};
+
+RS.renderStatPanel = function() {
+  var s = RS.computeGlobalStats();
+  return '' +
+    '<div class="card" style="margin-bottom:12px;">' +
+      '<div class="card-head head-dark">📶 한국 로또 통계</div>' +
+      '<div style="padding:12px 16px;">' +
+        RS.renderGradeTable(s.gradeCounts, s.confirmedCount) +
+        '<div class="minicard-grid" style="margin-top:12px;">' +
+          '<div class="minicard"><div class="minicard-icon">🎫</div><div class="minicard-val">'+s.totalSaved+'</div>' +
+            '<div class="minicard-sub">저장된 번호<br>추첨전 '+s.preDrawCount+' · 추첨후 미확인 '+s.unconfirmedCount+' · 추첨후 확인건 '+s.confirmedCount+'</div></div>' +
+          '<div class="minicard green"><div class="minicard-icon">✅</div><div class="minicard-val">'+s.confirmedCount+'</div>' +
+            '<div class="minicard-sub">결과 확인된 번호</div></div>' +
+          '<div class="minicard gold"><div class="minicard-icon">🏆</div><div class="minicard-val">'+s.totalWin+'</div>' +
+            '<div class="minicard-sub">총 당첨 건수</div></div>' +
+          '<div class="minicard red"><div class="minicard-icon">📈</div><div class="minicard-val">'+s.winRate.toFixed(1)+'%</div>' +
+            '<div class="minicard-sub">전체 당첨률</div></div>' +
+        '</div>' +
+        (s.unconfirmedCount>0 ?
+          '<div style="margin-top:10px;text-align:center;font-size:10px;color:#888;">미확인건 중 추첨일이 경과된 미확인건을 확인하시겠습니까? ' +
+          '<button class="checknow-btn" onclick="RS.runCheckNow()">⚡ 확인</button></div>' : '') +
+      '</div>' +
+    '</div>';
+};
+
+// ── 회차 드롭다운 옵션 구성 ──
+// "모든회차"를 최상단에 두고, 그 아래로 최근회차→1회차 순, 옵션별 등록건수 표시
+RS.buildRoundOptions = function() {
+  var entries = MLL.loadEntries();
+  var counts = {};
+  entries.forEach(function(e){
+    counts[e.round] = (counts[e.round]||0) + 1;
+  });
+  var rounds = Object.keys(counts).map(Number).sort(function(a,b){ return b-a; });
+  return { rounds: rounds, counts: counts };
+};
+
+RS.ROUND_COLORS = ['#1a7ad4','#2f9e44','#e67700','#7048e8','#e03131','#0c8599'];
+RS.roundColor = function(round, roundsDesc) {
+  var idx = roundsDesc.indexOf(Number(round));
+  if (idx < 0) idx = 0;
+  return RS.ROUND_COLORS[idx % RS.ROUND_COLORS.length];
+};
+
+RS.renderByRound = function(container) {
+  var ro = RS.buildRoundOptions();
+  var info = MLL.getLottoInfo();
+  RS.selectedRound = RS.selectedRound || 'all';
+
+  var optionsHtml = '<option value="all">⭐ 모든회차</option>' +
+    ro.rounds.map(function(r){
+      return '<option value="'+r+'"'+(String(RS.selectedRound)===String(r)?' selected':'')+'>'+r+'회 ('+ro.counts[r]+')</option>';
+    }).join('');
+
+  container.innerHTML =
+    '<div class="statpanel-grid">' +
+      '<div>' + RS.renderStatPanel() + '</div>' +
+      '<div class="card" id="rs-resultcard">' +
+        '<div class="card-head head-dark">🏆 한국 로또 당첨 결과 확인 [회차별]</div>' +
+        '<div class="round-select-bar">' +
+          '<span style="font-size:11px;color:#888;">확인할 회차 선택</span>' +
+          '<select id="rs-round-select" onchange="RS.onRoundChange(this.value)">'+optionsHtml+'</select>' +
+          '<button class="gobtn" onclick="RS.onRoundChange(document.getElementById(\'rs-round-select\').value)">🔍 결과 보기</button>' +
+          '<span id="rs-unconfirmed-info" class="unconfirmed-pill"></span>' +
+        '</div>' +
+        '<div id="rs-roundbody"></div>' +
+      '</div>' +
+    '</div>';
+
+  RS.renderRoundBody();
+};
+
+// ── 회차 선택 변경 ──
+RS.onRoundChange = function(val) {
+  RS.selectedRound = val;
+  RS.sort = { key: 'createdAt', dir: 'desc' };
+  RS.renderRoundBody();
+};
+
+// ── "즉시확인" 버튼 (추첨일 경과한 미확인건 자동매칭) ──
+RS.runCheckNow = function() {
+  MLL.applyCheck(function(){
+    RS.renderByRound(document.getElementById('rsContent'));
+  });
+};
+
+// ── 본문(당첨번호박스 + 요약4칸 + 상세테이블) 렌더 ──
+RS.renderRoundBody = function() {
+  var body = document.getElementById('rs-roundbody');
+  if (!body) return;
+  var entries = MLL.loadEntries();
+  var results = MLL.loadResults();
+  var ro = RS.buildRoundOptions();
+
+  function hasResult(round){ return !!(results[round]||results[Number(round)]||results[String(round)]); }
+  function getRes(round){ return results[round]||results[Number(round)]||results[String(round)]||null; }
+
+  var isAll = (RS.selectedRound === 'all');
+  var rows;
+
+  if (isAll) {
+    rows = entries.slice();
+  } else {
+    rows = entries.filter(function(e){ return String(e.round) === String(RS.selectedRound); });
+  }
+
+  // 동일회차 내 추첨결과 미확인건 카운트 (선택된 범위 기준)
+  var unconfirmedInScope = rows.filter(function(e){
+    var rHas = hasResult(e.round);
+    var isConfirmed = e.status==='추첨후' && e.grade!==null && e.grade!==undefined;
+    return rHas && !isConfirmed;
+  }).length;
+
+  var unconfirmedHtml = unconfirmedInScope > 0
+    ? '등록한 동일회차내<br>추첨결과 미확인건 <b>'+unconfirmedInScope+'</b> &nbsp;<button class="checknow-btn" onclick="RS.runCheckNow()">⚡ 지금확인</button>'
+    : '등록한 동일회차내<br>추첨결과 미확인건 <b>0</b>';
+  var infoEl = document.getElementById('rs-unconfirmed-info');
+  if (infoEl) infoEl.innerHTML = unconfirmedHtml;
+
+  // 당첨번호 박스 + 요약 4칸 계산
+  var winboxHtml = '';
+  var confirmedRows = rows.filter(function(e){ return e.status==='추첨후' && e.grade!==null && e.grade!==undefined; });
+  var winRows = confirmedRows.filter(function(e){ return e.grade>0; });
+  var totalPrize = confirmedRows.reduce(function(a,e){ return a+(e.prizeMoney||0); }, 0);
+  var winRate = confirmedRows.length ? (winRows.length/confirmedRows.length*100) : 0;
+
+  if (!isAll) {
+    var res = getRes(RS.selectedRound);
+    if (res) {
+      var ballsHtml = res.nums.map(function(n){
+        return '<span class="wball" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+n+'</span>';
+      }).join('');
+      winboxHtml = '<div class="winbox">' +
+        '<span class="winbox-label">제 '+RS.selectedRound+'회 당첨 번호</span>' +
+        ballsHtml +
+        '<span style="font-size:13px;color:#aaa;">+</span>' +
+        '<span class="wball" style="background:#fff;color:#555;border:2px solid #aaa;">'+res.bonus+'</span>' +
+        '</div>';
+    } else {
+      winboxHtml = '<div class="winbox" style="background:#f5f5f5;border-color:#e5e5e5;">' +
+        '<span style="font-size:11px;color:#999;">제 '+RS.selectedRound+'회는 아직 추첨 전이거나 결과가 등록되지 않았습니다.</span></div>';
+    }
+  }
+
+  var summaryHtml = '<div class="summary4">' +
+    '<div class="s4box"><div class="s4box-val">'+confirmedRows.length+'</div><div class="s4box-label">추첨결과 확인한 등록 조합수</div></div>' +
+    '<div class="s4box"><div class="s4box-val" style="color:#e67700;">'+winRows.length+'</div><div class="s4box-label">당첨 조합 수</div></div>' +
+    '<div class="s4box"><div class="s4box-val" style="color:#1a7ad4;">'+winRate.toFixed(1)+'%</div><div class="s4box-label">당첨률</div></div>' +
+    '<div class="s4box"><div class="s4box-val" style="color:#e03131;">'+totalPrize.toLocaleString()+'</div><div class="s4box-label">총 당첨금 (원)</div></div>' +
+  '</div>';
+
+  // 정렬 적용 데이터 가공
+  var sortedRows = RS.sortRows(rows, getRes, isAll);
+
+  var tableHtml = RS.renderResultTable(sortedRows, getRes, isAll, ro.rounds);
+
+  body.innerHTML = winboxHtml + summaryHtml +
+    '<div style="padding:0 16px 6px;font-size:11px;font-weight:700;color:#555;">상세 결과 ('+rows.length+'건)</div>' +
+    tableHtml;
+};
+
+// ── 정렬 ──
+RS.COLUMNS = [
+  { key:'idx',        label:'#' },
+  { key:'round',       label:'회차', onlyAll:true },
+  { key:'nums',        label:'내 번호', noSort:true },
+  { key:'match',        label:'일치' },
+  { key:'grade',        label:'등수' },
+  { key:'prizeMoney',   label:'당첨금' },
+  { key:'type',         label:'구매형태' },
+  { key:'memo',         label:'메모' },
+  { key:'createdAt',    label:'등록일자' },
+  { key:'isFavorite',   label:'관심' }
+];
+
+RS.sortRows = function(rows, getRes, isAll) {
+  // 정렬을 위해 파생값(match, grade서열) 미리 계산해 둠
+  var withDerived = rows.map(function(e, i){
+    var res = getRes(e.round);
+    var match = res ? MLL.calcMatchCount(e.nums, res.nums) : null;
+    return { e:e, _idx:i, _match:match };
+  });
+
+  var key = RS.sort.key, dir = RS.sort.dir;
+  if (!key || key==='idx') {
+    // 기본: 추첨전 → 미확인 → 확인 순서를 따르는 기존 정렬과 유사하게 회차/등록일 내림차순
+    withDerived.sort(function(a,b){ return b.e.round-a.e.round || b.e.createdAt-a.e.createdAt; });
+  } else {
+    withDerived.sort(function(a,b){
+      var av, bv;
+      if (key==='match') { av = a._match===null?-1:a._match; bv = b._match===null?-1:b._match; }
+      else if (key==='grade') {
+        // 정렬용 등급 서열: 미확인=-1, 낙첨=0, 5등<4등<...<1등이 되도록 변환(클수록 좋은 등수)
+        function rank(en){
+          if (en.status!=='추첨후' || en.grade===null || en.grade===undefined) return -1;
+          if (en.grade===0) return 0;
+          return 7 - en.grade; // 1등→6, 5등→2
+        }
+        av = rank(a.e); bv = rank(b.e);
+      }
+      else if (key==='prizeMoney') { av = a.e.prizeMoney||0; bv = b.e.prizeMoney||0; }
+      else if (key==='createdAt')  { av = a.e.createdAt||0; bv = b.e.createdAt||0; }
+      else if (key==='isFavorite') { av = a.e.isFavorite?1:0; bv = b.e.isFavorite?1:0; }
+      else if (key==='round')      { av = Number(a.e.round); bv = Number(b.e.round); }
+      else { av = (a.e[key]||'').toString(); bv = (b.e[key]||'').toString(); }
+
+      if (av < bv) return dir==='asc' ? -1 : 1;
+      if (av > bv) return dir==='asc' ? 1 : -1;
+      return b.e.createdAt - a.e.createdAt;
+    });
+  }
+  return withDerived.map(function(w){ return w.e; });
+};
+
+RS.toggleSort = function(key) {
+  if (RS.COLUMNS.find(function(c){return c.key===key;}) && RS.COLUMNS.find(function(c){return c.key===key;}).noSort) return;
+  if (RS.sort.key === key) {
+    RS.sort.dir = RS.sort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    RS.sort.key = key;
+    RS.sort.dir = 'desc';
+  }
+  RS.renderRoundBody();
+};
+
+// ── 관심(즐겨찾기) 토글 ──
+RS.toggleFav = function(id, el) {
+  var nowOn = MLL.toggleFavorite(id);
+  if (el) {
+    el.classList.toggle('on', !!nowOn);
+    el.textContent = nowOn ? '★' : '☆';
+  }
+};
+
+// ── 상세 결과 테이블 HTML ──
+RS.renderResultTable = function(rows, getRes, isAll, roundsDesc) {
+  var cols = RS.COLUMNS.filter(function(c){ return isAll || !c.onlyAll; });
+
+  var theadHtml = '<thead><tr>' + cols.map(function(c){
+    var sorted = RS.sort.key === c.key;
+    var arrow = c.noSort ? '' : '<span class="sort-arrow">'+(sorted ? (RS.sort.dir==='asc'?'▲':'▼') : '↕')+'</span>';
+    var cls = sorted ? ' class="sorted"' : '';
+    var onclick = c.noSort ? '' : ' onclick="RS.toggleSort(\''+c.key+'\')"';
+    return '<th'+cls+onclick+'>'+c.label+arrow+'</th>';
+  }).join('') + '</tr></thead>';
+
+  if (!rows.length) {
+    return '<div class="detail-table-wrap"><table class="rtbl">'+theadHtml+
+      '<tbody><tr><td colspan="'+cols.length+'" class="empty-row">등록된 번호가 없습니다.</td></tr></tbody></table></div>';
+  }
+
+  var bodyRows = rows.map(function(e, i){
+    var res = getRes(e.round);
+    var match = res ? MLL.calcMatchCount(e.nums, res.nums) : null;
+    var isConfirmed = e.status==='추첨후' && e.grade!==null && e.grade!==undefined;
+
+    var ballsHtml = '<div style="display:flex;gap:2px;justify-content:center;flex-wrap:nowrap;">' +
+      e.nums.map(function(n){
+        var isMatch = res && res.nums.indexOf(n) >= 0;
+        var op = (res && !isMatch) ? '0.35' : '1';
+        return '<span style="width:21px;height:21px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;' +
+          'font-size:9px;font-weight:700;background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';opacity:'+op+';' +
+          (isMatch?'box-shadow:0 0 0 2px #f5c518 inset;':'')+'">'+n+'</span>';
+      }).join('') + '</div>';
+
+    var matchHtml = match===null ? '<span style="color:#ccc;">-</span>' : '<span class="matchnum">'+match+'</span>';
+
+    var gradeHtml;
+    if (!isConfirmed) {
+      gradeHtml = '<span style="color:#bbb;font-size:9px;">미확인</span>';
+    } else if (e.grade===0) {
+      gradeHtml = '<span class="rbadge" style="background:'+MLL.GRADE_COLOR[0]+';">낙첨</span>';
+    } else {
+      gradeHtml = '<span class="rbadge" style="background:'+MLL.GRADE_COLOR[e.grade]+';">'+MLL.GRADE_LABEL[e.grade]+'</span>';
+    }
+
+    var prizeHtml = (e.prizeMoney && e.prizeMoney>0)
+      ? '<span style="color:#e03131;font-weight:700;">'+e.prizeMoney.toLocaleString()+'원</span>'
+      : '<span style="color:#ccc;">-</span>';
+
+    var typeColor = e.type==='자동'?'#2f9e44':e.type==='반자동'?'#e67700':'#1a7ad4';
+    var typeBg    = e.type==='자동'?'#e8fff0':e.type==='반자동'?'#fff3e0':'#e8f4ff';
+    var typeHtml  = '<span class="typebadge" style="color:'+typeColor+';background:'+typeBg+';border-color:'+typeColor+';">'+e.type+'</span>';
+
+    var d = new Date(e.createdAt);
+    var dateStr = String(d.getFullYear()).slice(2)+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0');
+
+    var favHtml = '<span class="favstar'+(e.isFavorite?' on':'')+'" onclick="RS.toggleFav(\''+e.id+'\',this)">'+(e.isFavorite?'★':'☆')+'</span>';
+
+    var roundCellHtml = '';
+    if (isAll) {
+      var rc = RS.roundColor(e.round, roundsDesc);
+      roundCellHtml = '<td><span class="roundchip" style="background:'+rc+';">'+e.round+'회</span></td>';
+    }
+
+    return '<tr>' +
+      '<td style="color:#bbb;">'+(i+1)+'</td>' +
+      roundCellHtml +
+      '<td>'+ballsHtml+'</td>' +
+      '<td>'+matchHtml+'</td>' +
+      '<td>'+gradeHtml+'</td>' +
+      '<td>'+prizeHtml+'</td>' +
+      '<td>'+typeHtml+'</td>' +
+      '<td style="color:#888;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+(e.memo||'')+'">'+(e.memo||'-')+'</td>' +
+      '<td style="color:#999;font-size:10px;">'+dateStr+'</td>' +
+      '<td>'+favHtml+'</td>' +
+      '</tr>';
+  }).join('');
+
+  return '<div class="detail-table-wrap"><table class="rtbl">'+theadHtml+'<tbody>'+bodyRows+'</tbody></table></div>';
+};
+
+RS.SECTION_RENDERERS.byRound = RS.renderByRound;
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', function(){
+  RS.switchSection('byRound', document.querySelector('.rs-menu-btn[data-sec="byRound"]'));
+});
+</script>
+
+</body>
+</html>
