@@ -627,9 +627,9 @@ RS.renderGradeTable = function(gradeCounts, confirmedCount) {
 
 RS.renderStatPanel = function(mode) {
   var s = RS.computeGlobalStats(mode);
-  var headLabel = mode === 'real' ? '📶 한국 로또 통계 (실제구매분)' :
-                  mode === 'upcoming' ? '📶 한국 로또 통계 (이번 추첨예정분)' :
-                  '📶 한국 로또 통계';
+  var headLabel = mode === 'real' ? '📶 내가 등록한 한국 로또 전체 통계 (실제구매분)' :
+                  mode === 'upcoming' ? '📶 내가 등록한 한국 로또 전체 통계 (이번 추첨예정분)' :
+                  '📶 내가 등록한 한국 로또 전체 통계';
   return '' +
     '<div class="card" style="margin-bottom:12px;">' +
       '<div class="card-head head-dark">'+headLabel+'</div>' +
