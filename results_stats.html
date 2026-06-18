@@ -83,7 +83,8 @@ table.rtbl tbody tr:hover{background:#fafafa;}
 .cond-body{padding:16px 18px;}
 .cond-label{font-size:11px;color:#333;font-weight:700;margin-bottom:4px;}
 .cond-label .hint{font-size:9px;color:#999;font-weight:400;margin-left:3px;}
-.cond-input,.cond-select{width:100%;border:1px solid #ddd;border-radius:6px;padding:7px 9px;font-size:12px;background:#fff;}
+.cond-input,.cond-select{width:100%;border:1px solid #ddd;border-radius:6px;padding:7px 9px;font-size:12px;background:#fff;transition:font-size 0.1s,color 0.1s;}
+.cond-input.filled,.cond-select.filled{color:#e03131;font-weight:700;font-size:15px;border-color:#e03131;background:#fff5f5;}
 .cond-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-bottom:14px;}
 .cond-section-title{font-size:12px;font-weight:700;color:#5f3dc4;margin:14px 0 8px;display:flex;align-items:center;gap:5px;}
 .cond-divider{border:none;border-top:1px dashed #e0d4f5;margin:12px 0;}
@@ -1055,12 +1056,30 @@ RS.renderByCondition = function(container) {
         '<div class="cond-note">' +
           '여기서는 사용자가 생각하는 조건을 갖춘 번호조합이 내가 이미 등록한 이곳에 있나 찾아보는 곳입니다. ' +
           '있을 경우 아래에 리스트로 나오게 됩니다.<br><br>' +
-          '만일 없을 경우 메인페이지 <b>"전략등록"</b>에서 원하는 조건으로 번호를 새로 생성해 보세요.' +
+          '만일 없을 경우 <b style="color:#5f3dc4;text-decoration:underline;cursor:pointer;" onclick="location.href=\'strategy_manager.html\'">"전략등록"</b>에서 원하는 조건으로 번호를 새로 생성해 보세요.' +
         '</div>' +
       '</div>' +
     '</div>' +
     '<div id="rs-condresult" style="margin-top:14px;"></div>';
+
+  RS.bindConditionFillHighlight();
 };
+
+// 입력값이 채워진(공백 아님) 조건식 필드를 붉은색·크게 강조 표시
+RS.bindConditionFillHighlight = function() {
+  RS.CONDITION_FIELDS.forEach(function(f) {
+    var el = document.getElementById(f.id);
+    if (!el) return;
+    var update = function() {
+      var hasVal = el.value !== null && String(el.value).trim() !== '';
+      el.classList.toggle('filled', hasVal);
+    };
+    update(); // 초기 상태 반영(값 복원 등 대비)
+    el.addEventListener('input', update);
+    el.addEventListener('change', update);
+  });
+};
+
 
 RS.collectConditionFromForm = function() {
   var cond = {};
