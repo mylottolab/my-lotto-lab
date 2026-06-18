@@ -78,13 +78,26 @@ table.rtbl tbody tr:hover{background:#fafafa;}
 .favstar.on{color:#f5c518;}
 .favstar:hover{transform:scale(1.2);}
 .roundchip{font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;color:#fff;}
-.empty-row{text-align:center;padding:30px;color:#bbb;font-size:12px;}
+/* 조건별 등록현황과 결과 - 조건식 Table */
+.cond-card-head{padding:14px 18px;background:linear-gradient(135deg,#7048e8,#5f3dc4);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.cond-body{padding:16px 18px;}
+.cond-label{font-size:11px;color:#333;font-weight:700;margin-bottom:4px;}
+.cond-label .hint{font-size:9px;color:#999;font-weight:400;margin-left:3px;}
+.cond-input,.cond-select{width:100%;border:1px solid #ddd;border-radius:6px;padding:7px 9px;font-size:12px;background:#fff;}
+.cond-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-bottom:14px;}
+.cond-section-title{font-size:12px;font-weight:700;color:#5f3dc4;margin:14px 0 8px;display:flex;align-items:center;gap:5px;}
+.cond-divider{border:none;border-top:1px dashed #e0d4f5;margin:12px 0;}
+.cond-searchbtn{display:block;width:100%;background:linear-gradient(135deg,#7048e8,#5f3dc4);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-top:6px;box-shadow:0 2px 8px rgba(112,72,232,0.3);}
+.cond-searchbtn:hover{box-shadow:0 4px 12px rgba(112,72,232,0.4);}
+.cond-note{background:#f4f1fc;border-radius:8px;padding:12px 14px;font-size:11px;color:#555;line-height:1.7;margin-top:14px;}
+.cond-note b{color:#5f3dc4;}
 
 @media (max-width:860px){
   .rs-main{grid-template-columns:1fr;}
   .rs-menu{flex-direction:row;flex-wrap:wrap;position:static;}
   .rs-menu-btn{flex:1 1 45%;padding:12px 8px;font-size:12px;}
   .statpanel-grid{grid-template-columns:1fr;}
+  .cond-grid2{grid-template-columns:1fr;}
 }
 </style>
 </head>
@@ -298,6 +311,149 @@ MLL.applyCheck = function(onDone) {
   alert('✅ ' + updated + '개 항목 확인 완료!');
   if (typeof onDone === 'function') onDone(updated);
 };
+
+// =====================================================
+// 조건식 판정 (strategy_manager.html의 생성조건 로직을 "검증"용으로 포팅)
+// 사용자가 이미 등록한 조합(mll_entries)이 조건을 만족하는지 검사
+// =====================================================
+
+MLL._parseNumList = function(val) {
+  if (!val) return [];
+  var result = [];
+  String(val).split(/[,\s]+/).forEach(function(t) {
+    t = t.trim();
+    if (!t) return;
+    var m = t.match(/^(\d+)[~\-](\d+)$/);
+    if (m) {
+      var a = parseInt(m[1]), b = parseInt(m[2]);
+      if (a <= b) { for (var i=a;i<=b;i++) if (i>=1&&i<=45) result.push(i); }
+      else { for (var i=a;i<=45;i++) result.push(i); for (var i=1;i<=b;i++) result.push(i); }
+    } else {
+      var n = parseInt(t);
+      if (n>=1 && n<=45) result.push(n);
+    }
+  });
+  return [...new Set(result)].sort(function(a,b){ return a-b; });
+};
+
+MLL._buildRangePool = function(start, end) {
+  if (!start || !end) return null; // null = 제한없음
+  var pool = [], cur = start;
+  while (true) {
+    pool.push(cur);
+    if (cur === end) break;
+    cur++; if (cur>45) cur=1;
+    if (pool.length>45) break;
+  }
+  return pool;
+};
+
+MLL._checkConsecutive = function(nums, limit) {
+  if (!limit || limit<=1) return true;
+  var sorted = nums.slice().sort(function(a,b){return a-b;});
+  var cnt = 1;
+  for (var i=1; i<sorted.length; i++) {
+    if (sorted[i] === sorted[i-1]+1) { cnt++; if (cnt>limit) return false; }
+    else cnt = 1;
+  }
+  return true;
+};
+
+MLL._checkSum = function(nums, min, max) {
+  var s = nums.reduce(function(a,b){return a+b;}, 0);
+  if (min!==null && s<min) return false;
+  if (max!==null && s>max) return false;
+  return true;
+};
+
+MLL._getTopFrequency = function(history, recent, topN) {
+  var freq = {};
+  history.slice(0, recent).forEach(function(h) {
+    (h.nums||[]).forEach(function(n){ freq[n] = (freq[n]||0)+1; });
+  });
+  return Object.keys(freq).map(function(n){ return [parseInt(n), freq[n]]; })
+    .sort(function(a,b){ return b[1]-a[1]; }).slice(0, topN).map(function(x){ return x[0]; });
+};
+
+// condition 객체 필드: name, odd_even, consecutive_limit, sum_min, sum_max,
+//   range_start, range_end, include_numbers, exclude_numbers,
+//   top_range, top_use, recent_rounds, last_week_mode
+// history: MLL.loadResults()를 최근회차순으로 정렬한 [{round,nums}] 배열
+MLL.matchesCondition = function(nums, condition, history) {
+  var oddEven     = (condition.odd_even || '').trim();
+  var consLimit   = parseInt(condition.consecutive_limit) || 0;
+  var sumMin      = condition.sum_min ? parseInt(condition.sum_min) : null;
+  var sumMax      = condition.sum_max ? parseInt(condition.sum_max) : null;
+  var rangeStart  = condition.range_start ? parseInt(condition.range_start) : null;
+  var rangeEnd    = condition.range_end   ? parseInt(condition.range_end)   : null;
+  var includeNums = MLL._parseNumList(condition.include_numbers || '');
+  var excludeNums = MLL._parseNumList(condition.exclude_numbers || '');
+  var topRange    = parseInt(condition.top_range) || 0;
+  var topUse      = (condition.top_use !== '' && condition.top_use !== undefined && condition.top_use !== null) ? parseInt(condition.top_use) : null;
+  var lastWeekMode= condition.last_week_mode || '무관';
+
+  // 홀짝비율
+  if (oddEven && oddEven !== '무관') {
+    var parts = oddEven.split(':');
+    var needOdd = parseInt(parts[0]), needEven = parseInt(parts[1]);
+    var oddCnt = nums.filter(function(n){return n%2===1;}).length;
+    var evenCnt = nums.length - oddCnt;
+    if (oddCnt !== needOdd || evenCnt !== needEven) return false;
+  }
+
+  // 연속제한
+  if (!MLL._checkConsecutive(nums, consLimit)) return false;
+
+  // 번호합
+  if (!MLL._checkSum(nums, sumMin, sumMax)) return false;
+
+  // 시작/끝번호(순환구간) — 모든 번호가 그 순환구간 풀 안에 있어야 함
+  var rangePool = MLL._buildRangePool(rangeStart, rangeEnd);
+  if (rangePool) {
+    var allInRange = nums.every(function(n){ return rangePool.indexOf(n) >= 0; });
+    if (!allInRange) return false;
+  }
+
+  // 포함수 — 반드시 포함
+  if (includeNums.length) {
+    var hasAllInclude = includeNums.every(function(n){ return nums.indexOf(n) >= 0; });
+    if (!hasAllInclude) return false;
+  }
+
+  // 제외수 — 절대 포함 안됨
+  if (excludeNums.length) {
+    var hasAnyExclude = nums.some(function(n){ return excludeNums.indexOf(n) >= 0; });
+    if (hasAnyExclude) return false;
+  }
+
+  // 상위빈도 조건 — 조합 내 상위빈도번호 개수가 정확히 topUse여야 함
+  if (topRange > 0 && topUse !== null && history && history.length) {
+    var recent = parseInt(condition.recent_rounds) || history.length;
+    var topNums = MLL._getTopFrequency(history, recent, topRange);
+    var topCnt = nums.filter(function(n){ return topNums.indexOf(n) >= 0; }).length;
+    if (topCnt !== topUse) return false;
+  }
+
+  // 지난주기준 — "정렬" 의도라 매칭 자체에 영향 주지 않음(필터가 아니라 결과 정렬용)
+  // 따라서 여기서는 통과 처리하고, 결과 리스트 정렬 단계에서 별도로 반영한다.
+
+  return true;
+};
+
+// 조건을 만족하는 등록건만 추려서, last_week_mode가 있으면 겹침개수 기준 정렬까지 적용
+MLL.searchEntriesByCondition = function(entries, condition, history) {
+  var matched = entries.filter(function(e){ return MLL.matchesCondition(e.nums, condition, history); });
+  var lastWeekMode = condition.last_week_mode || '무관';
+  if (lastWeekMode !== '무관' && history && history.length) {
+    var lastWinNums = history[0].nums || [];
+    matched.sort(function(a,b){
+      var ca = a.nums.filter(function(n){return lastWinNums.indexOf(n)>=0;}).length;
+      var cb = b.nums.filter(function(n){return lastWinNums.indexOf(n)>=0;}).length;
+      return lastWeekMode === '많은순' ? cb-ca : ca-cb;
+    });
+  }
+  return matched;
+};
 </script>
 
 <div class="header">
@@ -408,10 +564,17 @@ RS.refreshUpcomingLabel = function() {
 // =====================================================
 
 // ── 좌측 "한국 로또 통계" 패널 데이터 계산 ──
-RS.computeGlobalStats = function() {
+RS.computeGlobalStats = function(mode) {
   var entries = MLL.loadEntries();
   var results = MLL.loadResults();
   function hasResult(round){ return !!(results[round]||results[Number(round)]||results[String(round)]); }
+
+  if (mode === 'real') {
+    entries = entries.filter(function(e){ return e.isReal === true; });
+  } else if (mode === 'upcoming') {
+    var upRound = RS.computeUpcomingRound();
+    entries = entries.filter(function(e){ return String(e.round) === String(upRound); });
+  }
 
   var gradeCounts = [0,0,0,0,0,0]; // index 0=낙첨,1~5등
   var totalSaved = entries.length;
@@ -461,11 +624,14 @@ RS.renderGradeTable = function(gradeCounts, confirmedCount) {
     '<tbody>'+rows+'</tbody></table>';
 };
 
-RS.renderStatPanel = function() {
-  var s = RS.computeGlobalStats();
+RS.renderStatPanel = function(mode) {
+  var s = RS.computeGlobalStats(mode);
+  var headLabel = mode === 'real' ? '📶 한국 로또 통계 (실제구매분)' :
+                  mode === 'upcoming' ? '📶 한국 로또 통계 (이번 추첨예정분)' :
+                  '📶 한국 로또 통계';
   return '' +
     '<div class="card" style="margin-bottom:12px;">' +
-      '<div class="card-head head-dark">📶 한국 로또 통계</div>' +
+      '<div class="card-head head-dark">'+headLabel+'</div>' +
       '<div style="padding:12px 16px;">' +
         RS.renderGradeTable(s.gradeCounts, s.confirmedCount) +
         '<div class="minicard-grid" style="margin-top:12px;">' +
@@ -480,15 +646,16 @@ RS.renderStatPanel = function() {
         '</div>' +
         (s.unconfirmedCount>0 ?
           '<div style="margin-top:10px;text-align:center;font-size:10px;color:#888;">미확인건 중 추첨일이 경과된 미확인건을 확인하시겠습니까? ' +
-          '<button class="checknow-btn" onclick="RS.runCheckNow()">⚡ 확인</button></div>' : '') +
+          '<button class="checknow-btn" onclick="RS.runCheckNow(\''+(mode||'all')+'\')">⚡ 확인</button></div>' : '') +
       '</div>' +
     '</div>';
 };
 
 // ── 회차 드롭다운 옵션 구성 ──
 // "모든회차"를 최상단에 두고, 그 아래로 최근회차→1회차 순, 옵션별 등록건수 표시
-RS.buildRoundOptions = function() {
+RS.buildRoundOptions = function(mode) {
   var entries = MLL.loadEntries();
+  if (mode === 'real') entries = entries.filter(function(e){ return e.isReal === true; });
   var counts = {};
   entries.forEach(function(e){
     counts[e.round] = (counts[e.round]||0) + 1;
@@ -504,67 +671,93 @@ RS.roundColor = function(round, roundsDesc) {
   return RS.ROUND_COLORS[idx % RS.ROUND_COLORS.length];
 };
 
-RS.renderByRound = function(container) {
-  var ro = RS.buildRoundOptions();
-  var info = MLL.getLottoInfo();
-  RS.selectedRound = RS.selectedRound || 'all';
+// 섹션별로 독립된 선택회차 상태를 유지 (all=회차별 / real=실제구매분 / upcoming=추첨예정분)
+RS.roundState = { all: 'all', real: 'all' };
 
-  var optionsHtml = '<option value="all">⭐ 모든회차</option>' +
-    ro.rounds.map(function(r){
-      return '<option value="'+r+'"'+(String(RS.selectedRound)===String(r)?' selected':'')+'>'+r+'회 ('+ro.counts[r]+')</option>';
-    }).join('');
+RS.renderRoundSection = function(container, mode) {
+  // mode: 'all'(회차별 전체) | 'real'(실제구매분) | 'upcoming'(추첨예정분 고정)
+  var ro = RS.buildRoundOptions(mode === 'real' ? 'real' : 'all');
+  var titleMap = {
+    all: '🏆 한국 로또 당첨 결과 확인 [회차별]',
+    real: '🏆 한국 로또 당첨 결과 확인 [실제구매분 · 회차별]',
+    upcoming: '🏆 한국 로또 당첨 결과 확인 [추첨예정분]'
+  };
+
+  var selectAreaHtml;
+  if (mode === 'upcoming') {
+    var upRound = RS.computeUpcomingRound();
+    RS.upcomingRound = upRound;
+    selectAreaHtml =
+      '<span style="font-size:11px;color:#888;">대상 회차</span>' +
+      '<span style="font-size:13px;font-weight:700;color:#e67700;">제 '+upRound+'회 (이번 추첨예정)</span>' +
+      '<span id="rs-unconfirmed-info" class="unconfirmed-pill"></span>';
+  } else {
+    var sel = RS.roundState[mode] || 'all';
+    RS.roundState[mode] = sel;
+    var optionsHtml = '<option value="all">⭐ 모든회차</option>' +
+      ro.rounds.map(function(r){
+        return '<option value="'+r+'"'+(String(sel)===String(r)?' selected':'')+'>'+r+'회 ('+ro.counts[r]+')</option>';
+      }).join('');
+    selectAreaHtml =
+      '<span style="font-size:11px;color:#888;">확인할 회차 선택</span>' +
+      '<select id="rs-round-select-'+mode+'" onchange="RS.onRoundChange(\''+mode+'\',this.value)">'+optionsHtml+'</select>' +
+      '<button class="gobtn" onclick="RS.onRoundChange(\''+mode+'\',document.getElementById(\'rs-round-select-'+mode+'\').value)">🔍 결과 보기</button>' +
+      '<span id="rs-unconfirmed-info" class="unconfirmed-pill"></span>';
+  }
 
   container.innerHTML =
     '<div class="statpanel-grid">' +
-      '<div>' + RS.renderStatPanel() + '</div>' +
+      '<div>' + RS.renderStatPanel(mode) + '</div>' +
       '<div class="card" id="rs-resultcard">' +
-        '<div class="card-head head-dark">🏆 한국 로또 당첨 결과 확인 [회차별]</div>' +
-        '<div class="round-select-bar">' +
-          '<span style="font-size:11px;color:#888;">확인할 회차 선택</span>' +
-          '<select id="rs-round-select" onchange="RS.onRoundChange(this.value)">'+optionsHtml+'</select>' +
-          '<button class="gobtn" onclick="RS.onRoundChange(document.getElementById(\'rs-round-select\').value)">🔍 결과 보기</button>' +
-          '<span id="rs-unconfirmed-info" class="unconfirmed-pill"></span>' +
-        '</div>' +
+        '<div class="card-head head-dark">'+titleMap[mode]+'</div>' +
+        '<div class="round-select-bar">' + selectAreaHtml + '</div>' +
         '<div id="rs-roundbody"></div>' +
       '</div>' +
     '</div>';
 
-  RS.renderRoundBody();
+  RS.renderRoundBody(mode);
 };
 
+// byRound(전체) / real(실제구매분) / upcoming(추첨예정분) 각각의 진입점
+RS.renderByRound = function(container) { RS.renderRoundSection(container, 'all'); };
+RS.renderReal    = function(container) { RS.renderRoundSection(container, 'real'); };
+RS.renderUpcoming= function(container) { RS.renderRoundSection(container, 'upcoming'); };
+
 // ── 회차 선택 변경 ──
-RS.onRoundChange = function(val) {
-  RS.selectedRound = val;
+RS.onRoundChange = function(mode, val) {
+  RS.roundState[mode] = val;
   RS.sort = { key: 'createdAt', dir: 'desc' };
-  RS.renderRoundBody();
+  RS.renderRoundBody(mode);
 };
 
 // ── "즉시확인" 버튼 (추첨일 경과한 미확인건 자동매칭) ──
-RS.runCheckNow = function() {
+RS.runCheckNow = function(mode) {
   MLL.applyCheck(function(){
-    RS.renderByRound(document.getElementById('rsContent'));
+    RS.renderRoundSection(document.getElementById('rsContent'), mode);
     RS.refreshUpcomingLabel(); // 같은 탭 내 결과 반영 즉시 회차 라벨도 갱신
   });
 };
 
 // ── 본문(당첨번호박스 + 요약4칸 + 상세테이블) 렌더 ──
-RS.renderRoundBody = function() {
+RS.renderRoundBody = function(mode) {
   var body = document.getElementById('rs-roundbody');
   if (!body) return;
   var entries = MLL.loadEntries();
+  if (mode === 'real') entries = entries.filter(function(e){ return e.isReal === true; });
   var results = MLL.loadResults();
-  var ro = RS.buildRoundOptions();
+  var ro = RS.buildRoundOptions(mode === 'real' ? 'real' : 'all');
 
   function hasResult(round){ return !!(results[round]||results[Number(round)]||results[String(round)]); }
   function getRes(round){ return results[round]||results[Number(round)]||results[String(round)]||null; }
 
-  var isAll = (RS.selectedRound === 'all');
+  var selectedRound = mode === 'upcoming' ? RS.upcomingRound : (RS.roundState[mode] || 'all');
+  var isAll = (mode !== 'upcoming') && (selectedRound === 'all');
   var rows;
 
   if (isAll) {
     rows = entries.slice();
   } else {
-    rows = entries.filter(function(e){ return String(e.round) === String(RS.selectedRound); });
+    rows = entries.filter(function(e){ return String(e.round) === String(selectedRound); });
   }
 
   // 동일회차 내 추첨결과 미확인건 카운트 (선택된 범위 기준)
@@ -575,7 +768,7 @@ RS.renderRoundBody = function() {
   }).length;
 
   var unconfirmedHtml = unconfirmedInScope > 0
-    ? '등록한 동일회차내<br>추첨결과 미확인건 <b>'+unconfirmedInScope+'</b> &nbsp;<button class="checknow-btn" onclick="RS.runCheckNow()">⚡ 지금확인</button>'
+    ? '등록한 동일회차내<br>추첨결과 미확인건 <b>'+unconfirmedInScope+'</b> &nbsp;<button class="checknow-btn" onclick="RS.runCheckNow(\''+mode+'\')">⚡ 지금확인</button>'
     : '등록한 동일회차내<br>추첨결과 미확인건 <b>0</b>';
   var infoEl = document.getElementById('rs-unconfirmed-info');
   if (infoEl) infoEl.innerHTML = unconfirmedHtml;
@@ -588,20 +781,23 @@ RS.renderRoundBody = function() {
   var winRate = confirmedRows.length ? (winRows.length/confirmedRows.length*100) : 0;
 
   if (!isAll) {
-    var res = getRes(RS.selectedRound);
+    var res = getRes(selectedRound);
     if (res) {
       var ballsHtml = res.nums.map(function(n){
         return '<span class="wball" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+n+'</span>';
       }).join('');
       winboxHtml = '<div class="winbox">' +
-        '<span class="winbox-label">제 '+RS.selectedRound+'회 당첨 번호</span>' +
+        '<span class="winbox-label">제 '+selectedRound+'회 당첨 번호</span>' +
         ballsHtml +
         '<span style="font-size:13px;color:#aaa;">+</span>' +
         '<span class="wball" style="background:#fff;color:#555;border:2px solid #aaa;">'+res.bonus+'</span>' +
         '</div>';
     } else {
+      var emptyMsg = mode === 'upcoming'
+        ? '제 '+selectedRound+'회는 아직 추첨 전입니다. 추첨 후 결과가 반영되면 당첨번호가 표시됩니다.'
+        : '제 '+selectedRound+'회는 아직 추첨 전이거나 결과가 등록되지 않았습니다.';
       winboxHtml = '<div class="winbox" style="background:#f5f5f5;border-color:#e5e5e5;">' +
-        '<span style="font-size:11px;color:#999;">제 '+RS.selectedRound+'회는 아직 추첨 전이거나 결과가 등록되지 않았습니다.</span></div>';
+        '<span style="font-size:11px;color:#999;">'+emptyMsg+'</span></div>';
     }
   }
 
@@ -683,7 +879,12 @@ RS.toggleSort = function(key) {
     RS.sort.key = key;
     RS.sort.dir = 'desc';
   }
-  RS.renderRoundBody();
+  // 현재 활성 섹션에 맞는 재렌더링 함수를 호출 (회차별류 vs 조건검색결과)
+  if (RS.currentSection === 'byCondition') {
+    RS.renderConditionResult(RS.condLastResult || []);
+  } else {
+    RS.renderRoundBody(RS.currentSection);
+  }
 };
 
 // ── 관심(즐겨찾기) 토글 ──
@@ -773,8 +974,140 @@ RS.renderResultTable = function(rows, getRes, isAll, roundsDesc) {
   return '<div class="detail-table-wrap"><table class="rtbl">'+theadHtml+'<tbody>'+bodyRows+'</tbody></table></div>';
 };
 
-RS.SECTION_RENDERERS.byRound = RS.renderByRound;
+// =====================================================
+// 섹션: 조건별 등록현황과 결과 (byCondition)
+// strategy_manager.html의 "조건식"을 그대로 입력받아,
+// 이미 등록한 mll_entries 중 조건을 만족하는 것을 검색한다.
+// =====================================================
+
+RS.condLastResult = null; // 마지막 검색결과 보관
+
+RS.CONDITION_FIELDS = [
+  { id:'c-odd-even',      key:'odd_even' },
+  { id:'c-consecutive',   key:'consecutive_limit' },
+  { id:'c-sum-min',       key:'sum_min' },
+  { id:'c-sum-max',       key:'sum_max' },
+  { id:'c-range-start',   key:'range_start' },
+  { id:'c-range-end',     key:'range_end' },
+  { id:'c-include',       key:'include_numbers' },
+  { id:'c-exclude',       key:'exclude_numbers' },
+  { id:'c-top-range',     key:'top_range' },
+  { id:'c-top-use',       key:'top_use' },
+  { id:'c-recent-rounds', key:'recent_rounds' },
+  { id:'c-last-week',     key:'last_week_mode' }
+];
+
+RS.renderByCondition = function(container) {
+  container.innerHTML =
+    '<div class="card">' +
+      '<div class="cond-card-head">🔎 찾는 조건식 Table</div>' +
+      '<div class="cond-body">' +
+        '<div style="margin-bottom:14px;">' +
+          '<div class="cond-label">조건명</div>' +
+          '<input class="cond-input" id="c-name" placeholder="예) 반포전략, 홀짝균형전략">' +
+        '</div>' +
+
+        '<div class="cond-section-title">📊 번호 조건</div>' +
+        '<div class="cond-grid2">' +
+          '<div><div class="cond-label">홀짝비율 <span class="hint">홀:짝</span></div>' +
+            '<select class="cond-select" id="c-odd-even">' +
+              '<option value="">무관</option>' +
+              '<option value="6:0">6:0</option><option value="5:1">5:1</option>' +
+              '<option value="4:2">4:2</option><option value="3:3">3:3</option>' +
+              '<option value="2:4">2:4</option><option value="1:5">1:5</option>' +
+              '<option value="0:6">0:6</option>' +
+            '</select></div>' +
+          '<div><div class="cond-label">연속제한 <span class="hint">최대 연속 개수</span></div>' +
+            '<input class="cond-input" id="c-consecutive" placeholder="예) 2 (1,2,3 제외)"></div>' +
+          '<div><div class="cond-label">번호합 최소</div>' +
+            '<input class="cond-input" id="c-sum-min" placeholder="예) 100"></div>' +
+          '<div><div class="cond-label">번호합 최대</div>' +
+            '<input class="cond-input" id="c-sum-max" placeholder="예) 170"></div>' +
+          '<div><div class="cond-label">시작번호 <span class="hint">순환구간</span></div>' +
+            '<input class="cond-input" id="c-range-start" placeholder="예) 1"></div>' +
+          '<div><div class="cond-label">끝번호 <span class="hint">45다음 1로 순환</span></div>' +
+            '<input class="cond-input" id="c-range-end" placeholder="예) 40"></div>' +
+          '<div><div class="cond-label">포함수 <span class="hint">반드시 포함될 번호</span></div>' +
+            '<input class="cond-input" id="c-include" placeholder="예) 21,33 또는 1~10"></div>' +
+          '<div><div class="cond-label">제외수 <span class="hint">절대 포함 안 될 번호</span></div>' +
+            '<input class="cond-input" id="c-exclude" placeholder="예) 3,7,11"></div>' +
+        '</div>' +
+
+        '<hr class="cond-divider">' +
+        '<div class="cond-section-title">📈 빈도 분석 조건</div>' +
+        '<div class="cond-grid2">' +
+          '<div><div class="cond-label">상위빈도범위 <span class="hint">최근 N개 중 상위 M개</span></div>' +
+            '<input class="cond-input" id="c-top-range" placeholder="예) 20 (상위 20번호)"></div>' +
+          '<div><div class="cond-label">상위번호사용 <span class="hint">조합당 몇 개 포함</span></div>' +
+            '<input class="cond-input" id="c-top-use" placeholder="예) 2"></div>' +
+          '<div><div class="cond-label">최근분석회차 <span class="hint">최근 N회 분석</span></div>' +
+            '<input class="cond-input" id="c-recent-rounds" placeholder="예) 100"></div>' +
+          '<div><div class="cond-label">지난주기준 <span class="hint">지난주 당첨번호 기준 정렬</span></div>' +
+            '<select class="cond-select" id="c-last-week">' +
+              '<option value="무관">무관</option>' +
+              '<option value="적은순">적은순 (겹침 적은 것 우선)</option>' +
+              '<option value="많은순">많은순 (겹침 많은 것 우선)</option>' +
+            '</select></div>' +
+        '</div>' +
+
+        '<button class="cond-searchbtn" onclick="RS.runConditionSearch()">🔍 찾기 Click!</button>' +
+
+        '<div class="cond-note">' +
+          '여기서는 사용자가 생각하는 조건을 갖춘 번호조합이 내가 이미 등록한 이곳에 있나 찾아보는 곳입니다. ' +
+          '있을 경우 아래에 리스트로 나오게 됩니다.<br><br>' +
+          '만일 없을 경우 메인페이지 <b>"전략등록"</b>에서 원하는 조건으로 번호를 새로 생성해 보세요.' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div id="rs-condresult" style="margin-top:14px;"></div>';
+};
+
+RS.collectConditionFromForm = function() {
+  var cond = {};
+  RS.CONDITION_FIELDS.forEach(function(f) {
+    var el = document.getElementById(f.id);
+    if (el) cond[f.key] = el.value;
+  });
+  return cond;
+};
+
+RS.runConditionSearch = function() {
+  var cond = RS.collectConditionFromForm();
+  var entries = MLL.loadEntries();
+  var results = MLL.loadResults();
+  var history = Object.keys(results).map(Number).sort(function(a,b){ return b-a; }).map(function(r){
+    return { round:r, nums: results[r].nums || [] };
+  });
+
+  var matched = MLL.searchEntriesByCondition(entries, cond, history);
+  RS.condLastResult = matched;
+  RS.sort = { key:'createdAt', dir:'desc' };
+  RS.renderConditionResult(matched);
+};
+
+RS.renderConditionResult = function(matched) {
+  var box = document.getElementById('rs-condresult');
+  if (!box) return;
+  var results = MLL.loadResults();
+  function getRes(round){ return results[round]||results[Number(round)]||results[String(round)]||null; }
+
+  var ro = RS.buildRoundOptions();
+  var sorted = RS.sortRows(matched, getRes, true); // 조건검색 결과는 회차컬럼 포함 형태로 표시
+  var tableHtml = RS.renderResultTable(sorted, getRes, true, ro.rounds);
+
+  box.innerHTML =
+    '<div class="card">' +
+      '<div class="card-head head-dark">📋 조건을 만족하는 등록건 ('+matched.length+'건)</div>' +
+      tableHtml +
+    '</div>';
+};
+
+RS.SECTION_RENDERERS.byRound  = RS.renderByRound;
+RS.SECTION_RENDERERS.real      = RS.renderReal;
+RS.SECTION_RENDERERS.upcoming  = RS.renderUpcoming;
+RS.SECTION_RENDERERS.byCondition = RS.renderByCondition;
 </script>
+
 
 <script>
 window.addEventListener('DOMContentLoaded', function(){
