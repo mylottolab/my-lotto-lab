@@ -201,6 +201,7 @@ table.habittbl td.sub-confirmed{color:#888;font-size:9px;}
 .btn-url-parse{background:#7048e8;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;}
 </style>
 <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
 </head>
 <body>
 <script>// =====================================================
@@ -1788,7 +1789,9 @@ RS.renderGeneralInputBody = function() {
     '</div>' +
     '<div class="gen-num-grid" style="margin-bottom:8px;">' +
       [1,2,3,4,5,6].map(function(i){
-        return '<input class="gen-num-in" id="gen-num-'+i+'" type="number" min="1" max="45" placeholder="'+i+'">';
+        var nextId = i<6 ? 'gen-num-'+(i+1) : null;
+        return '<input class="gen-num-in" id="gen-num-'+i+'" type="number" min="1" max="45" placeholder="'+i+'"' +
+          (nextId ? ' oninput="RS.autoAdvanceNumInput(this,\''+nextId+'\')"' : ' oninput="RS.clampNumInput(this)"') + '>';
       }).join('') +
     '</div>' +
     '<input class="cond-input" id="gen-memo" placeholder="메모 (선택, 예: 생일번호)" style="margin-bottom:8px;">' +
@@ -1824,6 +1827,31 @@ RS.showAccMsg = function(el, type, text) {
   el.className = 'acc-msg show ' + type;
   el.textContent = text;
   setTimeout(function(){ el.classList.remove('show'); }, 4000);
+};
+
+// 번호입력칸: 1~45 범위로 보정하고, 두 자리(또는 더 이상 입력 불가한 값)가 되면 다음 칸으로 자동 포커스 이동
+RS.clampNumInput = function(el) {
+  var v = el.value;
+  if (v === '') return;
+  var n = parseInt(v, 10);
+  if (isNaN(n)) { el.value = ''; return; }
+  if (n > 45) n = 45;
+  if (n < 0) n = 0;
+  el.value = String(n);
+};
+
+RS.autoAdvanceNumInput = function(el, nextId) {
+  RS.clampNumInput(el);
+  var v = el.value;
+  if (v === '') return;
+  var n = parseInt(v, 10);
+  // 두 자리 수가 채워졌거나, 한 자리지만 더 이상 0~9를 이어붙여도 45를 넘게 되는 경우(5,6,7,8,9) 바로 다음 칸으로
+  var isTwoDigits = v.length >= 2;
+  var cannotGrow = v.length === 1 && n >= 5; // 5x ~ 9x는 모두 45 초과이므로 한 자리에서 확정
+  if (isTwoDigits || cannotGrow) {
+    var next = document.getElementById(nextId);
+    if (next) { next.focus(); next.select && next.select(); }
+  }
 };
 
 // ── 1) AI 도우미: 텍스트/음성으로 번호 추출 ──
@@ -2030,32 +2058,21 @@ RS.handleImageUpload = function(event) {
   var msgEl = document.getElementById('acc-msg-image');
   var previewArea = document.getElementById('img-preview-area');
 
-  if (!('BarcodeDetector' in window)) {
-    RS.showAccMsg(msgEl, 'error', '이 브라우저는 이미지 QR 인식을 지원하지 않습니다. QR 안의 URL을 직접 붙여넣어 주세요.');
+  if (typeof QrScanner === 'undefined') {
+    RS.showAccMsg(msgEl, 'error', 'QR 인식 라이브러리를 불러오지 못했습니다. 네트워크를 확인하거나, QR 안의 URL을 직접 붙여넣어 주세요.');
     if (previewArea) previewArea.innerHTML = RS.renderManualUrlBox('image');
     return;
   }
 
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var img = new Image();
-    img.onload = function() {
-      var detector = new BarcodeDetector({ formats: ['qr_code'] });
-      detector.detect(img).then(function(codes) {
-        if (!codes.length) {
-          RS.showAccMsg(msgEl, 'error', 'QR코드를 인식하지 못했습니다. 더 선명한 사진으로 다시 시도하거나, QR 안의 URL을 직접 붙여넣어 주세요.');
-          if (previewArea) previewArea.innerHTML = RS.renderManualUrlBox('image');
-          return;
-        }
-        RS.handleDecodedQrText(codes[0].rawValue, msgEl, 'image');
-      }).catch(function() {
-        RS.showAccMsg(msgEl, 'error', 'QR 인식 중 오류가 발생했습니다. QR 안의 URL을 직접 붙여넣어 주세요.');
-        if (previewArea) previewArea.innerHTML = RS.renderManualUrlBox('image');
-      });
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+  RS.showAccMsg(msgEl, 'info', '이미지에서 QR코드를 분석 중입니다...');
+  QrScanner.scanImage(file, { returnDetailedScanResult: true })
+    .then(function(result) {
+      RS.handleDecodedQrText(result.data, msgEl, 'image');
+    })
+    .catch(function() {
+      RS.showAccMsg(msgEl, 'error', 'QR코드를 인식하지 못했습니다. 더 선명한 사진으로 다시 시도하거나, QR 안의 URL을 직접 붙여넣어 주세요.');
+      if (previewArea) previewArea.innerHTML = RS.renderManualUrlBox('image');
+    });
 };
 
 RS.renderManualUrlBox = function(prefix) {
@@ -2104,7 +2121,9 @@ RS.renderQrConfirmForm = function(sourceTag, round, nums) {
     '</div>' +
     '<div class="gen-num-grid">' +
       [0,1,2,3,4,5].map(function(i){
-        return '<input class="gen-num-in" id="'+idPrefix+'-n'+i+'" type="number" min="1" max="45" value="'+(nums[i]||'')+'">';
+        var nextId = i<5 ? idPrefix+'-n'+(i+1) : null;
+        return '<input class="gen-num-in" id="'+idPrefix+'-n'+i+'" type="number" min="1" max="45" value="'+(nums[i]||'')+'"' +
+          (nextId ? ' oninput="RS.autoAdvanceNumInput(this,\''+nextId+'\')"' : ' oninput="RS.clampNumInput(this)"') + '>';
       }).join('') +
     '</div>' +
     '<button class="gen-save-btn" style="margin-top:8px;" onclick="RS.confirmAndSaveQr(\''+sourceTag+'\')">⭐ 확인 후 최애번호로 저장</button>' +
@@ -2142,7 +2161,7 @@ RS.renderQrInputBody = function() {
       '<div style="font-size:24px;margin-bottom:4px;">📷</div>' +
       '<div style="font-size:11px;color:#555;">카메라로 로또 용지의 QR코드를 비춰주세요</div>' +
     '</div>' +
-    '<div id="qr-video-wrap" style="display:none;margin-bottom:8px;">' +
+    '<div id="qr-video-wrap" style="display:none;margin-bottom:8px;position:relative;">' +
       '<video id="qr-video" style="width:100%;border-radius:8px;background:#000;" playsinline></video>' +
     '</div>' +
     '<div class="qr-btns">' +
@@ -2153,44 +2172,48 @@ RS.renderQrInputBody = function() {
     '<div id="qr-preview-area"></div>';
 };
 
+RS.qrScannerInstance = null;
+
 RS.startQrScan = function() {
   var msgEl = document.getElementById('acc-msg-qr');
-  if (!('BarcodeDetector' in window)) {
-    RS.showAccMsg(msgEl, 'error', '이 브라우저는 카메라 QR 인식을 지원하지 않습니다. QR 안의 URL을 직접 붙여넣어 주세요.');
+  if (typeof QrScanner === 'undefined') {
+    RS.showAccMsg(msgEl, 'error', 'QR 인식 라이브러리를 불러오지 못했습니다. 네트워크를 확인하거나, QR 안의 URL을 직접 붙여넣어 주세요.');
     var pa = document.getElementById('qr-preview-area');
     if (pa) pa.innerHTML = RS.renderManualUrlBox('qr');
     return;
   }
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    RS.showAccMsg(msgEl, 'error', '이 브라우저/환경에서는 카메라를 사용할 수 없습니다.');
-    return;
-  }
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function(stream) {
-    RS.qrStream = stream;
-    var video = document.getElementById('qr-video');
-    video.srcObject = stream;
-    video.play();
-    document.getElementById('qr-video-wrap').style.display = 'block';
-    document.getElementById('qr-start-btn').style.display = 'none';
-    document.getElementById('qr-stop-btn').style.display = 'block';
 
-    var detector = new BarcodeDetector({ formats: ['qr_code'] });
-    RS.qrDetectInterval = setInterval(function() {
-      detector.detect(video).then(function(codes) {
-        if (codes.length) {
-          RS.stopQrScan();
-          RS.handleDecodedQrText(codes[0].rawValue, msgEl, 'qr');
-        }
-      }).catch(function(){});
-    }, 500);
-  }).catch(function(err) {
-    RS.showAccMsg(msgEl, 'error', '카메라 권한을 허용해주세요. (오류: '+err.name+')');
+  var video = document.getElementById('qr-video');
+  document.getElementById('qr-video-wrap').style.display = 'block';
+  document.getElementById('qr-start-btn').style.display = 'none';
+  document.getElementById('qr-stop-btn').style.display = 'block';
+
+  RS.qrScannerInstance = new QrScanner(
+    video,
+    function(result) {
+      RS.stopQrScan();
+      RS.handleDecodedQrText(result.data, msgEl, 'qr');
+    },
+    {
+      returnDetailedScanResult: true,
+      preferredCamera: 'environment',
+      highlightScanRegion: true,
+      highlightCodeOutline: true
+    }
+  );
+
+  RS.qrScannerInstance.start().catch(function(err) {
+    RS.showAccMsg(msgEl, 'error', '카메라 권한을 허용해주세요. (오류: '+(err && err.message ? err.message : err)+')');
+    RS.stopQrScan();
   });
 };
 
 RS.stopQrScan = function() {
-  if (RS.qrDetectInterval) { clearInterval(RS.qrDetectInterval); RS.qrDetectInterval = null; }
-  if (RS.qrStream) { RS.qrStream.getTracks().forEach(function(t){ t.stop(); }); RS.qrStream = null; }
+  if (RS.qrScannerInstance) {
+    RS.qrScannerInstance.stop();
+    RS.qrScannerInstance.destroy();
+    RS.qrScannerInstance = null;
+  }
   var wrap = document.getElementById('qr-video-wrap');
   if (wrap) wrap.style.display = 'none';
   var startBtn = document.getElementById('qr-start-btn');
