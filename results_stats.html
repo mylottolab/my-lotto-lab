@@ -2159,7 +2159,8 @@ RS.renderQrInputBody = function() {
   return '' +
     '<div class="qr-guide-box">' +
       '<div style="font-size:24px;margin-bottom:4px;">📷</div>' +
-      '<div style="font-size:11px;color:#555;">카메라로 로또 용지의 QR코드를 비춰주세요</div>' +
+      '<div style="font-size:11px;color:#555;">카메라 화면 안에 QR코드가 들어오도록 비춰주세요</div>' +
+      '<div style="font-size:9px;color:#999;margin-top:4px;">QR이 너무 작으면 인식이 잘 안 돼요. 화면의 1/4 정도 크기가 되도록 카메라를 가까이 가져가 보세요. 밝은 곳에서, QR이 흔들리지 않게 잠시 고정해주세요.</div>' +
     '</div>' +
     '<div id="qr-video-wrap" style="display:none;margin-bottom:8px;position:relative;">' +
       '<video id="qr-video" style="width:100%;border-radius:8px;background:#000;" playsinline></video>' +
@@ -2173,6 +2174,13 @@ RS.renderQrInputBody = function() {
 };
 
 RS.qrScannerInstance = null;
+
+// qr-scanner 라이브러리는 실제 디코딩을 별도 웹워커에서 수행한다.
+// CDN(unpkg)에서 로드 시 워커 파일 경로를 자동으로 못 찾는 경우가 있어 명시적으로 지정한다.
+// (지정하지 않으면 디코딩이 불안정해지거나 인식률이 크게 떨어질 수 있다)
+if (typeof QrScanner !== 'undefined' && !QrScanner.WORKER_PATH) {
+  QrScanner.WORKER_PATH = 'https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js';
+}
 
 RS.startQrScan = function() {
   var msgEl = document.getElementById('acc-msg-qr');
@@ -2198,7 +2206,17 @@ RS.startQrScan = function() {
       returnDetailedScanResult: true,
       preferredCamera: 'environment',
       highlightScanRegion: true,
-      highlightCodeOutline: true
+      highlightCodeOutline: true,
+      maxScansPerSecond: 10,
+      // 기본값(중앙 정사각형 2/3 영역)은 로또 용지의 작은 QR을 놓치기 쉬워
+      // 비디오 프레임 전체를 스캔 대상으로 넓혀 인식 기회를 늘린다.
+      calculateScanRegion: function(v) {
+        return {
+          x: 0, y: 0,
+          width: v.videoWidth, height: v.videoHeight,
+          downScaledWidth: 600, downScaledHeight: Math.round(600 * v.videoHeight / v.videoWidth)
+        };
+      }
     }
   );
 
