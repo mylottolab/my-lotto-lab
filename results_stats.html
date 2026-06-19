@@ -100,6 +100,26 @@ table.rtbl tbody tr:hover{background:#fafafa;}
   .statpanel-grid{grid-template-columns:1fr;}
   .cond-grid2{grid-template-columns:1fr;}
 }
+/* 나의 구매 성향 */
+.habit-header{text-align:center;padding:18px 16px 4px;}
+.habit-title{font-size:18px;font-weight:700;color:#222;}
+.habit-date{font-size:11px;color:#888;margin-top:3px;}
+.habit-summary{background:#eef7ef;border:1px solid #cce8d0;border-radius:8px;padding:12px 16px;margin:14px 16px;font-size:12px;color:#333;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;}
+.habit-summary b{color:#1c1c2e;}
+.habit-summary .note{color:#e03131;font-size:10px;flex:1 1 100%;margin-top:2px;}
+.habit-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 16px 16px;}
+@media (max-width:900px){ .habit-grid{grid-template-columns:1fr;} }
+.habit-block{background:#fff;}
+.habit-block-title{font-size:12px;font-weight:700;color:#333;margin-bottom:8px;display:flex;align-items:center;gap:5px;}
+table.habittbl{width:100%;border-collapse:collapse;font-size:11px;border:1px solid #e5e5e5;}
+table.habittbl th{background:#f8f8f8;color:#666;font-weight:700;padding:7px 6px;border:1px solid #e5e5e5;text-align:center;}
+table.habittbl td{padding:6px 6px;border:1px solid #eee;text-align:center;}
+table.habittbl tr.total-row td{font-weight:700;background:#fafafa;}
+table.habittbl td.sub-confirmed{color:#888;font-size:9px;}
+.habit-freebox{border:1px solid #e5e5e5;border-radius:6px;padding:12px 14px;font-size:11px;color:#444;line-height:2;min-height:140px;background:#fafafa;}
+.habit-freebox-note{font-size:9px;color:#999;margin-top:6px;text-align:right;}
+.freq-chip{display:inline-block;background:#fff;border:1px solid #ddd;border-radius:5px;padding:2px 7px;margin:2px;font-size:10px;}
+.freq-chip b{color:#1a7ad4;}
 </style>
 </head>
 <body>
@@ -1121,6 +1141,200 @@ RS.SECTION_RENDERERS.real      = RS.renderReal;
 RS.SECTION_RENDERERS.upcoming  = RS.renderUpcoming;
 RS.SECTION_RENDERERS.byCondition = RS.renderByCondition;
 </script>
+
+<script>
+// =====================================================
+// 섹션: 나의 구매 성향 (habit)
+// 전체 등록 번호조합(추첨여부 무관)을 기준으로 6가지 분석을 보여준다.
+// 표의 "총등록건수(확인된 등록건수)" 형태: 괄호 밖=전체등록, 괄호 안=추첨후 확인된 것만
+// 당첨건수/당첨금액은 항상 추첨후 확인건 중에서만 집계
+// =====================================================
+
+RS.isConfirmed = function(e) {
+  return e.status === '추첨후' && e.grade !== null && e.grade !== undefined;
+};
+
+RS.sumNums = function(nums) { return nums.reduce(function(a,b){ return a+b; }, 0); };
+
+// 공통: bucket 함수로 각 entry를 분류해서 표 데이터(rows + 합계) 생성
+// bucketFn(entry) -> 분류 키 문자열 (해당 없으면 null 반환 가능)
+RS.buildHabitTable = function(entries, buckets, bucketFn) {
+  var data = {};
+  buckets.forEach(function(b){ data[b] = { total:0, confirmed:0, winCount:0, winPrize:0 }; });
+
+  entries.forEach(function(e){
+    var key = bucketFn(e);
+    if (key === null || !data.hasOwnProperty(key)) return;
+    data[key].total++;
+    if (RS.isConfirmed(e)) {
+      data[key].confirmed++;
+      if (e.grade > 0) {
+        data[key].winCount++;
+        data[key].winPrize += (e.prizeMoney || 0);
+      }
+    }
+  });
+
+  var totalAll = entries.length;
+  var totalConfirmed = entries.filter(RS.isConfirmed).length;
+  var totalWinCount = 0, totalWinPrize = 0;
+  buckets.forEach(function(b){ totalWinCount += data[b].winCount; totalWinPrize += data[b].winPrize; });
+
+  return { data:data, totalAll:totalAll, totalConfirmed:totalConfirmed, totalWinCount:totalWinCount, totalWinPrize:totalWinPrize };
+};
+
+RS.renderHabitTableHTML = function(title, icon, buckets, bucketLabels, result) {
+  var rows = buckets.map(function(b, i){
+    var d = result.data[b];
+    var pctAll = result.totalAll ? (d.total/result.totalAll*100) : 0;
+    var pctConfirmed = result.totalConfirmed ? (d.confirmed/result.totalConfirmed*100) : 0;
+    return '<tr><td>'+(bucketLabels[i]||b)+'</td>' +
+      '<td>'+d.total.toLocaleString()+(d.confirmed?'<span class="sub-confirmed">('+d.confirmed.toLocaleString()+')</span>':'')+'</td>' +
+      '<td>'+pctAll.toFixed(1)+'%'+(d.confirmed?'<span class="sub-confirmed">('+pctConfirmed.toFixed(1)+'%)</span>':'')+'</td>' +
+      '<td>'+(d.winCount||'-')+'</td>' +
+      '<td>'+(d.winPrize?d.winPrize.toLocaleString():'-')+'</td>' +
+      '</tr>';
+  }).join('');
+
+  var pctAllTotal = result.totalAll ? 100 : 0;
+  var pctConfirmedTotal = result.totalConfirmed ? 100 : 0;
+
+  return '<div class="habit-block">' +
+    '<div class="habit-block-title">'+icon+' '+title+'</div>' +
+    '<table class="habittbl"><thead><tr>' +
+      '<th>구분</th><th>총등록건수<br>(확인된 등록건수)</th><th>총등록비율<br>(확인된 등록비율)</th><th>당첨건수</th><th>당첨금액 합계</th>' +
+    '</tr></thead><tbody>' + rows +
+      '<tr class="total-row"><td>합계</td>' +
+        '<td>'+result.totalAll.toLocaleString()+(result.totalConfirmed?'<span class="sub-confirmed">('+result.totalConfirmed.toLocaleString()+')</span>':'')+'</td>' +
+        '<td>'+pctAllTotal.toFixed(1)+'%'+(result.totalConfirmed?'<span class="sub-confirmed">('+pctConfirmedTotal.toFixed(1)+'%)</span>':'')+'</td>' +
+        '<td>'+(result.totalWinCount||'-')+'</td>' +
+        '<td>'+(result.totalWinPrize?result.totalWinPrize.toLocaleString():'-')+'</td>' +
+      '</tr>' +
+    '</tbody></table>' +
+  '</div>';
+};
+
+// 1) 홀짝비율
+RS.calcOddEven = function(entries) {
+  var buckets = ['6:0','5:1','4:2','3:3','2:4','1:5','0:6'];
+  var result = RS.buildHabitTable(entries, buckets, function(e){
+    var odd = e.nums.filter(function(n){ return n%2===1; }).length;
+    return odd+':'+(6-odd);
+  });
+  return RS.renderHabitTableHTML('홀짝비율', '⚖️', buckets, buckets, result);
+};
+
+// 2) 연속번호
+RS.calcConsecutive = function(entries) {
+  var buckets = ['0','2','3','4','5','6'];
+  var labels  = ['연속조합 없음','2수 연속','3수 연속','4수 연속','5수 연속','6수 연속'];
+  var result = RS.buildHabitTable(entries, buckets, function(e){
+    var sorted = e.nums.slice().sort(function(a,b){return a-b;});
+    var maxRun = 1, run = 1;
+    for (var i=1;i<sorted.length;i++){
+      if (sorted[i]===sorted[i-1]+1){ run++; if(run>maxRun) maxRun=run; }
+      else run=1;
+    }
+    return maxRun===1 ? '0' : String(maxRun);
+  });
+  return RS.renderHabitTableHTML('연속번호: 숫자가 연달아 나오는 조합', '🔗', buckets, labels, result);
+};
+
+// 3) 6개 번호의 합 분포 (21~67/68~114/115~161/162~208/209~255)
+RS.calcSumDist = function(entries) {
+  var buckets = ['21-67','68-114','115-161','162-208','209-255'];
+  var labels  = ['21~67','68~114','115~161','162~208','209~255'];
+  var ranges  = [[21,67],[68,114],[115,161],[162,208],[209,255]];
+  var result = RS.buildHabitTable(entries, buckets, function(e){
+    var s = RS.sumNums(e.nums);
+    for (var i=0;i<ranges.length;i++){
+      if (s>=ranges[i][0] && s<=ranges[i][1]) return buckets[i];
+    }
+    return null;
+  });
+  return RS.renderHabitTableHTML('6개 번호의 합 분포', '📐', buckets, labels, result);
+};
+
+// 5) 구매형태별 통계
+RS.calcByType = function(entries) {
+  var buckets = ['자동','반자동','수동'];
+  var result = RS.buildHabitTable(entries, buckets, function(e){ return e.type; });
+  return RS.renderHabitTableHTML('구매형태별 통계', '🎯', buckets, buckets, result);
+};
+
+// 4) 내가 가장 많이 사용한 번호와 횟수 (총 등록번호조합 기준, 괄호합=등록건수*6)
+RS.calcTopUsedNumbers = function(entries) {
+  var freq = {};
+  entries.forEach(function(e){ e.nums.forEach(function(n){ freq[n] = (freq[n]||0)+1; }); });
+  var sorted = Object.keys(freq).map(Number).map(function(n){ return [n, freq[n]]; })
+    .sort(function(a,b){ return b[1]-a[1] || a[0]-b[0]; });
+  var html = sorted.map(function(x){
+    return '<span class="freq-chip">'+String(x[0]).padStart(2,'0')+'(<b>'+x[1]+'</b>)</span>';
+  }).join(' ');
+  var totalSlots = entries.length * 6;
+  return '<div class="habit-block">' +
+    '<div class="habit-block-title">🔥 내가 가장 많이 사용한 번호와 횟수<span style="color:#999;font-weight:400;font-size:10px;">(총 등록번호조합 기준)</span></div>' +
+    '<div class="habit-freebox">'+(html || '<span style="color:#bbb;">등록된 번호가 없습니다.</span>')+'</div>' +
+    '<div class="habit-freebox-note">*참고사항: 괄호안의 합 = 총등록건수 × 6 = '+totalSlots.toLocaleString()+'</div>' +
+  '</div>';
+};
+
+// 6) 등록된 번호조합의 첫 시작번호와 횟수 (총 등록번호조합 기준)
+RS.calcFirstNumberFreq = function(entries) {
+  var freq = {};
+  entries.forEach(function(e){
+    var sorted = e.nums.slice().sort(function(a,b){return a-b;});
+    var first = sorted[0];
+    freq[first] = (freq[first]||0)+1;
+  });
+  var sorted = Object.keys(freq).map(Number).sort(function(a,b){ return a-b; });
+  var html = sorted.map(function(n){
+    return '<span class="freq-chip">'+String(n).padStart(2,'0')+'(<b>'+freq[n]+'</b>)</span>';
+  }).join(' ');
+  var totalSlots = entries.length;
+  return '<div class="habit-block">' +
+    '<div class="habit-block-title">🎬 등록된 번호조합의 첫 시작번호와 횟수<span style="color:#999;font-weight:400;font-size:10px;">(총 등록번호조합 기준)</span></div>' +
+    '<div class="habit-freebox">'+(html || '<span style="color:#bbb;">등록된 번호가 없습니다.</span>')+'</div>' +
+    '<div class="habit-freebox-note">*참고사항: 괄호안의 합 = 총등록건수 = '+totalSlots.toLocaleString()+'</div>' +
+  '</div>';
+};
+
+RS.renderHabit = function(container) {
+  var entries = MLL.loadEntries();
+  var preDraw = entries.filter(function(e){ return e.status==='추첨전'; }).length;
+  var confirmed = entries.filter(RS.isConfirmed).length;
+  var unconfirmed = entries.length - preDraw - confirmed;
+
+  var now = new Date();
+  var dateStr = now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+String(now.getDate()).padStart(2,'0');
+
+  container.innerHTML =
+    '<div class="card">' +
+      '<div class="habit-header">' +
+        '<div class="habit-title">📊 나의 구매 성향</div>' +
+        '<div class="habit-date">('+dateStr+' 현재기준)</div>' +
+      '</div>' +
+      '<div class="habit-summary">' +
+        '<span><b>총등록건수:</b> '+entries.length.toLocaleString()+'건</span>' +
+        '<span>(추첨전: '+preDraw.toLocaleString()+'</span>' +
+        '<span>추첨후 확인: '+confirmed.toLocaleString()+'</span>' +
+        '<span>추첨후 미확인: '+unconfirmed.toLocaleString()+')</span>' +
+        '<span class="note">*당첨건수와 당첨금액은 추첨후 확인건만 계상한 것입니다.</span>' +
+      '</div>' +
+      '<div class="habit-grid">' +
+        RS.calcOddEven(entries) +
+        RS.calcConsecutive(entries) +
+        RS.calcSumDist(entries) +
+        RS.calcTopUsedNumbers(entries) +
+        RS.calcByType(entries) +
+        RS.calcFirstNumberFreq(entries) +
+      '</div>' +
+    '</div>';
+};
+
+RS.SECTION_RENDERERS.habit = RS.renderHabit;
+</script>
+
 
 
 <script>
