@@ -17,6 +17,8 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
 /* 상단 2단 */
 .top-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
 .card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;}
+.card.tint-yellow{background:#fffdf3;border-color:#f3e6a8;}
+.card.tint-blue{background:#f3f9ff;border-color:#bcd9f5;}
 .card-head{padding:11px 16px;display:flex;align-items:center;gap:8px;}
 .card-head.yellow{background:#f5c518;}
 .card-head.blue{background:#1a7ad4;}
@@ -55,6 +57,11 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
 .menu-grid-2{grid-template-columns:1fr 1fr;}
 .menu-grid-4{grid-template-columns:1fr 1fr 1fr 1fr;}
 .menu-card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;padding:14px 16px;cursor:pointer;transition:box-shadow 0.15s,border-color 0.15s;position:relative;}
+.menu-card.tint-mint{background:#f1fbf6;border-color:#bfe8d2;}
+.menu-card.tint-mint:hover{border-color:#7fcfa3;}
+.menu-card.tint-lavender{background:#f7f4ff;border-color:#d8cdf2;}
+.menu-card.tint-lavender:hover{border-color:#b9a3e8;}
+.menu-card.tint-lavender.disabled,.menu-card.tint-mint.disabled{opacity:0.75;}
 .menu-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.09);border-color:#c0d4f0;}
 .menu-card.disabled{cursor:default;opacity:0.7;}
 .menu-card.disabled:hover{box-shadow:none;border-color:#e0e0e0;}
@@ -113,11 +120,11 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
 <div class="main">
 <!-- 상단: 당첨번호 + 내현황 -->
 <div class="top-row">
-<div class="card">
+<div class="card tint-yellow">
 <div class="card-head yellow"><span>🏆</span><span class="ch-title">최근 한국 로또 당첨 번호</span></div>
 <div class="card-body" id="latestResult"><div class="no-result">⏳ 로딩 중...</div></div>
 </div>
-<div class="card">
+<div class="card tint-blue">
 <div class="card-head blue"><span>📊</span><span class="ch-title">내 현황</span></div>
 <div class="stats-grid">
 <div class="stat-block">
@@ -156,22 +163,22 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
 <span class="section-title">✏️ 번호 등록</span>
 </div>
 <div class="menu-grid menu-grid-4">
-<div class="menu-card" onclick="location.href='lotto_input_page_v4.html'">
+<div class="menu-card tint-mint" onclick="location.href='lotto_input_page_v4.html'">
 <div class="menu-icon">🖥️</div>
 <div class="menu-title">일반 방식 편한 등록</div>
 <div class="menu-sub">직접 번호 선택 / 자동 생성</div>
 </div>
-<div class="menu-card" onclick="location.href='camera_qr.html'">
+<div class="menu-card tint-mint" onclick="location.href='camera_qr.html'">
 <div class="menu-icon">📷</div>
 <div class="menu-title">실구매 로또등록</div>
 <div class="menu-sub">카메라/QR/수동 직접입력</div>
 </div>
-<div class="menu-card" onclick="location.href='excel_upload.html'">
+<div class="menu-card tint-mint" onclick="location.href='excel_upload.html'">
 <div class="menu-icon">📊</div>
 <div class="menu-title">엑셀 파일 대량 등록</div>
 <div class="menu-sub">.xlsx / .csv 업로드</div>
 </div>
-<div class="menu-card" onclick="location.href='ai_input.html'">
+<div class="menu-card tint-mint" onclick="location.href='ai_input.html'">
 <div class="menu-icon">✨</div>
 <div class="menu-title">AI 도우미 음성·문자로 등록</div>
 <div class="menu-sub">자연어 음성·문자로 번호 입력</div>
@@ -214,24 +221,24 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
 <span class="section-title">📋 결과 및 통계</span>
 </div>
 <div class="menu-grid menu-grid-4">
-<div class="menu-card" onclick="location.href='results_stats.html'">
+<div class="menu-card tint-lavender" onclick="location.href='results_stats.html'">
 <div class="menu-icon">📋</div>
 <div class="menu-title">번호등록 현황 및 당첨통계</div>
 <div class="menu-sub">저장된 번호 목록 · 당첨 현황</div>
 </div>
-<div class="menu-card disabled">
+<div class="menu-card tint-lavender disabled">
 <span class="badge-soon">준비중</span>
 <div class="menu-icon">📊</div>
 <div class="menu-title">전략등록 현황 및 당첨통계</div>
 <div class="menu-sub">전략별 등록 현황 · 당첨 통계</div>
 </div>
-<div class="menu-card disabled">
+<div class="menu-card tint-lavender disabled">
 <span class="badge-soon">준비중</span>
 <div class="menu-icon">⚔️</div>
 <div class="menu-title">Lotto Battle 현황 및 결과</div>
 <div class="menu-sub">배틀 진행 현황 · 결과 확인</div>
 </div>
-<div class="menu-card disabled">
+<div class="menu-card tint-lavender disabled">
 <span class="badge-soon">준비중</span>
 <div class="menu-icon">📅</div>
 <div class="menu-title">역대 회차별 통계</div>
