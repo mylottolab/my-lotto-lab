@@ -2058,6 +2058,30 @@ RS.loadImageEl = function(src) {
   });
 };
 
+// 지정된 가로/세로 크기로 캔버스에 그린 뒤 BarcodeDetector → zxing 순서로 디코딩 시도
+RS.tryDecodeImage = async function(img, w, h) {
+  var canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+  if ('BarcodeDetector' in window) {
+    try {
+      var det = new BarcodeDetector({ formats: ['qr_code'] });
+      var blob = await new Promise(function(r) { canvas.toBlob(r, 'image/jpeg', 0.95); });
+      var bmp = await createImageBitmap(blob);
+      var codes = await det.detect(bmp);
+      if (codes.length > 0) return codes[0].rawValue;
+    } catch (e) {}
+  }
+  try {
+    var imageData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+    var text = await RS.zxingDecode(imageData, canvas.width, canvas.height);
+    if (text) return text;
+  } catch (e) {}
+  return null;
+};
+
 // 인식된 회차/조합을 결과로 저장 (camera_qr.html과 동일하게 확인 단계 없이 즉시 저장)
 RS.saveQrCombos = function(round, combos, sourceTag) {
   combos.forEach(function(c) {
@@ -2148,25 +2172,29 @@ RS.processImgQueue = async function() {
   try {
     var url = URL.createObjectURL(file);
     var img = await RS.loadImageEl(url);
-    var canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    canvas.getContext('2d').drawImage(img, 0, 0);
     URL.revokeObjectURL(url);
 
-    var qrText = null;
-    if ('BarcodeDetector' in window) {
-      try {
-        var det = new BarcodeDetector({ formats: ['qr_code'] });
-        var blob = await new Promise(function(r) { canvas.toBlob(r, 'image/jpeg', 0.95); });
-        var bmp = await createImageBitmap(blob);
-        var codes = await det.detect(bmp);
-        if (codes.length > 0) qrText = codes[0].rawValue;
-      } catch (e) {}
-    }
+    // 1차: 원본 크기로 시도, 실패하면 2차: 적정 크기로 다운스케일해서 재시도
+    // (최신 스마트폰 사진은 4000px가 넘는 경우가 많아 디코더가 처리에 실패하는 경우가 있음)
+    var qrText = await RS.tryDecodeImage(img, img.naturalWidth, img.naturalHeight);
     if (!qrText) {
-      var imageData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
-      qrText = await RS.zxingDecode(imageData, canvas.width, canvas.height);
+      var maxDim = 1280;
+      var scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+      if (scale < 1) {
+        var w2 = Math.round(img.naturalWidth * scale);
+        var h2 = Math.round(img.naturalHeight * scale);
+        qrText = await RS.tryDecodeImage(img, w2, h2);
+      }
+    }
+    // 3차: 그래도 실패하면 더 작게(800px) 한 번 더 — 너무 촘촘한 경우 반대로 작을 때 더 잘 읽히기도 함
+    if (!qrText) {
+      var maxDim2 = 800;
+      var scale2 = Math.min(1, maxDim2 / Math.max(img.naturalWidth, img.naturalHeight));
+      if (scale2 < 1) {
+        var w3 = Math.round(img.naturalWidth * scale2);
+        var h3 = Math.round(img.naturalHeight * scale2);
+        qrText = await RS.tryDecodeImage(img, w3, h3);
+      }
     }
 
     if (qrText) {
