@@ -1559,21 +1559,28 @@ RS.renderFavorites = function(container) {
     }).join('');
 
   container.innerHTML =
-    '<div class="card">' +
-      '<div class="card-head head-dark">🏆 나의 관심번호: 재구매 대상 최애번호 List</div>' +
-      '<div class="round-select-bar">' +
-        '<span style="font-size:11px;color:#888;">확인할 회차 선택</span>' +
-        '<select id="rs-fav-round-select" onchange="RS.onFavRoundChange(this.value)">'+optionsHtml+'</select>' +
-        '<button class="gobtn" onclick="RS.onFavRoundChange(document.getElementById(\'rs-fav-round-select\').value)">🔍 결과 보기</button>' +
+    '<div class="statpanel-grid">' +
+      '<div class="card">' +
+        '<div class="card-head head-dark">🏅 나의 최애번호 추가: 다음 중 선택하여 사용하세요</div>' +
+        '<div style="padding:14px;">' + RS.renderAddInputAccordion() + '</div>' +
       '</div>' +
-      '<div id="rs-favbody"></div>' +
-      '<div class="fav-toolbar">' +
-        '<button class="fav-btn excel" onclick="RS.exportFavoritesExcel()">📊 엑셀 다운로드</button>' +
-        '<button class="fav-btn pdf" onclick="window.print()">🖨️ PDF 출력</button>' +
+      '<div class="card">' +
+        '<div class="card-head head-dark">🏆 나의 관심번호: 재구매 대상 최애번호 List</div>' +
+        '<div class="round-select-bar">' +
+          '<span style="font-size:11px;color:#888;">확인할 회차 선택</span>' +
+          '<select id="rs-fav-round-select" onchange="RS.onFavRoundChange(this.value)">'+optionsHtml+'</select>' +
+          '<button class="gobtn" onclick="RS.onFavRoundChange(document.getElementById(\'rs-fav-round-select\').value)">🔍 결과 보기</button>' +
+        '</div>' +
+        '<div id="rs-favbody"></div>' +
+        '<div class="fav-toolbar">' +
+          '<button class="fav-btn excel" onclick="RS.exportFavoritesExcel()">📊 엑셀 다운로드</button>' +
+          '<button class="fav-btn pdf" onclick="window.print()">🖨️ PDF 출력</button>' +
+        '</div>' +
       '</div>' +
     '</div>';
 
   RS.renderFavoritesBody();
+  RS.initAddInputHandlers();
 };
 
 RS.renderFavoritesBody = function() {
@@ -1731,6 +1738,470 @@ RS.exportFavoritesExcel = function() {
 
   var filename = '나의관심번호_' + new Date().toISOString().slice(0,10) + '.xlsx';
   XLSX.writeFile(wb, filename);
+};
+
+// =====================================================
+// "나의 최애번호 추가" - 추가입력 아코디언 (4가지: AI/일반/이미지/QR)
+// 모두 MLL.addFavoriteDirect()를 통해 저장 → mll_entries 등록 + mll_favorites 동기화
+// =====================================================
+
+RS.accOpen = { ai:false, general:true, image:false, qr:false }; // 기본은 "일반입력"만 펼침
+
+RS.toggleAcc = function(key) {
+  RS.accOpen[key] = !RS.accOpen[key];
+  var head = document.getElementById('acc-head-'+key);
+  var body = document.getElementById('acc-body-'+key);
+  if (head) head.classList.toggle('open', RS.accOpen[key]);
+  if (body) body.classList.toggle('open', RS.accOpen[key]);
+};
+
+RS.renderAddInputAccordion = function() {
+  return '<div class="addinput-acc">' +
+    RS.renderAccCard('ai', 'acc-ai', '🤖 AI 도우미 — 텍스트·음성으로 입력', RS.renderAiInputBody()) +
+    RS.renderAccCard('general', 'acc-general', '✏️ 일반입력 — 직접 번호 선택', RS.renderGeneralInputBody()) +
+    RS.renderAccCard('image', 'acc-image', '🖼️ 이미지 업로드 — 사진/캡처로 인식', RS.renderImageInputBody()) +
+    RS.renderAccCard('qr', 'acc-qr', '📷 QR 스캔 — 카메라로 QR코드 인식', RS.renderQrInputBody()) +
+  '</div>';
+};
+
+RS.renderAccCard = function(key, headClass, title, bodyHtml) {
+  var isOpen = !!RS.accOpen[key];
+  return '<div class="acc-card">' +
+    '<div class="acc-head '+headClass+(isOpen?' open':'')+'" id="acc-head-'+key+'" onclick="RS.toggleAcc(\''+key+'\')">' +
+      '<span>'+title+'</span><span class="arrow">▾</span>' +
+    '</div>' +
+    '<div class="acc-body'+(isOpen?' open':'')+'" id="acc-body-'+key+'">' + bodyHtml + '</div>' +
+  '</div>';
+};
+
+// ── 2) 일반입력: 회차 지정 + 번호 1~6 직접선택 + 구매형태 ──
+RS.renderGeneralInputBody = function() {
+  var defaultRound = RS.computeUpcomingRound();
+  return '' +
+    '<div class="gen-round-row">' +
+      '<label>회차</label>' +
+      '<input type="number" id="gen-round" value="'+defaultRound+'" min="1">' +
+      '<label style="margin-left:10px;">구매형태</label>' +
+      '<select id="gen-type" style="border:1px solid #ddd;border-radius:5px;padding:5px 8px;font-size:12px;">' +
+        '<option value="자동">자동</option><option value="반자동">반자동</option><option value="수동" selected>수동</option>' +
+      '</select>' +
+    '</div>' +
+    '<div class="gen-num-grid" style="margin-bottom:8px;">' +
+      [1,2,3,4,5,6].map(function(i){
+        return '<input class="gen-num-in" id="gen-num-'+i+'" type="number" min="1" max="45" placeholder="'+i+'">';
+      }).join('') +
+    '</div>' +
+    '<input class="cond-input" id="gen-memo" placeholder="메모 (선택, 예: 생일번호)" style="margin-bottom:8px;">' +
+    '<div id="acc-msg-general" class="acc-msg"></div>' +
+    '<button class="gen-save-btn" onclick="RS.saveGeneralInput()">⭐ 최애번호로 저장</button>';
+};
+
+RS.saveGeneralInput = function() {
+  var round = parseInt(document.getElementById('gen-round').value);
+  var type = document.getElementById('gen-type').value;
+  var memo = document.getElementById('gen-memo').value;
+  var nums = [];
+  for (var i=1;i<=6;i++) {
+    var v = parseInt(document.getElementById('gen-num-'+i).value);
+    if (v) nums.push(v);
+  }
+  var msgEl = document.getElementById('acc-msg-general');
+
+  if (!round || round<1) return RS.showAccMsg(msgEl, 'error', '회차를 올바르게 입력해주세요.');
+  if (nums.length !== 6) return RS.showAccMsg(msgEl, 'error', '번호 6개를 모두 입력해주세요.');
+  if (nums.some(function(n){ return n<1 || n>45; })) return RS.showAccMsg(msgEl, 'error', '번호는 1~45 사이여야 합니다.');
+  if (new Set(nums).size !== 6) return RS.showAccMsg(msgEl, 'error', '중복된 번호가 있습니다.');
+
+  MLL.addFavoriteDirect({ round:round, nums:nums, type:type, isReal:false, memo:memo, inputMethod:'general' });
+  RS.showAccMsg(msgEl, 'success', '✅ 최애번호로 저장되었습니다! 우측 목록에서 확인하세요.');
+  for (var i=1;i<=6;i++) document.getElementById('gen-num-'+i).value = '';
+  document.getElementById('gen-memo').value = '';
+  RS.renderFavoritesBody();
+};
+
+RS.showAccMsg = function(el, type, text) {
+  if (!el) return;
+  el.className = 'acc-msg show ' + type;
+  el.textContent = text;
+  setTimeout(function(){ el.classList.remove('show'); }, 4000);
+};
+
+// ── 1) AI 도우미: 텍스트/음성으로 번호 추출 ──
+RS.aiChatHistory = [
+  { role:'ai', text:'안녕하세요! 최애번호로 저장하고 싶은 번호를 말씀해주세요.\n예) "1227회 자동 12 14 16 25 33 41" 처럼 회차와 번호를 같이 말씀하시면 더 정확해요.' }
+];
+
+RS.renderAiInputBody = function() {
+  var bubbles = RS.aiChatHistory.map(function(m){
+    return '<div class="ai-bubble '+m.role+'">'+m.text.replace(/\n/g,'<br>')+'</div>';
+  }).join('');
+  var examples = ['1227회 12 14 16 25 33 41', '자동 1 2 3 4 5 6', '생일번호 5 12 18 23 31 40'];
+  return '' +
+    '<div class="ai-examples">' +
+      examples.map(function(ex){ return '<span class="ai-ex-btn" onclick="RS.fillAiExample(\''+ex+'\')">'+ex+'</span>'; }).join('') +
+    '</div>' +
+    '<div class="ai-chat-wrap" id="ai-chat-wrap">'+bubbles+'</div>' +
+    '<div id="acc-msg-ai" class="acc-msg"></div>' +
+    '<div class="ai-input-row">' +
+      '<textarea class="ai-textinput" id="ai-text-input" placeholder="예: 1227회 자동 12 14 16 25 33 41"></textarea>' +
+      '<button class="ai-btn-mic" id="ai-mic-btn" onclick="RS.toggleAiVoice()" title="음성 입력">🎤</button>' +
+      '<button class="ai-btn-send" onclick="RS.submitAiText()" title="전송">➤</button>' +
+    '</div>';
+};
+
+RS.fillAiExample = function(text) {
+  var el = document.getElementById('ai-text-input');
+  if (el) { el.value = text; el.focus(); }
+};
+
+// 자유 텍스트에서 회차/번호/구매형태/메모 추출
+RS.parseAiText = function(text) {
+  var result = { round:null, nums:[], type:null, memo:'' };
+
+  // 회차: "1227회" 또는 "1227 회"
+  var roundMatch = text.match(/(\d{3,4})\s*회/);
+  if (roundMatch) result.round = parseInt(roundMatch[1]);
+
+  // 구매형태 키워드
+  if (/자동/.test(text) && !/반자동/.test(text)) result.type = '자동';
+  else if (/반자동/.test(text)) result.type = '반자동';
+  else if (/수동/.test(text)) result.type = '수동';
+
+  // 번호: 1~2자리 숫자를 모두 추출한 뒤, 회차로 이미 쓰인 3~4자리 숫자는 제외
+  var allNumbers = (text.match(/\d{1,2}(?!\d)/g) || []).map(Number);
+  // 회차 매칭에 사용된 위치의 숫자가 1~2자리로 쪼개져 다시 잡히는 걸 방지하기 위해,
+  // 원문에서 "NNNN회" 패턴 자체를 제거한 뒤 다시 숫자만 추출
+  var textWithoutRound = roundMatch ? text.replace(roundMatch[0], ' ') : text;
+  allNumbers = (textWithoutRound.match(/\d{1,2}(?!\d)/g) || []).map(Number).filter(function(n){ return n>=1 && n<=45; });
+  result.nums = [...new Set(allNumbers)].slice(0, 6);
+
+  // 메모로 쓸만한 키워드(생일, 기념일 등)가 있으면 그대로 남김 — 숫자/회차/형태 키워드 제외하고 남는 한글 텍스트
+  var memoText = text
+    .replace(/\d{3,4}\s*회/g, '')
+    .replace(/\d{1,2}/g, '')
+    .replace(/(반자동|자동|수동)(으로|이다|입니다)?/g, '')
+    .replace(/(넣어줘|넣어주세요|해줘|해주세요|저장해줘|저장해주세요)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (memoText) result.memo = memoText;
+
+  return result;
+};
+
+RS.submitAiText = function() {
+  var input = document.getElementById('ai-text-input');
+  var text = input ? input.value.trim() : '';
+  if (!text) return;
+  RS.processAiInput(text);
+  if (input) input.value = '';
+};
+
+RS.processAiInput = function(text) {
+  RS.aiChatHistory.push({ role:'user', text:text });
+  var parsed = RS.parseAiText(text);
+  var replyParts = [];
+
+  if (parsed.nums.length !== 6) {
+    replyParts.push('번호 6개를 정확히 인식하지 못했어요. (인식된 번호: '+(parsed.nums.join(', ')||'없음')+') 다시 말씀해주시겠어요?');
+    RS.aiChatHistory.push({ role:'ai', text: replyParts.join(' ') });
+    RS.refreshAiChatUI();
+    return;
+  }
+  if (new Set(parsed.nums).size !== 6) {
+    RS.aiChatHistory.push({ role:'ai', text:'번호 중에 중복된 값이 있어요. 6개의 서로 다른 번호로 다시 말씀해주세요.' });
+    RS.refreshAiChatUI();
+    return;
+  }
+  if (!parsed.round) {
+    parsed.round = RS.computeUpcomingRound();
+    replyParts.push('회차를 따로 말씀하지 않으셔서 이번 추첨예정 회차('+parsed.round+'회)로 등록할게요.');
+  }
+  var type = parsed.type || '수동';
+
+  MLL.addFavoriteDirect({ round:parsed.round, nums:parsed.nums, type:type, isReal:false, memo:parsed.memo, inputMethod:'ai' });
+
+  replyParts.push('✅ '+parsed.round+'회 ['+parsed.nums.join(', ')+'] ('+type+') 번호를 최애번호로 저장했어요! 우측 목록에서 확인하실 수 있어요.');
+  RS.aiChatHistory.push({ role:'ai', text: replyParts.join(' ') });
+  RS.refreshAiChatUI();
+  RS.renderFavoritesBody();
+};
+
+RS.refreshAiChatUI = function() {
+  var wrap = document.getElementById('ai-chat-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = RS.aiChatHistory.map(function(m){
+    return '<div class="ai-bubble '+m.role+'">'+m.text.replace(/\n/g,'<br>')+'</div>';
+  }).join('');
+  wrap.scrollTop = wrap.scrollHeight;
+};
+
+// 음성 입력 (Web Speech API) — 미지원 브라우저에서는 안내만 표시
+RS.aiRecognition = null;
+RS.aiVoiceOn = false;
+RS.toggleAiVoice = function() {
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var msgEl = document.getElementById('acc-msg-ai');
+  if (!SpeechRecognition) {
+    RS.showAccMsg(msgEl, 'error', '이 브라우저는 음성 인식을 지원하지 않습니다. 텍스트로 입력해주세요.');
+    return;
+  }
+  var micBtn = document.getElementById('ai-mic-btn');
+  if (RS.aiVoiceOn) {
+    if (RS.aiRecognition) RS.aiRecognition.stop();
+    RS.aiVoiceOn = false;
+    if (micBtn) micBtn.classList.remove('on');
+    return;
+  }
+  RS.aiRecognition = new SpeechRecognition();
+  RS.aiRecognition.lang = 'ko-KR';
+  RS.aiRecognition.interimResults = false;
+  RS.aiRecognition.onresult = function(e) {
+    var transcript = e.results[0][0].transcript;
+    var input = document.getElementById('ai-text-input');
+    if (input) input.value = transcript;
+    RS.processAiInput(transcript);
+  };
+  RS.aiRecognition.onerror = function() {
+    RS.showAccMsg(msgEl, 'error', '음성 인식 중 오류가 발생했습니다. 다시 시도해주세요.');
+    RS.aiVoiceOn = false;
+    if (micBtn) micBtn.classList.remove('on');
+  };
+  RS.aiRecognition.onend = function() {
+    RS.aiVoiceOn = false;
+    if (micBtn) micBtn.classList.remove('on');
+  };
+  RS.aiRecognition.start();
+  RS.aiVoiceOn = true;
+  if (micBtn) micBtn.classList.add('on');
+};
+
+// =====================================================
+// QR 디코딩 공통 로직 (동행복권 모바일 QR 형식 파싱)
+// 동행복권 QR은 보통 .../qr.do?method=scratch&v=68080000-1227000-... 형태로
+// v 파라미터 안에 회차/번호 정보가 인코딩되어 있다.
+// 정확한 사설 인코딩 규격은 공개되어 있지 않으므로,
+// 1) URL 파라미터에서 회차로 보이는 4자리 숫자와 1~45 사이 숫자 그룹을 최대한 추출하고
+// 2) 실패 시 사람이 직접 보정할 수 있도록 인식된 원문을 보여주고 직접입력으로 전환한다.
+// =====================================================
+RS.parseLottoQrUrl = function(text) {
+  var result = { round:null, sets:[], raw:text };
+  try {
+    var url = new URL(text);
+    var v = url.searchParams.get('v') || url.searchParams.get('V') || '';
+    // v 파라미터가 없으면 쿼리스트링 전체에서 숫자만 긁어본다
+    var digits = v || url.search.replace(/[^\d]/g, ' ');
+    // 4자리 회차로 보이는 숫자(보통 1000~9999) 우선 탐색
+    var roundMatch = digits.match(/\b(0?9\d{2}|1[0-2]\d{2})\b/); // 900~1299 범위 정도로 한정해 회차스럽게
+    if (roundMatch) result.round = parseInt(roundMatch[1]);
+
+    // 1~45 사이 숫자를 6개씩 그룹으로 추정 추출 (단순 휴리스틱)
+    var allNums = (digits.match(/\d{1,2}/g) || []).map(Number).filter(function(n){ return n>=1 && n<=45; });
+    for (var i=0; i+6<=allNums.length; i+=6) {
+      var group = allNums.slice(i, i+6);
+      if (new Set(group).size === 6) result.sets.push(group);
+    }
+  } catch(e) {
+    // URL 형식이 아니면 원문에서 바로 숫자 추출 시도
+    var allNums2 = (text.match(/\d{1,2}/g) || []).map(Number).filter(function(n){ return n>=1 && n<=45; });
+    for (var j=0; j+6<=allNums2.length; j+=6) {
+      var group2 = allNums2.slice(j, j+6);
+      if (new Set(group2).size === 6) result.sets.push(group2);
+    }
+  }
+  return result;
+};
+
+// ── 3) 이미지 업로드: 파일에서 QR을 읽어 번호 추출 ──
+RS.renderImageInputBody = function() {
+  return '' +
+    '<div class="img-upload-area" id="img-drop-area" onclick="document.getElementById('+"'img-file-input'"+').click()">' +
+      '<div style="font-size:28px;margin-bottom:6px;">📷</div>' +
+      '<div style="font-size:12px;color:#555;">로또 용지 사진 또는 QR 캡처 이미지를 클릭하여 업로드하세요</div>' +
+      '<div style="font-size:10px;color:#999;margin-top:4px;">QR코드가 선명하게 보이는 사진일수록 인식률이 높아요</div>' +
+    '</div>' +
+    '<input type="file" id="img-file-input" accept="image/*" style="display:none;" onchange="RS.handleImageUpload(event)">' +
+    '<div id="acc-msg-image" class="acc-msg"></div>' +
+    '<div id="img-preview-area"></div>';
+};
+
+RS.handleImageUpload = function(event) {
+  var file = event.target.files && event.target.files[0];
+  if (!file) return;
+  var msgEl = document.getElementById('acc-msg-image');
+  var previewArea = document.getElementById('img-preview-area');
+
+  if (!('BarcodeDetector' in window)) {
+    RS.showAccMsg(msgEl, 'error', '이 브라우저는 이미지 QR 인식을 지원하지 않습니다. QR 안의 URL을 직접 붙여넣어 주세요.');
+    if (previewArea) previewArea.innerHTML = RS.renderManualUrlBox('image');
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var detector = new BarcodeDetector({ formats: ['qr_code'] });
+      detector.detect(img).then(function(codes) {
+        if (!codes.length) {
+          RS.showAccMsg(msgEl, 'error', 'QR코드를 인식하지 못했습니다. 더 선명한 사진으로 다시 시도하거나, QR 안의 URL을 직접 붙여넣어 주세요.');
+          if (previewArea) previewArea.innerHTML = RS.renderManualUrlBox('image');
+          return;
+        }
+        RS.handleDecodedQrText(codes[0].rawValue, msgEl, 'image');
+      }).catch(function() {
+        RS.showAccMsg(msgEl, 'error', 'QR 인식 중 오류가 발생했습니다. QR 안의 URL을 직접 붙여넣어 주세요.');
+        if (previewArea) previewArea.innerHTML = RS.renderManualUrlBox('image');
+      });
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+RS.renderManualUrlBox = function(prefix) {
+  return '<div class="url-row">' +
+    '<input class="url-in" id="manual-url-'+prefix+'" placeholder="QR 안의 URL을 직접 붙여넣어 주세요 (예: https://m.dhlottery.co.kr/...)">' +
+    '<button class="btn-url-parse" onclick="RS.parseManualUrl(\''+prefix+'\')">분석</button>' +
+  '</div>';
+};
+
+RS.parseManualUrl = function(prefix) {
+  var input = document.getElementById('manual-url-'+prefix);
+  var text = input ? input.value.trim() : '';
+  if (!text) return;
+  var msgEl = document.getElementById('acc-msg-'+prefix);
+  RS.handleDecodedQrText(text, msgEl, prefix);
+};
+
+// QR/URL 디코딩 결과를 공통 처리 → 추출된 첫 조합을 최애번호로 저장
+RS.handleDecodedQrText = function(rawText, msgEl, sourceTag) {
+  var parsed = RS.parseLottoQrUrl(rawText);
+  var previewAreaId = sourceTag==='qr' ? 'qr-preview-area' : 'img-preview-area';
+  var previewArea = document.getElementById(previewAreaId);
+
+  if (!parsed.sets.length) {
+    RS.showAccMsg(msgEl, 'error', 'QR에서 번호를 자동으로 추출하지 못했습니다. 인식된 원문을 확인하고 번호를 직접 입력해주세요.');
+    if (previewArea) previewArea.innerHTML =
+      '<div class="acc-msg info show" style="margin-bottom:8px;">인식된 원문: '+rawText.slice(0,80)+(rawText.length>80?'...':'')+'</div>' +
+      RS.renderQrConfirmForm(sourceTag, RS.computeUpcomingRound(), [null,null,null,null,null,null]);
+    return;
+  }
+
+  // ⚠ QR 인코딩 규격이 공개되어 있지 않아 회차·번호 인식이 부정확할 수 있으므로,
+  //   곧바로 저장하지 않고 항상 "확인 후 저장" 단계를 거친다.
+  var round = parsed.round || RS.computeUpcomingRound();
+  RS.showAccMsg(msgEl, 'info', '아래 인식 결과를 확인하고, 틀린 부분이 있으면 고친 뒤 저장해주세요.');
+  if (previewArea) previewArea.innerHTML = RS.renderQrConfirmForm(sourceTag, round, parsed.sets[0] || [null,null,null,null,null,null]);
+};
+
+// 인식 결과를 사람이 확인·수정할 수 있는 폼 (QR 자동인식은 보정이 필요할 수 있음)
+RS.renderQrConfirmForm = function(sourceTag, round, nums) {
+  var idPrefix = 'qrconfirm-'+sourceTag;
+  return '<div class="gen-combo">' +
+    '<div class="gen-combo-top">' +
+      '<span style="font-size:11px;color:#555;">회차</span>' +
+      '<input type="number" id="'+idPrefix+'-round" value="'+round+'" min="1" style="width:70px;border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:11px;">' +
+    '</div>' +
+    '<div class="gen-num-grid">' +
+      [0,1,2,3,4,5].map(function(i){
+        return '<input class="gen-num-in" id="'+idPrefix+'-n'+i+'" type="number" min="1" max="45" value="'+(nums[i]||'')+'">';
+      }).join('') +
+    '</div>' +
+    '<button class="gen-save-btn" style="margin-top:8px;" onclick="RS.confirmAndSaveQr(\''+sourceTag+'\')">⭐ 확인 후 최애번호로 저장</button>' +
+  '</div>';
+};
+
+RS.confirmAndSaveQr = function(sourceTag) {
+  var idPrefix = 'qrconfirm-'+sourceTag;
+  var msgEl = document.getElementById('acc-msg-'+sourceTag);
+  var round = parseInt(document.getElementById(idPrefix+'-round').value);
+  var nums = [];
+  for (var i=0;i<6;i++) {
+    var v = parseInt(document.getElementById(idPrefix+'-n'+i).value);
+    if (v) nums.push(v);
+  }
+  if (!round || round<1) return RS.showAccMsg(msgEl, 'error', '회차를 올바르게 입력해주세요.');
+  if (nums.length !== 6) return RS.showAccMsg(msgEl, 'error', '번호 6개를 모두 입력해주세요.');
+  if (nums.some(function(n){ return n<1||n>45; })) return RS.showAccMsg(msgEl, 'error', '번호는 1~45 사이여야 합니다.');
+  if (new Set(nums).size !== 6) return RS.showAccMsg(msgEl, 'error', '중복된 번호가 있습니다.');
+
+  MLL.addFavoriteDirect({ round:round, nums:nums, type:'자동', isReal:true, memo:'QR인식', inputMethod: sourceTag==='qr' ? 'camera' : 'image' });
+  RS.showAccMsg(msgEl, 'success', '✅ '+round+'회 번호를 최애번호로 저장했어요!');
+  var previewArea = document.getElementById(sourceTag==='qr' ? 'qr-preview-area' : 'img-preview-area');
+  if (previewArea) previewArea.innerHTML = '';
+  RS.renderFavoritesBody();
+};
+
+// ── 4) QR 스캔: 카메라 실시간 인식 ──
+RS.qrStream = null;
+RS.qrDetectInterval = null;
+
+RS.renderQrInputBody = function() {
+  return '' +
+    '<div class="qr-guide-box">' +
+      '<div style="font-size:24px;margin-bottom:4px;">📷</div>' +
+      '<div style="font-size:11px;color:#555;">카메라로 로또 용지의 QR코드를 비춰주세요</div>' +
+    '</div>' +
+    '<div id="qr-video-wrap" style="display:none;margin-bottom:8px;">' +
+      '<video id="qr-video" style="width:100%;border-radius:8px;background:#000;" playsinline></video>' +
+    '</div>' +
+    '<div class="qr-btns">' +
+      '<button class="btn-qr btn-qr-start" id="qr-start-btn" onclick="RS.startQrScan()">▶ 카메라 시작</button>' +
+      '<button class="btn-qr btn-qr-stop" id="qr-stop-btn" onclick="RS.stopQrScan()" style="display:none;">■ 중지</button>' +
+    '</div>' +
+    '<div id="acc-msg-qr" class="acc-msg"></div>' +
+    '<div id="qr-preview-area"></div>';
+};
+
+RS.startQrScan = function() {
+  var msgEl = document.getElementById('acc-msg-qr');
+  if (!('BarcodeDetector' in window)) {
+    RS.showAccMsg(msgEl, 'error', '이 브라우저는 카메라 QR 인식을 지원하지 않습니다. QR 안의 URL을 직접 붙여넣어 주세요.');
+    var pa = document.getElementById('qr-preview-area');
+    if (pa) pa.innerHTML = RS.renderManualUrlBox('qr');
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    RS.showAccMsg(msgEl, 'error', '이 브라우저/환경에서는 카메라를 사용할 수 없습니다.');
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function(stream) {
+    RS.qrStream = stream;
+    var video = document.getElementById('qr-video');
+    video.srcObject = stream;
+    video.play();
+    document.getElementById('qr-video-wrap').style.display = 'block';
+    document.getElementById('qr-start-btn').style.display = 'none';
+    document.getElementById('qr-stop-btn').style.display = 'block';
+
+    var detector = new BarcodeDetector({ formats: ['qr_code'] });
+    RS.qrDetectInterval = setInterval(function() {
+      detector.detect(video).then(function(codes) {
+        if (codes.length) {
+          RS.stopQrScan();
+          RS.handleDecodedQrText(codes[0].rawValue, msgEl, 'qr');
+        }
+      }).catch(function(){});
+    }, 500);
+  }).catch(function(err) {
+    RS.showAccMsg(msgEl, 'error', '카메라 권한을 허용해주세요. (오류: '+err.name+')');
+  });
+};
+
+RS.stopQrScan = function() {
+  if (RS.qrDetectInterval) { clearInterval(RS.qrDetectInterval); RS.qrDetectInterval = null; }
+  if (RS.qrStream) { RS.qrStream.getTracks().forEach(function(t){ t.stop(); }); RS.qrStream = null; }
+  var wrap = document.getElementById('qr-video-wrap');
+  if (wrap) wrap.style.display = 'none';
+  var startBtn = document.getElementById('qr-start-btn');
+  var stopBtn = document.getElementById('qr-stop-btn');
+  if (startBtn) startBtn.style.display = 'block';
+  if (stopBtn) stopBtn.style.display = 'none';
+};
+
+RS.initAddInputHandlers = function() {
+  // 현재는 onclick 인라인 핸들러로 충분하지만, 섹션 재진입 시 진행 중인 카메라 스트림은 정리
+  RS.stopQrScan();
 };
 
 RS.SECTION_RENDERERS.favorites = RS.renderFavorites;
