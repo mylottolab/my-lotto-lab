@@ -2159,8 +2159,8 @@ RS.renderQrInputBody = function() {
   return '' +
     '<div class="qr-guide-box">' +
       '<div style="font-size:24px;margin-bottom:4px;">📷</div>' +
-      '<div style="font-size:11px;color:#555;">카메라 화면 안에 QR코드가 들어오도록 비춰주세요</div>' +
-      '<div style="font-size:9px;color:#999;margin-top:4px;">QR이 너무 작으면 인식이 잘 안 돼요. 화면의 1/4 정도 크기가 되도록 카메라를 가까이 가져가 보세요. 밝은 곳에서, QR이 흔들리지 않게 잠시 고정해주세요.</div>' +
+      '<div style="font-size:11px;color:#555;">화면 중앙의 사각형 안에 QR코드가 꽉 차게 들어오도록 비춰주세요</div>' +
+      '<div style="font-size:9px;color:#999;margin-top:4px;">QR이 너무 작거나 흔들리면 인식이 잘 안 돼요. 밝은 곳에서 QR이 중앙 사각형을 채울 정도로 가까이, 흔들리지 않게 잠시 고정해주세요.</div>' +
     '</div>' +
     '<div id="qr-video-wrap" style="display:none;margin-bottom:8px;position:relative;">' +
       '<video id="qr-video" style="width:100%;border-radius:8px;background:#000;" playsinline></video>' +
@@ -2208,14 +2208,15 @@ RS.startQrScan = function() {
       highlightScanRegion: true,
       highlightCodeOutline: true,
       maxScansPerSecond: 10,
-      // 기본값(중앙 정사각형 2/3 영역)은 로또 용지의 작은 QR을 놓치기 쉬워
-      // 비디오 프레임 전체를 스캔 대상으로 넓혀 인식 기회를 늘린다.
+      // 동행복권 QR이 정사각형이므로 스캔영역도 항상 정사각형으로 유지한다.
+      // 라이브러리 기본값(짧은 변의 2/3)보다 조금 더 크게(85%) 잡아 인식 기회를 넓힌다.
       calculateScanRegion: function(v) {
-        return {
-          x: 0, y: 0,
-          width: v.videoWidth, height: v.videoHeight,
-          downScaledWidth: 600, downScaledHeight: Math.round(600 * v.videoHeight / v.videoWidth)
-        };
+        var minDim = Math.min(v.videoWidth, v.videoHeight);
+        var size = Math.round(minDim * 0.85);
+        var x = Math.round((v.videoWidth - size) / 2);
+        var y = Math.round((v.videoHeight - size) / 2);
+        var down = Math.min(400, size);
+        return { x:x, y:y, width:size, height:size, downScaledWidth:down, downScaledHeight:down };
       }
     }
   );
