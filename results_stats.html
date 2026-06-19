@@ -109,7 +109,19 @@ table.rtbl tbody tr:hover{background:#fafafa;}
 .habit-summary .note{color:#e03131;font-size:10px;flex:1 1 100%;margin-top:2px;}
 .habit-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 16px 16px;}
 @media (max-width:900px){ .habit-grid{grid-template-columns:1fr;} }
-.habit-block{background:#fff;}
+.habit-block{background:#fff;border:1px solid #eee;border-left:5px solid #ccc;border-radius:8px;padding:14px 14px 12px;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
+.habit-block.c-oddeven{border-left-color:#1a7ad4;background:linear-gradient(180deg,#f3f9ff 0%,#fff 70px);}
+.habit-block.c-oddeven .habit-block-title{color:#1a7ad4;}
+.habit-block.c-consecutive{border-left-color:#e67700;background:linear-gradient(180deg,#fff8ef 0%,#fff 70px);}
+.habit-block.c-consecutive .habit-block-title{color:#e67700;}
+.habit-block.c-sumdist{border-left-color:#2f9e44;background:linear-gradient(180deg,#f1faf2 0%,#fff 70px);}
+.habit-block.c-sumdist .habit-block-title{color:#2f9e44;}
+.habit-block.c-topused{border-left-color:#e03131;background:linear-gradient(180deg,#fff5f5 0%,#fff 70px);}
+.habit-block.c-topused .habit-block-title{color:#e03131;}
+.habit-block.c-bytype{border-left-color:#7048e8;background:linear-gradient(180deg,#f6f3ff 0%,#fff 70px);}
+.habit-block.c-bytype .habit-block-title{color:#7048e8;}
+.habit-block.c-firstnum{border-left-color:#0c8599;background:linear-gradient(180deg,#eefbfc 0%,#fff 70px);}
+.habit-block.c-firstnum .habit-block-title{color:#0c8599;}
 .habit-block-title{font-size:12px;font-weight:700;color:#333;margin-bottom:8px;display:flex;align-items:center;gap:5px;}
 table.habittbl{width:100%;border-collapse:collapse;font-size:11px;border:1px solid #e5e5e5;}
 table.habittbl th{background:#f8f8f8;color:#666;font-weight:700;padding:7px 6px;border:1px solid #e5e5e5;text-align:center;}
@@ -1183,7 +1195,7 @@ RS.buildHabitTable = function(entries, buckets, bucketFn) {
   return { data:data, totalAll:totalAll, totalConfirmed:totalConfirmed, totalWinCount:totalWinCount, totalWinPrize:totalWinPrize };
 };
 
-RS.renderHabitTableHTML = function(title, icon, buckets, bucketLabels, result) {
+RS.renderHabitTableHTML = function(title, icon, buckets, bucketLabels, result, colorClass) {
   var rows = buckets.map(function(b, i){
     var d = result.data[b];
     var pctAll = result.totalAll ? (d.total/result.totalAll*100) : 0;
@@ -1199,7 +1211,7 @@ RS.renderHabitTableHTML = function(title, icon, buckets, bucketLabels, result) {
   var pctAllTotal = result.totalAll ? 100 : 0;
   var pctConfirmedTotal = result.totalConfirmed ? 100 : 0;
 
-  return '<div class="habit-block">' +
+  return '<div class="habit-block '+(colorClass||'')+'">' +
     '<div class="habit-block-title">'+icon+' '+title+'</div>' +
     '<table class="habittbl"><thead><tr>' +
       '<th>구분</th><th>총등록건수<br>(확인된 등록건수)</th><th>총등록비율<br>(확인된 등록비율)</th><th>당첨건수</th><th>당첨금액 합계</th>' +
@@ -1221,7 +1233,7 @@ RS.calcOddEven = function(entries) {
     var odd = e.nums.filter(function(n){ return n%2===1; }).length;
     return odd+':'+(6-odd);
   });
-  return RS.renderHabitTableHTML('홀짝비율', '⚖️', buckets, buckets, result);
+  return RS.renderHabitTableHTML('홀짝비율', '⚖️', buckets, buckets, result, 'c-oddeven');
 };
 
 // 2) 연속번호
@@ -1237,7 +1249,7 @@ RS.calcConsecutive = function(entries) {
     }
     return maxRun===1 ? '0' : String(maxRun);
   });
-  return RS.renderHabitTableHTML('연속번호: 숫자가 연달아 나오는 조합', '🔗', buckets, labels, result);
+  return RS.renderHabitTableHTML('연속번호: 숫자가 연달아 나오는 조합', '🔗', buckets, labels, result, 'c-consecutive');
 };
 
 // 3) 6개 번호의 합 분포 (21~67/68~114/115~161/162~208/209~255)
@@ -1252,14 +1264,14 @@ RS.calcSumDist = function(entries) {
     }
     return null;
   });
-  return RS.renderHabitTableHTML('6개 번호의 합 분포', '📐', buckets, labels, result);
+  return RS.renderHabitTableHTML('6개 번호의 합 분포', '📐', buckets, labels, result, 'c-sumdist');
 };
 
 // 5) 구매형태별 통계
 RS.calcByType = function(entries) {
   var buckets = ['자동','반자동','수동'];
   var result = RS.buildHabitTable(entries, buckets, function(e){ return e.type; });
-  return RS.renderHabitTableHTML('구매형태별 통계', '🎯', buckets, buckets, result);
+  return RS.renderHabitTableHTML('구매형태별 통계', '🎯', buckets, buckets, result, 'c-bytype');
 };
 
 // 4) 내가 가장 많이 사용한 번호와 횟수 (총 등록번호조합 기준, 괄호합=등록건수*6)
@@ -1272,7 +1284,7 @@ RS.calcTopUsedNumbers = function(entries) {
     return '<span class="freq-chip">'+String(x[0]).padStart(2,'0')+'(<b>'+x[1]+'</b>)</span>';
   }).join(' ');
   var totalSlots = entries.length * 6;
-  return '<div class="habit-block">' +
+  return '<div class="habit-block c-topused">' +
     '<div class="habit-block-title">🔥 내가 가장 많이 사용한 번호와 횟수<span style="color:#999;font-weight:400;font-size:10px;">(총 등록번호조합 기준)</span></div>' +
     '<div class="habit-freebox">'+(html || '<span style="color:#bbb;">등록된 번호가 없습니다.</span>')+'</div>' +
     '<div class="habit-freebox-note">*참고사항: 괄호안의 합 = 총등록건수 × 6 = '+totalSlots.toLocaleString()+'</div>' +
@@ -1292,7 +1304,7 @@ RS.calcFirstNumberFreq = function(entries) {
     return '<span class="freq-chip">'+String(n).padStart(2,'0')+'(<b>'+freq[n]+'</b>)</span>';
   }).join(' ');
   var totalSlots = entries.length;
-  return '<div class="habit-block">' +
+  return '<div class="habit-block c-firstnum">' +
     '<div class="habit-block-title">🎬 등록된 번호조합의 첫 시작번호와 횟수<span style="color:#999;font-weight:400;font-size:10px;">(총 등록번호조합 기준)</span></div>' +
     '<div class="habit-freebox">'+(html || '<span style="color:#bbb;">등록된 번호가 없습니다.</span>')+'</div>' +
     '<div class="habit-freebox-note">*참고사항: 괄호안의 합 = 총등록건수 = '+totalSlots.toLocaleString()+'</div>' +
