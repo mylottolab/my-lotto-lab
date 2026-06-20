@@ -2449,26 +2449,31 @@ RS.toggleStrategyFav = function(round, numsKey, strategyName, el) {
 RS.buildStrategyOptions = function() {
   var srList = MLL.loadStrategyResults ? MLL.loadStrategyResults() : [];
   var names = [];
-  var rounds = [];
   srList.forEach(function(sr) {
     if (names.indexOf(sr.strategyName) < 0) names.push(sr.strategyName);
-    if (rounds.indexOf(sr.round) < 0) rounds.push(sr.round);
   });
-  rounds.sort(function(a,b){ return b-a; }); // 최근 → 과거
+
+  // 회차 드롭다운은 데이터 존재 여부와 무관하게 "1회 ~ 가장 최근 추첨회차"까지 전체로 만든다
+  var latestDrawn = RS.computeUpcomingRound() - 1; // 추첨예정의 직전 회차 = 가장 최근 추첨이 끝난 회차
+  if (!latestDrawn || latestDrawn < 1) latestDrawn = 1;
+  var rounds = [];
+  for (var r = latestDrawn; r >= 1; r--) rounds.push(r); // 최근 → 과거
+
   return { names: names, rounds: rounds };
 };
 
 RS.renderStrategyStats = function(container) {
   var opt = RS.buildStrategyOptions();
   var st = RS.stratState;
-  if (!st.startRound && opt.rounds.length) st.startRound = String(opt.rounds[0]);
+  if (!st.startRound) st.startRound = 'all';
 
   var nameOptions = '<option value="all">⭐ 모든 전략</option>' +
     opt.names.map(function(n){ return '<option value="'+n+'"'+(st.strategy===n?' selected':'')+'>'+n+'</option>'; }).join('');
 
-  var startOptions = opt.rounds.map(function(r){
-    return '<option value="'+r+'"'+(String(st.startRound)===String(r)?' selected':'')+'>'+r+'회</option>';
-  }).join('');
+  var startOptions = '<option value="all"'+(st.startRound==='all'?' selected':'')+'>⭐ 모든회차</option>' +
+    opt.rounds.map(function(r){
+      return '<option value="'+r+'"'+(String(st.startRound)===String(r)?' selected':'')+'>'+r+'회</option>';
+    }).join('');
   var endOptions = '<option value="">선택안함</option>' + opt.rounds.map(function(r){
     return '<option value="'+r+'"'+(String(st.endRound)===String(r)?' selected':'')+'>'+r+'회</option>';
   }).join('');
@@ -2505,8 +2510,9 @@ RS.getFilteredStrategyRows = function() {
   var st = RS.stratState;
   var rows = st.strategy !== 'all' ? allRows.filter(function(r){ return r.strategyName === st.strategy; }) : allRows;
 
-  var start = st.startRound ? Number(st.startRound) : null;
-  var end = st.endRound ? Number(st.endRound) : null;
+  var isAllRounds = !st.startRound || st.startRound === 'all';
+  var start = isAllRounds ? null : Number(st.startRound);
+  var end = (!isAllRounds && st.endRound) ? Number(st.endRound) : null;
   var roundsInScope;
 
   if (start && end) {
@@ -2517,6 +2523,7 @@ RS.getFilteredStrategyRows = function() {
     rows = rows.filter(function(r){ return r.round === start; });
     roundsInScope = [start];
   } else {
+    // "모든회차" 선택 — 전체 데이터 대상, 종료회차는 무시
     roundsInScope = [...new Set(rows.map(function(r){ return r.round; }))];
   }
 
