@@ -288,6 +288,20 @@ table.strattbl tbody tr:hover{background:#fafafa;}
 .pc-acc-msg.success{background:#e8fff0;border:1px solid #2f9e44;color:#1a6b2e;}
 .pc-acc-msg.error{background:#fff0f0;border:1px solid #e03131;color:#c00;}
 .pc-acc-msg.info{background:#e8f4ff;border:1px solid #1a7ad4;color:#1a5a9e;}
+
+/* 사이트 내 출력물 찾아보기 */
+.pc-browse-group{border-bottom:1px solid #eee;}
+.pc-browse-group:last-child{border-bottom:none;}
+.pc-browse-ghead{padding:8px 10px;background:#f8f8f8;font-size:11px;font-weight:700;color:#555;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.pc-browse-gcount{font-size:9px;color:#999;font-weight:400;}
+.pc-browse-gbody{display:none;}
+.pc-browse-gbody.open{display:block;}
+.pc-browse-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:11px;}
+.pc-browse-item:last-child{border-bottom:none;}
+.pc-browse-item input[type=checkbox]{accent-color:#e03131;flex-shrink:0;}
+.pc-browse-item .pc-browse-balls{display:flex;gap:3px;flex:1;}
+.pc-browse-item .pc-browse-label{font-size:9px;color:#999;width:60px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pc-browse-empty{text-align:center;padding:16px;color:#bbb;font-size:10px;}
 </style>
 <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -780,6 +794,7 @@ MLL.searchEntriesByCondition = function(entries, condition, history) {
         <div class="pc-tabbar">
           <button class="pc-tab active" id="pc-tab-excel" onclick="PC.switchInputTab('excel')">📊 엑셀 업로드</button>
           <button class="pc-tab" id="pc-tab-manual" onclick="PC.switchInputTab('manual')">✏️ 직접 입력</button>
+          <button class="pc-tab" id="pc-tab-browse" onclick="PC.switchInputTab('browse')">🔍 사이트 내 출력물</button>
         </div>
 
         <div class="pc-tabpanel active" id="pc-panel-excel">
@@ -803,6 +818,15 @@ MLL.searchEntriesByCondition = function(entries, condition, history) {
             <input class="pc-num-in" id="pc-mnum-6" type="text" inputmode="numeric" maxlength="2" placeholder="6" oninput="PC.autoAdvance(this,null)">
           </div>
           <button class="pc-addgame-btn" onclick="PC.addManualGame()">⊕ 이 번호 게임 추가</button>
+        </div>
+
+        <div class="pc-tabpanel" id="pc-panel-browse">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:10px;color:#888;">사이트에 이미 등록된 번호조합을 골라서 가져옵니다</span>
+            <button onclick="PC.refreshBrowseList()" style="background:none;border:1px solid #ddd;border-radius:5px;padding:3px 8px;font-size:10px;color:#666;cursor:pointer;">🔄 새로고침</button>
+          </div>
+          <div id="pc-browse-groups" style="max-height:320px;overflow-y:auto;border:1px solid #eee;border-radius:8px;"></div>
+          <button class="pc-addgame-btn" onclick="PC.importSelectedBrowseItems()" style="margin-top:8px;">⊕ 선택한 조합 가져오기 (<span id="pc-browse-selcount">0</span>개)</button>
         </div>
 
         <div id="pc-acc-msg-input" class="pc-acc-msg"></div>
@@ -987,8 +1011,11 @@ PC.loadFromQueue = function() {
 PC.switchInputTab = function(tab) {
   document.getElementById('pc-tab-excel').classList.toggle('active', tab==='excel');
   document.getElementById('pc-tab-manual').classList.toggle('active', tab==='manual');
+  document.getElementById('pc-tab-browse').classList.toggle('active', tab==='browse');
   document.getElementById('pc-panel-excel').classList.toggle('active', tab==='excel');
   document.getElementById('pc-panel-manual').classList.toggle('active', tab==='manual');
+  document.getElementById('pc-panel-browse').classList.toggle('active', tab==='browse');
+  if (tab === 'browse') PC.refreshBrowseList();
 };
 
 PC.downloadTemplate = function() {
@@ -1005,6 +1032,144 @@ PC.downloadTemplate = function() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+};
+
+// =====================================================
+// 사이트 내 출력물 찾아보기
+// 4가지 데이터소스를 그룹으로 묶어서 보여주고, 선택한 것을 게임목록으로 가져온다.
+//  1) mll_favorites          — 관심번호/재구매 최애번호 저장소
+//  2) mll_entries             — 전체 등록번호 (결과 및 통계)
+//  3) mll_strategy_results    — 전략등록 조합 (전략DATA)
+//  4) mll_storage_battle/etc — 최종전략 DATA 저장소의 Battle·Game번호 / 기타저장소
+//     (mll_storage_fav는 보통 mll_favorites와 중복이므로 별도 그룹은 생략)
+// =====================================================
+PC.browseGroups = [];     // [{key, label, items:[{nums, label}]}]
+PC.browseSelected = {};   // { "groupKey:itemIdx": true }
+
+PC.loadJsonSafe = function(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
+  catch (e) { return fallback; }
+};
+
+PC.buildBrowseGroups = function() {
+  var groups = [];
+
+  // 1) 관심번호 저장소
+  var favs = PC.loadJsonSafe('mll_favorites', []);
+  groups.push({
+    key: 'favorites', label: '⭐ 관심번호/재구매 최애번호 저장소',
+    items: favs.map(function(f){ return { nums:f.nums, label:(f.round?f.round+'회 · ':'')+(f.memo||f.type||'') }; })
+  });
+
+  // 2) 전체 등록번호
+  var entries = PC.loadJsonSafe('mll_entries', []);
+  groups.push({
+    key: 'entries', label: '📋 전체 등록번호 (결과 및 통계)',
+    items: entries.map(function(e){ return { nums:e.nums, label:(e.round?e.round+'회 · ':'')+(e.type||'') }; })
+  });
+
+  // 3) 전략등록 조합 (sr.numbers는 여러 조합의 배열이므로 펼친다)
+  var srList = PC.loadJsonSafe('mll_strategy_results', []);
+  var strategyItems = [];
+  srList.forEach(function(sr) {
+    (sr.numbers || []).forEach(function(nums) {
+      strategyItems.push({ nums: nums, label: sr.strategyName + (sr.round?(' · '+sr.round+'회'):'') });
+    });
+  });
+  groups.push({ key:'strategy', label:'🧠 전략등록 조합 (전략DATA)', items: strategyItems });
+
+  // 4) 최종전략 DATA 저장소 - Battle/Game번호, 기타저장소
+  var battleItems = PC.loadJsonSafe('mll_storage_battle', []);
+  groups.push({
+    key: 'battle', label: '⚔️ Battle/Game번호 (최종전략 DATA 저장소)',
+    items: battleItems.map(function(b){ return { nums:b.nums, label:b.name||'' }; })
+  });
+
+  var etcItems = PC.loadJsonSafe('mll_storage_etc', []);
+  groups.push({
+    key: 'etc', label: '📁 기타저장소 (최종전략 DATA 저장소)',
+    items: (etcItems||[]).filter(function(e){ return e.nums && e.nums.length===6; }).map(function(e){ return { nums:e.nums, label:e.name||''}; })
+  });
+
+  PC.browseGroups = groups;
+};
+
+PC.refreshBrowseList = function() {
+  PC.buildBrowseGroups();
+  PC.browseSelected = {};
+  PC.renderBrowseList();
+};
+
+PC.renderBrowseList = function() {
+  var wrap = document.getElementById('pc-browse-groups');
+  var anyItems = PC.browseGroups.some(function(g){ return g.items.length > 0; });
+  if (!anyItems) {
+    wrap.innerHTML = '<div class="pc-browse-empty">아직 사이트 내에 등록된 번호조합이 없습니다.<br>"결과 및 통계"나 "전략 등록"에서 먼저 번호를 등록해보세요.</div>';
+    PC.updateBrowseSelCount();
+    return;
+  }
+  wrap.innerHTML = PC.browseGroups.map(function(g, gi) {
+    if (!g.items.length) return '';
+    var bodyId = 'pc-browse-gbody-'+gi;
+    var itemsHtml = g.items.map(function(item, ii) {
+      var key = gi+':'+ii;
+      var checked = !!PC.browseSelected[key];
+      var balls = item.nums.slice().sort(function(a,b){return a-b;}).map(function(n) {
+        return '<span class="pc-ball-sm" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+n+'</span>';
+      }).join('');
+      return '<div class="pc-browse-item">' +
+        '<input type="checkbox" '+(checked?'checked':'')+' onchange="PC.toggleBrowseSelect(\''+key+'\')">' +
+        '<span class="pc-browse-balls">'+balls+'</span>' +
+        '<span class="pc-browse-label" title="'+(item.label||'')+'">'+(item.label||'')+'</span>' +
+        '</div>';
+    }).join('');
+    return '<div class="pc-browse-group">' +
+      '<div class="pc-browse-ghead" onclick="PC.toggleBrowseGroup('+gi+')">' +
+        '<span>'+g.label+' <span class="pc-browse-gcount">('+g.items.length+'개)</span></span>' +
+        '<span id="pc-browse-arrow-'+gi+'">▾</span>' +
+      '</div>' +
+      '<div class="pc-browse-gbody" id="'+bodyId+'">'+itemsHtml+'</div>' +
+      '</div>';
+  }).join('');
+  PC.updateBrowseSelCount();
+};
+
+PC.toggleBrowseGroup = function(gi) {
+  var body = document.getElementById('pc-browse-gbody-'+gi);
+  var arrow = document.getElementById('pc-browse-arrow-'+gi);
+  var isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if (arrow) arrow.textContent = isOpen ? '▾' : '▴';
+};
+
+PC.toggleBrowseSelect = function(key) {
+  if (PC.browseSelected[key]) delete PC.browseSelected[key];
+  else PC.browseSelected[key] = true;
+  PC.updateBrowseSelCount();
+};
+
+PC.updateBrowseSelCount = function() {
+  var el = document.getElementById('pc-browse-selcount');
+  if (el) el.textContent = Object.keys(PC.browseSelected).length;
+};
+
+PC.importSelectedBrowseItems = function() {
+  var msgEl = document.getElementById('pc-acc-msg-input');
+  var keys = Object.keys(PC.browseSelected);
+  if (!keys.length) return RS_showMsg(msgEl, 'error', '가져올 항목을 먼저 선택해주세요.');
+  var imported = 0;
+  keys.forEach(function(key) {
+    var parts = key.split(':');
+    var gi = parseInt(parts[0]), ii = parseInt(parts[1]);
+    var item = PC.browseGroups[gi] && PC.browseGroups[gi].items[ii];
+    if (item && item.nums && item.nums.length === 6) {
+      PC.addGame(item.nums, 'browse');
+      imported++;
+    }
+  });
+  PC.browseSelected = {};
+  PC.renderBrowseList();
+  RS_showMsg(msgEl, 'success', '✅ '+imported+'개 조합을 가져왔습니다. (현재 게임목록 '+PC.games.length+'개)');
 };
 
 PC.autoAdvance = function(el, nextId) {
