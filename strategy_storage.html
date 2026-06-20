@@ -292,6 +292,62 @@ MLL.refreshFavoritesResults = function() {
   MLL.saveFavorites(favs);
 };
 
+// mll_entries 항목 하나를 mll_favorites 저장소용 레코드로 복제
+MLL.cloneAsFavoriteRecord = function(entry) {
+  return {
+    id: MLL.uuid(),
+    sourceEntryId: entry.id || null,
+    round: entry.round,
+    nums: entry.nums.slice(),
+    type: entry.type,
+    isReal: !!entry.isReal,
+    memo: entry.memo || '',
+    inputMethod: entry.inputMethod || 'general',
+    status: entry.status,
+    grade: entry.grade,
+    prizeMoney: entry.prizeMoney || 0,
+    isFavorite: true,
+    createdAt: Date.now()
+  };
+};
+
+// 관심(즐겨찾기) 토글 — mll_entries의 플래그 + mll_favorites 저장소 동기화
+MLL.toggleFavorite = function(id) {
+  var entries = MLL.loadEntries();
+  var e = entries.find(function(x){ return x.id === id; });
+  if (!e) return null;
+  e.isFavorite = !e.isFavorite;
+  MLL.saveEntries(entries);
+
+  var favs = MLL.loadFavorites();
+  if (e.isFavorite) {
+    var exists = favs.some(function(f){ return f.sourceEntryId === e.id; });
+    if (!exists) { favs.push(MLL.cloneAsFavoriteRecord(e)); MLL.saveFavorites(favs); }
+  } else {
+    favs = favs.filter(function(f){ return f.sourceEntryId !== e.id; });
+    MLL.saveFavorites(favs);
+  }
+  return e.isFavorite;
+};
+
+// "절박하게 막판에" 추가하는 경로 전용 — mll_entries에 정식 등록(전체 통계 반영) + mll_favorites 동시 동기화
+MLL.addFavoriteDirect = function(item) {
+  var tagNote = '[최애번호로 별도 추가]';
+  var memo = item.memo ? (tagNote + ' ' + item.memo) : tagNote;
+  var entry = MLL.addEntry({
+    round: item.round,
+    nums: item.nums.slice(),
+    type: item.type || '수동',
+    isReal: !!item.isReal,
+    memo: memo,
+    inputMethod: item.inputMethod || 'general',
+    sessionTag: item.sessionTag || ''
+  });
+  entry.isFavorite = false; // toggleFavorite에서 true로 바꿔주며 동기화
+  MLL.toggleFavorite(entry.id);
+  return entry;
+};
+
 // ── 당첨결과로 전체 업데이트 ──
 // resultsObj 구조:
 // {
@@ -1173,6 +1229,31 @@ function addFav(){
   showSaveToast('"'+name+'" 저장 완료! 목록에 추가되었습니다.');
   var list=document.getElementById('fav-list');
   if(list) list.scrollIntoView({behavior:'smooth', block:'start'});
+
+  // 절박하게 막판에 넣는 경우를 위해 "관심번호 저장소"(mll_favorites)에도 합칠지 확인
+  var merge = confirm('"'+name+'"을(를) 아래 "관심번호/재구매 최애번호 List"에도 함께 넣으시겠습니까?\n(전체 통계에도 반영됩니다)');
+  if (merge) {
+    var round = RS_computeUpcomingRoundLocal();
+    var entry = MLL.addFavoriteDirect({
+      round: round,
+      nums: nums,
+      type: '수동',
+      isReal: false,
+      memo: name + (memo ? (' · '+memo) : ''),
+      inputMethod: 'fav_storage'
+    });
+    showSaveToast('관심번호 저장소에도 합쳐졌습니다! (제'+round+'회 기준)');
+    FSync.render();
+  }
+}
+
+// 이 페이지에는 results_stats.html의 SPA 라우터(RS)가 없으므로,
+// "1회~가장 최근 추첨회차 전체" 계산용 computeUpcomingRound를 이 파일 전용으로 둔다.
+function RS_computeUpcomingRoundLocal(){
+  var results = MLL.loadResults();
+  var resultRounds = Object.keys(results).map(Number).filter(function(n){ return !isNaN(n) && n>0; });
+  if (resultRounds.length) return Math.max.apply(null, resultRounds) + 1;
+  return MLL.getLottoInfo().saleRound;
 }
 
 function addBattle(){
@@ -1319,7 +1400,7 @@ FSync.sort = { key:'createdAt', dir:'desc' };
 FSync.COLUMNS = [
   { key:'idx',       label:'#' },
   { key:'round',     label:'회차' },
-  { key:'nums',      label:'내 번호', noSort:true },
+  { key:'nums',      label:'내 번호' },
   { key:'match',     label:'일치' },
   { key:'grade',     label:'등수' },
   { key:'prizeMoney',label:'당첨금' },
@@ -1400,14 +1481,17 @@ FSync.sortRows = function(rows, getRes) {
   var withDerived = rows.map(function(f){
     var res = getRes(f.round);
     var match = res ? MLL.calcMatchCount(f.nums, res.nums) : null;
-    return { f:f, _match:match };
+    var sumNums = f.nums.reduce(function(a,b){ return a+b; }, 0);
+    return { f:f, _match:match, _sumNums:sumNums };
   });
-  if (!key || key==='idx') {
+  if (!key) {
     withDerived.sort(function(a,b){ return b.f.round-a.f.round || b.f.createdAt-a.f.createdAt; });
   } else {
     withDerived.sort(function(a,b){
       var av, bv;
-      if (key==='match') { av = a._match===null?-1:a._match; bv = b._match===null?-1:b._match; }
+      if (key==='idx' || key==='createdAt') { av = a.f.createdAt||0; bv = b.f.createdAt||0; }
+      else if (key==='nums')       { av = a._sumNums; bv = b._sumNums; }
+      else if (key==='match') { av = a._match===null?-1:a._match; bv = b._match===null?-1:b._match; }
       else if (key==='grade') {
         function rank(f){
           if (f.status!=='추첨후' || f.grade===null || f.grade===undefined) return -1;
@@ -1417,7 +1501,6 @@ FSync.sortRows = function(rows, getRes) {
         av = rank(a.f); bv = rank(b.f);
       }
       else if (key==='prizeMoney') { av = a.f.prizeMoney||0; bv = b.f.prizeMoney||0; }
-      else if (key==='createdAt')  { av = a.f.createdAt||0; bv = b.f.createdAt||0; }
       else if (key==='round')      { av = Number(a.f.round); bv = Number(b.f.round); }
       else { av = (a.f[key]||'').toString(); bv = (b.f[key]||'').toString(); }
       if (av < bv) return dir==='asc' ? -1 : 1;
