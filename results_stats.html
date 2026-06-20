@@ -24,6 +24,9 @@ body{background:#f3f4f6;font-size:13px;}
 .rs-menu-btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(245,117,15,0.35);}
 .rs-menu-btn.active{background:linear-gradient(135deg,#2f9e44,#1e7a30);box-shadow:0 2px 8px rgba(47,158,68,0.35);}
 .rs-menu-btn.special{background:linear-gradient(135deg,#94d3a2,#5fa86f);box-shadow:0 2px 6px rgba(95,168,111,0.25);}
+.rs-menu-btn.strategy-tab{background:linear-gradient(135deg,#9775e0,#7048e8);box-shadow:0 2px 6px rgba(112,72,232,0.25);}
+.rs-menu-btn.strategy-tab:hover{box-shadow:0 4px 10px rgba(112,72,232,0.35);}
+.rs-menu-btn.strategy-tab.active{background:linear-gradient(135deg,#2f9e44,#1e7a30);box-shadow:0 2px 8px rgba(47,158,68,0.35);}
 .rs-menu-btn.special:hover{box-shadow:0 4px 10px rgba(95,168,111,0.35);}
 .rs-menu-btn .mb-sub{display:block;font-size:10px;font-weight:400;opacity:0.85;margin-top:3px;}
 .rs-content{min-width:0;}
@@ -141,8 +144,11 @@ table.habittbl td.sub-confirmed{color:#888;font-size:9px;}
 .fav-btn.pdf{background:#c92a2a;color:#fff;}
 .fav-btn.pdf:hover{background:#a61e1e;}
 @media print{
-  .rs-menu, .header, .round-select-bar .gobtn, .fav-toolbar, .checknow-btn, .favstar{display:none !important;}
+  .rs-menu, .header, .round-select-bar .gobtn, .fav-toolbar, .checknow-btn, .favstar, .fav-addinput-card{display:none !important;}
   .rs-main{grid-template-columns:1fr !important;}
+  #fav-print-wrap{grid-template-columns:1fr !important;}
+  body{background:#fff !important;}
+  @page{margin:10mm;}
 }
 
 /* 추가입력 아코디언 */
@@ -199,6 +205,20 @@ table.habittbl td.sub-confirmed{color:#888;font-size:9px;}
 .url-row{display:flex;gap:6px;margin-top:8px;}
 .url-in{flex:1;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:11px;}
 .btn-url-parse{background:#7048e8;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;}
+
+/* 전략등록 현황 및 당첨통계 */
+.strat-select-bar{padding:12px 16px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.strat-select-bar select{border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:12px;background:#fff;cursor:pointer;}
+.strat-select-bar .tilde{color:#999;font-size:12px;}
+table.strattbl{width:100%;border-collapse:collapse;font-size:11px;min-width:760px;}
+table.strattbl thead th{background:#f8f8f8;color:#666;font-weight:700;padding:8px 6px;border-bottom:2px solid #e8e8e8;text-align:center;cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0;}
+table.strattbl thead th:hover{background:#eef4ff;}
+table.strattbl thead th .sort-arrow{font-size:9px;color:#bbb;margin-left:2px;}
+table.strattbl thead th.sorted .sort-arrow{color:#7048e8;}
+table.strattbl tbody td{padding:6px 6px;border-bottom:1px solid #f2f2f2;text-align:center;}
+table.strattbl tbody tr:hover{background:#fafafa;}
+.gcount-cell{font-size:11px;font-weight:700;color:#bbb;}
+.gcount-cell.has{color:#1a7ad4;}
 </style>
 <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -219,6 +239,7 @@ MLL.STORAGE_KEY  = 'mll_entries';
 MLL.RESULTS_KEY  = 'mll_results';
 MLL.ADMIN_PW_KEY = 'mll_admin_auth';
 MLL.SESSION_KEY  = 'mll_session';
+MLL.STRATEGY_RESULT_KEY = 'mll_strategy_results';
 
 MLL.getSession = function(tag) {
   var key = MLL.SESSION_KEY + '_' + tag;
@@ -432,6 +453,15 @@ MLL.saveResults = function(results) {
 MLL.getResult = function(round) {
   var r = MLL.loadResults();
   return r[round] || r[Number(round)] || r[String(round)] || null;
+};
+
+// 전략으로 생성된 번호조합 데이터 (strategy_compare.html 등과 공유하는 저장소)
+MLL.loadStrategyResults = function() {
+  try { return JSON.parse(localStorage.getItem(MLL.STRATEGY_RESULT_KEY) || '[]'); }
+  catch(e) { return []; }
+};
+MLL.saveStrategyResults = function(list) {
+  localStorage.setItem(MLL.STRATEGY_RESULT_KEY, JSON.stringify(list));
 };
 
 MLL.calcGrade = function(myNums, winNums, bonusNum) {
@@ -684,6 +714,7 @@ MLL.searchEntriesByCondition = function(entries, condition, history) {
     <button class="rs-menu-btn" data-sec="byCondition" onclick="RS.switchSection('byCondition',this)">조건별<br>등록현황과 결과</button>
     <button class="rs-menu-btn" data-sec="habit" onclick="RS.switchSection('habit',this)">나의 구매 성향</button>
     <button class="rs-menu-btn" data-sec="favorites" onclick="RS.switchSection('favorites',this)">관심번호/재구매<br>최애번호 저장소</button>
+    <button class="rs-menu-btn strategy-tab" data-sec="strategyStats" onclick="RS.switchSection('strategyStats',this)">전략등록 현황 및<br>당첨통계</button>
     <button class="rs-menu-btn special" data-sec="printCenter" onclick="RS.switchSection('printCenter',this)">편리한 재도전 출력센터<span class="mb-sub">실제 사용 가능한 로또구매전표 작성</span></button>
   </div>
 
@@ -1561,12 +1592,12 @@ RS.renderFavorites = function(container) {
     }).join('');
 
   container.innerHTML =
-    '<div class="statpanel-grid">' +
-      '<div class="card">' +
+    '<div class="statpanel-grid" id="fav-print-wrap">' +
+      '<div class="card fav-addinput-card">' +
         '<div class="card-head head-dark">🏅 나의 최애번호 추가: 다음 중 선택하여 사용하세요</div>' +
         '<div style="padding:14px;">' + RS.renderAddInputAccordion() + '</div>' +
       '</div>' +
-      '<div class="card">' +
+      '<div class="card" id="fav-print-target">' +
         '<div class="card-head head-dark">🏆 나의 관심번호: 재구매 대상 최애번호 List</div>' +
         '<div class="round-select-bar">' +
           '<span style="font-size:11px;color:#888;">확인할 회차 선택</span>' +
@@ -1576,7 +1607,7 @@ RS.renderFavorites = function(container) {
         '<div id="rs-favbody"></div>' +
         '<div class="fav-toolbar">' +
           '<button class="fav-btn excel" onclick="RS.exportFavoritesExcel()">📊 엑셀 다운로드</button>' +
-          '<button class="fav-btn pdf" onclick="window.print()">🖨️ PDF 출력</button>' +
+          '<button class="fav-btn pdf" onclick="RS.printFavorites()">🖨️ PDF 출력</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -1690,6 +1721,11 @@ RS.renderFavTable = function(rows, getRes, roundsDesc) {
 };
 
 // ── 엑셀 다운로드 (CSV, 외부 라이브러리 없이 엑셀에서 바로 열림) ──
+RS.printFavorites = function() {
+  alert('인쇄 창에서 "더보기 설정"을 열어 머리글/바닥글(날짜·URL·페이지 번호) 체크를 해제하시면, 지금 보고 계신 목록만 깨끗하게 출력됩니다.');
+  window.print();
+};
+
 RS.exportFavoritesExcel = function() {
   if (typeof XLSX === 'undefined') {
     alert('엑셀 라이브러리를 불러오지 못했습니다. 네트워크 연결을 확인하고 다시 시도해주세요.');
@@ -1699,7 +1735,7 @@ RS.exportFavoritesExcel = function() {
   var results = MLL.loadResults();
   function getRes(round){ return results[round]||results[Number(round)]||results[String(round)]||null; }
 
-  var header = ['#','회차','내번호','일치','등수','당첨금','구매형태','메모','등록일자'];
+  var header = ['#','회차','번호1','번호2','번호3','번호4','번호5','번호6','일치','등수','당첨금','구매형태','메모','등록일자'];
   var aoa = [header];
 
   favs.forEach(function(f, i){
@@ -1709,10 +1745,11 @@ RS.exportFavoritesExcel = function() {
     var gradeText = !isConfirmed ? '미확인' : (f.grade===0 ? '낙첨' : MLL.GRADE_LABEL[f.grade]);
     var d = new Date(f.createdAt);
     var dateStr = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    var sortedNums = f.nums.slice().sort(function(a,b){ return a-b; });
     aoa.push([
       i+1,
       f.round+'회',
-      f.nums.join(' '),
+      sortedNums[0], sortedNums[1], sortedNums[2], sortedNums[3], sortedNums[4], sortedNums[5],
       match,
       gradeText,
       f.prizeMoney||0,
@@ -1726,7 +1763,7 @@ RS.exportFavoritesExcel = function() {
   ws['!cols'] = [
     { wch:4 },  // #
     { wch:8 },  // 회차
-    { wch:20 }, // 내번호
+    { wch:6 }, { wch:6 }, { wch:6 }, { wch:6 }, { wch:6 }, { wch:6 }, // 번호1~6
     { wch:6 },  // 일치
     { wch:8 },  // 등수
     { wch:14 }, // 당첨금
@@ -2345,6 +2382,384 @@ RS.initAddInputHandlers = function() {
 };
 
 RS.SECTION_RENDERERS.favorites = RS.renderFavorites;
+</script>
+
+<script>
+// =====================================================
+// 섹션: 전략등록 현황 및 당첨통계 (strategyStats)
+// 데이터소스: mll_strategy_results (전략으로 생성된 번호조합들)
+//   구조: [{ id, round, strategyName, numbers:[[6개],...], totalCount }]
+// 화면은 "조회대상 추첨회차가 1개냐 2개 이상이냐"로 완전히 갈린다.
+//   (전략 선택 여부와는 무관 — 전략은 단순 필터 조건)
+// =====================================================
+
+RS.stratState = { strategy:'all', startRound:'', endRound:'' };
+
+// mll_strategy_results를 "개별 조합 1행" 단위로 펼친 평탄화 배열을 만든다
+RS.flattenStrategyResults = function() {
+  var srList = MLL.loadStrategyResults ? MLL.loadStrategyResults() : [];
+  var rows = [];
+  srList.forEach(function(sr) {
+    (sr.numbers || []).forEach(function(nums, idx) {
+      rows.push({
+        srId: sr.id,
+        comboIdx: idx,
+        strategyName: sr.strategyName,
+        round: sr.round,
+        nums: nums.slice(),
+        memo: sr.memo || '',
+        createdAt: sr.createdAt || 0,
+        // 즐겨찾기 여부는 mll_favorites와 (전략명+회차+번호조합) 매칭으로 판단
+        isFavorite: RS.isStrategyComboFavorited(sr.strategyName, sr.round, nums)
+      });
+    });
+  });
+  return rows;
+};
+
+RS.isStrategyComboFavorited = function(strategyName, round, nums) {
+  var favs = MLL.loadFavorites();
+  var key = nums.slice().sort(function(a,b){return a-b;}).join(',');
+  return favs.some(function(f) {
+    return String(f.round) === String(round) &&
+      f.nums.slice().sort(function(a,b){return a-b;}).join(',') === key &&
+      (f.memo || '').indexOf(strategyName) >= 0;
+  });
+};
+
+RS.toggleStrategyFav = function(round, numsKey, strategyName, el) {
+  var nums = numsKey.split(',').map(Number);
+  var favs = MLL.loadFavorites();
+  var matchIdx = favs.findIndex(function(f) {
+    return String(f.round) === String(round) &&
+      f.nums.slice().sort(function(a,b){return a-b;}).join(',') === nums.slice().sort(function(a,b){return a-b;}).join(',') &&
+      (f.memo || '').indexOf(strategyName) >= 0;
+  });
+  if (matchIdx >= 0) {
+    favs.splice(matchIdx, 1);
+    MLL.saveFavorites(favs);
+    if (el) { el.classList.remove('on'); el.textContent = '☆'; }
+  } else {
+    MLL.addFavoriteDirect({ round: round, nums: nums, type: '자동', isReal: false, memo: '['+strategyName+'] 전략번호', inputMethod: 'strategy' });
+    if (el) { el.classList.add('on'); el.textContent = '★'; }
+  }
+};
+
+// ── 회차/전략 옵션 빌더 ──
+RS.buildStrategyOptions = function() {
+  var srList = MLL.loadStrategyResults ? MLL.loadStrategyResults() : [];
+  var names = [];
+  var rounds = [];
+  srList.forEach(function(sr) {
+    if (names.indexOf(sr.strategyName) < 0) names.push(sr.strategyName);
+    if (rounds.indexOf(sr.round) < 0) rounds.push(sr.round);
+  });
+  rounds.sort(function(a,b){ return b-a; }); // 최근 → 과거
+  return { names: names, rounds: rounds };
+};
+
+RS.renderStrategyStats = function(container) {
+  var opt = RS.buildStrategyOptions();
+  var st = RS.stratState;
+  if (!st.startRound && opt.rounds.length) st.startRound = String(opt.rounds[0]);
+
+  var nameOptions = '<option value="all">⭐ 모든 전략</option>' +
+    opt.names.map(function(n){ return '<option value="'+n+'"'+(st.strategy===n?' selected':'')+'>'+n+'</option>'; }).join('');
+
+  var startOptions = opt.rounds.map(function(r){
+    return '<option value="'+r+'"'+(String(st.startRound)===String(r)?' selected':'')+'>'+r+'회</option>';
+  }).join('');
+  var endOptions = '<option value="">선택안함</option>' + opt.rounds.map(function(r){
+    return '<option value="'+r+'"'+(String(st.endRound)===String(r)?' selected':'')+'>'+r+'회</option>';
+  }).join('');
+
+  container.innerHTML =
+    '<div class="card">' +
+      '<div class="card-head head-dark">🏆 전략등록 현황 및 당첨통계</div>' +
+      '<div class="strat-select-bar">' +
+        '<span style="font-size:11px;color:#888;">적용할 전략 선택</span>' +
+        '<select id="strat-name-select" onchange="RS.onStrategySelChange()">'+nameOptions+'</select>' +
+        '<span style="font-size:11px;color:#888;margin-left:10px;">확인할 회차 선택</span>' +
+        '<select id="strat-start-select" onchange="RS.onStrategySelChange()">'+startOptions+'</select>' +
+        '<span class="tilde">~</span>' +
+        '<select id="strat-end-select" onchange="RS.onStrategySelChange()">'+endOptions+'</select>' +
+      '</div>' +
+      '<div id="strat-body"></div>' +
+    '</div>';
+
+  RS.sort = { key:'createdAt', dir:'desc' };
+  RS.renderStrategyBody();
+};
+
+RS.onStrategySelChange = function() {
+  RS.stratState.strategy = document.getElementById('strat-name-select').value;
+  RS.stratState.startRound = document.getElementById('strat-start-select').value;
+  RS.stratState.endRound = document.getElementById('strat-end-select').value;
+  RS.sort = { key:'createdAt', dir:'desc' };
+  RS.renderStrategyBody();
+};
+
+// 현재 선택된 조건으로 필터링된 행들을 반환 + 회차가 몇 개인지(단일/범위) 판별
+RS.getFilteredStrategyRows = function() {
+  var allRows = RS.flattenStrategyResults();
+  var st = RS.stratState;
+  var rows = st.strategy !== 'all' ? allRows.filter(function(r){ return r.strategyName === st.strategy; }) : allRows;
+
+  var start = st.startRound ? Number(st.startRound) : null;
+  var end = st.endRound ? Number(st.endRound) : null;
+  var roundsInScope;
+
+  if (start && end) {
+    var lo = Math.min(start, end), hi = Math.max(start, end);
+    rows = rows.filter(function(r){ return r.round >= lo && r.round <= hi; });
+    roundsInScope = [...new Set(rows.map(function(r){ return r.round; }))];
+  } else if (start) {
+    rows = rows.filter(function(r){ return r.round === start; });
+    roundsInScope = [start];
+  } else {
+    roundsInScope = [...new Set(rows.map(function(r){ return r.round; }))];
+  }
+
+  var isMultiRound = roundsInScope.length >= 2;
+  return { rows: rows, isMultiRound: isMultiRound };
+};
+
+RS.renderStrategyBody = function() {
+  var body = document.getElementById('strat-body');
+  if (!body) return;
+  var f = RS.getFilteredStrategyRows();
+  var rows = f.rows;
+  var results = MLL.loadResults();
+  function getRes(round){ return results[round]||results[Number(round)]||results[String(round)]||null; }
+
+  // 각 행에 등수(grade)/일치(match)/당첨금(prize) 계산해서 부여
+  rows.forEach(function(r) {
+    var res = getRes(r.round);
+    if (res) {
+      r._grade = MLL.calcGrade(r.nums, res.nums, res.bonus);
+      r._match = MLL.calcMatchCount(r.nums, res.nums);
+      r._prize = MLL.calcPrize(r._grade, res);
+      r._confirmed = true;
+    } else {
+      r._grade = null; r._match = null; r._prize = 0; r._confirmed = false;
+    }
+  });
+
+  var winRows = rows.filter(function(r){ return r._confirmed && r._grade > 0; });
+  var confirmedRows = rows.filter(function(r){ return r._confirmed; });
+  var totalPrize = rows.reduce(function(a,r){ return a + (r._prize||0); }, 0);
+  var winRate = confirmedRows.length ? (winRows.length/confirmedRows.length*100) : 0;
+
+  var summaryHtml = '<div class="summary4">' +
+    '<div class="s4box"><div class="s4box-val">'+rows.length+'</div><div class="s4box-label">적용할 전략 조합수</div></div>' +
+    '<div class="s4box"><div class="s4box-val" style="color:#e67700;">'+winRows.length+'</div><div class="s4box-label">당첨 조합 수</div></div>' +
+    '<div class="s4box"><div class="s4box-val" style="color:#1a7ad4;">'+winRate.toFixed(1)+'%</div><div class="s4box-label">당첨률</div></div>' +
+    '<div class="s4box"><div class="s4box-val" style="color:#e03131;">'+totalPrize.toLocaleString()+'</div><div class="s4box-label">총 당첨금 (원)</div></div>' +
+  '</div>';
+
+  var sortedRows = RS.sortStrategyRows(rows, f.isMultiRound);
+  var tableHtml = f.isMultiRound ? RS.renderStrategyTableMulti(sortedRows) : RS.renderStrategyTableSingle(sortedRows);
+
+  body.innerHTML = summaryHtml +
+    '<div style="padding:0 16px 6px;font-size:11px;font-weight:700;color:#555;">상세 결과 ('+rows.length+'건)</div>' +
+    tableHtml;
+};
+
+// ── 정렬 ──
+RS.STRAT_COLUMNS_SINGLE = [
+  { key:'idx', label:'#' },
+  { key:'strategyName', label:'전략명' },
+  { key:'nums', label:'전략번호', noSort:true },
+  { key:'match', label:'일치' },
+  { key:'grade', label:'등수' },
+  { key:'prize', label:'당첨금' },
+  { key:'memo', label:'메모' },
+  { key:'createdAt', label:'등록일자' },
+  { key:'fav', label:'관심' }
+];
+RS.STRAT_COLUMNS_MULTI = [
+  { key:'idx', label:'#' },
+  { key:'strategyName', label:'전략명' },
+  { key:'nums', label:'전략번호', noSort:true },
+  { key:'g1', label:'1등' },
+  { key:'g2', label:'2등' },
+  { key:'g3', label:'3등' },
+  { key:'g4', label:'4등' },
+  { key:'g5', label:'5등' },
+  { key:'prize', label:'상금' },
+  { key:'memo', label:'메모' },
+  { key:'createdAt', label:'등록일자' },
+  { key:'fav', label:'관심' }
+];
+
+RS.sortStrategyRows = function(rows, isMulti) {
+  var key = RS.sort.key, dir = RS.sort.dir;
+  var withIdx = rows.map(function(r,i){ return { r:r, _i:i }; });
+  if (!key || key === 'idx') {
+    withIdx.sort(function(a,b){ return b.r.round-a.r.round || b.r.createdAt-a.r.createdAt; });
+  } else {
+    withIdx.sort(function(a,b){
+      var av, bv;
+      if (key === 'strategyName') { av=a.r.strategyName; bv=b.r.strategyName; }
+      else if (key === 'match') { av=a.r._match===null?-1:a.r._match; bv=b.r._match===null?-1:b.r._match; }
+      else if (key === 'grade') {
+        function rank(r){ if(!r._confirmed) return -1; if(r._grade===0) return 0; return 7-r._grade; }
+        av = rank(a.r); bv = rank(b.r);
+      }
+      else if (key === 'prize') { av=a.r._prize||0; bv=b.r._prize||0; }
+      else if (key === 'createdAt') { av=a.r.createdAt||0; bv=b.r.createdAt||0; }
+      else if (key === 'memo') { av=a.r.memo||''; bv=b.r.memo||''; }
+      else if (/^g[1-5]$/.test(key)) {
+        var g = parseInt(key.slice(1));
+        av = a.r._confirmed && a.r._grade===g ? 1 : 0;
+        bv = b.r._confirmed && b.r._grade===g ? 1 : 0;
+      }
+      else if (key === 'fav') { av=a.r.isFavorite?1:0; bv=b.r.isFavorite?1:0; }
+      else { av=''; bv=''; }
+      if (av < bv) return dir==='asc' ? -1 : 1;
+      if (av > bv) return dir==='asc' ? 1 : -1;
+      return b.r.createdAt - a.r.createdAt;
+    });
+  }
+  return withIdx.map(function(w){ return w.r; });
+};
+
+RS.toggleStrategySort = function(key) {
+  var cols = RS.getFilteredStrategyRows().isMultiRound ? RS.STRAT_COLUMNS_MULTI : RS.STRAT_COLUMNS_SINGLE;
+  var col = cols.find(function(c){ return c.key===key; });
+  if (col && col.noSort) return;
+  if (RS.sort.key === key) RS.sort.dir = RS.sort.dir==='asc' ? 'desc' : 'asc';
+  else { RS.sort.key = key; RS.sort.dir = 'desc'; }
+  RS.renderStrategyBody();
+};
+
+// ── 케이스1: 회차 1개 ──
+RS.renderStrategyTableSingle = function(rows) {
+  var cols = RS.STRAT_COLUMNS_SINGLE;
+  var theadHtml = '<thead><tr>' + cols.map(function(c){
+    var sorted = RS.sort.key === c.key;
+    var arrow = c.noSort ? '' : '<span class="sort-arrow">'+(sorted?(RS.sort.dir==='asc'?'▲':'▼'):'↕')+'</span>';
+    var cls = sorted ? ' class="sorted"' : '';
+    var onclick = c.noSort ? '' : ' onclick="RS.toggleStrategySort(\''+c.key+'\')"';
+    return '<th'+cls+onclick+'>'+c.label+arrow+'</th>';
+  }).join('') + '</tr></thead>';
+
+  if (!rows.length) {
+    return '<div class="detail-table-wrap"><table class="strattbl">'+theadHtml+
+      '<tbody><tr><td colspan="'+cols.length+'" class="empty-row">조건에 해당하는 전략번호가 없습니다.</td></tr></tbody></table></div>';
+  }
+
+  var bodyRows = rows.map(function(r, i){
+    var ballsHtml = RS.renderStrategyBalls(r);
+    var matchHtml = r._match===null ? '<span style="color:#ccc;">-</span>' : '<span class="matchnum">'+r._match+'</span>';
+    var gradeHtml;
+    if (!r._confirmed) gradeHtml = '<span style="color:#bbb;font-size:9px;">미확인</span>';
+    else if (r._grade===0) gradeHtml = '<span class="rbadge" style="background:'+MLL.GRADE_COLOR[0]+';">낙첨</span>';
+    else gradeHtml = '<span class="rbadge" style="background:'+MLL.GRADE_COLOR[r._grade]+';">'+MLL.GRADE_LABEL[r._grade]+'</span>';
+    var prizeHtml = (r._prize && r._prize>0) ? '<span style="color:#e03131;font-weight:700;">'+r._prize.toLocaleString()+'원</span>' : '<span style="color:#ccc;">-</span>';
+    var d = new Date(r.createdAt);
+    var dateStr = r.createdAt ? String(d.getFullYear()).slice(2)+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0') : '-';
+    var numsKey = r.nums.slice().sort(function(a,b){return a-b;}).join(',');
+    var favHtml = '<span class="favstar'+(r.isFavorite?' on':'')+'" onclick="RS.toggleStrategyFav(\''+r.round+'\',\''+numsKey+'\',\''+r.strategyName.replace(/'/g,"\\'")+'\',this)">'+(r.isFavorite?'★':'☆')+'</span>';
+
+    return '<tr>' +
+      '<td style="color:#bbb;">'+(i+1)+'</td>' +
+      '<td style="font-weight:600;">'+r.strategyName+'</td>' +
+      '<td>'+ballsHtml+'</td>' +
+      '<td>'+matchHtml+'</td>' +
+      '<td>'+gradeHtml+'</td>' +
+      '<td>'+prizeHtml+'</td>' +
+      '<td style="color:#888;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+(r.memo||'')+'">'+(r.memo||'-')+'</td>' +
+      '<td style="color:#999;font-size:10px;">'+dateStr+'</td>' +
+      '<td>'+favHtml+'</td>' +
+      '</tr>';
+  }).join('');
+
+  return '<div class="detail-table-wrap"><table class="strattbl">'+theadHtml+'<tbody>'+bodyRows+'</tbody></table></div>';
+};
+
+// ── 케이스2: 회차 2개 이상(범위) ──
+RS.renderStrategyTableMulti = function(rows) {
+  // 같은 (전략명+번호조합) 단위로 그룹핑해서 회차범위 전체의 등수별 횟수/상금을 누적
+  var groups = {};
+  rows.forEach(function(r) {
+    var numsKey = r.nums.slice().sort(function(a,b){return a-b;}).join(',');
+    var gKey = r.strategyName + '|' + numsKey;
+    if (!groups[gKey]) {
+      groups[gKey] = {
+        strategyName: r.strategyName, nums: r.nums, numsKey: numsKey,
+        g:[0,0,0,0,0,0], prize:0, memo:r.memo, createdAt:r.createdAt, isFavorite:r.isFavorite
+      };
+    }
+    var g = groups[gKey];
+    if (r._confirmed && r._grade > 0) { g.g[r._grade]++; g.prize += (r._prize||0); }
+    if (r.createdAt > g.createdAt) g.createdAt = r.createdAt;
+  });
+  var grouped = Object.keys(groups).map(function(k){ return groups[k]; });
+
+  var cols = RS.STRAT_COLUMNS_MULTI;
+  var theadHtml = '<thead><tr>' + cols.map(function(c){
+    var sorted = RS.sort.key === c.key;
+    var arrow = c.noSort ? '' : '<span class="sort-arrow">'+(sorted?(RS.sort.dir==='asc'?'▲':'▼'):'↕')+'</span>';
+    var cls = sorted ? ' class="sorted"' : '';
+    var onclick = c.noSort ? '' : ' onclick="RS.toggleStrategySort(\''+c.key+'\')"';
+    return '<th'+cls+onclick+'>'+c.label+arrow+'</th>';
+  }).join('') + '</tr></thead>';
+
+  if (!grouped.length) {
+    return '<div class="detail-table-wrap"><table class="strattbl">'+theadHtml+
+      '<tbody><tr><td colspan="'+cols.length+'" class="empty-row">조건에 해당하는 전략번호가 없습니다.</td></tr></tbody></table></div>';
+  }
+
+  // 그룹 정렬 (단순 정렬 — idx 기준 최신순, 또는 sort.key가 g1~g5/prize면 그 값으로)
+  var key = RS.sort.key, dir = RS.sort.dir;
+  grouped.sort(function(a,b){
+    var av, bv;
+    if (key === 'strategyName') { av=a.strategyName; bv=b.strategyName; }
+    else if (/^g[1-5]$/.test(key)) { var gi=parseInt(key.slice(1)); av=a.g[gi]; bv=b.g[gi]; }
+    else if (key === 'prize') { av=a.prize; bv=b.prize; }
+    else if (key === 'fav') { av=a.isFavorite?1:0; bv=b.isFavorite?1:0; }
+    else { av=a.createdAt; bv=b.createdAt; }
+    if (av < bv) return dir==='asc' ? -1 : 1;
+    if (av > bv) return dir==='asc' ? 1 : -1;
+    return b.createdAt - a.createdAt;
+  });
+
+  var bodyRows = grouped.map(function(g, i){
+    var ballsHtml = RS.renderStrategyBalls({ nums:g.nums });
+    var gCells = [1,2,3,4,5].map(function(gi){
+      var cnt = g.g[gi];
+      return '<td><span class="gcount-cell'+(cnt>0?' has':'')+'">'+cnt+'</span></td>';
+    }).join('');
+    var prizeHtml = g.prize>0 ? '<span style="color:#e03131;font-weight:700;">'+g.prize.toLocaleString()+'원</span>' : '<span style="color:#ccc;">-</span>';
+    var d = new Date(g.createdAt);
+    var dateStr = g.createdAt ? String(d.getFullYear()).slice(2)+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0') : '-';
+    var favHtml = '<span class="favstar'+(g.isFavorite?' on':'')+'" onclick="RS.toggleStrategyFav(\'\',\''+g.numsKey+'\',\''+g.strategyName.replace(/'/g,"\\'")+'\',this)">'+(g.isFavorite?'★':'☆')+'</span>';
+
+    return '<tr>' +
+      '<td style="color:#bbb;">'+(i+1)+'</td>' +
+      '<td style="font-weight:600;">'+g.strategyName+'</td>' +
+      '<td>'+ballsHtml+'</td>' +
+      gCells +
+      '<td>'+prizeHtml+'</td>' +
+      '<td style="color:#888;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+(g.memo||'')+'">'+(g.memo||'-')+'</td>' +
+      '<td style="color:#999;font-size:10px;">'+dateStr+'</td>' +
+      '<td>'+favHtml+'</td>' +
+      '</tr>';
+  }).join('');
+
+  return '<div class="detail-table-wrap"><table class="strattbl">'+theadHtml+'<tbody>'+bodyRows+'</tbody></table></div>';
+};
+
+RS.renderStrategyBalls = function(r) {
+  return '<div style="display:flex;gap:2px;justify-content:center;flex-wrap:nowrap;">' +
+    r.nums.slice().sort(function(a,b){return a-b;}).map(function(n){
+      return '<span style="width:21px;height:21px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;' +
+        'font-size:9px;font-weight:700;background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+n+'</span>';
+    }).join('') + '</div>';
+};
+
+RS.SECTION_RENDERERS.strategyStats = RS.renderStrategyStats;
 </script>
 
 
