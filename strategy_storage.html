@@ -979,12 +979,12 @@ MLL._checkSum = function(nums, min, max) {
         </div>
         <div class="ball-input-row">
           <span style="font-size:10px;color:#888;">번호:</span>
-          <input class="ball-input" id="fb1" type="number" min="1" max="45" placeholder="1" oninput="autoAdvanceBallInput(this,'fb2')">
-          <input class="ball-input" id="fb2" type="number" min="1" max="45" placeholder="2" oninput="autoAdvanceBallInput(this,'fb3')">
-          <input class="ball-input" id="fb3" type="number" min="1" max="45" placeholder="3" oninput="autoAdvanceBallInput(this,'fb4')">
-          <input class="ball-input" id="fb4" type="number" min="1" max="45" placeholder="4" oninput="autoAdvanceBallInput(this,'fb5')">
-          <input class="ball-input" id="fb5" type="number" min="1" max="45" placeholder="5" oninput="autoAdvanceBallInput(this,'fb6')">
-          <input class="ball-input" id="fb6" type="number" min="1" max="45" placeholder="6" oninput="autoAdvanceBallInput(this,null)">
+          <input class="ball-input" id="fb1" type="text" inputmode="numeric" maxlength="2" placeholder="1" oninput="autoAdvanceBallInput(this,'fb2')" onkeydown="onBallInputKeydown(event,this,'fb2')">
+          <input class="ball-input" id="fb2" type="text" inputmode="numeric" maxlength="2" placeholder="2" oninput="autoAdvanceBallInput(this,'fb3')" onkeydown="onBallInputKeydown(event,this,'fb3')">
+          <input class="ball-input" id="fb3" type="text" inputmode="numeric" maxlength="2" placeholder="3" oninput="autoAdvanceBallInput(this,'fb4')" onkeydown="onBallInputKeydown(event,this,'fb4')">
+          <input class="ball-input" id="fb4" type="text" inputmode="numeric" maxlength="2" placeholder="4" oninput="autoAdvanceBallInput(this,'fb5')" onkeydown="onBallInputKeydown(event,this,'fb5')">
+          <input class="ball-input" id="fb5" type="text" inputmode="numeric" maxlength="2" placeholder="5" oninput="autoAdvanceBallInput(this,'fb6')" onkeydown="onBallInputKeydown(event,this,'fb6')">
+          <input class="ball-input" id="fb6" type="text" inputmode="numeric" maxlength="2" placeholder="6" oninput="autoAdvanceBallInput(this,null)" onkeydown="onBallInputKeydown(event,this,null)">
         </div>
         <textarea class="form-textarea" id="fav-memo" placeholder="메모 (선택)"></textarea>
       </div>
@@ -1029,12 +1029,12 @@ MLL._checkSum = function(nums, min, max) {
         </div>
         <div class="ball-input-row">
           <span style="font-size:10px;color:#888;">번호:</span>
-          <input class="ball-input" id="bb1" type="number" min="1" max="45" placeholder="1" oninput="autoAdvanceBallInput(this,'bb2')">
-          <input class="ball-input" id="bb2" type="number" min="1" max="45" placeholder="2" oninput="autoAdvanceBallInput(this,'bb3')">
-          <input class="ball-input" id="bb3" type="number" min="1" max="45" placeholder="3" oninput="autoAdvanceBallInput(this,'bb4')">
-          <input class="ball-input" id="bb4" type="number" min="1" max="45" placeholder="4" oninput="autoAdvanceBallInput(this,'bb5')">
-          <input class="ball-input" id="bb5" type="number" min="1" max="45" placeholder="5" oninput="autoAdvanceBallInput(this,'bb6')">
-          <input class="ball-input" id="bb6" type="number" min="1" max="45" placeholder="6" oninput="autoAdvanceBallInput(this,null)">
+          <input class="ball-input" id="bb1" type="text" inputmode="numeric" maxlength="2" placeholder="1" oninput="autoAdvanceBallInput(this,'bb2')" onkeydown="onBallInputKeydown(event,this,'bb2')">
+          <input class="ball-input" id="bb2" type="text" inputmode="numeric" maxlength="2" placeholder="2" oninput="autoAdvanceBallInput(this,'bb3')" onkeydown="onBallInputKeydown(event,this,'bb3')">
+          <input class="ball-input" id="bb3" type="text" inputmode="numeric" maxlength="2" placeholder="3" oninput="autoAdvanceBallInput(this,'bb4')" onkeydown="onBallInputKeydown(event,this,'bb4')">
+          <input class="ball-input" id="bb4" type="text" inputmode="numeric" maxlength="2" placeholder="4" oninput="autoAdvanceBallInput(this,'bb5')" onkeydown="onBallInputKeydown(event,this,'bb5')">
+          <input class="ball-input" id="bb5" type="text" inputmode="numeric" maxlength="2" placeholder="5" oninput="autoAdvanceBallInput(this,'bb6')" onkeydown="onBallInputKeydown(event,this,'bb6')">
+          <input class="ball-input" id="bb6" type="text" inputmode="numeric" maxlength="2" placeholder="6" oninput="autoAdvanceBallInput(this,null)" onkeydown="onBallInputKeydown(event,this,null)">
         </div>
         <textarea class="form-textarea" id="battle-memo" placeholder="메모 (선택)"></textarea>
       </div>
@@ -1104,25 +1104,38 @@ function renderBalls(nums){
 }
 
 // 번호입력칸: 1~45 범위로 보정하고, 두 자리(또는 더 이상 입력 불가한 값)가 되면 다음 칸으로 자동 포커스 이동
-function clampBallInput(el){
-  var v=el.value;
-  if(v==='') return;
-  var n=parseInt(v,10);
-  if(isNaN(n)){ el.value=''; return; }
-  if(n>45) n=45;
-  if(n<0) n=0;
-  el.value=String(n);
+// 숫자가 아닌 문자는 입력 즉시 제거 (붙여넣기 등으로 들어와도 정리)
+function sanitizeBallInput(el){
+  var v = el.value.replace(/[^0-9]/g, '');
+  if (v.length > 2) v = v.slice(0, 2);
+  el.value = v;
+  return v;
 }
+
+// 두 자리가 채워지면 다음 칸으로 자동 이동.
+// type=text라 "03"처럼 앞에 0이 붙어도 그대로 두 자리로 인식한다(저장 시점에 숫자로 변환해 검증).
 function autoAdvanceBallInput(el, nextId){
-  clampBallInput(el);
-  var v=el.value;
-  if(v==='') return;
-  var n=parseInt(v,10);
-  var isTwoDigits = v.length>=2;
-  var cannotGrow = v.length===1 && n>=5; // 5~9는 한 자리에서 이미 45 초과 확정
-  if((isTwoDigits||cannotGrow) && nextId){
-    var next=document.getElementById(nextId);
-    if(next){ next.focus(); next.select && next.select(); }
+  var v = sanitizeBallInput(el);
+  if (v.length >= 2 && nextId) {
+    var next = document.getElementById(nextId);
+    if (next) { next.focus(); next.select && next.select(); }
+  }
+}
+
+// Backspace를 빈 칸에서 누르면 이전 칸으로 돌아가기 (prevId는 호출부에서 넘겨줌)
+function onBallInputKeydown(e, el, nextId){
+  if (e.key === 'Backspace' && el.value === '') {
+    var prevId = el.id.slice(0, -1) + (parseInt(el.id.slice(-1), 10) - 1);
+    var prev = document.getElementById(prevId);
+    if (prev && parseInt(el.id.slice(-1), 10) > 1) {
+      e.preventDefault();
+      prev.focus();
+      prev.select && prev.select();
+    }
+  } else if (e.key === 'Enter' && nextId) {
+    e.preventDefault();
+    var next = document.getElementById(nextId);
+    if (next) { next.focus(); next.select && next.select(); }
   }
 }
 
