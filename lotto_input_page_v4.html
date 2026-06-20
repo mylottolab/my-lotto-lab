@@ -1005,7 +1005,17 @@ var INFO        = MLL.getLottoInfo();
 var THIS_ROUND  = INFO.thisRound;
 var NEXT_ROUND  = INFO.nextRound;
 var SOLD_OUT    = INFO.soldOut;
-var SALE_ROUND  = INFO.saleRound; // 현재 판매 가능한 회차
+
+// 추첨예정(판매중) 회차는 "지금이 몇 시냐"가 아니라
+// lotto_details1.xlsx 업데이트로 mll_results에 실제로 들어와 있는 가장 최근 회차+1을 기준으로 계산한다.
+// (매주 추첨/업데이트 시각이 가변적이므로, 시간추정만으로는 새 회차로 정확히 넘어가지 못하는 경우가 있다)
+function computeSaleRoundFromData() {
+  var results = MLL.loadResults();
+  var resultRounds = Object.keys(results).map(Number).filter(function(n){ return !isNaN(n) && n>0; });
+  if (resultRounds.length) return Math.max.apply(null, resultRounds) + 1;
+  return INFO.saleRound; // results가 비어있는 극초기 상태에서만 시간추정으로 폴백
+}
+var SALE_ROUND  = computeSaleRoundFromData(); // 현재 판매 가능한 회차
 
 // TEST1 배지: 현재 판매 회차
 document.getElementById('t1badge').textContent = '제'+SALE_ROUND+'회';
