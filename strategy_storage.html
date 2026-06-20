@@ -979,12 +979,12 @@ MLL._checkSum = function(nums, min, max) {
         </div>
         <div class="ball-input-row">
           <span style="font-size:10px;color:#888;">번호:</span>
-          <input class="ball-input" id="fb1" type="number" min="1" max="45" placeholder="1">
-          <input class="ball-input" id="fb2" type="number" min="1" max="45" placeholder="2">
-          <input class="ball-input" id="fb3" type="number" min="1" max="45" placeholder="3">
-          <input class="ball-input" id="fb4" type="number" min="1" max="45" placeholder="4">
-          <input class="ball-input" id="fb5" type="number" min="1" max="45" placeholder="5">
-          <input class="ball-input" id="fb6" type="number" min="1" max="45" placeholder="6">
+          <input class="ball-input" id="fb1" type="number" min="1" max="45" placeholder="1" oninput="autoAdvanceBallInput(this,'fb2')">
+          <input class="ball-input" id="fb2" type="number" min="1" max="45" placeholder="2" oninput="autoAdvanceBallInput(this,'fb3')">
+          <input class="ball-input" id="fb3" type="number" min="1" max="45" placeholder="3" oninput="autoAdvanceBallInput(this,'fb4')">
+          <input class="ball-input" id="fb4" type="number" min="1" max="45" placeholder="4" oninput="autoAdvanceBallInput(this,'fb5')">
+          <input class="ball-input" id="fb5" type="number" min="1" max="45" placeholder="5" oninput="autoAdvanceBallInput(this,'fb6')">
+          <input class="ball-input" id="fb6" type="number" min="1" max="45" placeholder="6" oninput="autoAdvanceBallInput(this,null)">
         </div>
         <textarea class="form-textarea" id="fav-memo" placeholder="메모 (선택)"></textarea>
       </div>
@@ -1029,12 +1029,12 @@ MLL._checkSum = function(nums, min, max) {
         </div>
         <div class="ball-input-row">
           <span style="font-size:10px;color:#888;">번호:</span>
-          <input class="ball-input" id="bb1" type="number" min="1" max="45" placeholder="1">
-          <input class="ball-input" id="bb2" type="number" min="1" max="45" placeholder="2">
-          <input class="ball-input" id="bb3" type="number" min="1" max="45" placeholder="3">
-          <input class="ball-input" id="bb4" type="number" min="1" max="45" placeholder="4">
-          <input class="ball-input" id="bb5" type="number" min="1" max="45" placeholder="5">
-          <input class="ball-input" id="bb6" type="number" min="1" max="45" placeholder="6">
+          <input class="ball-input" id="bb1" type="number" min="1" max="45" placeholder="1" oninput="autoAdvanceBallInput(this,'bb2')">
+          <input class="ball-input" id="bb2" type="number" min="1" max="45" placeholder="2" oninput="autoAdvanceBallInput(this,'bb3')">
+          <input class="ball-input" id="bb3" type="number" min="1" max="45" placeholder="3" oninput="autoAdvanceBallInput(this,'bb4')">
+          <input class="ball-input" id="bb4" type="number" min="1" max="45" placeholder="4" oninput="autoAdvanceBallInput(this,'bb5')">
+          <input class="ball-input" id="bb5" type="number" min="1" max="45" placeholder="5" oninput="autoAdvanceBallInput(this,'bb6')">
+          <input class="ball-input" id="bb6" type="number" min="1" max="45" placeholder="6" oninput="autoAdvanceBallInput(this,null)">
         </div>
         <textarea class="form-textarea" id="battle-memo" placeholder="메모 (선택)"></textarea>
       </div>
@@ -1103,6 +1103,42 @@ function renderBalls(nums){
   }).join('');
 }
 
+// 번호입력칸: 1~45 범위로 보정하고, 두 자리(또는 더 이상 입력 불가한 값)가 되면 다음 칸으로 자동 포커스 이동
+function clampBallInput(el){
+  var v=el.value;
+  if(v==='') return;
+  var n=parseInt(v,10);
+  if(isNaN(n)){ el.value=''; return; }
+  if(n>45) n=45;
+  if(n<0) n=0;
+  el.value=String(n);
+}
+function autoAdvanceBallInput(el, nextId){
+  clampBallInput(el);
+  var v=el.value;
+  if(v==='') return;
+  var n=parseInt(v,10);
+  var isTwoDigits = v.length>=2;
+  var cannotGrow = v.length===1 && n>=5; // 5~9는 한 자리에서 이미 45 초과 확정
+  if((isTwoDigits||cannotGrow) && nextId){
+    var next=document.getElementById(nextId);
+    if(next){ next.focus(); next.select && next.select(); }
+  }
+}
+
+// 저장 완료를 알리는 토스트(자동으로 사라짐) + 새로 추가된 카드 위치로 스크롤
+function showSaveToast(msg){
+  var toast=document.createElement('div');
+  toast.textContent='✅ '+msg;
+  toast.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#2f9e44;color:#fff;padding:10px 20px;border-radius:24px;font-size:12px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,0.25);z-index:99999;opacity:0;transition:opacity 0.25s;';
+  document.body.appendChild(toast);
+  requestAnimationFrame(function(){ toast.style.opacity='1'; });
+  setTimeout(function(){
+    toast.style.opacity='0';
+    setTimeout(function(){ if(toast.parentNode) document.body.removeChild(toast); }, 300);
+  }, 2200);
+}
+
 function addFav(){
   var name=document.getElementById('fav-name').value.trim();
   if(!name){alert('별명을 입력해주세요!');return;}
@@ -1110,6 +1146,8 @@ function addFav(){
     var v=parseInt(document.getElementById('fb'+i).value)||0;
     return v>=1&&v<=45?v:0;
   }).filter(function(n){return n>0;});
+  if(nums.length!==6){alert('번호 6개를 모두 입력해주세요!');return;}
+  if(new Set(nums).size!==6){alert('중복된 번호가 있습니다!');return;}
   var memo=document.getElementById('fav-memo').value.trim();
   var data=loadTabData('fav');
   data.unshift({id:MLL.uuid(),name:name,nums:nums,memo:memo,createdAt:Date.now()});
@@ -1119,6 +1157,9 @@ function addFav(){
   document.getElementById('fav-name').value='';
   document.getElementById('fav-memo').value='';
   renderFav();
+  showSaveToast('"'+name+'" 저장 완료! 목록에 추가되었습니다.');
+  var list=document.getElementById('fav-list');
+  if(list) list.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 function addBattle(){
@@ -1128,6 +1169,8 @@ function addBattle(){
     var v=parseInt(document.getElementById('bb'+i).value)||0;
     return v>=1&&v<=45?v:0;
   }).filter(function(n){return n>0;});
+  if(nums.length!==6){alert('번호 6개를 모두 입력해주세요!');return;}
+  if(new Set(nums).size!==6){alert('중복된 번호가 있습니다!');return;}
   var memo=document.getElementById('battle-memo').value.trim();
   var data=loadTabData('battle');
   data.unshift({id:MLL.uuid(),name:name,nums:nums,memo:memo,createdAt:Date.now()});
@@ -1137,6 +1180,9 @@ function addBattle(){
   document.getElementById('battle-name').value='';
   document.getElementById('battle-memo').value='';
   renderBattle();
+  showSaveToast('"'+name+'" 저장 완료! 목록에 추가되었습니다.');
+  var list=document.getElementById('battle-list');
+  if(list) list.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 function addEtc(){
