@@ -743,25 +743,27 @@ RS.computeUpcomingRound = function() {
 RS.stratState = { strategy:'all', startRound:'', endRound:'' };
 
 // mll_strategy_results를 "개별 조합 1행" 단위로 펼친 평탄화 배열을 만든다
-RS.flattenStrategyResults = function() {
+// 전략으로 생성된 "번호조합" 자체만 추출 (생성 당시 대상회차는 무시)
+// → 각 조합은 사용자가 선택한 회차범위의 모든 회차에 대해 차례로 채점된다.
+//   예) 1227회를 만나면 그 조합을 1227회 생성분이라 가정하고 정답검사,
+//       1226회를 만나면 또 그 조합을 1226회 생성분이라 가정하고 정답검사... 결과를 누적.
+RS.flattenStrategyCombos = function() {
   var srList = MLL.loadStrategyResults ? MLL.loadStrategyResults() : [];
-  var rows = [];
+  var combos = [];
   srList.forEach(function(sr) {
     (sr.numbers || []).forEach(function(nums, idx) {
-      rows.push({
+      combos.push({
         srId: sr.id,
         comboIdx: idx,
         strategyName: sr.strategyName,
-        round: sr.round,
+        originalRound: sr.round, // 참고용(생성 당시 대상회차) — 채점에는 사용하지 않음
         nums: nums.slice(),
         memo: sr.memo || '',
-        createdAt: sr.createdAt || 0,
-        // 즐겨찾기 여부는 mll_favorites와 (전략명+회차+번호조합) 매칭으로 판단
-        isFavorite: RS.isStrategyComboFavorited(sr.strategyName, sr.round, nums)
+        createdAt: sr.createdAt || 0
       });
     });
   });
-  return rows;
+  return combos;
 };
 
 RS.isStrategyComboFavorited = function(strategyName, round, nums) {
@@ -853,37 +855,58 @@ RS.onStrategySelChange = function() {
 
 // 현재 선택된 조건으로 필터링된 행들을 반환 + 회차가 몇 개인지(단일/범위) 판별
 RS.getFilteredStrategyRows = function() {
-  var allRows = RS.flattenStrategyResults();
+  var allCombos = RS.flattenStrategyCombos();
   var st = RS.stratState;
-  var rows = st.strategy !== 'all' ? allRows.filter(function(r){ return r.strategyName === st.strategy; }) : allRows;
+  var combos = st.strategy !== 'all' ? allCombos.filter(function(c){ return c.strategyName === st.strategy; }) : allCombos;
 
   var isAllRounds = !st.startRound || st.startRound === 'all';
   var start = isAllRounds ? null : Number(st.startRound);
   var end = (!isAllRounds && st.endRound) ? Number(st.endRound) : null;
   var isMultiRound;
+  var judgeRounds; // 채점에 쓸 회차 목록
+
+  var results = MLL.loadResults();
+  var allResultRounds = Object.keys(results).map(Number).filter(function(n){ return !isNaN(n) && n>0; }).sort(function(a,b){ return b-a; });
 
   if (isAllRounds) {
-    // "모든회차" = 1회 ~ 가장 최근 추첨회차 전체를 정답지로 쓰는 것이므로
-    // 데이터가 실제로 몇 개 회차에 걸쳐 있는지와 무관하게 항상 복수(멀티) 채점 양식으로 본다.
+    // "모든회차" = 1회 ~ 가장 최근 추첨회차 전체. 결과가 존재하는 회차들로 차례로 채점.
     isMultiRound = true;
+    judgeRounds = allResultRounds;
   } else if (start && end) {
     if (start === end) {
-      // 시작·종료가 같은 회차 = 결국 회차 1개만 보겠다는 의도이므로 단일(케이스1)로 처리
-      rows = rows.filter(function(r){ return r.round === start; });
       isMultiRound = false;
+      judgeRounds = [start];
     } else {
       var lo = Math.min(start, end), hi = Math.max(start, end);
-      rows = rows.filter(function(r){ return r.round >= lo && r.round <= hi; });
-      isMultiRound = true; // 서로 다른 두 회차를 선택한 것 자체가 범위(복수) 의도
+      isMultiRound = true;
+      judgeRounds = allResultRounds.filter(function(r){ return r >= lo && r <= hi; });
     }
   } else if (start) {
-    rows = rows.filter(function(r){ return r.round === start; });
     isMultiRound = false;
+    judgeRounds = [start];
   } else {
     isMultiRound = false;
+    judgeRounds = [];
   }
 
-  return { rows: rows, isMultiRound: isMultiRound };
+  // 조합 × 채점회차 교차 생성 — "그 회차를 만나면 그 회차 생성분이라 가정하고 정답검사"
+  var rows = [];
+  combos.forEach(function(c) {
+    judgeRounds.forEach(function(round) {
+      rows.push({
+        srId: c.srId,
+        comboIdx: c.comboIdx,
+        strategyName: c.strategyName,
+        round: round,
+        nums: c.nums,
+        memo: c.memo,
+        createdAt: c.createdAt,
+        isFavorite: RS.isStrategyComboFavorited(c.strategyName, round, c.nums)
+      });
+    });
+  });
+
+  return { rows: rows, isMultiRound: isMultiRound, comboCount: combos.length };
 };
 
 RS.renderStrategyBody = function() {
@@ -913,7 +936,7 @@ RS.renderStrategyBody = function() {
   var winRate = confirmedRows.length ? (winRows.length/confirmedRows.length*100) : 0;
 
   var summaryHtml = '<div class="summary4">' +
-    '<div class="s4box"><div class="s4box-val">'+rows.length+'</div><div class="s4box-label">적용할 전략 조합수</div></div>' +
+    '<div class="s4box"><div class="s4box-val">'+f.comboCount+'</div><div class="s4box-label">적용할 전략 조합수</div></div>' +
     '<div class="s4box"><div class="s4box-val" style="color:#e67700;">'+winRows.length+'</div><div class="s4box-label">당첨 조합 수</div></div>' +
     '<div class="s4box"><div class="s4box-val" style="color:#1a7ad4;">'+winRate.toFixed(1)+'%</div><div class="s4box-label">당첨률</div></div>' +
     '<div class="s4box"><div class="s4box-val" style="color:#e03131;">'+totalPrize.toLocaleString()+'</div><div class="s4box-label">총 당첨금 (원)</div></div>' +
