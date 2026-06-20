@@ -860,21 +860,29 @@ RS.getFilteredStrategyRows = function() {
   var isAllRounds = !st.startRound || st.startRound === 'all';
   var start = isAllRounds ? null : Number(st.startRound);
   var end = (!isAllRounds && st.endRound) ? Number(st.endRound) : null;
-  var roundsInScope;
+  var isMultiRound;
 
-  if (start && end) {
-    var lo = Math.min(start, end), hi = Math.max(start, end);
-    rows = rows.filter(function(r){ return r.round >= lo && r.round <= hi; });
-    roundsInScope = [...new Set(rows.map(function(r){ return r.round; }))];
+  if (isAllRounds) {
+    // "모든회차" = 1회 ~ 가장 최근 추첨회차 전체를 정답지로 쓰는 것이므로
+    // 데이터가 실제로 몇 개 회차에 걸쳐 있는지와 무관하게 항상 복수(멀티) 채점 양식으로 본다.
+    isMultiRound = true;
+  } else if (start && end) {
+    if (start === end) {
+      // 시작·종료가 같은 회차 = 결국 회차 1개만 보겠다는 의도이므로 단일(케이스1)로 처리
+      rows = rows.filter(function(r){ return r.round === start; });
+      isMultiRound = false;
+    } else {
+      var lo = Math.min(start, end), hi = Math.max(start, end);
+      rows = rows.filter(function(r){ return r.round >= lo && r.round <= hi; });
+      isMultiRound = true; // 서로 다른 두 회차를 선택한 것 자체가 범위(복수) 의도
+    }
   } else if (start) {
     rows = rows.filter(function(r){ return r.round === start; });
-    roundsInScope = [start];
+    isMultiRound = false;
   } else {
-    // "모든회차" 선택 — 전체 데이터 대상, 종료회차는 무시
-    roundsInScope = [...new Set(rows.map(function(r){ return r.round; }))];
+    isMultiRound = false;
   }
 
-  var isMultiRound = roundsInScope.length >= 2;
   return { rows: rows, isMultiRound: isMultiRound };
 };
 
