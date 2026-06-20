@@ -305,7 +305,6 @@ table.strattbl tbody tr:hover{background:#fafafa;}
 </style>
 <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"></script>
 </head>
 <body>
 <script>// =====================================================
@@ -841,9 +840,9 @@ MLL.searchEntriesByCondition = function(entries, condition, history) {
       <div class="pc-section">
         <div class="pc-section-title">🖼️ 상단 이미지 선택 <span style="font-size:9px;color:#999;font-weight:400;">(1개 이상, 여러개 선택시 번갈아 배치)</span></div>
         <div class="pc-imgpool-upload" onclick="document.getElementById('pc-imgpool-file').click()">
-          📁 이미지 관리자 엑셀(.xlsx) 업로드하여 이미지풀 불러오기
+          📁 이미지 파일 선택 (여러 장 동시 선택 가능)
         </div>
-        <input type="file" id="pc-imgpool-file" accept=".xlsx,.xls" style="display:none;" onchange="PC.onImagePoolExcel(this)">
+        <input type="file" id="pc-imgpool-file" accept="image/*" multiple style="display:none;" onchange="PC.onImagePoolFiles(this)">
         <div class="pc-imgpool-grid" id="pc-imgpool-grid"></div>
       </div>
 
@@ -1248,90 +1247,44 @@ PC.parseExcelFile = function(file) {
   reader.readAsArrayBuffer(file);
 };
 
-// ArrayBuffer(또는 Uint8Array) -> base64 문자열 변환 (큰 이미지도 안전하게 처리)
-function arrayBufferToBase64(buffer) {
-  var bytes = new Uint8Array(buffer);
-  var binary = '';
-  var chunkSize = 8192;
-  for (var i=0; i<bytes.length; i+=chunkSize) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunkSize));
-  }
-  return btoa(binary);
-}
-
-PC.onImagePoolExcel = function(inp) {
-  var file = inp.files[0];
-  if (!file) return;
+// 이미지 파일을 여러 장 선택해서 그대로 이미지풀에 추가 (엑셀/추출 없이 가장 단순하고 확실한 방식)
+PC.onImagePoolFiles = function(inp) {
+  var files = Array.from(inp.files || []);
+  if (!files.length) return;
   var msgEl = document.getElementById('pc-acc-msg-input');
-  var reader = new FileReader();
-  reader.onload = async function(e) {
-    try {
-      var arrayBuffer = e.target.result;
+  var imgFiles = files.filter(function(f){ return f.type.startsWith('image/'); });
+  if (!imgFiles.length) {
+    RS_showMsg(msgEl, 'error', '이미지 파일만 선택해주세요.');
+    return;
+  }
 
-      // 1) 텍스트 데이터는 SheetJS로 읽음 (이미지번호/이미지명/가격/기타)
-      var wb = XLSX.read(arrayBuffer, { type:'array' });
-      var ws = wb.Sheets[wb.SheetNames[0]];
-      var rows = XLSX.utils.sheet_to_json(ws, { defval:'', header:1 }); // 행번호 그대로 보존
-      var headerRow = rows[0] || [];
-      var colIdx = {
-        no: headerRow.indexOf('이미지번호'),
-        name: headerRow.indexOf('이미지명'),
-        price: headerRow.indexOf('가격'),
-        etc: headerRow.indexOf('기타')
-      };
-      if (colIdx.no < 0) {
-        RS_showMsg(msgEl, 'error', '엑셀에 "이미지번호" 컬럼이 필요합니다.');
-        return;
-      }
-
-      // 2) 이미지는 SheetJS가 추출하지 못하므로 ExcelJS로 별도 추출,
-      //    이미지가 삽입된 "행 번호" 기준으로 텍스트 데이터와 매칭한다.
-      var exWb = new ExcelJS.Workbook();
-      await exWb.xlsx.load(arrayBuffer);
-      var exWs = exWb.worksheets[0];
-      var images = exWs.getImages(); // [{ range:{tl:{row,col}, ...}, imageId }]
-
-      var imagesByRow = {};
-      images.forEach(function(imgRef) {
-        var media = exWb.model.media[imgRef.imageId];
-        if (!media) return;
-        var rowIdx0 = Math.round(imgRef.range.tl.row); // 0-based
-        var ext = media.extension || 'png';
-        var b64 = media.buffer ? arrayBufferToBase64(media.buffer) : null;
-        if (b64) imagesByRow[rowIdx0] = 'data:image/'+ext+';base64,'+b64;
+  var loaded = 0;
+  imgFiles.forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var no = PC.imagePool.length ? Math.max.apply(null, PC.imagePool.map(function(p){return p.no;})) + 1 : 1;
+      PC.imagePool.push({
+        no: no,
+        name: file.name.replace(/\.[^.]+$/, ''), // 확장자 제거한 파일명을 이미지명으로
+        price: 0,
+        etc: '',
+        dataUrl: e.target.result
       });
-
-      PC.imagePool = [];
-      for (var r=1; r<rows.length; r++) { // r=0은 헤더
-        var row = rows[r];
-        if (!row || row[colIdx.no] === '' || row[colIdx.no] === undefined) continue;
-        PC.imagePool.push({
-          no: row[colIdx.no],
-          name: (colIdx.name>=0 ? row[colIdx.name] : '') || ('이미지'+row[colIdx.no]),
-          price: (colIdx.price>=0 ? row[colIdx.price] : 0) || 0,
-          etc: (colIdx.etc>=0 ? row[colIdx.etc] : '') || '',
-          dataUrl: imagesByRow[r] || null // ExcelJS 행 인덱스는 0-based, SheetJS 행번호 r과 동일선상
-        });
+      loaded++;
+      if (loaded === imgFiles.length) {
+        PC.renderImagePool();
+        RS_showMsg(msgEl, 'success', '✅ 이미지 '+imgFiles.length+'장을 불러왔습니다. 사용할 이미지를 선택해주세요.');
       }
-
-      if (!PC.imagePool.length) {
-        RS_showMsg(msgEl, 'error', '이미지풀 엑셀에서 데이터를 찾지 못했습니다. "이미지번호" 컬럼이 있는지 확인해주세요.');
-        return;
-      }
-      var withImg = PC.imagePool.filter(function(p){ return p.dataUrl; }).length;
-      PC.renderImagePool();
-      RS_showMsg(msgEl, 'success', '✅ 이미지 '+PC.imagePool.length+'개 항목을 불러왔습니다 (그림 포함: '+withImg+'개). 사용할 이미지를 선택해주세요.');
-    } catch (err) {
-      RS_showMsg(msgEl, 'error', '이미지풀 엑셀을 읽는 중 오류: '+err.message);
-    }
-  };
-  reader.readAsArrayBuffer(file);
+    };
+    reader.readAsDataURL(file);
+  });
+  inp.value = '';
 };
 
 PC.renderImagePool = function() {
   var grid = document.getElementById('pc-imgpool-grid');
   if (!PC.imagePool.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#bbb;font-size:10px;padding:10px;">이미지풀 엑셀을 업로드해주세요.</div>';
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#bbb;font-size:10px;padding:10px;">이미지 파일을 선택해주세요.</div>';
     return;
   }
   grid.innerHTML = PC.imagePool.map(function(img) {
