@@ -243,12 +243,21 @@ MLL.ADMIN_PW_KEY      = 'mll_admin_auth';   // 관리자 인증
 MLL.SESSION_KEY       = 'mll_session';      // 현재 세션ID
 
 // ── 세션ID 생성/조회 ──
+// sessionStorage는 탭을 닫거나 새로고침 환경이 바뀌면 사라져서,
+// "방금 입력한 것"이 즉시확인 시점엔 다른 세션으로 바뀌어 "지금 입력분만"이
+// 0건으로 잡히는 문제가 있었다. localStorage로 바꾸고, 날짜(한국시간 기준)가
+// 바뀌면 새 세션을 발급하는 정책으로 교체한다.
 MLL.getSession = function(tag) {
-  // 각 입력창마다 고유 세션 태그 (general/camera/ai/excel)
   var key = MLL.SESSION_KEY + '_' + tag;
-  var s = sessionStorage.getItem(key);
-  if (!s) { s = tag + '_' + Date.now(); sessionStorage.setItem(key, s); }
-  return s;
+  var today = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Seoul'});
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e) { saved = null; }
+  if (saved && saved.date === today && saved.tagValue) {
+    return saved.tagValue;
+  }
+  var fresh = tag + '_' + today + '_' + Date.now();
+  try { localStorage.setItem(key, JSON.stringify({date:today, tagValue:fresh})); } catch(e) {}
+  return fresh;
 };
 
 // ── 회차/시간 계산 ──
@@ -585,36 +594,57 @@ MLL.applyCheck = function(sessionTag) {
     return;
   }
 
-  // 선택 다이얼로그
-  var choice = confirm(
-    '미확인 번호를 어떤 범위로 확인하시겠습니까?\n\n' +
-    '확인(OK) → 미확인분 전체\n' +
-    '취소(Cancel) → 지금 입력분만'
-  );
+  // 커스텀 팝업 생성 (다른 페이지와 동일한 카드형 모달)
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:16px;padding:28px 28px;max-width:340px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.25);">' +
+    '<div style="font-size:24px;margin-bottom:8px;">⚡</div>' +
+    '<div style="font-size:15px;font-weight:700;color:#222;margin-bottom:6px;">즉시확인</div>' +
+    '<div style="font-size:12px;color:#888;margin-bottom:22px;">어떤 범위를 확인하시겠습니까?</div>' +
+    '<div style="display:flex;gap:10px;margin-bottom:10px;">' +
+    '<button id="mll-check-all" style="flex:1;background:#e03131;color:#fff;border:none;border-radius:10px;padding:13px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(224,49,49,0.3);">📋 미확인분 전체</button>' +
+    '<button id="mll-check-cur" style="flex:1;background:#1a7ad4;color:#fff;border:none;border-radius:10px;padding:13px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(26,122,212,0.3);">✏️ 지금 입력분만</button>' +
+    '</div>' +
+    '<div style="font-size:10.5px;color:#aaa;line-height:1.5;margin-bottom:14px;">자정이 지나 날짜가 바뀐 건은 \'지금 입력분만\'으로 안 잡혀요.<br>그런 건은 <b style="color:#e03131;">\'미확인분 전체\'</b>를 눌러주세요.</div>' +
+    '<button id="mll-check-cancel" style="width:100%;background:#f5f5f5;border:none;border-radius:10px;padding:10px;font-size:12px;color:#888;cursor:pointer;font-weight:600;">✕ 취소 (나중에 확인)</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
 
-  var entries = MLL.loadEntries();
-  var info    = MLL.getLottoInfo();
-  var updated = 0;
+  function doCheck(allItems) {
+    document.body.removeChild(overlay);
+    var entries = MLL.loadEntries();
+    var updated = 0;
 
-  entries.forEach(function(entry) {
-    // 미확인 조건: status=추첨전이고 round < THIS_ROUND
-    var isUnconfirmed = entry.status === '추첨전' && entry.round < info.thisRound;
-    if (!isUnconfirmed) return;
-    // 지금 입력분만: sessionTag 일치하는 것만
-    if (!choice && entry.sessionTag !== sessionTag) return;
+    entries.forEach(function(entry) {
+      // 미확인 조건: 시간 추정(thisRound)이 아니라, 그 회차의 실제 당첨결과가
+      // mll_results에 존재하는지로 판정한다. (entry.round < info.thisRound로 비교하면
+      // 방금 추첨이 끝난 회차로 등록된 항목이 영원히 "미확인"으로 안 잡히는 문제가 있었다.)
+      var res = results[entry.round] || results[Number(entry.round)] || results[String(entry.round)];
+      var isUnconfirmed =
+        (entry.status === '추첨전' && !!res) ||
+        (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
+      if (!isUnconfirmed) return;
+      // 지금 입력분만: sessionTag 일치하는 것만
+      if (!allItems && entry.sessionTag !== sessionTag) return;
 
-    var res = results[entry.round] || results[String(entry.round)];
-    if (res) {
-      entry.status     = '추첨후';
-      entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
-      entry.prizeMoney = MLL.calcPrize(entry.grade, res);
-      updated++;
-    }
-  });
+      if (res) {
+        entry.status     = '추첨후';
+        entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
+        entry.prizeMoney = MLL.calcPrize(entry.grade, res);
+        updated++;
+      }
+    });
 
-  MLL.saveEntries(entries);
-  alert('✅ ' + updated + '개 항목 확인 완료!\n당첨결과가 업데이트됐습니다.');
-  if (window.refreshTable) refreshTable();
+    MLL.saveEntries(entries);
+    alert('✅ ' + updated + '개 항목 확인 완료!\n당첨결과가 업데이트됐습니다.');
+    if (window.refreshTable) refreshTable();
+  }
+
+  document.getElementById('mll-check-all').onclick    = function(){ doCheck(true); };
+  document.getElementById('mll-check-cur').onclick    = function(){ doCheck(false); };
+  document.getElementById('mll-check-cancel').onclick = function(){ document.body.removeChild(overlay); };
+  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
 };
 
 // 전체 테이블 렌더
