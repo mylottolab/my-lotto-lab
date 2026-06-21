@@ -44,6 +44,7 @@ body{
 .lotto-wrap{position:relative;}
 .lotto-menu{display:none;position:absolute;right:0;top:42px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-width:200px;z-index:50;}
 .lotto-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;font-size:12.5px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border-soft);}
+.lotto-item > span:first-child{display:flex;align-items:center;gap:8px;}
 .lotto-item:last-child{border-bottom:none;}
 .lotto-item:hover{background:var(--surface-2);}
 .lotto-item .flag{margin-right:8px;}
@@ -51,6 +52,11 @@ body{
 .lotto-item.disabled{cursor:default;color:var(--text-faint);}
 .lotto-item.disabled:hover{background:none;}
 .lotto-item.active{color:var(--gold);}
+
+.flag-ic{display:inline-block;width:18px;height:13px;border-radius:2px;background-size:cover;background-position:center;vertical-align:middle;box-shadow:0 0 0 1px rgba(255,255,255,.08);flex-shrink:0;}
+.flag-kr{background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Crect width='30' height='20' fill='%23fff'/%3E%3Cg transform='translate(15,10)'%3E%3Ccircle r='4.2' fill='%23c60c30'/%3E%3Cpath d='M0,-4.2 A4.2,4.2 0 0 1 0,4.2 A2.1,2.1 0 0 1 0,0 A2.1,2.1 0 0 0 0,-4.2 Z' fill='%23003478'/%3E%3C/g%3E%3Cg stroke='%23000' stroke-width='0.55'%3E%3Cg transform='translate(4.2,4)'%3E%3Cline x1='-1.6' y1='-2.6' x2='1.6' y2='2.6'/%3E%3Cline x1='-2.3' y1='-1.6' x2='2.3' y2='1.6'/%3E%3Cline x1='-2.7' y1='-0.4' x2='2.7' y2='0.4'/%3E%3C/g%3E%3Cg transform='translate(25.8,4) scale(-1,1)'%3E%3Cline x1='-1.6' y1='-2.6' x2='1.6' y2='2.6'/%3E%3Cline x1='-2.3' y1='-1.6' x2='2.3' y2='1.6'/%3E%3Cline x1='-2.7' y1='-0.4' x2='2.7' y2='0.4'/%3E%3C/g%3E%3Cg transform='translate(4.2,16) scale(1,-1)'%3E%3Cline x1='-1.6' y1='-2.6' x2='1.6' y2='2.6'/%3E%3Cline x1='-2.3' y1='-1.6' x2='2.3' y2='1.6'/%3E%3Cline x1='-2.7' y1='-0.4' x2='2.7' y2='0.4'/%3E%3C/g%3E%3Cg transform='translate(25.8,16) scale(-1,-1)'%3E%3Cline x1='-1.6' y1='-2.6' x2='1.6' y2='2.6'/%3E%3Cline x1='-2.3' y1='-1.6' x2='2.3' y2='1.6'/%3E%3Cline x1='-2.7' y1='-0.4' x2='2.7' y2='0.4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");}
+.flag-us{background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Crect width='30' height='20' fill='%23b22234'/%3E%3Cg fill='%23fff'%3E%3Crect y='1.54' width='30' height='1.54'/%3E%3Crect y='4.62' width='30' height='1.54'/%3E%3Crect y='7.69' width='30' height='1.54'/%3E%3Crect y='10.77' width='30' height='1.54'/%3E%3Crect y='13.85' width='30' height='1.54'/%3E%3Crect y='16.92' width='30' height='1.54'/%3E%3C/g%3E%3Crect width='13' height='10.77' fill='%233c3b6e'/%3E%3C/svg%3E");}
+.flag-eu{background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Crect width='30' height='20' fill='%23003399'/%3E%3Cg fill='%23ffcc00'%3E%3Ccircle cx='15' cy='4.3' r='0.85'/%3E%3Ccircle cx='15' cy='15.7' r='0.85'/%3E%3Ccircle cx='9.8' cy='5.8' r='0.85'/%3E%3Ccircle cx='20.2' cy='5.8' r='0.85'/%3E%3Ccircle cx='9.8' cy='14.2' r='0.85'/%3E%3Ccircle cx='20.2' cy='14.2' r='0.85'/%3E%3Ccircle cx='7' cy='10' r='0.85'/%3E%3Ccircle cx='23' cy='10' r='0.85'/%3E%3Ccircle cx='8.3' cy='7.6' r='0.85'/%3E%3Ccircle cx='21.7' cy='7.6' r='0.85'/%3E%3Ccircle cx='8.3' cy='12.4' r='0.85'/%3E%3Ccircle cx='21.7' cy='12.4' r='0.85'/%3E%3C/g%3E%3C/svg%3E");}
 
 /* ── 히어로 / 라이브 스트립 ── */
 .hero{max-width:1180px;margin:0 auto;padding:34px 24px 0;}
@@ -149,12 +155,14 @@ body{
     </div>
     <div class="topbar-right">
       <div class="lotto-wrap">
-        <button class="lotto-switch" id="lottoBtn" onclick="toggleLottoMenu()">🇰🇷 한국 로또 ▾</button>
+        <button class="lotto-switch" id="lottoBtn" onclick="toggleLottoMenu()">
+          <span class="flag-ic flag-kr"></span> 한국 로또 ▾
+        </button>
         <div class="lotto-menu" id="lottoMenu">
-          <div class="lotto-item active" onclick="toggleLottoMenu()">🇰🇷 한국 로또<span class="soon" style="color:var(--gold);border-color:var(--gold-dim);">이용중</span></div>
-          <div class="lotto-item disabled">🇺🇸 US 파워볼<span class="soon">준비중</span></div>
-          <div class="lotto-item disabled">🇺🇸 US 메가밀리언스<span class="soon">준비중</span></div>
-          <div class="lotto-item disabled">🇪🇺 EU 밀리언스<span class="soon">준비중</span></div>
+          <div class="lotto-item active" onclick="toggleLottoMenu()"><span><span class="flag-ic flag-kr"></span> 한국 로또</span><span class="soon" style="color:var(--gold);border-color:var(--gold-dim);">이용중</span></div>
+          <div class="lotto-item disabled"><span><span class="flag-ic flag-us"></span> 파워볼</span><span class="soon">준비중</span></div>
+          <div class="lotto-item disabled"><span><span class="flag-ic flag-us"></span> 메가밀리언스</span><span class="soon">준비중</span></div>
+          <div class="lotto-item disabled"><span><span class="flag-ic flag-eu"></span> 유로밀리언스</span><span class="soon">준비중</span></div>
         </div>
       </div>
     </div>
