@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 출력 센터</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0d18; --surface:#11152a;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f;
+  --accent:#8b91ab; --accent-bg:rgba(139,145,171,.13);
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
+
+.topbar{border-bottom:1px solid var(--border-soft);}
+.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
+.brand-text .t1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
+.brand-text .t2{font-size:10px;color:var(--text-faint);margin-top:1px;}
+.crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);}
+.crumb a{color:var(--text-dim);text-decoration:none;cursor:pointer;}
+.crumb a:hover{color:var(--text);}
+.crumb .sep{color:var(--text-faint);}
+.crumb .cur{color:var(--accent);}
+
+.empty-wrap{max-width:560px;margin:0 auto;padding:100px 24px 120px;text-align:center;}
+.empty-icon{width:56px;height:56px;border-radius:16px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;}
+.empty-icon svg{width:26px;height:26px;stroke:var(--accent);stroke-width:1.5;fill:none;}
+.empty-title{font-size:19px;font-weight:600;letter-spacing:-0.01em;}
+.empty-desc{font-size:13px;color:var(--text-dim);margin-top:10px;line-height:1.7;}
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--gold);cursor:pointer;margin-top:30px;border:1px solid var(--gold-dim);padding:9px 18px;border-radius:8px;transition:background .15s;}
+.back-link:hover{background:rgba(224,179,65,.08);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand" onclick="location.href='main_page.html'">
+      <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="brand-text">
+        <div class="t1">My Lotto Lab</div>
+        <div class="t2">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+      </div>
+    </div>
+    <div class="crumb">
+      <a onclick="location.href='main_page.html'">홈</a>
+      <span class="sep">/</span>
+      <span class="cur">출력 센터</span>
+    </div>
+  </div>
+</div>
+
+<div class="empty-wrap">
+  <div class="empty-icon"><svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="8" rx="1.2"/><path d="M7 8V4.5h10V8" stroke-linejoin="round"/><rect x="7" y="14" width="10" height="6" rx="0.8"/></svg></div>
+  <div class="empty-title">출력 센터, 새 모습으로 준비 중입니다</div>
+  <div class="empty-desc">이 자리는 곧 다른 서비스로 채워집니다. 준비가 끝나면 메인 화면에서 가장 먼저 알려드릴게요.</div>
+  <div class="back-link" onclick="location.href='main_page.html'">← 전체 카테고리로</div>
+</div>
+
+</body>
+</html>

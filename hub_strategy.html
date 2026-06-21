@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 전략 등록</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f; --indigo:#5b6ee8;
+  --accent:#e0b341; --accent-bg:rgba(224,179,65,.13);
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
+
+.topbar{border-bottom:1px solid var(--border-soft);}
+.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
+.brand-text .t1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
+.brand-text .t2{font-size:10px;color:var(--text-faint);margin-top:1px;}
+.crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);}
+.crumb a{color:var(--text-dim);text-decoration:none;cursor:pointer;}
+.crumb a:hover{color:var(--text);}
+.crumb .sep{color:var(--text-faint);}
+.crumb .cur{color:var(--accent);}
+
+.page-head{max-width:1180px;margin:0 auto;padding:34px 24px 0;}
+.page-eyebrow{font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px;}
+.page-title{font-size:24px;font-weight:600;letter-spacing:-0.02em;}
+.page-desc{font-size:13px;color:var(--text-dim);margin-top:8px;max-width:560px;line-height:1.6;}
+
+.sub{max-width:1180px;margin:0 auto;padding:30px 24px 60px;}
+.sub-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media (max-width:980px){.sub-grid{grid-template-columns:1fr 1fr;}}
+@media (max-width:560px){.sub-grid{grid-template-columns:1fr;}}
+
+.scard{position:relative;background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:20px 18px;cursor:pointer;transition:border-color .16s,transform .16s,background .16s;min-height:160px;display:flex;flex-direction:column;justify-content:space-between;}
+.scard:hover{border-color:var(--accent-2,var(--accent));transform:translateY(-2px);background:var(--surface-2);}
+.scard:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+.scard-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:var(--accent-bg-2,var(--accent-bg));margin-bottom:14px;}
+.scard-icon svg{width:17px;height:17px;stroke:var(--accent-2,var(--accent));stroke-width:1.6;fill:none;}
+.scard-name{font-size:14.5px;font-weight:600;}
+.scard-desc{font-size:11px;color:var(--text-dim);margin-top:5px;line-height:1.55;}
+.scard-arrow{position:absolute;bottom:16px;right:16px;width:22px;height:22px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-dim);transition:border-color .16s,color .16s;}
+.scard:hover .scard-arrow{border-color:var(--accent-2,var(--accent));color:var(--accent-2,var(--accent));}
+
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer;margin-top:24px;}
+.back-link:hover{color:var(--text);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand" onclick="location.href='main_page.html'">
+      <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="brand-text">
+        <div class="t1">My Lotto Lab</div>
+        <div class="t2">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+      </div>
+    </div>
+    <div class="crumb">
+      <a onclick="location.href='main_page.html'">홈</a>
+      <span class="sep">/</span>
+      <span class="cur">전략 등록</span>
+    </div>
+  </div>
+</div>
+
+<div class="page-head">
+  <div class="page-eyebrow">Strategy</div>
+  <div class="page-title">전략 등록</div>
+  <div class="page-desc">조건을 세우고, 번호를 생성하고, 결과를 비교하고, 쌓아둔다. 전략이 곧 데이터가 되는 곳입니다.</div>
+</div>
+
+<div class="sub">
+  <div class="sub-grid">
+
+    <div class="scard" onclick="location.href='strategy_manager.html'" tabindex="0" role="button">
+      <div>
+        <div class="scard-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.3"/><circle cx="12" cy="12" r="0.9" fill="var(--accent)" stroke="none"/></svg></div>
+        <div class="scard-name">전략 수립</div>
+        <div class="scard-desc">Lotto Master Pro 이용 전략수립</div>
+      </div>
+      <div class="scard-arrow">→</div>
+    </div>
+
+    <div class="scard" onclick="location.href='number_generator.html'" tabindex="0" role="button">
+      <div>
+        <div class="scard-icon"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3"/><circle cx="9" cy="9" r="1" fill="var(--accent)" stroke="none"/><circle cx="15" cy="15" r="1" fill="var(--accent)" stroke="none"/><circle cx="9" cy="15" r="1" fill="var(--accent)" stroke="none"/></svg></div>
+        <div class="scard-name">전략번호 생성</div>
+        <div class="scard-desc">각 전략별 번호조합 생성</div>
+      </div>
+      <div class="scard-arrow">→</div>
+    </div>
+
+    <div class="scard" onclick="location.href='strategy_compare.html'" tabindex="0" role="button">
+      <div>
+        <div class="scard-icon"><svg viewBox="0 0 24 24"><path d="M5 19V11M11 19V5M17 19v-7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="scard-name">전략 비교평가</div>
+        <div class="scard-desc">추첨후 전략별 비교평가</div>
+      </div>
+      <div class="scard-arrow">→</div>
+    </div>
+
+    <div class="scard" onclick="location.href='strategy_storage.html'" tabindex="0" role="button">
+      <div>
+        <div class="scard-icon"><svg viewBox="0 0 24 24"><path d="M6 4h9l3 3v13H6z" stroke-linejoin="round"/><rect x="9" y="4" width="6" height="4"/></svg></div>
+        <div class="scard-name">최종전략 DATA 저장소</div>
+        <div class="scard-desc">최애번호/전략DATA/Battle번호/기타</div>
+      </div>
+      <div class="scard-arrow">→</div>
+    </div>
+
+  </div>
+
+  <div class="back-link" onclick="location.href='main_page.html'">← 전체 카테고리로</div>
+</div>
+
+</body>
+</html>

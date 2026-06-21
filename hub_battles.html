@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - Battles</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f; --indigo:#5b6ee8;
+  --accent:#d4537e; --accent-bg:rgba(212,83,126,.13);
+}
+.soon-pill{display:inline-flex;align-items:center;font-size:10px;font-weight:600;letter-spacing:.04em;background:rgba(139,145,171,.14);color:var(--text-dim);padding:3px 10px;border-radius:20px;margin-left:10px;vertical-align:middle;}
+.schedule-pill{display:inline-flex;align-items:center;font-size:11px;color:var(--accent);background:var(--accent-bg);padding:5px 12px;border-radius:20px;margin-top:12px;}
+.scard.disabled{opacity:.55;cursor:default;}
+.scard.disabled:hover{transform:none;border-color:var(--border-soft);background:var(--surface);}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
+
+.topbar{border-bottom:1px solid var(--border-soft);}
+.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
+.brand-text .t1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
+.brand-text .t2{font-size:10px;color:var(--text-faint);margin-top:1px;}
+.crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);}
+.crumb a{color:var(--text-dim);text-decoration:none;cursor:pointer;}
+.crumb a:hover{color:var(--text);}
+.crumb .sep{color:var(--text-faint);}
+.crumb .cur{color:var(--accent);}
+
+.page-head{max-width:1180px;margin:0 auto;padding:34px 24px 0;}
+.page-eyebrow{font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px;}
+.page-title{font-size:24px;font-weight:600;letter-spacing:-0.02em;}
+.page-desc{font-size:13px;color:var(--text-dim);margin-top:8px;max-width:560px;line-height:1.6;}
+
+.sub{max-width:1180px;margin:0 auto;padding:30px 24px 60px;}
+.sub-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media (max-width:980px){.sub-grid{grid-template-columns:1fr 1fr;}}
+@media (max-width:560px){.sub-grid{grid-template-columns:1fr;}}
+
+.scard{position:relative;background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:20px 18px;cursor:pointer;transition:border-color .16s,transform .16s,background .16s;min-height:160px;display:flex;flex-direction:column;justify-content:space-between;}
+.scard:hover{border-color:var(--accent-2,var(--accent));transform:translateY(-2px);background:var(--surface-2);}
+.scard:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+.scard-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:var(--accent-bg-2,var(--accent-bg));margin-bottom:14px;}
+.scard-icon svg{width:17px;height:17px;stroke:var(--accent-2,var(--accent));stroke-width:1.6;fill:none;}
+.scard-name{font-size:14.5px;font-weight:600;}
+.scard-desc{font-size:11px;color:var(--text-dim);margin-top:5px;line-height:1.55;}
+.scard-arrow{position:absolute;bottom:16px;right:16px;width:22px;height:22px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-dim);transition:border-color .16s,color .16s;}
+.scard:hover .scard-arrow{border-color:var(--accent-2,var(--accent));color:var(--accent-2,var(--accent));}
+
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer;margin-top:24px;}
+.back-link:hover{color:var(--text);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand" onclick="location.href='main_page.html'">
+      <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="brand-text">
+        <div class="t1">My Lotto Lab</div>
+        <div class="t2">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+      </div>
+    </div>
+    <div class="crumb">
+      <a onclick="location.href='main_page.html'">홈</a>
+      <span class="sep">/</span>
+      <span class="cur">Battles</span>
+    </div>
+  </div>
+</div>
+
+<div class="page-head">
+  <div class="page-eyebrow">Battles</div>
+  <div class="page-title">Battles<span class="soon-pill">준비중</span></div>
+  <div class="page-desc">전략으로 맞붙는 대결. 매주 일요일 0시부터 토요일 오후 8시까지 신청을 받습니다.</div>
+  <div class="schedule-pill">매주 일요일 24시 ~ 토요일 오후 8시 신청</div>
+</div>
+
+<div class="sub">
+  <div class="sub-grid">
+
+    <div class="scard disabled" tabindex="0">
+      <div>
+        <div class="scard-icon"><svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" stroke-linecap="round"/></svg></div>
+        <div class="scard-name">무제한</div>
+        <div class="scard-desc">1,000,000명 한정</div>
+      </div>
+    </div>
+
+    <div class="scard disabled" tabindex="0">
+      <div>
+        <div class="scard-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><circle cx="15" cy="15" r="3"/></svg></div>
+        <div class="scard-name">1대1 배틀</div>
+        <div class="scard-desc">10,000팀 한정</div>
+      </div>
+    </div>
+
+    <div class="scard disabled" tabindex="0">
+      <div>
+        <div class="scard-icon"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="2.6"/><circle cx="16" cy="9" r="2.6"/><path d="M3.5 19c0-2.8 2-4.8 4.5-4.8s4.5 2 4.5 4.8M11.5 19c0-2.8 2-4.8 4.5-4.8s4.5 2 4.5 4.8" stroke-linecap="round"/></svg></div>
+        <div class="scard-name">2대2 배틀</div>
+        <div class="scard-desc">5,000팀 한정</div>
+      </div>
+    </div>
+
+    <div class="scard disabled" tabindex="0">
+      <div>
+        <div class="scard-icon"><svg viewBox="0 0 24 24"><circle cx="7" cy="8" r="2.1"/><circle cx="12" cy="8" r="2.1"/><circle cx="17" cy="8" r="2.1"/><path d="M3.5 19c0-2.4 1.6-4.2 3.5-4.2s3.5 1.8 3.5 4.2M13 19c0-2.4 1.6-4.2 3.5-4.2s3.5 1.8 3.5 4.2" stroke-linecap="round"/></svg></div>
+        <div class="scard-name">5대5 배틀</div>
+        <div class="scard-desc">2,000팀 한정</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:14px;">
+    <div class="scard disabled" tabindex="0" style="min-height:auto;padding:16px 18px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div class="scard-icon" style="margin-bottom:0;flex-shrink:0;"><svg viewBox="0 0 24 24"><path d="M5 19V11M11 19V5M17 19v-7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div>
+          <div class="scard-name">Lotto Battle 현황 및 결과</div>
+          <div class="scard-desc">배틀 진행 현황 · 결과 확인</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="back-link" onclick="location.href='main_page.html'">← 전체 카테고리로</div>
+</div>
+
+</body>
+</html>
