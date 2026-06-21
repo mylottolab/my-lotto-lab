@@ -31,6 +31,9 @@ body{background:#f3f4f6;font-size:13px;min-height:100vh;}
 .prize-row{font-size:11px;color:#444;margin-bottom:3px;}
 .prize-row b{color:#e03131;}
 .prize-type{border-left:2px solid #e0e0e0;padding-left:12px;font-size:11px;color:#444;line-height:2;}
+.winshop-box{border-left:2px solid #e0e0e0;padding-left:12px;font-size:11px;color:#444;line-height:1.7;min-width:0;flex:1;}
+.winshop-box .wb-title{font-weight:700;margin-bottom:2px;font-size:11px;white-space:nowrap;}
+.winshop-box .wb-list{color:#444;word-break:keep-all;}
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;}
 .stat-block{padding:10px 14px;border-bottom:1px solid #f3f4f6;}
 .stat-block:nth-child(odd){border-right:1px solid #f3f4f6;}
@@ -311,6 +314,22 @@ return '<span class="ball" style="background:'+BC(n)+';color:'+TC(n)+';">'+n+'</
 var autoStr =(r.autoWin!=null)?r.autoWin+'건':'-';
 var semiStr =(r.semiWin!=null)?r.semiWin+'건':'-';
 var manualStr=(r.manualWin!=null)?r.manualWin+'건':'-';
+// 1등 판매점: "(서울)로또킹, 대치럭키로,대박복권 (부산)거액의꿈, ..." 형태의 문자열을
+// "(지역)" 패턴이 새로 나타나는 지점마다 줄바꿈해서 보여준다. 데이터가 없으면 박스 자체를 표시하지 않는다.
+var shopsRaw = (r.winnerShops||'').trim();
+var shopHtml = '';
+if (shopsRaw) {
+  var REGION = '(?:서울|부산|인천|대구|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)';
+  var marked = shopsRaw.replace(new RegExp('(?<!^)\\(' + REGION + '\\)', 'g'), function(m){ return '\n'+m; });
+  var shopList = marked.split('\n').map(function(s){
+    return s.replace(/\s+/g,' ').trim().replace(/^,+|,+$/g,'').trim();
+  }).filter(Boolean);
+  shopHtml =
+  '<div class="winshop-box">'+
+  '<div class="wb-title">🏪 1등 판매점</div>'+
+  '<div class="wb-list">'+shopList.join('<br>')+'</div>'+
+  '</div>';
+}
 el.innerHTML=
 '<div class="draw-round">제 '+round+'회 (추첨일 '+getDrawDate(round)+')</div>'+
 '<div class="balls-row">'+balls+
@@ -328,7 +347,9 @@ el.innerHTML=
 '<div>자동: <b>'+autoStr+'</b></div>'+
 '<div>반자동: <b>'+semiStr+'</b></div>'+
 '<div>수동: <b>'+manualStr+'</b></div>'+
-'</div></div>';
+'</div>'+
+shopHtml+
+'</div>';
 }
 function loadMyStats(){
 var entries=loadEntries();
