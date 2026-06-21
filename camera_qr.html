@@ -364,8 +364,6 @@ MLL.applyCheck = function(sessionTag) {
     return;
   }
 
-  var info = MLL.getLottoInfo();
-
   // 커스텀 팝업 생성 (메인페이지와 동일한 카드형 모달)
   var overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
@@ -388,13 +386,19 @@ MLL.applyCheck = function(sessionTag) {
     var updated = 0;
 
     entries.forEach(function(entry) {
-      // 미확인 조건: status=추첨전이고 round < THIS_ROUND
-      var isUnconfirmed = entry.status === '추첨전' && entry.round < info.thisRound;
+      // 미확인 조건: 시간 추정(thisRound)이 아니라, 그 회차의 실제 당첨결과가
+      // mll_results에 존재하는지로 판정한다. (추첨 직후~다음 추첨일까지 1주일 내내
+      // info.thisRound가 막 추첨된 회차에 머물러 있어서, entry.round < info.thisRound로
+      // 비교하면 방금 추첨이 끝난 회차로 등록된 항목이 영원히 "미확인"으로 안 잡히는
+      // 문제가 있었다.)
+      var res = results[entry.round] || results[Number(entry.round)] || results[String(entry.round)];
+      var isUnconfirmed =
+        (entry.status === '추첨전' && !!res) ||
+        (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
       if (!isUnconfirmed) return;
       // 지금 입력분만: sessionTag 일치하는 것만
       if (!allItems && entry.sessionTag !== sessionTag) return;
 
-      var res = results[entry.round] || results[String(entry.round)];
       if (res) {
         entry.status     = '추첨후';
         entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
