@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>My Lotto Lab - 역대 회차별 통계</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
+body{background:#f3f4f6;font-size:13px;}
+.header-inner{max-width:1400px;margin:0 auto;padding:0 14px;height:44px;display:flex;align-items:center;justify-content:space-between;background:#1c1c2e;border-radius:0 0 8px 8px;}
+.logo-left{display:flex;align-items:center;gap:9px;cursor:pointer;}
+.logo-icon{width:30px;height:30px;background:#0c8599;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-text .title{font-size:14px;font-weight:700;color:#fff;}
+.logo-text .sub{font-size:9px;color:#aaa;}
+.nav-item{padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;display:flex;align-items:center;gap:7px;}
+.nav-item:last-child{border-bottom:none;}
+.nav-item:hover{background:#2a2a40;color:#fff;}
+
+.main{max-width:1400px;margin:0 auto;padding:14px;}
+
+/* 상단 필터 바 */
+.filter-bar{background:#fff;border-radius:10px;border:1px solid #e0e0e0;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.filter-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.filter-label{font-size:11px;color:#666;font-weight:600;}
+.filter-bar select{border:1px solid #ddd;border-radius:6px;padding:7px 10px;font-size:12px;background:#fff;cursor:pointer;}
+.filter-sep{color:#bbb;font-size:12px;}
+.filter-right{text-align:right;}
+.fr-label{font-size:11px;color:#888;font-weight:600;margin-bottom:2px;}
+.fr-val{font-size:24px;font-weight:700;color:#222;}
+
+/* 카드 공통 */
+.card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;margin-bottom:14px;}
+.card-head{padding:10px 16px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:7px;border-left:4px solid #ccc;}
+.card-head.blue{border-left-color:#1a7ad4;color:#1a7ad4;}
+.card-head.green{border-left-color:#2f9e44;color:#2f9e44;}
+.card-head.orange{border-left-color:#e67700;color:#e67700;}
+.card-head.purple{border-left-color:#7048e8;color:#7048e8;}
+.card-head.red{border-left-color:#e03131;color:#e03131;}
+.card-head.teal{border-left-color:#0c8599;color:#0c8599;}
+.card-body{padding:14px 16px;}
+
+/* 2단 그리드 레이아웃 (좌측 표 묶음 / 우측 빈도+상금 묶음) */
+.rs2-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
+@media (max-width:980px){ .rs2-grid{grid-template-columns:1fr;} }
+
+/* 표 스타일 (홀짝비율/합분포/연속번호/구매형태) */
+table.stbl{width:100%;border-collapse:collapse;font-size:12px;}
+table.stbl th{background:#f8f8f8;color:#666;font-weight:700;padding:8px 6px;border-bottom:2px solid #e8e8e8;text-align:center;}
+table.stbl td{padding:7px 6px;border-bottom:1px solid #f2f2f2;text-align:center;}
+table.stbl tr.total-row td{font-weight:700;background:#fafafa;border-top:1px solid #e5e5e5;}
+table.stbl tr:hover td{background:#fafcff;}
+table.stbl tr.total-row:hover td{background:#fafafa;}
+
+/* 빈도 칩 (가장 많이 출현한 번호 / 시작번호) */
+.freq-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;}
+.freq-chip{display:inline-flex;align-items:center;gap:3px;background:#f8f8f8;border:1px solid #e5e5e5;border-radius:7px;padding:6px 9px;font-size:12px;min-width:62px;justify-content:center;}
+.freq-chip .fc-num{font-weight:700;color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.freq-chip .fc-cnt{color:#666;font-weight:700;}
+
+/* 상금 지표 */
+.prize-stat-title{font-size:14px;font-weight:700;color:#222;margin:4px 0 12px;display:flex;align-items:center;gap:6px;}
+.prize-stat-group{margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed #e5e5e5;}
+.prize-stat-group:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.prize-stat-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:#444;padding:4px 0;gap:10px;flex-wrap:wrap;}
+.prize-stat-row .psr-label{color:#555;}
+.prize-stat-row .psr-val{font-weight:700;color:#1c1c2e;white-space:nowrap;}
+.prize-stat-row .psr-meta{font-size:10px;color:#999;white-space:nowrap;}
+
+.no-data{text-align:center;padding:30px;color:#bbb;font-size:12px;}
+.loading-box{text-align:center;padding:30px;color:#888;font-size:12px;}
+
+@media print{
+  .header,.filter-bar select,.filter-bar .gobtn{display:none !important;}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo-left" onclick="location.href='main_page.html'" title="메인으로">
+      <div class="logo-icon">📅</div>
+      <div class="logo-text">
+        <div class="title">My Lotto Lab</div>
+        <div class="sub">역대 회차별 통계</div>
+      </div>
+    </div>
+    <div style="position:relative;">
+      <button onclick="toggleNav()" id="navBtn" style="display:flex;align-items:center;gap:5px;color:#ddd;font-size:11px;cursor:pointer;border:1px solid #555;padding:4px 10px;border-radius:5px;background:none;white-space:nowrap;">
+        🧭 이동 ▾
+      </button>
+      <div id="navMenu" style="display:none;position:absolute;right:0;top:36px;background:#1c1c2e;border:1px solid #2a2a40;border-radius:8px;overflow:hidden;min-width:200px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+        <div class="nav-item" onclick="location.href='main_page.html'">🏠 메인 페이지</div>
+        <div class="nav-item" onclick="location.href='results_stats.html'">📋 번호등록 현황 및 당첨통계</div>
+        <div class="nav-item" onclick="location.href='auto_update.html'">🔄 자동 업데이트</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- 상단 필터 바 -->
+  <div class="filter-bar">
+    <div class="filter-left">
+      <span class="filter-label">확인할 회차 선택</span>
+      <select id="roundFrom"></select>
+      <span class="filter-sep">~</span>
+      <select id="roundTo"></select>
+    </div>
+    <div class="filter-right">
+      <div class="fr-label">설정기간 추첨횟수</div>
+      <div class="fr-val" id="periodCount">0</div>
+    </div>
+  </div>
+
+  <div id="statsRoot"><div class="loading-box">⏳ 통계를 계산하는 중...</div></div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// =====================================================
+// My Lotto Lab - 공통 모듈 (common.js)
+// =====================================================
+if (typeof window.MLL === 'undefined') { window.MLL = {}; }
+var MLL = window.MLL;
+
+MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
+MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
+MLL.RESULTS_KEY = 'mll_results';
+
+MLL.loadResults = function() {
+  try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }
+  catch(e) { return {}; }
+};
+
+MLL.getDrawDate = function(round) {
+  var d = new Date(MLL.ROUND1_TS + (round - 1) * MLL.WEEK_MS);
+  var y = d.getFullYear();
+  var m = String(d.getMonth()+1).padStart(2,'0');
+  var dd= String(d.getDate()).padStart(2,'0');
+  return y+'/'+m+'/'+dd;
+};
+
+MLL.BC = function(n){ return n<=10?'#f5c518':n<=20?'#1a7ad4':n<=30?'#e03131':n<=40?'#888888':'#2f9e44'; };
+MLL.TC = function(n){ return n<=10?'#7a5e00':'#ffffff'; };
+
+function toggleNav(){
+  var m=document.getElementById('navMenu');
+  if(m) m.style.display=m.style.display==='none'?'block':'none';
+}
+document.addEventListener('click',function(e){
+  var btn=document.getElementById('navBtn');
+  var menu=document.getElementById('navMenu');
+  if(menu&&btn&&!btn.contains(e.target)&&!menu.contains(e.target)) menu.style.display='none';
+});
+
+// =====================================================
+// RS(역대 회차별 통계) 모듈
+// =====================================================
+var RS2 = {};
+
+// mll_results 전체를 {round, nums, bonus, ...} 배열로 변환 후 회차 내림차순 정렬
+RS2.loadAllRounds = function() {
+  var results = MLL.loadResults();
+  var rounds = Object.keys(results).map(Number).filter(function(n){ return n>0 && !isNaN(n); });
+  rounds.sort(function(a,b){ return b-a; });
+  return rounds.map(function(r){
+    var d = results[r] || results[String(r)];
+    return {
+      round: r,
+      nums: d.nums,
+      bonus: d.bonus,
+      winners1: d.winners1, prize1: d.prize1,
+      winners2: d.winners2, prize2: d.prize2,
+      winners3: d.winners3, prize3: d.prize3,
+      autoWin: d.autoWin, semiWin: d.semiWin, manualWin: d.manualWin,
+      winnerShops: d.winnerShops, note: d.note
+    };
+  });
+};
+
+RS2.sumNums = function(nums){ return nums.reduce(function(a,b){return a+b;},0); };
+
+// ── 필터(회차 범위) 셀렉트 박스 채우기 ──
+RS2.allRounds = [];
+RS2.initFilters = function() {
+  RS2.allRounds = RS2.loadAllRounds();
+  var selFrom = document.getElementById('roundFrom');
+  var selTo   = document.getElementById('roundTo');
+  selFrom.innerHTML = '';
+  selTo.innerHTML = '';
+
+  if (!RS2.allRounds.length) return;
+
+  var maxRound = RS2.allRounds[0].round;
+  var minRound = RS2.allRounds[RS2.allRounds.length-1].round;
+
+  // "모든회차" 옵션 + 회차별 옵션 (최신 -> 과거)
+  var optAll = document.createElement('option');
+  optAll.value = 'ALL'; optAll.textContent = '⭐ 모든회차';
+  selFrom.appendChild(optAll);
+  for (var r = maxRound; r >= minRound; r--) {
+    var o = document.createElement('option');
+    o.value = r; o.textContent = '제'+r+'회 ('+MLL.getDrawDate(r)+')';
+    selFrom.appendChild(o);
+  }
+
+  var optNone = document.createElement('option');
+  optNone.value = 'NONE'; optNone.textContent = '선택안함';
+  selTo.appendChild(optNone);
+  for (var r2 = maxRound; r2 >= minRound; r2--) {
+    var o2 = document.createElement('option');
+    o2.value = r2; o2.textContent = '제'+r2+'회 ('+MLL.getDrawDate(r2)+')';
+    selTo.appendChild(o2);
+  }
+
+  selFrom.value = 'ALL';
+  selTo.value = 'NONE';
+  selFrom.onchange = RS2.applyFilter;
+  selTo.onchange   = RS2.applyFilter;
+};
+
+// ── 현재 필터에 맞는 회차 목록 추출 ──
+RS2.getFilteredRounds = function() {
+  var selFrom = document.getElementById('roundFrom').value;
+  var selTo   = document.getElementById('roundTo').value;
+
+  // "모든회차" -> 1회 ~ 최신회차(현재기준 1229회) 전체
+  if (selFrom === 'ALL') {
+    return RS2.allRounds.slice();
+  }
+  var rFrom = Number(selFrom);
+  // from만 지정하고 to는 "선택안함" -> 해당 회차 1개만의 당첨번호 데이터
+  if (selTo === 'NONE') {
+    return RS2.allRounds.filter(function(x){ return x.round === rFrom; });
+  }
+  // from, to 둘 다 지정 -> 그 구간
+  var rTo = Number(selTo);
+  var lo = Math.min(rFrom, rTo), hi = Math.max(rFrom, rTo);
+  return RS2.allRounds.filter(function(x){ return x.round>=lo && x.round<=hi; });
+};
+
+RS2.applyFilter = function() {
+  var rows = RS2.getFilteredRounds();
+  document.getElementById('periodCount').textContent = rows.length.toLocaleString();
+  RS2.render(rows);
+};
+
+// =====================================================
+// 통계 계산
+// =====================================================
+
+// 공통: bucket 분류 -> {data:{bucket:{cnt}}, total}
+RS2.buildBucketTable = function(rows, buckets, bucketFn) {
+  var data = {};
+  buckets.forEach(function(b){ data[b] = 0; });
+  var total = 0;
+  rows.forEach(function(row){
+    var key = bucketFn(row);
+    if (key===null || !data.hasOwnProperty(key)) return;
+    data[key]++; total++;
+  });
+  return { data:data, total:total };
+};
+
+RS2.renderBucketTableHTML = function(title, icon, headColClass, buckets, labels, result) {
+  var trs = buckets.map(function(b,i){
+    var cnt = result.data[b];
+    var pct = result.total ? (cnt/result.total*100) : 0;
+    return '<tr><td>'+labels[i]+'</td><td>'+cnt.toLocaleString()+'</td><td>'+pct.toFixed(1)+'%</td></tr>';
+  }).join('');
+  return '<div class="card">'+
+    '<div class="card-head '+headColClass+'">'+icon+' '+title+'</div>'+
+    '<div class="card-body">'+
+    '<table class="stbl"><thead><tr><th>구분</th><th>출현횟수</th><th>출현비율</th></tr></thead><tbody>'+
+    trs+
+    '<tr class="total-row"><td>합계</td><td>'+result.total.toLocaleString()+'</td><td>100.0%</td></tr>'+
+    '</tbody></table></div></div>';
+};
+
+// 1) 홀짝비율 (당첨번호 6개 기준 홀:짝)
+RS2.calcOddEven = function(rows) {
+  var buckets = ['6:0','5:1','4:2','3:3','2:4','1:5','0:6'];
+  var result = RS2.buildBucketTable(rows, buckets, function(row){
+    var odd = row.nums.filter(function(n){ return n%2===1; }).length;
+    return odd+':'+(6-odd);
+  });
+  return RS2.renderBucketTableHTML('홀짝비율', '⚖️', 'blue', buckets, buckets, result);
+};
+
+// 2) 6개 번호의 합 분포
+RS2.calcSumDist = function(rows) {
+  var buckets = ['21-67','68-114','115-161','162-208','209-255'];
+  var labels  = ['21~67','68~114','115~161','162~208','209~255'];
+  var ranges  = [[21,67],[68,114],[115,161],[162,208],[209,255]];
+  var result = RS2.buildBucketTable(rows, buckets, function(row){
+    var s = RS2.sumNums(row.nums);
+    for (var i=0;i<ranges.length;i++){
+      if (s>=ranges[i][0] && s<=ranges[i][1]) return buckets[i];
+    }
+    return null;
+  });
+  return RS2.renderBucketTableHTML('6개 번호의 합 분포', '📐', 'green', buckets, labels, result);
+};
+
+// 3) 연속번호
+RS2.calcConsecutive = function(rows) {
+  var buckets = ['0','2','3','4','5','6'];
+  var labels  = ['연속조합 없음','2수 연속','3수 연속','4수 연속','5수 연속','6수 연속'];
+  var result = RS2.buildBucketTable(rows, buckets, function(row){
+    var sorted = row.nums.slice().sort(function(a,b){return a-b;});
+    var maxRun=1, run=1;
+    for (var i=1;i<sorted.length;i++){
+      if (sorted[i]===sorted[i-1]+1){ run++; if(run>maxRun) maxRun=run; }
+      else run=1;
+    }
+    return maxRun===1 ? '0' : String(maxRun);
+  });
+  return RS2.renderBucketTableHTML('연속번호: 숫자가 연달아 나오는 조합', '🔗', 'orange', buckets, labels, result);
+};
+
+// 4) 구매형태별 통계 (1등 당첨자의 구매형태: 자동/반자동/수동 당첨게임수 합계)
+RS2.calcByType = function(rows) {
+  var buckets = ['자동','반자동','수동'];
+  var sums = {'자동':0,'반자동':0,'수동':0};
+  var total = 0;
+  rows.forEach(function(row){
+    var a = row.autoWin||0, s = row.semiWin||0, m = row.manualWin||0;
+    sums['자동'] += a; sums['반자동'] += s; sums['수동'] += m;
+    total += a+s+m;
+  });
+  var trs = buckets.map(function(b){
+    var cnt = sums[b];
+    var pct = total ? (cnt/total*100) : 0;
+    return '<tr><td>'+b+'</td><td>'+cnt.toLocaleString()+'</td><td>'+pct.toFixed(1)+'%</td></tr>';
+  }).join('');
+  return '<div class="card">'+
+    '<div class="card-head purple">🎯 구매형태별 통계 <span style="font-size:9px;font-weight:400;color:#999;">(1등 당첨게임 기준)</span></div>'+
+    '<div class="card-body">'+
+    '<table class="stbl"><thead><tr><th>구분</th><th>출현횟수</th><th>출현비율</th></tr></thead><tbody>'+
+    trs+
+    '<tr class="total-row"><td>합계</td><td>'+total.toLocaleString()+'</td><td>100.0%</td></tr>'+
+    '</tbody></table></div></div>';
+};
+
+// 5) 가장 많이 출현한 번호와 횟수 (당첨번호 6개, 보너스 제외)
+RS2.calcTopNumbers = function(rows) {
+  var freq = {};
+  for (var n=1;n<=45;n++) freq[n]=0;
+  rows.forEach(function(row){ row.nums.forEach(function(n){ freq[n] = (freq[n]||0)+1; }); });
+  var sorted = Object.keys(freq).map(Number)
+    .filter(function(n){ return freq[n] > 0; })
+    .sort(function(a,b){ return freq[b]-freq[a] || a-b; });
+  var chips = sorted.map(function(n){
+    return '<span class="freq-chip"><span class="fc-num" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+String(n).padStart(2,'0')+'</span><span class="fc-cnt">'+freq[n]+'</span></span>';
+  }).join('');
+  return '<div class="card">'+
+    '<div class="card-head red">🔥 가장 많이 출현한 번호와 횟수</div>'+
+    '<div class="card-body"><div class="freq-row">'+(chips||'<span style="color:#bbb;">데이터가 없습니다.</span>')+'</div></div></div>';
+};
+
+// 6) 당첨된 번호조합의 첫 시작번호와 횟수 (당첨조합 6개 중 최소값)
+RS2.calcFirstNumber = function(rows) {
+  var freq = {};
+  rows.forEach(function(row){
+    var sorted = row.nums.slice().sort(function(a,b){return a-b;});
+    var first = sorted[0];
+    freq[first] = (freq[first]||0)+1;
+  });
+  var sorted = Object.keys(freq).map(Number).sort(function(a,b){ return a-b; });
+  var chips = sorted.map(function(n){
+    return '<span class="freq-chip"><span class="fc-num" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+String(n).padStart(2,'0')+'</span><span class="fc-cnt">'+freq[n]+'</span></span>';
+  }).join('');
+  return '<div class="card">'+
+    '<div class="card-head teal">🎬 당첨된 번호조합의 첫 시작번호와 횟수 <span style="font-size:9px;font-weight:400;color:#999;">(총 등록번호조합 기준)</span></div>'+
+    '<div class="card-body"><div class="freq-row">'+(chips||'<span style="color:#bbb;">데이터가 없습니다.</span>')+'</div></div></div>';
+};
+
+// 7) 설정기간내 상금지표
+RS2.calcPrizeStats = function(rows) {
+  function pickExtreme(rows, key, mode) {
+    // mode: 'max' or 'min'. key가 0/null인 회차는 제외.
+    var best = null;
+    rows.forEach(function(row){
+      var v = row[key];
+      if (!v) return;
+      if (best===null || (mode==='max' ? v>best.v : v<best.v)) best = {v:v, round:row.round};
+    });
+    return best;
+  }
+  function fmtMoney(item) {
+    if (!item) return { val:'-', meta:'' };
+    return { val: item.v.toLocaleString(), meta: '('+MLL.getDrawDate(item.round)+' 제'+item.round+'회)' };
+  }
+  function fmtCount(item) {
+    if (!item) return { val:'-', meta:'' };
+    return { val: item.v.toLocaleString(), meta: '('+MLL.getDrawDate(item.round)+' 제'+item.round+'회)' };
+  }
+  function row(label, item, isMoney) {
+    var f = isMoney ? fmtMoney(item) : fmtCount(item);
+    return '<div class="prize-stat-row"><span class="psr-label">'+label+'</span>'+
+      '<span><span class="psr-val">'+f.val+(isMoney&&item?'원':'')+'</span> <span class="psr-meta">'+f.meta+'</span></span></div>';
+  }
+
+  function gradeBlock(gradeLabel, prizeKey, winnersKey) {
+    var maxPrize = pickExtreme(rows, prizeKey, 'max');
+    var minPrize = pickExtreme(rows, prizeKey, 'min');
+    var maxWin   = pickExtreme(rows, winnersKey, 'max');
+    var minWin   = pickExtreme(rows, winnersKey, 'min');
+    return '<div class="prize-stat-group">'+
+      row('1게임 '+gradeLabel+' 당첨금 최고액', maxPrize, true)+
+      row('1게임 '+gradeLabel+' 당첨금 최저액', minPrize, true)+
+      row(gradeLabel+' 당첨 최다 게임수', maxWin, false)+
+      row(gradeLabel+' 당첨 최소 게임수', minWin, false)+
+      '</div>';
+  }
+
+  var html = gradeBlock('1등','prize1','winners1') +
+             gradeBlock('2등','prize2','winners2') +
+             gradeBlock('3등','prize3','winners3');
+
+  return '<div class="card">'+
+    '<div class="card-head" style="border-left-color:#222;color:#222;"><span style="font-size:14px;">⭐</span> 설정기간내 상금지표</div>'+
+    '<div class="card-body">'+html+'</div></div>';
+};
+
+// =====================================================
+// 렌더링
+// =====================================================
+RS2.render = function(rows) {
+  var root = document.getElementById('statsRoot');
+  if (!rows.length) {
+    root.innerHTML = '<div class="card"><div class="card-body"><div class="no-data">📭 당첨결과 데이터가 없습니다.<br><span style="font-size:10px;color:#ccc;">자동 업데이트 페이지에서 데이터를 먼저 불러와주세요.</span></div></div></div>';
+    return;
+  }
+  root.innerHTML =
+    '<div class="rs2-grid">'+
+      '<div>'+
+        RS2.calcOddEven(rows)+
+        RS2.calcSumDist(rows)+
+        RS2.calcConsecutive(rows)+
+        RS2.calcByType(rows)+
+      '</div>'+
+      '<div>'+
+        RS2.calcTopNumbers(rows)+
+        RS2.calcFirstNumber(rows)+
+        RS2.calcPrizeStats(rows)+
+      '</div>'+
+    '</div>';
+};
+
+// =====================================================
+// 초기화
+// =====================================================
+RS2.initFilters();
+RS2.applyFilter();
+window.addEventListener('storage', function(){ RS2.initFilters(); RS2.applyFilter(); });
+</script>
+</body>
+</html>
+
