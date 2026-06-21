@@ -1602,6 +1602,10 @@ RS.renderFavorites = function(container) {
 RS.renderFavoritesBody = function() {
   var body = document.getElementById('rs-favbody');
   if (!body) return;
+  // "결과 보기"나 회차 필터 변경 시에도 최신 당첨결과를 다시 반영해야 한다.
+  // (이전에는 이 함수가 단순히 화면만 다시 그려서, 새로 추가된 항목이나
+  // 그 사이 새로 들어온 당첨결과가 "결과 보기"를 눌러도 갱신되지 않는 문제가 있었다.)
+  MLL.refreshFavoritesResults();
   var favs = MLL.loadFavorites();
   var results = MLL.loadResults();
   var ro = RS.buildFavRoundOptions();
