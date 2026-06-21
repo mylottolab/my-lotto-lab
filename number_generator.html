@@ -1020,8 +1020,21 @@ var selectedStrategy = null;
 var generatedResult  = null;
 var INFO = MLL.getLottoInfo();
 
-// 기본 회차 설정
-document.getElementById('g-round').value = INFO.saleRound;
+// 전략번호 생성의 기준 회차는 "지금이 몇 시냐"가 아니라
+// mll_results에 실제로 들어와 있는 가장 최근(추첨 완료) 회차+1을 기준으로 계산한다.
+// (토요일 추첨 발표 직후~일요일 새벽 판매중단 시간대에는 시간추정(INFO.saleRound)이
+//  이미 추첨이 끝난 회차를 가리켜버리는 경우가 있어, 이번 주 신규 전략수립 분이
+//  엉뚱하게 "추첨후"로 표시되는 문제가 있었다. 데이터 기준으로 고정한다.)
+function computeSaleRoundFromData() {
+  var results = MLL.loadResults();
+  var resultRounds = Object.keys(results).map(Number).filter(function(n){ return !isNaN(n) && n>0; });
+  if (resultRounds.length) return Math.max.apply(null, resultRounds) + 1;
+  return INFO.saleRound; // results가 비어있는 극초기 상태에서만 시간추정으로 폴백
+}
+var SALE_ROUND = computeSaleRoundFromData();
+
+// 기본 회차 설정 (항상 미추첨 상태인 다음 회차)
+document.getElementById('g-round').value = SALE_ROUND;
 
 // 예상 생성수 계산
 function updateEst(){
