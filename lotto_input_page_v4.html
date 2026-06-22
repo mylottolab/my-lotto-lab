@@ -1007,6 +1007,9 @@ document.addEventListener('click',function(e){
       <button class="btn-save" onclick="sv(1)">⬇ 이 번호 저장</button>
     </div>
   </div>
+  <div style="font-size:11px;color:#222;margin-top:8px;line-height:1.6;">
+    입력하신 <b style="color:#1a7ad4;">추첨예정분</b>은 <b>이번주 토요일 밤 9시이후</b> <b style="color:#1a7ad4;">발표</b>되며 결과가 업데이트됩니다.
+  </div>
 </div>
 
 <!-- 가운데 테이블 -->
@@ -1048,6 +1051,12 @@ document.addEventListener('click',function(e){
       </thead>
       <tbody id="tb"></tbody>
     </table>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;font-size:11px;color:#222;">
+    <div style="line-height:1.5;">
+      등록을 마치셨나요?<br>클릭하시면 결과확인 풍선이 뜨고 계정이 업데이트 됩니다.
+    </div>
+    <span onclick="MLL.applyCheck(SESSION_TAG)" style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0;background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;font-size:11px;font-weight:700;padding:7px 12px;border-radius:9px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2);animation:pulse-btn 1.5s infinite;white-space:nowrap;">⚡ 즉시확인 Click!</span>
   </div>
 </div>
 
