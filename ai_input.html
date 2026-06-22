@@ -165,6 +165,70 @@ MLL.calcPrize = function(grade, result) {
   return 0;
 };
 
+// ── 결과확인 통계 말풍선 ──
+// "즉시확인"으로 새로 갱신된 항목들(touched)을 바탕으로
+// "방금 N원에 해당하는 M게임을 등록하셨어요..." 형태의 안내 말풍선을 띄운다.
+// 30초가 지나면 자동으로 사라지고, X 버튼으로 바로 닫을 수도 있다.
+MLL.showCheckResultBubble = function(touched, updatedCount) {
+  var old = document.getElementById('mll-check-bubble');
+  if (old) old.remove();
+
+  if (!touched.length) {
+    // 새로 갱신된 게 없으면(이미 다 확인된 상태) 짧은 안내만
+    var emptyBox = document.createElement('div');
+    emptyBox.id = 'mll-check-bubble';
+    emptyBox.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9998;background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px 18px;box-shadow:0 4px 16px rgba(0,0,0,0.15);font-size:12.5px;color:#555;max-width:280px;';
+    emptyBox.innerHTML = '✅ 새로 확인할 항목이 없어요. 이미 최신 상태예요.';
+    document.body.appendChild(emptyBox);
+    setTimeout(function(){ if(emptyBox.parentNode) emptyBox.remove(); }, 30000);
+    return;
+  }
+
+  var PRICE_PER_GAME = 1000;
+  var totalGames  = touched.length;
+  var totalAmount = totalGames * PRICE_PER_GAME;
+  var beforeCnt   = touched.filter(function(e){ return e.isReal; }).length; // 참고용(현재는 안내문엔 안 씀)
+
+  // 회차 기준 추첨전/추첨후 구분은 "이번에 확인한 시점" 기준으로,
+  // 갱신 전 상태가 추첨전이었는지(touchedBefore)/추첨후였는지(touchedAfter)를
+  // 호출부에서 넘겨주는 대신, 여기서는 갱신 후 모든 항목이 '추첨후'이므로
+  // 등수별 집계만 보여준다.
+  var gradeCount = {1:0,2:0,3:0,4:0,5:0};
+  var totalPrize = 0;
+  touched.forEach(function(e){
+    if (e.grade >= 1 && e.grade <= 5) gradeCount[e.grade]++;
+    totalPrize += (e.prizeMoney || 0);
+  });
+
+  var gradeLabel = {1:'1등',2:'2등',3:'3등',4:'4등',5:'5등'};
+  var winParts = [];
+  [1,2,3,4,5].forEach(function(g){
+    if (gradeCount[g] > 0) winParts.push(gradeLabel[g]+' '+gradeCount[g]+'건');
+  });
+
+  var bodyText;
+  if (winParts.length) {
+    bodyText = '방금 <b>'+totalAmount.toLocaleString()+'원</b>에 해당하는 <b>'+totalGames+'게임</b>을 확인했어요.<br>' +
+      '이중 '+winParts.join(', ')+'이 당첨되어 총 <b>'+totalPrize.toLocaleString()+'원</b>의 상금을 받게 되었어요.<br>' +
+      '확인한 결과는 계정에 저장되어 계속 보실 수 있어요.';
+  } else {
+    bodyText = '방금 <b>'+totalAmount.toLocaleString()+'원</b>에 해당하는 <b>'+totalGames+'게임</b>을 확인했어요.<br>' +
+      '아쉽게도 이번엔 당첨된 게임이 없어요.<br>' +
+      '확인한 결과는 계정에 저장되어 계속 보실 수 있어요.';
+  }
+
+  var bubble = document.createElement('div');
+  bubble.id = 'mll-check-bubble';
+  bubble.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9998;background:#eef9ec;border:1px solid #b9e6ae;border-radius:14px;padding:16px 20px 16px 18px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:12.5px;color:#2e5c2a;max-width:300px;line-height:1.6;';
+  bubble.innerHTML =
+    '<span id="mll-check-bubble-x" style="position:absolute;top:8px;right:10px;cursor:pointer;color:#7a9c75;font-size:13px;font-weight:700;line-height:1;">✕</span>' +
+    '<div style="padding-right:14px;">'+bodyText+'</div>';
+  document.body.appendChild(bubble);
+
+  document.getElementById('mll-check-bubble-x').onclick = function(){ bubble.remove(); };
+  setTimeout(function(){ if(bubble.parentNode) bubble.remove(); }, 30000);
+};
+
 // ── 당첨결과로 전체 업데이트 ──
 // resultsObj 구조:
 // {
@@ -364,36 +428,59 @@ MLL.applyCheck = function(sessionTag) {
     return;
   }
 
-  // 선택 다이얼로그
-  var choice = confirm(
-    '미확인 번호를 어떤 범위로 확인하시겠습니까?\n\n' +
-    '확인(OK) → 미확인분 전체\n' +
-    '취소(Cancel) → 지금 입력분만'
-  );
+  // 커스텀 팝업 생성 (다른 페이지와 동일한 카드형 모달)
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:16px;padding:28px 28px;max-width:340px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.25);">' +
+    '<div style="font-size:24px;margin-bottom:8px;">⚡</div>' +
+    '<div style="font-size:15px;font-weight:700;color:#222;margin-bottom:6px;">즉시확인</div>' +
+    '<div style="font-size:12px;color:#888;margin-bottom:22px;">어떤 범위를 확인하시겠습니까?</div>' +
+    '<div style="display:flex;gap:10px;margin-bottom:10px;">' +
+    '<button id="mll-check-all" style="flex:1;background:#e03131;color:#fff;border:none;border-radius:10px;padding:13px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(224,49,49,0.3);">📋 미확인분 전체</button>' +
+    '<button id="mll-check-cur" style="flex:1;background:#1a7ad4;color:#fff;border:none;border-radius:10px;padding:13px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(26,122,212,0.3);">✏️ 지금 입력분만</button>' +
+    '</div>' +
+    '<div style="font-size:10.5px;color:#aaa;line-height:1.5;margin-bottom:14px;">자정이 지나 날짜가 바뀐 건은 \'지금 입력분만\'으로 안 잡혀요.<br>그런 건은 <b style="color:#e03131;">\'미확인분 전체\'</b>를 눌러주세요.</div>' +
+    '<button id="mll-check-cancel" style="width:100%;background:#f5f5f5;border:none;border-radius:10px;padding:10px;font-size:12px;color:#888;cursor:pointer;font-weight:600;">✕ 취소 (나중에 확인)</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
 
-  var entries = MLL.loadEntries();
-  var info    = MLL.getLottoInfo();
-  var updated = 0;
+  function doCheck(allItems) {
+    document.body.removeChild(overlay);
+    var entries = MLL.loadEntries();
+    var updated = 0;
+    var touched = [];
 
-  entries.forEach(function(entry) {
-    // 미확인 조건: status=추첨전이고 round < THIS_ROUND
-    var isUnconfirmed = entry.status === '추첨전' && entry.round < info.thisRound;
-    if (!isUnconfirmed) return;
-    // 지금 입력분만: sessionTag 일치하는 것만
-    if (!choice && entry.sessionTag !== sessionTag) return;
+    entries.forEach(function(entry) {
+      // 미확인 조건: 시간 추정(thisRound)이 아니라, 그 회차의 실제 당첨결과가
+      // mll_results에 존재하는지로 판정한다. (entry.round < info.thisRound로 비교하면
+      // 방금 추첨이 끝난 회차로 등록된 항목이 영원히 "미확인"으로 안 잡히는 문제가 있었다.)
+      var res = results[entry.round] || results[Number(entry.round)] || results[String(entry.round)];
+      var isUnconfirmed =
+        (entry.status === '추첨전' && !!res) ||
+        (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
+      if (!isUnconfirmed) return;
+      // 지금 입력분만: sessionTag 일치하는 것만
+      if (!allItems && entry.sessionTag !== sessionTag) return;
 
-    var res = results[entry.round] || results[String(entry.round)];
-    if (res) {
-      entry.status     = '추첨후';
-      entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
-      entry.prizeMoney = MLL.calcPrize(entry.grade, res);
-      updated++;
-    }
-  });
+      if (res) {
+        entry.status     = '추첨후';
+        entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
+        entry.prizeMoney = MLL.calcPrize(entry.grade, res);
+        updated++;
+        touched.push(entry);
+      }
+    });
 
-  MLL.saveEntries(entries);
-  alert('✅ ' + updated + '개 항목 확인 완료!\n당첨결과가 업데이트됐습니다.');
-  if (window.refreshTable) refreshTable();
+    MLL.saveEntries(entries);
+    if (window.refreshTable) refreshTable();
+    MLL.showCheckResultBubble(touched, updated);
+  }
+
+  document.getElementById('mll-check-all').onclick    = function(){ doCheck(true); };
+  document.getElementById('mll-check-cur').onclick    = function(){ doCheck(false); };
+  document.getElementById('mll-check-cancel').onclick = function(){ document.body.removeChild(overlay); };
+  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
 };
 
 // 전체 테이블 렌더
@@ -772,6 +859,33 @@ function getLottoInfo() {
 }
 
 var INFO = getLottoInfo();
+
+// "현재 판매 중인 회차"는 "지금이 몇 시냐"만으로 추정하면 안 된다.
+// 토요일 추첨 발표 직후~다음 회차 추첨 전까지 1주일 내내 시간추정(getLottoInfo)이
+// 막 추첨이 끝난 회차(THIS_ROUND)에 머물러 있어서, 실제로는 다음 회차가 판매중인
+// 상황에도 "현재 판매 중인 회차"가 이미 지나간 회차로 잘못 표시되는 문제가 있었다.
+// mll_results에 실제로 들어와 있는 가장 최근 회차+1을 기준으로 보정한다.
+// (그 회차의 결과가 이미 mll_results에 있다는 것 자체가 "이미 추첨이 끝났다"는
+//  확정적 증거이므로, 시간추정보다 항상 우선한다.)
+function computeSaleRoundFromData() {
+  try {
+    var results = JSON.parse(localStorage.getItem('mll_results') || '{}');
+    var resultRounds = Object.keys(results).map(Number).filter(function(n){ return !isNaN(n) && n>0; });
+    if (resultRounds.length) return Math.max.apply(null, resultRounds) + 1;
+  } catch(e) {}
+  return null; // mll_results가 비어있으면 시간추정 그대로 사용
+}
+var DATA_SALE_ROUND = computeSaleRoundFromData();
+if (DATA_SALE_ROUND !== null && DATA_SALE_ROUND > INFO.thisRound) {
+  // 데이터 기준 다음 판매회차가 시간추정상의 thisRound보다 앞서 있으면
+  // (= 시간추정이 이미 끝난 회차를 아직 안 끝난 것처럼 보고 있는 상태) 데이터를 따른다.
+  // THIS_ROUND는 "이번 주 추첨 대상 회차"를 의미하므로, mll_results에 들어와 있는
+  // 최신 회차+1이 곧 새로운 THIS_ROUND가 된다.
+  INFO.thisRound = DATA_SALE_ROUND;
+  INFO.nextRound = DATA_SALE_ROUND + 1;
+  INFO.soldOut = false; // 데이터상 이미 새 회차 판매기간이므로 판매중단 상태가 아니다.
+}
+
 var THIS_ROUND = INFO.thisRound;
 var NEXT_ROUND = INFO.nextRound;
 var SOLD_OUT = INFO.soldOut;

@@ -395,6 +395,70 @@ MLL.calcPrize = function(grade, result) {
   return 0;
 };
 
+// ── 결과확인 통계 말풍선 ──
+// "즉시확인"으로 새로 갱신된 항목들(touched)을 바탕으로
+// "방금 N원에 해당하는 M게임을 등록하셨어요..." 형태의 안내 말풍선을 띄운다.
+// 30초가 지나면 자동으로 사라지고, X 버튼으로 바로 닫을 수도 있다.
+MLL.showCheckResultBubble = function(touched, updatedCount) {
+  var old = document.getElementById('mll-check-bubble');
+  if (old) old.remove();
+
+  if (!touched.length) {
+    // 새로 갱신된 게 없으면(이미 다 확인된 상태) 짧은 안내만
+    var emptyBox = document.createElement('div');
+    emptyBox.id = 'mll-check-bubble';
+    emptyBox.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9998;background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px 18px;box-shadow:0 4px 16px rgba(0,0,0,0.15);font-size:12.5px;color:#555;max-width:280px;';
+    emptyBox.innerHTML = '✅ 새로 확인할 항목이 없어요. 이미 최신 상태예요.';
+    document.body.appendChild(emptyBox);
+    setTimeout(function(){ if(emptyBox.parentNode) emptyBox.remove(); }, 30000);
+    return;
+  }
+
+  var PRICE_PER_GAME = 1000;
+  var totalGames  = touched.length;
+  var totalAmount = totalGames * PRICE_PER_GAME;
+  var beforeCnt   = touched.filter(function(e){ return e.isReal; }).length; // 참고용(현재는 안내문엔 안 씀)
+
+  // 회차 기준 추첨전/추첨후 구분은 "이번에 확인한 시점" 기준으로,
+  // 갱신 전 상태가 추첨전이었는지(touchedBefore)/추첨후였는지(touchedAfter)를
+  // 호출부에서 넘겨주는 대신, 여기서는 갱신 후 모든 항목이 '추첨후'이므로
+  // 등수별 집계만 보여준다.
+  var gradeCount = {1:0,2:0,3:0,4:0,5:0};
+  var totalPrize = 0;
+  touched.forEach(function(e){
+    if (e.grade >= 1 && e.grade <= 5) gradeCount[e.grade]++;
+    totalPrize += (e.prizeMoney || 0);
+  });
+
+  var gradeLabel = {1:'1등',2:'2등',3:'3등',4:'4등',5:'5등'};
+  var winParts = [];
+  [1,2,3,4,5].forEach(function(g){
+    if (gradeCount[g] > 0) winParts.push(gradeLabel[g]+' '+gradeCount[g]+'건');
+  });
+
+  var bodyText;
+  if (winParts.length) {
+    bodyText = '방금 <b>'+totalAmount.toLocaleString()+'원</b>에 해당하는 <b>'+totalGames+'게임</b>을 확인했어요.<br>' +
+      '이중 '+winParts.join(', ')+'이 당첨되어 총 <b>'+totalPrize.toLocaleString()+'원</b>의 상금을 받게 되었어요.<br>' +
+      '확인한 결과는 계정에 저장되어 계속 보실 수 있어요.';
+  } else {
+    bodyText = '방금 <b>'+totalAmount.toLocaleString()+'원</b>에 해당하는 <b>'+totalGames+'게임</b>을 확인했어요.<br>' +
+      '아쉽게도 이번엔 당첨된 게임이 없어요.<br>' +
+      '확인한 결과는 계정에 저장되어 계속 보실 수 있어요.';
+  }
+
+  var bubble = document.createElement('div');
+  bubble.id = 'mll-check-bubble';
+  bubble.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9998;background:#eef9ec;border:1px solid #b9e6ae;border-radius:14px;padding:16px 20px 16px 18px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:12.5px;color:#2e5c2a;max-width:300px;line-height:1.6;';
+  bubble.innerHTML =
+    '<span id="mll-check-bubble-x" style="position:absolute;top:8px;right:10px;cursor:pointer;color:#7a9c75;font-size:13px;font-weight:700;line-height:1;">✕</span>' +
+    '<div style="padding-right:14px;">'+bodyText+'</div>';
+  document.body.appendChild(bubble);
+
+  document.getElementById('mll-check-bubble-x').onclick = function(){ bubble.remove(); };
+  setTimeout(function(){ if(bubble.parentNode) bubble.remove(); }, 30000);
+};
+
 // ── 당첨결과로 전체 업데이트 ──
 // resultsObj 구조:
 // {
@@ -615,6 +679,7 @@ MLL.applyCheck = function(sessionTag) {
     document.body.removeChild(overlay);
     var entries = MLL.loadEntries();
     var updated = 0;
+    var touched = [];
 
     entries.forEach(function(entry) {
       // 미확인 조건: 시간 추정(thisRound)이 아니라, 그 회차의 실제 당첨결과가
@@ -633,12 +698,13 @@ MLL.applyCheck = function(sessionTag) {
         entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
         entry.prizeMoney = MLL.calcPrize(entry.grade, res);
         updated++;
+        touched.push(entry);
       }
     });
 
     MLL.saveEntries(entries);
-    alert('✅ ' + updated + '개 항목 확인 완료!\n당첨결과가 업데이트됐습니다.');
     if (window.refreshTable) refreshTable();
+    MLL.showCheckResultBubble(touched, updated);
   }
 
   document.getElementById('mll-check-all').onclick    = function(){ doCheck(true); };
