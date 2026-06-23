@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 100 전략 레이스</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0d18; --surface:#11152a;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f;
+  --accent:#e8732f; --accent-bg:rgba(232,115,47,.13);
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
+
+.topbar{border-bottom:1px solid var(--border-soft);}
+.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
+.brand-text .t1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
+.brand-text .t2{font-size:10px;color:var(--text-faint);margin-top:1px;}
+.crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);}
+.crumb a{color:var(--text-dim);text-decoration:none;cursor:pointer;}
+.crumb a:hover{color:var(--text);}
+.crumb .sep{color:var(--text-faint);}
+.crumb .cur{color:var(--accent);}
+
+.wrap{max-width:720px;margin:0 auto;padding:70px 24px 100px;text-align:center;}
+.empty-icon{width:56px;height:56px;border-radius:16px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;}
+.empty-icon svg{width:26px;height:26px;stroke:var(--accent);stroke-width:1.5;fill:none;}
+.empty-title{font-size:20px;font-weight:600;letter-spacing:-0.01em;}
+.empty-desc{font-size:13px;color:var(--text-dim);margin-top:10px;line-height:1.7;}
+
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:40px;text-align:left;}
+@media (max-width:640px){.steps{grid-template-columns:1fr;}}
+.step{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:18px;}
+.step-num{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.06em;}
+.step-title{font-size:13.5px;font-weight:600;margin-top:6px;}
+.step-desc{font-size:11.5px;color:var(--text-dim);margin-top:6px;line-height:1.6;}
+
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--gold);cursor:pointer;margin-top:40px;border:1px solid var(--gold-dim);padding:9px 18px;border-radius:8px;transition:background .15s;}
+.back-link:hover{background:rgba(224,179,65,.08);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand" onclick="location.href='main_page.html'">
+      <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="brand-text">
+        <div class="t1">My Lotto Lab</div>
+        <div class="t2">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+      </div>
+    </div>
+    <div class="crumb">
+      <a onclick="location.href='main_page.html'">홈</a>
+      <span class="sep">/</span>
+      <span class="cur">100 전략 레이스</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M4 19l5-14h6l5 14" stroke-linejoin="round" stroke-linecap="round"/><path d="M7.2 11h9.6M6 15h12"/><circle cx="9" cy="5" r="1.1" fill="var(--accent)" stroke="none"/></svg></div>
+  <div class="empty-title">100 전략 레이스, 준비 중입니다</div>
+  <div class="empty-desc">100가지 서로 다른 전략(68개는 고유 조건, 32개는 무조건 무작위)에 이름을 붙여,<br>1회부터 가장 최근 회차까지 매 회차 직전 데이터로 번호를 추출하고<br>실제 당첨결과와 비교해 누적 성적을 매기는 장기 시뮬레이션입니다.</div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">STEP 1</div>
+      <div class="step-title">매 회차 직전 데이터로 추출</div>
+      <div class="step-desc">D회차 추첨 전까지의 데이터만 사용해 100개 전략이 각자 번호를 뽑습니다.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">STEP 2</div>
+      <div class="step-title">실제 결과로 채점·순위화</div>
+      <div class="step-desc">D회차 당첨번호와 비교해 등수·당첨금을 매기고, 전략별 순위를 누적합니다.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">STEP 3</div>
+      <div class="step-title">마음에 드는 전략 선택</div>
+      <div class="step-desc">전체 순위와 통계를 공개하고, 원하는 전략을 골라 번호조합을 받을 수 있게 됩니다.</div>
+    </div>
+  </div>
+
+  <div class="back-link" onclick="location.href='main_page.html'">← 전체 카테고리로</div>
+</div>
+
+</body>
+</html>
