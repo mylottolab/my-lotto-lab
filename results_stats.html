@@ -41,6 +41,10 @@ body{background:#f3f4f6;font-size:13px;}
 .minicard.green .minicard-val{color:#2f9e44;}
 .minicard.red .minicard-val{color:#e03131;}
 .minicard.gold .minicard-val{color:#e67700;}
+.minicard-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.minicard-grid3 .minicard{min-height:104px;padding:10px 6px;}
+.minicard-grid3 .minicard-val{font-size:14px;line-height:1.4;}
+.minicard-grid3 .minicard-sub{font-size:9.5px;line-height:1.6;}
 
 /* 회차 선택 영역 */
 .round-select-bar{padding:12px 16px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -58,6 +62,8 @@ body{background:#f3f4f6;font-size:13px;}
 
 /* 요약 4칸 */
 .summary4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 16px 14px;}
+.summary4-split{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 16px 14px;margin-top:-10px;}
+.summary4-split span{font-size:10px;color:#999;text-align:center;display:block;}
 .s4box{background:#f8f8f8;border-radius:8px;padding:10px;text-align:center;}
 .s4box-val{font-size:19px;font-weight:700;color:#2f9e44;}
 .s4box-label{font-size:9px;color:#888;margin-top:2px;}
@@ -695,10 +701,10 @@ MLL.searchEntriesByCondition = function(entries, condition, history) {
     <button class="rs-menu-btn active" data-sec="byRound" onclick="RS.switchSection('byRound',this)">회차별<br>등록현황과 결과</button>
     <button class="rs-menu-btn" data-sec="upcoming" onclick="RS.switchSection('upcoming',this)" id="rs-btn-upcoming">제<span id="rs-upcoming-round">-</span>회<br>추첨(예정)분<br>등록현황과 결과</button>
     <button class="rs-menu-btn" data-sec="real" onclick="RS.switchSection('real',this)">실제구매분<br>등록현황과 결과</button>
+    <button class="rs-menu-btn" data-sec="virtual" onclick="RS.switchSection('virtual',this)">가상구매분<br>등록현황과 결과</button>
     <button class="rs-menu-btn" data-sec="byCondition" onclick="RS.switchSection('byCondition',this)">조건별<br>등록현황과 결과</button>
     <button class="rs-menu-btn" data-sec="habit" onclick="RS.switchSection('habit',this)">나의 구매 성향</button>
     <button class="rs-menu-btn" data-sec="favorites" onclick="RS.switchSection('favorites',this)">관심번호/재구매<br>최애번호 저장소</button>
-    <button class="rs-menu-btn special" data-sec="printCenter" onclick="location.href='print_center.html'">편리한 재도전 출력센터<span class="mb-sub">실제 사용 가능한 로또구매전표 작성</span></button>
   </div>
 
   <!-- 우측 동적 콘텐츠 -->
@@ -782,79 +788,135 @@ RS.computeGlobalStats = function(mode) {
 
   if (mode === 'real') {
     entries = entries.filter(function(e){ return e.isReal === true; });
+  } else if (mode === 'virtual') {
+    entries = entries.filter(function(e){ return e.isReal !== true; });
   } else if (mode === 'upcoming') {
     var upRound = RS.computeUpcomingRound();
     entries = entries.filter(function(e){ return String(e.round) === String(upRound); });
   }
 
   var gradeCounts = [0,0,0,0,0,0]; // index 0=낙첨,1~5등
+  // 등수별로 실구매/가상구매 건수를 따로도 집계한다 (표에 "총건수(가상/실구매)"로 같이 보여주기 위함).
+  var gradeCountsReal    = [0,0,0,0,0,0];
+  var gradeCountsVirtual = [0,0,0,0,0,0];
   var totalSaved = entries.length;
   var preDrawCount = 0;     // 추첨전(결과 자체가 아직 없음)
   var unconfirmedCount = 0; // 추첨은 됐지만 결과 미반영
   var confirmedCount = 0;   // 결과 확인 완료
   var totalPrize = 0;
 
+  // 실구매/가상구매 세부 통계 (저장건/확인건/당첨건/당첨률/당첨금)
+  var realSaved=0, realPreDraw=0, realUnconfirmed=0, realConfirmed=0, realWin=0, realPrize=0;
+  var virtSaved=0, virtPreDraw=0, virtUnconfirmed=0, virtConfirmed=0, virtWin=0, virtPrize=0;
+
   entries.forEach(function(e){
     var rHas = hasResult(e.round);
     var isConfirmed = e.status === '추첨후' && e.grade !== null && e.grade !== undefined;
+    var real = e.isReal === true;
+    if (real) realSaved++; else virtSaved++;
+
     if (isConfirmed) {
       confirmedCount++;
       gradeCounts[e.grade]++;
       totalPrize += (e.prizeMoney || 0);
+      if (real) { gradeCountsReal[e.grade]++; realConfirmed++; if(e.grade>=1) realWin++; realPrize += (e.prizeMoney||0); }
+      else      { gradeCountsVirtual[e.grade]++; virtConfirmed++; if(e.grade>=1) virtWin++; virtPrize += (e.prizeMoney||0); }
     } else if (rHas) {
       unconfirmedCount++;
+      if (real) realUnconfirmed++; else virtUnconfirmed++;
     } else {
       preDrawCount++;
+      if (real) realPreDraw++; else virtPreDraw++;
     }
   });
 
   var totalWin = gradeCounts[1]+gradeCounts[2]+gradeCounts[3]+gradeCounts[4]+gradeCounts[5];
   var winRate = confirmedCount ? (totalWin/confirmedCount*100) : 0;
+  var realWinRate = realConfirmed ? (realWin/realConfirmed*100) : 0;
+  var virtWinRate = virtConfirmed ? (virtWin/virtConfirmed*100) : 0;
 
   return {
     totalSaved: totalSaved, preDrawCount: preDrawCount, unconfirmedCount: unconfirmedCount,
     confirmedCount: confirmedCount, gradeCounts: gradeCounts, totalWin: totalWin,
-    winRate: winRate, totalPrize: totalPrize
+    winRate: winRate, totalPrize: totalPrize,
+    gradeCountsReal: gradeCountsReal, gradeCountsVirtual: gradeCountsVirtual,
+    real: { saved:realSaved, preDraw:realPreDraw, unconfirmed:realUnconfirmed, confirmed:realConfirmed, win:realWin, winRate:realWinRate, prize:realPrize },
+    virtual: { saved:virtSaved, preDraw:virtPreDraw, unconfirmed:virtUnconfirmed, confirmed:virtConfirmed, win:virtWin, winRate:virtWinRate, prize:virtPrize }
   };
 };
 
-RS.renderGradeTable = function(gradeCounts, confirmedCount) {
+RS.renderGradeTable = function(gradeCounts, confirmedCount, gradeCountsReal, gradeCountsVirtual) {
   var labels = [
     {g:1,icon:'🥇',name:'1등'}, {g:2,icon:'🥈',name:'2등'}, {g:3,icon:'🥉',name:'3등'},
     {g:4,name:'4등'}, {g:5,name:'5등'}, {g:0,name:'낙첨'}
   ];
+  var showSplit = !!(gradeCountsReal && gradeCountsVirtual);
   var rows = labels.map(function(l){
     var cnt = gradeCounts[l.g] || 0;
     var pct = confirmedCount ? (cnt/confirmedCount*100) : 0;
     var color = MLL.GRADE_COLOR[l.g];
+    var cntCell = showSplit
+      ? cnt+' &nbsp;<span style="color:#aaa;font-weight:400;font-size:10px;">('+(gradeCountsVirtual[l.g]||0)+'/'+(gradeCountsReal[l.g]||0)+')</span>'
+      : String(cnt);
     return '<tr><td style="color:'+color+';font-weight:700;">'+(l.icon||'')+' '+l.name+'</td>' +
-      '<td style="text-align:right;font-weight:700;">'+cnt+'</td>' +
+      '<td style="text-align:right;font-weight:700;">'+cntCell+'</td>' +
       '<td style="text-align:right;color:#888;">'+pct.toFixed(2)+'%</td></tr>';
   }).join('');
-  return '<table class="gradetable"><thead><tr><th>등수</th><th style="text-align:right;">건수</th><th style="text-align:right;">비율</th></tr></thead>' +
+  var headCnt = showSplit ? '총건수(가상구매/실구매)' : '건수';
+  return '<table class="gradetable"><thead><tr><th>등수</th><th style="text-align:right;">'+headCnt+'</th><th style="text-align:right;">비율</th></tr></thead>' +
     '<tbody>'+rows+'</tbody></table>';
 };
 
 RS.renderStatPanel = function(mode) {
   var s = RS.computeGlobalStats(mode);
   var headLabel = mode === 'real' ? '📶 내가 등록한 한국 로또 전체 통계 (실제구매분)' :
+                  mode === 'virtual' ? '📶 내가 등록한 한국 로또 전체 통계 (가상구매분)' :
                   mode === 'upcoming' ? '📶 내가 등록한 한국 로또 전체 통계 (이번 추첨예정분)' :
                   '📶 내가 등록한 한국 로또 전체 통계';
+
+  // mode가 'all'(또는 'upcoming')일 때만 실구매/가상구매 세부 숫자를 같이 보여준다.
+  // (real/virtual 모드는 이미 한쪽만 걸러서 보는 화면이라 분리 표시가 의미 없다.)
+  var showSplit = (mode === 'all' || !mode || mode === 'upcoming');
+
+  var gradeTableHtml = showSplit
+    ? RS.renderGradeTable(s.gradeCounts, s.confirmedCount, s.gradeCountsReal, s.gradeCountsVirtual)
+    : RS.renderGradeTable(s.gradeCounts, s.confirmedCount);
+
+  var minicardsHtml;
+  if (showSplit) {
+    minicardsHtml =
+      '<div class="minicard-grid3" style="margin-top:12px;">' +
+        '<div class="minicard"><div class="minicard-icon">🎫</div><div class="minicard-val">'+s.totalSaved.toLocaleString()+'</div>' +
+          '<div class="minicard-sub" style="text-align:left;">' +
+            '추첨전 &nbsp;'+s.preDrawCount+' &nbsp;|&nbsp; 실구매건 '+s.real.saved+'<br>' +
+            '추첨후미확인 '+s.unconfirmedCount+' &nbsp;|&nbsp; 가상구매 '+s.virtual.saved.toLocaleString()+'<br>' +
+            '추첨후확인건 '+s.confirmedCount.toLocaleString()+' &nbsp;' +
+          '</div></div>' +
+        '<div class="minicard green"><div class="minicard-icon">✅</div><div class="minicard-val">'+s.confirmedCount.toLocaleString()+'</div>' +
+          '<div class="minicard-sub">결과 확인된 번호<br>실구매건 &nbsp;'+s.real.confirmed+' &nbsp;|&nbsp; 가상구매 '+s.virtual.confirmed.toLocaleString()+'</div></div>' +
+        '<div class="minicard red"><div class="minicard-icon">📈</div><div class="minicard-val" style="font-size:12px;line-height:1.5;">전체 당첨율<br>'+s.winRate.toFixed(1)+'% &nbsp;|&nbsp; 총 당첨건수 '+s.totalWin+'</div>' +
+          '<div class="minicard-sub">실구매건 '+s.real.winRate.toFixed(2)+'% / '+s.real.win+' &nbsp;|&nbsp; 가상구매 '+s.virtual.winRate.toFixed(2)+'% / '+s.virtual.win+'</div></div>' +
+      '</div>';
+  } else {
+    minicardsHtml =
+      '<div class="minicard-grid" style="margin-top:12px;">' +
+        '<div class="minicard"><div class="minicard-icon">🎫</div><div class="minicard-val">'+s.totalSaved+'</div>' +
+          '<div class="minicard-sub">저장된 번호<br>추첨전 '+s.preDrawCount+'<br>추첨후 미확인 '+s.unconfirmedCount+'<br>추첨후 확인건 '+s.confirmedCount+'</div></div>' +
+        '<div class="minicard green"><div class="minicard-icon">✅</div><div class="minicard-val">'+s.confirmedCount+'</div>' +
+          '<div class="minicard-sub">결과 확인된 번호</div></div>' +
+        '<div class="minicard gold"><div class="minicard-icon">🏆</div><div class="minicard-val">'+s.totalWin+'</div>' +
+          '<div class="minicard-sub">총 당첨 건수</div></div>' +
+        '<div class="minicard red"><div class="minicard-icon">📈</div><div class="minicard-val">'+s.winRate.toFixed(1)+'%</div>' +
+          '<div class="minicard-sub">전체 당첨률</div></div>' +
+      '</div>';
+  }
+
   return '' +
     '<div class="card" style="margin-bottom:12px;">' +
       '<div class="card-head head-dark">'+headLabel+'</div>' +
       '<div style="padding:12px 16px;">' +
-        RS.renderGradeTable(s.gradeCounts, s.confirmedCount) +
-        '<div class="minicard-grid" style="margin-top:12px;">' +
-          '<div class="minicard"><div class="minicard-icon">🎫</div><div class="minicard-val">'+s.totalSaved+'</div>' +
-            '<div class="minicard-sub">저장된 번호<br>추첨전 '+s.preDrawCount+'<br>추첨후 미확인 '+s.unconfirmedCount+'<br>추첨후 확인건 '+s.confirmedCount+'</div></div>' +
-          '<div class="minicard green"><div class="minicard-icon">✅</div><div class="minicard-val">'+s.confirmedCount+'</div>' +
-            '<div class="minicard-sub">결과 확인된 번호</div></div>' +
-          '<div class="minicard gold"><div class="minicard-icon">🏆</div><div class="minicard-val">'+s.totalWin+'</div>' +
-            '<div class="minicard-sub">총 당첨 건수</div></div>' +
-          '<div class="minicard red"><div class="minicard-icon">📈</div><div class="minicard-val">'+s.winRate.toFixed(1)+'%</div>' +
-            '<div class="minicard-sub">전체 당첨률</div></div>' +
-        '</div>' +
+        gradeTableHtml +
+        minicardsHtml +
         (s.unconfirmedCount>0 ?
           '<div style="margin-top:10px;text-align:center;font-size:10px;color:#888;">미확인건 중 추첨일이 경과된 미확인건을 확인하시겠습니까? ' +
           '<button class="checknow-btn" onclick="RS.runCheckNow(\''+(mode||'all')+'\')">⚡ 확인</button></div>' : '') +
@@ -867,6 +929,7 @@ RS.renderStatPanel = function(mode) {
 RS.buildRoundOptions = function(mode) {
   var entries = MLL.loadEntries();
   if (mode === 'real') entries = entries.filter(function(e){ return e.isReal === true; });
+  else if (mode === 'virtual') entries = entries.filter(function(e){ return e.isReal !== true; });
   var counts = {};
   entries.forEach(function(e){
     counts[e.round] = (counts[e.round]||0) + 1;
@@ -883,14 +946,15 @@ RS.roundColor = function(round, roundsDesc) {
 };
 
 // 섹션별로 독립된 선택회차 상태를 유지 (all=회차별 / real=실제구매분 / upcoming=추첨예정분)
-RS.roundState = { all: 'all', real: 'all' };
+RS.roundState = { all: 'all', real: 'all', virtual: 'all' };
 
 RS.renderRoundSection = function(container, mode) {
-  // mode: 'all'(회차별 전체) | 'real'(실제구매분) | 'upcoming'(추첨예정분 고정)
-  var ro = RS.buildRoundOptions(mode === 'real' ? 'real' : 'all');
+  // mode: 'all'(회차별 전체) | 'real'(실제구매분) | 'virtual'(가상구매분) | 'upcoming'(추첨예정분 고정)
+  var ro = RS.buildRoundOptions((mode === 'real' || mode === 'virtual') ? mode : 'all');
   var titleMap = {
     all: '🏆 한국 로또 당첨 결과 확인 [회차별]',
     real: '🏆 한국 로또 당첨 결과 확인 [실제구매분 · 회차별]',
+    virtual: '🏆 한국 로또 당첨 결과 확인 [가상구매분 · 회차별]',
     upcoming: '🏆 한국 로또 당첨 결과 확인 [추첨예정분]'
   };
 
@@ -932,6 +996,7 @@ RS.renderRoundSection = function(container, mode) {
 // byRound(전체) / real(실제구매분) / upcoming(추첨예정분) 각각의 진입점
 RS.renderByRound = function(container) { RS.renderRoundSection(container, 'all'); };
 RS.renderReal    = function(container) { RS.renderRoundSection(container, 'real'); };
+RS.renderVirtual = function(container) { RS.renderRoundSection(container, 'virtual'); };
 RS.renderUpcoming= function(container) { RS.renderRoundSection(container, 'upcoming'); };
 
 // ── 회차 선택 변경 ──
@@ -955,8 +1020,9 @@ RS.renderRoundBody = function(mode) {
   if (!body) return;
   var entries = MLL.loadEntries();
   if (mode === 'real') entries = entries.filter(function(e){ return e.isReal === true; });
+  else if (mode === 'virtual') entries = entries.filter(function(e){ return e.isReal !== true; });
   var results = MLL.loadResults();
-  var ro = RS.buildRoundOptions(mode === 'real' ? 'real' : 'all');
+  var ro = RS.buildRoundOptions((mode === 'real' || mode === 'virtual') ? mode : 'all');
 
   function hasResult(round){ return !!(results[round]||results[Number(round)]||results[String(round)]); }
   function getRes(round){ return results[round]||results[Number(round)]||results[String(round)]||null; }
@@ -1012,12 +1078,32 @@ RS.renderRoundBody = function(mode) {
     }
   }
 
+  var realConfirmedRows = confirmedRows.filter(function(e){ return e.isReal === true; });
+  var virtConfirmedRows = confirmedRows.filter(function(e){ return e.isReal !== true; });
+  var realWinRows = winRows.filter(function(e){ return e.isReal === true; });
+  var virtWinRows = winRows.filter(function(e){ return e.isReal !== true; });
+  var realWinRate2 = realConfirmedRows.length ? (realWinRows.length/realConfirmedRows.length*100) : 0;
+  var virtWinRate2 = virtConfirmedRows.length ? (virtWinRows.length/virtConfirmedRows.length*100) : 0;
+  var realPrize2 = realConfirmedRows.reduce(function(a,e){ return a+(e.prizeMoney||0); }, 0);
+  var virtPrize2 = virtConfirmedRows.reduce(function(a,e){ return a+(e.prizeMoney||0); }, 0);
+
+  // 실구매/가상구매가 둘 다 의미 있는 화면(전체/추첨예정)에서만 세부 숫자를 같이 보여준다.
+  var showSplit4 = (mode === 'all' || !mode || mode === 'upcoming');
+  var splitLine = showSplit4
+    ? '<div class="summary4-split">' +
+        '<span>실구매/가상: &nbsp;'+realConfirmedRows.length+' / '+virtConfirmedRows.length+'</span>' +
+        '<span>'+realWinRows.length+' / '+virtWinRows.length+'</span>' +
+        '<span>'+realWinRate2.toFixed(2)+'% / '+virtWinRate2.toFixed(2)+'%</span>' +
+        '<span>'+realPrize2.toLocaleString()+' / '+virtPrize2.toLocaleString()+'</span>' +
+      '</div>'
+    : '';
+
   var summaryHtml = '<div class="summary4">' +
     '<div class="s4box"><div class="s4box-val">'+confirmedRows.length+'</div><div class="s4box-label">추첨결과 확인한 등록 조합수</div></div>' +
     '<div class="s4box"><div class="s4box-val" style="color:#e67700;">'+winRows.length+'</div><div class="s4box-label">당첨 조합 수</div></div>' +
     '<div class="s4box"><div class="s4box-val" style="color:#1a7ad4;">'+winRate.toFixed(1)+'%</div><div class="s4box-label">당첨률</div></div>' +
     '<div class="s4box"><div class="s4box-val" style="color:#e03131;">'+totalPrize.toLocaleString()+'</div><div class="s4box-label">총 당첨금 (원)</div></div>' +
-  '</div>';
+  '</div>' + splitLine;
 
   // 정렬 적용 데이터 가공
   var sortedRows = RS.sortRows(rows, getRes, isAll);
@@ -1328,6 +1414,7 @@ RS.renderConditionResult = function(matched) {
 
 RS.SECTION_RENDERERS.byRound  = RS.renderByRound;
 RS.SECTION_RENDERERS.real      = RS.renderReal;
+RS.SECTION_RENDERERS.virtual   = RS.renderVirtual;
 RS.SECTION_RENDERERS.upcoming  = RS.renderUpcoming;
 RS.SECTION_RENDERERS.byCondition = RS.renderByCondition;
 </script>
