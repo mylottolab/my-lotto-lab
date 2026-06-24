@@ -126,6 +126,7 @@ body{
 .hcard-stat{margin-top:14px;display:flex;align-items:baseline;gap:6px;}
 .hcard-stat .num{font-size:20px;font-weight:600;color:var(--card-accent,var(--gold));}
 .hcard-stat .unit{font-size:11px;color:var(--text-faint);}
+.hcard-stat-next{font-size:11.5px;font-weight:600;color:var(--accent);white-space:nowrap;margin-left:auto;}
 
 .hcard-arrow{position:absolute;bottom:18px;right:20px;width:26px;height:26px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-dim);transition:border-color .18s,color .18s,transform .18s;}
 .hcard:hover .hcard-arrow{border-color:var(--card-accent,var(--gold-dim));color:var(--card-accent,var(--gold));transform:translateX(2px);}
@@ -276,7 +277,7 @@ body{
         <div class="hcard-name">100 전략 레이스</div>
         <div class="hcard-desc">1회부터 누적된 전략별 성적과 추천</div>
       </div>
-      <div class="hcard-stat"><span class="num font-num" id="statRaceRound">0</span><span class="unit" id="statRaceUnit">회차 시뮬레이션 완료</span></div>
+      <div class="hcard-stat" style="padding-right:30px;"><span class="num font-num" id="statRaceRound">0</span><span class="unit" id="statRaceUnit">회차 시뮬레이션 완료</span><span class="hcard-stat-next" id="statRaceNext"></span></div>
       <div class="hcard-arrow">→</div>
     </div>
 
@@ -353,6 +354,12 @@ function formatWinnerShops(raw){
       raceEl.textContent = '100필';
       raceUnitEl.textContent = '시뮬레이션 준비됨';
     }
+  }
+
+  var raceNext = loadJSON('mll_race_next_numbers', null);
+  var raceNextEl = document.getElementById('statRaceNext');
+  if (raceNextEl) {
+    raceNextEl.textContent = (raceNext && raceNext.round) ? raceNext.round.toLocaleString()+'회차 대비' : '';
   }
 
   if(rounds.length){

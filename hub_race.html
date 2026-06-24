@@ -721,6 +721,16 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
   </div>
 </div>
 
+<!-- 새 회차 자동 시뮬레이션 안내 팝업 -->
+<div class="modal-overlay" id="autoRunNoticeModal">
+  <div class="modal-box" style="max-width:380px;text-align:center;">
+    <div class="empty-icon" style="margin-bottom:16px;"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9"/></svg></div>
+    <h3 style="justify-content:center;" id="autoRunNoticeTitle">새 회차가 등록되었습니다</h3>
+    <p style="font-size:12.5px;color:var(--text-dim);line-height:1.7;margin-bottom:18px;" id="autoRunNoticeDesc"></p>
+    <button class="btn btn-gold" style="width:100%;" onclick="RACE.confirmAutoRun()">확인하고 자동 시작</button>
+  </div>
+</div>
+
 <script>
 // =====================================================
 // 100 전략 레이스 - 메인 컨트롤러
@@ -1275,14 +1285,48 @@ RACE.refreshUI = function(){
       document.getElementById('sbDesc').textContent = '최근 시뮬레이션: 제'+lastSim+'회까지 완료 · 최신 결과: 제'+range.max+'회까지 등록됨';
     } else {
       document.getElementById('sbTitle').textContent = '제'+range.max+'회까지 시뮬레이션 완료';
-      document.getElementById('sbDesc').textContent = '매주 토요일 추첨 후 mll_results가 갱신되면, 여기서 "시뮬레이션 실행"을 눌러 한 회차씩 이어서 처리하세요.';
+      document.getElementById('sbDesc').textContent = '';
     }
     RACE.populateRoundSelectors();
     RACE.renderOverall();
     RACE.renderRound();
     RACE.renderPeriod();
     RACE.renderNext();
+
+    if (pending > 0 && !RACE.isRunning) {
+      RACE.maybeAutoRun(range);
+    }
   }
+};
+
+// ── 새 회차 자동 처리: 처음 보는 대기상태면 안내 팝업 먼저, 이미 본 상태면 조용히 자동시작 ──
+RACE.AUTORUN_SEEN_KEY = 'mll_race_autorun_seen_upto';
+RACE.pendingAutoRunRange = null;
+
+RACE.maybeAutoRun = function(range){
+  var seenUpto = parseInt(localStorage.getItem(RACE.AUTORUN_SEEN_KEY)) || 0;
+  if (seenUpto >= range.max) {
+    // 이미 이 대기상태를 안내한 적 있음 -> 조용히 바로 시작
+    RACE.runCatchup();
+    return;
+  }
+  // 처음 보는 대기상태 -> 안내 팝업
+  var meta = RACE.loadMeta();
+  var lastSim = meta.lastSimulatedRound || 0;
+  var pending = range.all.filter(function(r){return r>lastSim;}).length;
+  document.getElementById('autoRunNoticeTitle').textContent = '새 회차가 등록되었습니다';
+  document.getElementById('autoRunNoticeDesc').textContent =
+    '제'+(lastSim+1)+'회 ~ 제'+range.max+'회('+pending+'개 회차)가 새로 등록되어, 확인을 누르면 자동으로 시뮬레이션을 이어서 진행합니다.';
+  RACE.pendingAutoRunRange = range;
+  document.getElementById('autoRunNoticeModal').classList.add('show');
+};
+
+RACE.confirmAutoRun = function(){
+  document.getElementById('autoRunNoticeModal').classList.remove('show');
+  if (RACE.pendingAutoRunRange) {
+    localStorage.setItem(RACE.AUTORUN_SEEN_KEY, String(RACE.pendingAutoRunRange.max));
+  }
+  RACE.runCatchup();
 };
 
 RACE.switchTab = function(tab){
@@ -1403,12 +1447,12 @@ RACE.setOverallSortFromSelect = function(){
 RACE.inlineDownloadHtml = function(strategyNo){
   var inputId = 'inlineQty_'+strategyNo;
   return '<div style="display:flex;align-items:center;gap:5px;justify-content:center;">' +
-    '<input type="number" id="'+inputId+'" value="5" min="1" max="100" style="width:48px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 4px;font-size:11px;text-align:center;">' +
+    '<input type="number" id="'+inputId+'" value="100" min="1" max="100" style="width:52px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 4px;font-size:11px;text-align:center;">' +
     '<button class="dl-btn" onclick="RACE.downloadInline('+strategyNo+',\''+inputId+'\')">📥 다운로드</button>' +
   '</div>';
 };
 RACE.downloadInline = function(strategyNo, inputId){
-  var count = Math.max(1, Math.min(100, parseInt(document.getElementById(inputId).value)||5));
+  var count = Math.max(1, Math.min(100, parseInt(document.getElementById(inputId).value)||100));
   RACE.downloadComboXLSX(strategyNo, count);
 };
 
@@ -1577,7 +1621,7 @@ RACE.openDetail = function(strategyNo){
     '<div class="dl-panel">' +
       '<div class="dl-panel-row">' +
         '<span style="font-size:11.5px;color:var(--text-dim);">원하는 개수</span>' +
-        '<input type="number" id="dlCount" value="5" min="1" max="100">' +
+        '<input type="number" id="dlCount" value="100" min="1" max="100">' +
         '<button class="btn btn-gold" style="padding:8px 14px;" onclick="RACE.previewOnDemand('+s.no+')">번호 추첨</button>' +
         '<button class="btn btn-outline" style="padding:8px 14px;" onclick="RACE.downloadFromModal('+s.no+')">📥 엑셀 다운로드</button>' +
       '</div>' +
@@ -1591,7 +1635,7 @@ RACE.openDetail = function(strategyNo){
 RACE.closeDetail = function(){ document.getElementById('detailModal').classList.remove('show'); };
 
 RACE.previewOnDemand = function(strategyNo){
-  var count = Math.max(1, Math.min(100, parseInt(document.getElementById('dlCount').value)||5));
+  var count = Math.max(1, Math.min(100, parseInt(document.getElementById('dlCount').value)||100));
   var combos = RACE.generateOnDemand(strategyNo, count);
   var html = combos.map(function(c,i){
     return '<div class="combo-row"><span class="combo-idx">'+(i+1)+'</span>'+RACE.ballsHtml(c, null)+'</div>';
@@ -1600,7 +1644,7 @@ RACE.previewOnDemand = function(strategyNo){
 };
 
 RACE.downloadFromModal = function(strategyNo){
-  var count = Math.max(1, Math.min(100, parseInt(document.getElementById('dlCount').value)||5));
+  var count = Math.max(1, Math.min(100, parseInt(document.getElementById('dlCount').value)||100));
   RACE.downloadComboXLSX(strategyNo, count);
 };
 
