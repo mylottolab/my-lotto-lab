@@ -4,45 +4,542 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab - 100 전략 레이스</title>
+<script>
+// =====================================================
+// My Lotto Lab - 공통 모듈 (다른 페이지와 동일)
+// =====================================================
+if (typeof window.MLL === 'undefined') { window.MLL = {}; }
+var MLL = window.MLL;
+
+MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
+MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
+MLL.RESULTS_KEY = 'mll_results';
+
+MLL.getLottoInfo = function() {
+  var now = new Date();
+  var ko  = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+  var day = ko.getDay(), hour = ko.getHours(), min = ko.getMinutes();
+  var elapsed   = now.getTime() - MLL.ROUND1_TS;
+  var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
+  var nextRound = thisRound + 1;
+  var soldOut = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
+  var saleRound = soldOut ? thisRound : nextRound;
+  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound };
+};
+
+MLL.getDrawDate = function(round) {
+  var d = new Date(MLL.ROUND1_TS + (round - 1) * MLL.WEEK_MS);
+  return d.toLocaleDateString('ko-KR', {timeZone:'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit'});
+};
+
+MLL.loadResults = function() {
+  try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }
+  catch(e) { return {}; }
+};
+
+MLL.BC = function(n) { return n<=10?'#e0b341':n<=20?'#5b6ee8':n<=30?'#d4537e':n<=40?'#8b91ab':'#3fb37f'; };
+MLL.TC = function(n) { return n<=10?'#1a1404':'#fff'; };
+</script>
+<script>
+// =====================================================
+// 100 전략 레이스 - 100필 시드 데이터 (엑셀 HORSE_RACE.xlsx 기반)
+// =====================================================
+MLL.RACE_STRATEGY_SEED = [
+{no:1,name:"1. 썬더 (Thunder)",isRandom:false,odd_even:"0:6",consecutive_limit:1,sum_min:21,sum_max:67,top_range:15,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:2,name:"2. 번개 (Lightning)",isRandom:false,odd_even:"0:6",consecutive_limit:1,sum_min:68,sum_max:114,top_range:15,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:3,name:"3. 폭풍 (Storm)",isRandom:false,odd_even:"1:5",consecutive_limit:1,sum_min:68,sum_max:114,top_range:15,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:4,name:"4. 제트 (Jet)",isRandom:false,odd_even:"1:5",consecutive_limit:1,sum_min:68,sum_max:114,top_range:15,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:5,name:"5. 플래시 (Flash)",isRandom:false,odd_even:"1:5",consecutive_limit:1,sum_min:68,sum_max:114,top_range:20,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:6,name:"6. 아폴로 (Apollo)",isRandom:false,odd_even:"1:5",consecutive_limit:1,sum_min:68,sum_max:114,top_range:20,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:7,name:"7. 벤투스 (Ventus) - 바람",isRandom:false,odd_even:"2:4",consecutive_limit:1,sum_min:68,sum_max:114,top_range:20,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:8,name:"8. 블레이즈 (Blaze)",isRandom:false,odd_even:"2:4",consecutive_limit:1,sum_min:68,sum_max:114,top_range:20,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:9,name:"9. 레이서 (Racer)",isRandom:false,odd_even:"2:4",consecutive_limit:1,sum_min:68,sum_max:114,top_range:20,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:10,name:"10. 불릿 (Bullet)",isRandom:false,odd_even:"2:4",consecutive_limit:1,sum_min:68,sum_max:114,top_range:20,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:11,name:"11. 페가수스 (Pegasus)",isRandom:false,odd_even:"2:4",consecutive_limit:1,sum_min:68,sum_max:114,top_range:20,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:12,name:"12. 섀도우 (Shadow)",isRandom:false,odd_even:"2:4",consecutive_limit:1,sum_min:68,sum_max:114,top_range:20,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:13,name:"13. 볼트 (Bolt)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:68,sum_max:114,top_range:20,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:14,name:"14. 타이탄 (Titan)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:68,sum_max:114,top_range:20,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:15,name:"15. 허리케인 (Hurricane)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:68,sum_max:114,top_range:20,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:16,name:"16. 나이트 (Night)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:115,sum_max:161,top_range:20,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:17,name:"17. 다크호스 (Dark Horse)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:115,sum_max:161,top_range:20,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:18,name:"18. 마하 (Mach)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:115,sum_max:161,top_range:20,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:19,name:"19. 터보 (Turbo)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:115,sum_max:161,top_range:20,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:20,name:"20. 스피릿 (Spirit)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:115,sum_max:161,top_range:20,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:21,name:"21. 엑스칼리버 (Excalibur)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:115,sum_max:161,top_range:20,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:22,name:"22. 윈드 (Wind)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:115,sum_max:161,top_range:20,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:23,name:"23. 레이싱 (Racing)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:115,sum_max:161,top_range:20,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:24,name:"24. 로켓 (Rocket)",isRandom:false,odd_even:"2:4",consecutive_limit:2,sum_min:115,sum_max:161,top_range:20,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:25,name:"25. 매직 (Magic)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:26,name:"26. 새벽 (Dawn)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:27,name:"27. 노을 (Sunset)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:28,name:"28. 은하 (Galaxy)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:29,name:"29. 오로라 (Aurora)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:30,name:"30. 혜성 (Comet)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:31,name:"31. 산들 (Breeze)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:32,name:"32. 오크 (Oak)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:33,name:"33. 마운틴 (Mountain)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:34,name:"34. 리버 (River)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:35,name:"35. 포레스트 (Forest)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:36,name:"36. 스타 (Star)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:37,name:"37. 클라우드 (Cloud)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:38,name:"38. 레인 (Rain)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:39,name:"39. 선샤인 (Sunshine)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:40,name:"40. 스카이 (Sky)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:41,name:"41. 문 (Moon)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:42,name:"42. 썬 (Sun)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:43,name:"43. 샌드 (Sand)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:44,name:"44. 아틀라스 (Atlas)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:25,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:45,name:"45. 마스 (Mars)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:30,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:46,name:"46. 쥬피터 (Jupiter)",isRandom:false,odd_even:"3:3",consecutive_limit:2,sum_min:115,sum_max:161,top_range:30,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:47,name:"47. 플래닛 (Planet)",isRandom:false,odd_even:"4:2",consecutive_limit:2,sum_min:115,sum_max:161,top_range:30,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:48,name:"48. 코스모스 (Cosmos)",isRandom:false,odd_even:"4:2",consecutive_limit:2,sum_min:115,sum_max:161,top_range:30,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:49,name:"49. 레인보우 (Rainbow)",isRandom:false,odd_even:"4:2",consecutive_limit:2,sum_min:115,sum_max:161,top_range:30,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:50,name:"50. 스톤 (Stone)",isRandom:false,odd_even:"4:2",consecutive_limit:2,sum_min:115,sum_max:161,top_range:30,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:51,name:"51. 로미오 (Romeo)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:115,sum_max:161,top_range:30,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:52,name:"52. 줄리엣 (Juliet)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:53,name:"53. 빅토리아 (Victoria)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:54,name:"54. 알렉산더 (Alexander)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:55,name:"55. 윈저 (Windsor)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:56,name:"56. 체스 (Chess)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:57,name:"57. 조지 (George)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:58,name:"58. 레오 (Leo)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:59,name:"59. 율리시스 (Ulysses)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:60,name:"60. 벨 (Belle)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:61,name:"61. 카이사르 (Caesar)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:62,name:"62. 세실리아 (Cecilia)",isRandom:false,odd_even:"4:2",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:63,name:"63. 클레오파트라 (Cleopatra)",isRandom:false,odd_even:"5:1",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:64,name:"64. 엘리트 (Elite)",isRandom:false,odd_even:"5:1",consecutive_limit:3,sum_min:162,sum_max:208,top_range:30,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:65,name:"65. 아리아 (Aria)",isRandom:false,odd_even:"5:1",consecutive_limit:3,sum_min:162,sum_max:208,top_range:35,top_use:1,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:66,name:"66. 노블 (Noble)",isRandom:false,odd_even:"5:1",consecutive_limit:3,sum_min:162,sum_max:208,top_range:35,top_use:2,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:67,name:"67. 로얄 (Royal)",isRandom:false,odd_even:"6:0",consecutive_limit:3,sum_min:162,sum_max:208,top_range:35,top_use:3,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:68,name:"68. 카리스마 (Charisma)",isRandom:false,odd_even:"6:0",consecutive_limit:3,sum_min:209,sum_max:255,top_range:35,top_use:4,recent_rounds:0,bonus_include:"Y",set_count:100,repeat_count:1},
+{no:69,name:"69. 프린스 (Prince)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:70,name:"70. 프린세스 (Princess)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:71,name:"71. 퀸 (Queen)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:72,name:"72. 킹 (King)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:73,name:"73. 듀크 (Duke)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:74,name:"74. 백작 (Count)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:75,name:"75. 비너스 (Venus)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:76,name:"76. 체스트넛 (Chestnut) - 밤색",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:77,name:"77. 모카 (Mocha)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:78,name:"78. 버터 (Butter)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:79,name:"79. 카라멜 (Caramel)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:80,name:"80. 헤이즐 (Hazel)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:81,name:"81. 초코 (Choco)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:82,name:"82. 밀크 (Milk)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:83,name:"83. 쿠키 (Cookie)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:84,name:"84. 바닐라 (Vanilla)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:85,name:"85. 브라우니 (Brownie)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:86,name:"86. 슈가 (Sugar)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:87,name:"87. 골디 (Goldie)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:88,name:"88. 코코 (Coco)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:89,name:"89. 베일리 (Bailey)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:90,name:"90. 위스키 (Whiskey)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:91,name:"91. 체리 (Cherry)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:92,name:"92. 캔디 (Candy)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:93,name:"93. 마시멜로 (Marshmallow)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:94,name:"94. 파이 (Pie)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:95,name:"95. 시나몬 (Cinnamon)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:96,name:"96. 머핀 (Muffin)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:97,name:"97. 토피 (Toffee)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:98,name:"98. 브랜디 (Brandy)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:99,name:"99. 베리 (Berry)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1},
+{no:100,name:"100. 스위트 (Sweet)",isRandom:true,odd_even:null,consecutive_limit:null,sum_min:null,sum_max:null,top_range:null,top_use:null,recent_rounds:null,bonus_include:null,set_count:100,repeat_count:1}
+];</script>
+<script>
+// =====================================================
+// 100 전략 레이스 - 시뮬레이션/채점 엔진
+// =====================================================
+// =====================================================
+// My Lotto Lab - 100 전략 레이스 전용 엔진
+// =====================================================
+if (typeof window.MLL === 'undefined') { window.MLL = {}; }
+var MLL = window.MLL;
+
+MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
+MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
+MLL.RESULTS_KEY = 'mll_results';
+
+MLL.getLottoInfo = function() {
+  var now = new Date();
+  var ko  = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+  var day = ko.getDay(), hour = ko.getHours(), min = ko.getMinutes();
+  var elapsed   = now.getTime() - MLL.ROUND1_TS;
+  var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
+  var nextRound = thisRound + 1;
+  var soldOut = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
+  var saleRound = soldOut ? thisRound : nextRound;
+  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound };
+};
+
+MLL.loadResults = function() {
+  try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }
+  catch(e) { return {}; }
+};
+
+MLL.BC = function(n) { return n<=10?'#e0b341':n<=20?'#5b6ee8':n<=30?'#d4537e':n<=40?'#8b91ab':'#3fb37f'; };
+MLL.TC = function(n) { return n<=10?'#1a1404':'#fff'; };
+
+// ── 번호생성 엔진 (기존 generator_engine.py 포팅, 기존 페이지들과 동일 로직) ──
+MLL._buildPool = function(start, end) {
+  if (!start || !end) return Array.from({length:45},function(_,i){return i+1;});
+  var pool=[], cur=start;
+  while(true){
+    pool.push(cur);
+    if(cur===end) break;
+    cur++; if(cur>45) cur=1;
+    if(pool.length>45) break;
+  }
+  return pool.length>=6 ? pool : Array.from({length:45},function(_,i){return i+1;});
+};
+
+MLL._getTopFrequency = function(history, recent, topN, bonusInclude) {
+  var freq = {};
+  history.slice(0, recent).forEach(function(h){
+    (h.nums||[]).forEach(function(n){ freq[n]=(freq[n]||0)+1; });
+    if (bonusInclude && h.bonus) { freq[h.bonus]=(freq[h.bonus]||0)+1; }
+  });
+  return Object.keys(freq).map(function(n){ return [parseInt(n), freq[n]]; })
+    .sort(function(a,b){ return b[1]-a[1]; }).slice(0, topN).map(function(x){ return x[0]; });
+};
+
+MLL._sample = function(arr, n) {
+  if (arr.length < n) return null;
+  var a = arr.slice(), result = [];
+  for (var i=0; i<n; i++) {
+    var idx = Math.floor(Math.random()*a.length);
+    result.push(a.splice(idx,1)[0]);
+  }
+  return result;
+};
+
+MLL._checkConsecutive = function(nums, limit) {
+  if (!limit || limit<=1) return true;
+  var cnt=1;
+  for (var i=1; i<nums.length; i++) {
+    if (nums[i]===nums[i-1]+1) { cnt++; if(cnt>limit) return false; }
+    else cnt=1;
+  }
+  return true;
+};
+
+MLL._checkSum = function(nums, min, max) {
+  var s=nums.reduce(function(a,b){return a+b;},0);
+  if (min!==null && s<min) return false;
+  if (max!==null && s>max) return false;
+  return true;
+};
+
+MLL._createOneSet = function(pool, oddEven, topNums, topUse) {
+  var avail = pool.slice();
+  var result;
+  if (!oddEven || oddEven==='무관' || oddEven==='') {
+    result = MLL._sample(avail, 6);
+    if (!result) return null;
+    result.sort(function(a,b){return a-b;});
+  } else {
+    var parts = oddEven.split(':');
+    var needOdd = parseInt(parts[0]), needEven = parseInt(parts[1]);
+    var oddPool  = avail.filter(function(n){return n%2===1;});
+    var evenPool = avail.filter(function(n){return n%2===0;});
+    if (oddPool.length<needOdd || evenPool.length<needEven) return null;
+    result = (MLL._sample(oddPool,needOdd)||[]).concat(MLL._sample(evenPool,needEven)||[]).sort(function(a,b){return a-b;});
+  }
+  if (topNums.length > 0 && topUse !== null) {
+    var cnt = result.filter(function(n){return topNums.indexOf(n)>=0;}).length;
+    if (cnt !== topUse) return null;
+  }
+  return result;
+};
+
+// strategy: RACE_STRATEGY_SEED의 항목 한 개, lotto_history: D회차 이전(1~D-1) 데이터 [{round,nums,bonus}] 최신순
+// 항상 setCount(기본 100)개를 보장한다. 조건이 너무 좁으면 단계적으로 완화하고,
+// 그래도 부족하면 마지막엔 조건 무시 순수 무작위로 채운다.
+MLL.raceGenerate = function(strategy, lotto_history) {
+  var setCount = parseInt(strategy.set_count) || 100;
+  var pool45 = Array.from({length:45},function(_,i){return i+1;});
+
+  // 69~100번: 완전 무작위, 조건 없음
+  if (strategy.isRandom) {
+    return MLL._fillRandom([], setCount, pool45);
+  }
+
+  var oddEven    = strategy.odd_even || '';
+  var consLimit  = parseInt(strategy.consecutive_limit) || 0;
+  var sumMin     = (strategy.sum_min !== null && strategy.sum_min !== undefined) ? parseInt(strategy.sum_min) : null;
+  var sumMax     = (strategy.sum_max !== null && strategy.sum_max !== undefined) ? parseInt(strategy.sum_max) : null;
+  var topRange   = parseInt(strategy.top_range) || 0;
+  var topUse     = (strategy.top_use !== null && strategy.top_use !== undefined) ? parseInt(strategy.top_use) : null;
+  var bonusInclude = (strategy.bonus_include || 'N').toUpperCase() === 'Y';
+
+  // 상위빈도 — D=2(history.length===0)면 자동 스킵 (빈도 조건 없이 나머지 조건만 적용)
+  var topNums = [];
+  if (topRange > 0 && lotto_history && lotto_history.length > 0) {
+    var recent = (strategy.recent_rounds && strategy.recent_rounds > 0) ? strategy.recent_rounds : lotto_history.length;
+    topNums = MLL._getTopFrequency(lotto_history, recent, topRange, bonusInclude);
+  }
+
+  // 단계 0: 원래 조건대로
+  var results = MLL._tryFillSet(setCount, oddEven, consLimit, sumMin, sumMax, topNums, topUse, 2000);
+  if (results.length >= setCount) return results.slice(0, setCount);
+
+  // 단계 1: 상위빈도 조건 제거
+  var used1 = {}; results.forEach(function(r){used1[r.join(',')]=true;});
+  var more1 = MLL._tryFillSet(setCount - results.length, oddEven, consLimit, sumMin, sumMax, [], null, 2000, used1);
+  results = results.concat(more1);
+  if (results.length >= setCount) return results.slice(0, setCount);
+
+  // 단계 2: 연속제한 +1
+  var used2 = {}; results.forEach(function(r){used2[r.join(',')]=true;});
+  var more2 = MLL._tryFillSet(setCount - results.length, oddEven, consLimit+1, sumMin, sumMax, [], null, 2000, used2);
+  results = results.concat(more2);
+  if (results.length >= setCount) return results.slice(0, setCount);
+
+  // 단계 3: 번호합 범위 확장(폭의 50% 만큼 위아래로)
+  var widenMin = sumMin, widenMax = sumMax;
+  if (sumMin !== null && sumMax !== null) {
+    var span = Math.max(1, Math.round((sumMax - sumMin) * 0.5));
+    widenMin = Math.max(21, sumMin - span);
+    widenMax = Math.min(279, sumMax + span);
+  }
+  var used3 = {}; results.forEach(function(r){used3[r.join(',')]=true;});
+  var more3 = MLL._tryFillSet(setCount - results.length, oddEven, consLimit+1, widenMin, widenMax, [], null, 2000, used3);
+  results = results.concat(more3);
+  if (results.length >= setCount) return results.slice(0, setCount);
+
+  // 최종: 조건 전부 무시, 순수 무작위로 부족분 채움 (항상 100개 보장)
+  return MLL._fillRandom(results, setCount, pool45);
+};
+
+// 조건에 맞는 조합을 최대 needed개까지, 시도횟수 한도 내에서 채워 반환
+MLL._tryFillSet = function(needed, oddEven, consLimit, sumMin, sumMax, topNums, topUse, maxTry, usedSeed) {
+  if (needed <= 0) return [];
+  var pool = Array.from({length:45},function(_,i){return i+1;});
+  var results = [], used = usedSeed || {}, tryCount = 0;
+  while (results.length < needed && tryCount < maxTry) {
+    tryCount++;
+    var nums = MLL._createOneSet(pool, oddEven, topNums, topUse);
+    if (!nums) continue;
+    if (!MLL._checkConsecutive(nums, consLimit)) continue;
+    if (!MLL._checkSum(nums, sumMin, sumMax)) continue;
+    var key = nums.join(',');
+    if (used[key]) continue;
+    used[key] = true;
+    results.push(nums);
+  }
+  return results;
+};
+
+// existing에 이미 들어있는 조합은 유지하고, 부족분을 순수 무작위(조건 없음)로 채워 정확히 setCount개로 만든다
+MLL._fillRandom = function(existing, setCount, pool45) {
+  var results = existing.slice();
+  var used = {}; results.forEach(function(r){used[r.join(',')]=true;});
+  var tryCount = 0, maxTry = setCount * 200 + 2000;
+  while (results.length < setCount && tryCount < maxTry) {
+    tryCount++;
+    var nums = MLL._sample(pool45, 6);
+    if (!nums) break;
+    nums.sort(function(a,b){return a-b;});
+    var key = nums.join(',');
+    if (used[key]) continue;
+    used[key] = true;
+    results.push(nums);
+  }
+  // 정말 극단적으로 중복만 남는 경우(거의 불가능)에도 setCount를 못 넘기지 않도록 마지막 안전판
+  while (results.length < setCount) {
+    results.push(MLL._sample(pool45, 6).sort(function(a,b){return a-b;}));
+  }
+  return results.slice(0, setCount);
+};
+
+// ── 채점 ──
+MLL.raceGrade = function(myNums, winNums, bonusNum) {
+  var match = 0;
+  myNums.forEach(function(n){ if(winNums.indexOf(n) >= 0) match++; });
+  var hasBonus = myNums.indexOf(bonusNum) >= 0;
+  if (match===6) return 1;
+  if (match===5 && hasBonus) return 2;
+  if (match===5) return 3;
+  if (match===4) return 4;
+  if (match===3) return 5;
+  return 0;
+};
+
+MLL.racePrize = function(grade, result) {
+  if (!result || grade===0) return 0;
+  if (grade===1) return result.prize1 || 0;
+  if (grade===2) return result.prize2 || 0;
+  if (grade===3) return result.prize3 || 0;
+  if (grade===4) return 50000;
+  if (grade===5) return 5000;
+  return 0;
+};
+
+// D회차 한 회차에 대해 전략 1개를 시뮬레이션+채점
+MLL.raceSimulateOneRound = function(strategy, history, winData) {
+  var combos = MLL.raceGenerate(strategy, history);
+  var gradeCounts = {1:0,2:0,3:0,4:0,5:0,fail:0};
+  var totalPrize = 0, winCount = 0, bestGrade = 0;
+  combos.forEach(function(nums){
+    var g = MLL.raceGrade(nums, winData.nums, winData.bonus);
+    if (g > 0) {
+      gradeCounts[g]++;
+      winCount++;
+      if (!bestGrade || g < bestGrade) bestGrade = g;
+      totalPrize += MLL.racePrize(g, winData);
+    } else {
+      gradeCounts.fail++;
+    }
+  });
+  return {
+    generated: combos.length,
+    gradeCounts: gradeCounts,
+    winCount: winCount,
+    bestGrade: bestGrade,
+    totalPrize: totalPrize
+  };
+};
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#0a0d18; --surface:#11152a;
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
   --border:#252b48; --border-soft:#1b2038;
   --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
   --gold:#e0b341; --gold-dim:#8a6f2f;
   --accent:#e8732f; --accent-bg:rgba(232,115,47,.13);
+  --indigo:#5b6ee8; --indigo-dim:#2a3270;
+  --green:#3fb37f; --red:#d4537e;
 }
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
+.font-num{font-variant-numeric:tabular-nums;}
+a{color:inherit;}
 
+/* ── 헤더 ── */
 .topbar{border-bottom:1px solid var(--border-soft);}
-.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.topbar-inner{max-width:1280px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
 .brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
 .brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
 .brand-text .t1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
 .brand-text .t2{font-size:10px;color:var(--text-faint);margin-top:1px;}
 .crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);}
-.crumb a{color:var(--text-dim);text-decoration:none;cursor:pointer;}
+.crumb a{text-decoration:none;cursor:pointer;}
 .crumb a:hover{color:var(--text);}
 .crumb .sep{color:var(--text-faint);}
 .crumb .cur{color:var(--accent);}
 
-.wrap{max-width:720px;margin:0 auto;padding:70px 24px 100px;text-align:center;}
-.empty-icon{width:56px;height:56px;border-radius:16px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;}
-.empty-icon svg{width:26px;height:26px;stroke:var(--accent);stroke-width:1.5;fill:none;}
-.empty-title{font-size:20px;font-weight:600;letter-spacing:-0.01em;}
-.empty-desc{font-size:13px;color:var(--text-dim);margin-top:10px;line-height:1.7;}
+/* ── 페이지 헤더 ── */
+.page-head{max-width:1280px;margin:0 auto;padding:30px 24px 0;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;}
+.page-title{font-size:23px;font-weight:600;letter-spacing:-0.02em;}
+.page-title .ico{color:var(--accent);}
+.page-sub{font-size:12px;color:var(--text-dim);margin-top:6px;line-height:1.6;}
+.head-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{border:none;border-radius:9px;padding:10px 16px;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s,transform .1s;display:inline-flex;align-items:center;gap:6px;}
+.btn:active{transform:scale(.97);}
+.btn-gold{background:var(--gold);color:#1a1404;}
+.btn-gold:hover{background:#eec25f;}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text-dim);}
+.btn-outline:hover{border-color:var(--gold-dim);color:var(--text);}
+.btn-indigo{background:var(--indigo);color:#fff;}
+.btn-indigo:hover{background:#6f80f0;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
 
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:40px;text-align:left;}
-@media (max-width:640px){.steps{grid-template-columns:1fr;}}
-.step{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:18px;}
-.step-num{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.06em;}
-.step-title{font-size:13.5px;font-weight:600;margin-top:6px;}
-.step-desc{font-size:11.5px;color:var(--text-dim);margin-top:6px;line-height:1.6;}
+/* ── 상태 배너 ── */
+.status-banner{max-width:1280px;margin:18px auto 0;padding:0 24px;}
+.sb-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.sb-icon{width:36px;height:36px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sb-icon svg{width:18px;height:18px;stroke:var(--accent);stroke-width:1.8;fill:none;}
+.sb-text{flex:1;min-width:200px;}
+.sb-title{font-size:13px;font-weight:600;}
+.sb-desc{font-size:11.5px;color:var(--text-dim);margin-top:3px;}
+.sb-progress-wrap{display:none;width:100%;margin-top:12px;}
+.sb-progress-track{background:var(--border-soft);border-radius:20px;height:8px;overflow:hidden;}
+.sb-progress-fill{background:linear-gradient(90deg,var(--gold-dim),var(--gold));height:100%;width:0%;transition:width .2s;border-radius:20px;}
+.sb-progress-label{font-size:10.5px;color:var(--text-dim);margin-top:6px;display:flex;justify-content:space-between;}
 
-.back-link{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--gold);cursor:pointer;margin-top:40px;border:1px solid var(--gold-dim);padding:9px 18px;border-radius:8px;transition:background .15s;}
+/* ── 탭 ── */
+.tabbar{max-width:1280px;margin:22px auto 0;padding:0 24px;display:flex;gap:6px;border-bottom:1px solid var(--border-soft);}
+.tab-btn{background:none;border:none;color:var(--text-dim);font-size:12.5px;font-weight:600;padding:11px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:6px;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+.tab-badge{background:var(--surface-2);color:var(--text-faint);font-size:9.5px;padding:1px 6px;border-radius:20px;}
+.tab-btn.active .tab-badge{background:rgba(224,179,65,.15);color:var(--gold);}
+
+.tabpanel{max-width:1280px;margin:0 auto;padding:20px 24px 80px;}
+.tabpanel-section{display:none;}
+.tabpanel-section.active{display:block;}
+
+/* ── 공통 카드/필터 ── */
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;}
+.filter-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+.filter-select,.filter-input{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 11px;font-size:12px;outline:none;}
+.filter-select:focus,.filter-input:focus{border-color:var(--gold-dim);}
+.filter-label{font-size:11px;color:var(--text-faint);}
+
+/* ── 랭킹 테이블 ── */
+.race-table-wrap{overflow-x:auto;border-radius:14px;border:1px solid var(--border-soft);}
+table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
+.race-table thead th{background:var(--surface-2);color:var(--text-dim);font-size:10.5px;font-weight:600;padding:10px 12px;text-align:center;white-space:nowrap;position:sticky;top:0;border-bottom:1px solid var(--border-soft);}
+.race-table tbody td{padding:9px 12px;font-size:12px;text-align:center;border-bottom:1px solid var(--border-soft);white-space:nowrap;}
+.race-table tbody tr{background:var(--surface);transition:background .1s;}
+.race-table tbody tr:hover{background:var(--surface-2);}
+.race-table tbody tr.top1{background:rgba(224,179,65,.07);}
+.race-table tbody tr.top1:hover{background:rgba(224,179,65,.12);}
+.rank-pill{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:11px;font-weight:700;}
+.rank-1{background:var(--gold);color:#1a1404;}
+.rank-2{background:#b9bccb;color:#1a1404;}
+.rank-3{background:#c2854f;color:#1a1404;}
+.rank-etc{background:var(--surface-2);color:var(--text-dim);}
+.horse-name{font-weight:600;text-align:left;display:flex;align-items:center;gap:8px;}
+.horse-tag{font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:20px;flex-shrink:0;}
+.horse-tag.cond{background:rgba(91,110,232,.16);color:#9aa8f5;}
+.horse-tag.rand{background:rgba(139,145,171,.14);color:var(--text-dim);}
+.prize-val{color:var(--gold);font-weight:700;}
+.win-val{color:var(--green);font-weight:600;}
+.dl-btn{background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);border-radius:7px;padding:5px 10px;font-size:10.5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:border-color .15s,color .15s;}
+.dl-btn:hover{border-color:var(--gold-dim);color:var(--gold);}
+
+/* ── 빈 상태 ── */
+.empty-wrap{max-width:640px;margin:60px auto;text-align:center;}
+.empty-icon{width:52px;height:52px;border-radius:16px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
+.empty-icon svg{width:24px;height:24px;stroke:var(--accent);stroke-width:1.5;fill:none;}
+.empty-title{font-size:17px;font-weight:600;}
+.empty-desc{font-size:12.5px;color:var(--text-dim);margin-top:8px;line-height:1.7;}
+
+/* ── 통계 박스 ── */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+@media (max-width:760px){.stat-grid{grid-template-columns:1fr 1fr;}}
+.stat-box{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:14px 16px;}
+.stat-box .label{font-size:10.5px;color:var(--text-faint);}
+.stat-box .val{font-size:19px;font-weight:600;margin-top:5px;}
+.stat-box .val.gold{color:var(--gold);}
+.stat-box .val.green{color:var(--green);}
+
+/* ── 모달 ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;max-height:86vh;overflow-y:auto;padding:24px;}
+.modal-box h3{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.modal-close{position:absolute;}
+.modal-row{display:flex;justify-content:space-between;font-size:12px;padding:7px 0;border-bottom:1px solid var(--border-soft);}
+.modal-row .k{color:var(--text-dim);}
+.modal-row .v{font-weight:600;}
+.ball{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;}
+
+/* ── 다운로드 패널 ── */
+.dl-panel{margin-top:16px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.dl-panel-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.dl-panel input[type=number]{width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:6px 9px;font-size:12px;}
+.combo-preview{margin-top:10px;max-height:220px;overflow-y:auto;font-size:11px;color:var(--text-dim);}
+.combo-row{display:flex;gap:6px;padding:4px 0;align-items:center;}
+.combo-idx{width:24px;color:var(--text-faint);}
+
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--gold);cursor:pointer;border:1px solid var(--gold-dim);padding:9px 18px;border-radius:8px;transition:background .15s;}
 .back-link:hover{background:rgba(224,179,65,.08);}
+
+.spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#1a1404;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -64,31 +561,683 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   </div>
 </div>
 
-<div class="wrap">
-  <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M4 19l5-14h6l5 14" stroke-linejoin="round" stroke-linecap="round"/><path d="M7.2 11h9.6M6 15h12"/><circle cx="9" cy="5" r="1.1" fill="var(--accent)" stroke="none"/></svg></div>
-  <div class="empty-title">100 전략 레이스, 준비 중입니다</div>
-  <div class="empty-desc">100가지 서로 다른 전략(68개는 고유 조건, 32개는 무조건 무작위)에 이름을 붙여,<br>1회부터 가장 최근 회차까지 매 회차 직전 데이터로 번호를 추출하고<br>실제 당첨결과와 비교해 누적 성적을 매기는 장기 시뮬레이션입니다.</div>
+<div class="page-head">
+  <div>
+    <div class="page-title"><span class="ico">🏇</span> 100 전략 레이스</div>
+    <div class="page-sub" id="pageSubLine">1회부터 직전 회차까지, 매 회차 직전 데이터만으로 100개 전략이 번호를 뽑고 실제 결과로 채점합니다.</div>
+  </div>
+  <div class="head-actions">
+    <button class="btn btn-outline" onclick="RACE.resetAll()">⟲ 초기화</button>
+    <button class="btn btn-gold" id="btnRunCatchup" onclick="RACE.runCatchup()">▶ 시뮬레이션 실행</button>
+  </div>
+</div>
 
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">STEP 1</div>
-      <div class="step-title">매 회차 직전 데이터로 추출</div>
-      <div class="step-desc">D회차 추첨 전까지의 데이터만 사용해 100개 전략이 각자 번호를 뽑습니다.</div>
+<div class="status-banner">
+  <div class="sb-card">
+    <div class="sb-icon"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9"/></svg></div>
+    <div class="sb-text">
+      <div class="sb-title" id="sbTitle">상태를 확인하는 중...</div>
+      <div class="sb-desc" id="sbDesc"></div>
     </div>
-    <div class="step">
-      <div class="step-num">STEP 2</div>
-      <div class="step-title">실제 결과로 채점·순위화</div>
-      <div class="step-desc">D회차 당첨번호와 비교해 등수·당첨금을 매기고, 전략별 순위를 누적합니다.</div>
+    <div class="sb-progress-wrap" id="sbProgressWrap">
+      <div class="sb-progress-track"><div class="sb-progress-fill" id="sbProgressFill"></div></div>
+      <div class="sb-progress-label"><span id="sbProgressLabel">0 / 0회차</span><span id="sbProgressPct">0%</span></div>
     </div>
-    <div class="step">
-      <div class="step-num">STEP 3</div>
-      <div class="step-title">마음에 드는 전략 선택</div>
-      <div class="step-desc">전체 순위와 통계를 공개하고, 원하는 전략을 골라 번호조합을 받을 수 있게 됩니다.</div>
+  </div>
+</div>
+
+<div class="tabbar" id="tabbar" style="display:none;">
+  <button class="tab-btn active" data-tab="overall" onclick="RACE.switchTab('overall')">🏆 전체 누적순위</button>
+  <button class="tab-btn" data-tab="round" onclick="RACE.switchTab('round')">📅 회차별 결과</button>
+  <button class="tab-btn" data-tab="period" onclick="RACE.switchTab('period')">📊 기간별 통계</button>
+  <button class="tab-btn" data-tab="next" onclick="RACE.switchTab('next')">🎯 다음회차 예상번호</button>
+</div>
+
+<div class="tabpanel" id="tabpanel" style="display:none;">
+
+  <!-- 전체 누적순위 -->
+  <div class="tabpanel-section active" id="panel-overall">
+    <div class="stat-grid" id="overallStatGrid"></div>
+    <div class="filter-row">
+      <span class="filter-label">정렬</span>
+      <select class="filter-select" id="overallSortSel" onchange="RACE.renderOverall()">
+        <option value="rank">순위 (당첨금 기준)</option>
+        <option value="winCount">당첨건수</option>
+        <option value="winRate">당첨율</option>
+        <option value="name">말 이름</option>
+      </select>
+      <span class="filter-label">구분</span>
+      <select class="filter-select" id="overallFilterSel" onchange="RACE.renderOverall()">
+        <option value="all">전체 (100필)</option>
+        <option value="cond">조건전략 (1~68)</option>
+        <option value="rand">무작위전략 (69~100)</option>
+      </select>
+    </div>
+    <div class="race-table-wrap">
+      <table class="race-table" id="overallTable"></table>
     </div>
   </div>
 
-  <div class="back-link" onclick="location.href='main_page.html'">← 전체 카테고리로</div>
+  <!-- 회차별 결과 -->
+  <div class="tabpanel-section" id="panel-round">
+    <div class="filter-row">
+      <span class="filter-label">회차</span>
+      <select class="filter-select" id="roundSel" onchange="RACE.renderRound()"></select>
+      <span class="filter-label" id="roundDateLabel"></span>
+    </div>
+    <div class="stat-grid" id="roundStatGrid"></div>
+    <div class="race-table-wrap">
+      <table class="race-table" id="roundTable"></table>
+    </div>
+  </div>
+
+  <!-- 기간별 통계 -->
+  <div class="tabpanel-section" id="panel-period">
+    <div class="filter-row">
+      <span class="filter-label">FROM</span>
+      <select class="filter-select" id="periodFromSel"></select>
+      <span class="filter-label">TO</span>
+      <select class="filter-select" id="periodToSel"></select>
+      <button class="btn btn-indigo" onclick="RACE.renderPeriod()">계산</button>
+    </div>
+    <div class="stat-grid" id="periodStatGrid"></div>
+    <div class="race-table-wrap">
+      <table class="race-table" id="periodTable"></table>
+    </div>
+  </div>
+
+  <!-- 다음회차 예상번호 -->
+  <div class="tabpanel-section" id="panel-next">
+    <div class="filter-row">
+      <span class="filter-label" id="nextRoundLabel"></span>
+    </div>
+    <div class="race-table-wrap">
+      <table class="race-table" id="nextTable"></table>
+    </div>
+  </div>
+
 </div>
+
+<div class="empty-wrap" id="emptyWrap" style="display:none;">
+  <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M4 19l5-14h6l5 14" stroke-linejoin="round" stroke-linecap="round"/><path d="M7.2 11h9.6M6 15h12"/><circle cx="9" cy="5" r="1.1" fill="var(--accent)" stroke="none"/></svg></div>
+  <div class="empty-title">아직 당첨결과 데이터가 없습니다</div>
+  <div class="empty-desc">'번호 등록' 메뉴 등에서 회차별 당첨결과(mll_results)가 먼저 채워져야<br>100 전략 레이스 시뮬레이션을 실행할 수 있어요.</div>
+  <div style="margin-top:24px;"><span class="back-link" onclick="location.href='main_page.html'">← 전체 카테고리로</span></div>
+</div>
+
+<!-- 전략 상세 모달 -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-box" id="detailModalBox"></div>
+</div>
+
+<script>
+// =====================================================
+// 100 전략 레이스 - 메인 컨트롤러
+// =====================================================
+// =====================================================
+// 100 전략 레이스 - 메인 컨트롤러
+// =====================================================
+var RACE = {};
+
+RACE.STRATEGIES_KEY = 'mll_race_strategies';
+RACE.RESULTS_KEY    = 'mll_race_results';   // { round: { strategyNo: {gradeCounts,winCount,bestGrade,totalPrize,generated} } }
+RACE.META_KEY       = 'mll_race_meta';      // { lastSimulatedRound, updatedAt }
+RACE.NEXTNUMS_KEY   = 'mll_race_next_numbers'; // { round, generatedAt, [strategyNo]: [[6],...] }
+
+RACE.PRIZE_DEFAULT = { prize1: 2000000000, prize2: 60000000, prize3: 1500000 };
+
+// ── 저장소 헬퍼 ──
+RACE.loadStrategies = function(){
+  try {
+    var raw = localStorage.getItem(RACE.STRATEGIES_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e){ return null; }
+};
+RACE.saveStrategies = function(list){ localStorage.setItem(RACE.STRATEGIES_KEY, JSON.stringify(list)); };
+
+RACE.loadResults = function(){
+  try { return JSON.parse(localStorage.getItem(RACE.RESULTS_KEY) || '{}'); } catch(e){ return {}; }
+};
+RACE.saveResults = function(obj){ localStorage.setItem(RACE.RESULTS_KEY, JSON.stringify(obj)); };
+
+RACE.loadMeta = function(){
+  try { return JSON.parse(localStorage.getItem(RACE.META_KEY) || 'null') || {lastSimulatedRound:0}; }
+  catch(e){ return {lastSimulatedRound:0}; }
+};
+RACE.saveMeta = function(meta){ localStorage.setItem(RACE.META_KEY, JSON.stringify(meta)); };
+
+RACE.loadNextNumbers = function(){
+  try { return JSON.parse(localStorage.getItem(RACE.NEXTNUMS_KEY) || 'null'); } catch(e){ return null; }
+};
+RACE.saveNextNumbers = function(obj){ localStorage.setItem(RACE.NEXTNUMS_KEY, JSON.stringify(obj)); };
+
+RACE.resetAll = function(){
+  if (!confirm('100 전략 레이스의 모든 시뮬레이션 데이터(순위·통계·예상번호)를 초기화할까요?\n전략 정의(100필 목록)는 유지됩니다.')) return;
+  localStorage.removeItem(RACE.RESULTS_KEY);
+  localStorage.removeItem(RACE.META_KEY);
+  localStorage.removeItem(RACE.NEXTNUMS_KEY);
+  location.reload();
+};
+
+// ── history 빌더: D회차보다 작은 회차만, 최신순 [{round,nums,bonus}] ──
+RACE.buildHistoryBefore = function(allResults, beforeRound){
+  return Object.keys(allResults).map(Number)
+    .filter(function(r){ return r < beforeRound; })
+    .sort(function(a,b){ return b-a; })
+    .map(function(r){ return { round:r, nums:allResults[r].nums||[], bonus:allResults[r].bonus||null }; });
+};
+
+// ── 초기화: 전략목록이 없으면 시드로 채움 ──
+RACE.ensureStrategies = function(){
+  var existing = RACE.loadStrategies();
+  if (existing && existing.length === 100) return existing;
+  var seed = MLL.RACE_STRATEGY_SEED.map(function(s){ return Object.assign({}, s); });
+  RACE.saveStrategies(seed);
+  return seed;
+};
+
+// ── 시뮬레이션 가능한 회차 범위 파악 ──
+RACE.getRoundRange = function(){
+  var results = MLL.loadResults();
+  var rounds = Object.keys(results).map(Number).filter(function(n){return n>0 && !isNaN(n);});
+  if (!rounds.length) return null;
+  rounds.sort(function(a,b){return a-b;});
+  return { min: rounds[0], max: rounds[rounds.length-1], all: rounds, resultsObj: results };
+};
+
+// ── 캐치업 실행 (청크 단위로 setTimeout 양보, 진행률 표시) ──
+RACE.isRunning = false;
+
+RACE.runCatchup = function(){
+  if (RACE.isRunning) return;
+  var range = RACE.getRoundRange();
+  if (!range) { alert('당첨결과 데이터(mll_results)가 없습니다.'); return; }
+
+  var strategies = RACE.ensureStrategies();
+  var meta = RACE.loadMeta();
+  var raceResults = RACE.loadResults();
+
+  // 처리해야 할 회차 목록: lastSimulatedRound 보다 큰 회차들 중 실제 결과가 존재하는 것
+  var todo = range.all.filter(function(r){ return r > (meta.lastSimulatedRound||0); });
+  if (!todo.length) {
+    RACE.computeNextNumbers(strategies, range);
+    RACE.refreshUI();
+    alert('이미 모든 회차(최신 '+range.max+'회까지)가 처리되어 있습니다.\n다음회차 예상번호만 갱신했습니다.');
+    return;
+  }
+
+  RACE.isRunning = true;
+  document.getElementById('btnRunCatchup').disabled = true;
+  document.getElementById('btnRunCatchup').innerHTML = '<span class="spinner"></span> 진행 중...';
+  document.getElementById('sbProgressWrap').style.display = 'block';
+  document.getElementById('sbTitle').textContent = '과거 회차 시뮬레이션 진행 중...';
+
+  var CHUNK = 5; // 한 번에 처리할 회차 수 (UI 양보를 위해)
+  var idx = 0;
+  var total = todo.length;
+
+  function step(){
+    var end = Math.min(idx + CHUNK, total);
+    for (; idx < end; idx++){
+      var round = todo[idx];
+      var winData = range.resultsObj[round];
+      if (!winData || !winData.nums) continue;
+      var history = RACE.buildHistoryBefore(range.resultsObj, round);
+      var roundResult = {};
+      strategies.forEach(function(s){
+        roundResult[s.no] = MLL.raceSimulateOneRound(s, history, winData);
+      });
+      raceResults[round] = roundResult;
+    }
+    var pct = Math.round((idx/total)*100);
+    document.getElementById('sbProgressFill').style.width = pct+'%';
+    document.getElementById('sbProgressLabel').textContent = idx+' / '+total+'회차';
+    document.getElementById('sbProgressPct').textContent = pct+'%';
+    document.getElementById('sbDesc').textContent = '제'+todo[Math.min(idx,total-1)]+'회까지 처리 중...';
+
+    if (idx < total) {
+      setTimeout(step, 0);
+    } else {
+      // 완료
+      RACE.saveResults(raceResults);
+      meta.lastSimulatedRound = range.max;
+      meta.updatedAt = Date.now();
+      RACE.saveMeta(meta);
+      RACE.computeNextNumbers(strategies, range);
+
+      RACE.isRunning = false;
+      document.getElementById('btnRunCatchup').disabled = false;
+      document.getElementById('btnRunCatchup').innerHTML = '▶ 시뮬레이션 실행';
+      document.getElementById('sbProgressWrap').style.display = 'none';
+      RACE.refreshUI();
+    }
+  }
+  step();
+};
+
+// ── 다음회차 예상번호 생성 (각 전략이 "현재까지 전체"를 history로 사용) ──
+RACE.computeNextNumbers = function(strategies, range){
+  var info = MLL.getLottoInfo();
+  var nextRound = info.saleRound; // 다음에 판매중/판매될 회차
+  var existing = RACE.loadNextNumbers();
+  if (existing && existing.round === nextRound) return; // 이미 생성됨
+
+  var history = RACE.buildHistoryBefore(range.resultsObj, nextRound);
+  var data = { round: nextRound, generatedAt: Date.now() };
+  strategies.forEach(function(s){
+    data[s.no] = MLL.raceGenerate(s, history);
+  });
+  RACE.saveNextNumbers(data);
+};
+
+// ── 누적 통계 집계 (FROM~TO 범위, 기본은 전체) ──
+RACE.aggregate = function(fromRound, toRound){
+  var raceResults = RACE.loadResults();
+  var rounds = Object.keys(raceResults).map(Number).filter(function(r){
+    return (fromRound==null || r>=fromRound) && (toRound==null || r<=toRound);
+  });
+  var strategies = RACE.ensureStrategies();
+  var agg = {};
+  strategies.forEach(function(s){
+    agg[s.no] = { no:s.no, name:s.name, isRandom:s.isRandom,
+      totalPrize:0, winCount:0, generated:0, roundsPlayed:0,
+      gradeCounts:{1:0,2:0,3:0,4:0,5:0,fail:0} };
+  });
+  rounds.forEach(function(r){
+    var roundData = raceResults[r];
+    if (!roundData) return;
+    strategies.forEach(function(s){
+      var rd = roundData[s.no];
+      if (!rd) return;
+      var a = agg[s.no];
+      a.totalPrize += rd.totalPrize||0;
+      a.winCount += rd.winCount||0;
+      a.generated += rd.generated||0;
+      a.roundsPlayed += 1;
+      [1,2,3,4,5,'fail'].forEach(function(g){ a.gradeCounts[g] += (rd.gradeCounts && rd.gradeCounts[g]) || 0; });
+    });
+  });
+  var list = Object.values(agg);
+  // 순위: 누적당첨금 → 당첨건수 → 적은생성건수
+  list.sort(function(a,b){
+    if (b.totalPrize !== a.totalPrize) return b.totalPrize - a.totalPrize;
+    if (b.winCount !== a.winCount) return b.winCount - a.winCount;
+    return a.generated - b.generated;
+  });
+  list.forEach(function(item,i){ item.rank = i+1; });
+  return { list: list, roundsUsed: rounds.sort(function(a,b){return a-b;}) };
+};
+
+// ── 개별 전략 즉석 다운로드: 회차/순위와 무관하게, 주문 시점에 그 전략 조건으로 새로 추첨 ──
+// 이미 보관된 "다음회차 공표 조합"과는 별개의 요청
+RACE.generateOnDemand = function(strategyNo, count){
+  var strategies = RACE.ensureStrategies();
+  var s = strategies.find(function(x){ return x.no === strategyNo; });
+  if (!s) return [];
+  var range = RACE.getRoundRange();
+  var info = MLL.getLottoInfo();
+  var history = range ? RACE.buildHistoryBefore(range.resultsObj, info.saleRound) : [];
+  var strategyForCount = Object.assign({}, s, { set_count: count });
+  return MLL.raceGenerate(strategyForCount, history);
+};
+
+RACE.downloadComboCSV = function(strategyNo, count){
+  var combos = RACE.generateOnDemand(strategyNo, count);
+  if (!combos.length) { alert('번호 생성에 실패했습니다.'); return; }
+  var strategies = RACE.ensureStrategies();
+  var s = strategies.find(function(x){ return x.no === strategyNo; });
+  var lines = ['번호1,번호2,번호3,번호4,번호5,번호6'];
+  combos.forEach(function(c){ lines.push(c.join(',')); });
+  var csv = '\uFEFF' + lines.join('\n');
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = (s ? s.name.replace(/[^\w가-힣]/g,'_') : ('strategy'+strategyNo)) + '_번호조합_'+count+'개.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+</script>
+<script>
+// =====================================================
+// 100 전략 레이스 - UI 렌더링
+// =====================================================
+
+RACE.fmtMoney = function(n){ return (n||0).toLocaleString()+'원'; };
+RACE.fmtPct = function(n){ return (n||0).toFixed(1)+'%'; };
+
+RACE.ballsHtml = function(nums, bonus){
+  var html = (nums||[]).map(function(n){
+    return '<span class="ball" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+n+'</span>';
+  }).join(' ');
+  if (bonus) {
+    html += ' <span style="color:var(--text-faint);">+</span> <span class="ball" style="background:transparent;border:1.5px solid var(--text-faint);color:var(--text-dim);">'+bonus+'</span>';
+  }
+  return html;
+};
+
+RACE.horseTagHtml = function(s){
+  return s.isRandom
+    ? '<span class="horse-tag rand">무작위</span>'
+    : '<span class="horse-tag cond">조건전략</span>';
+};
+
+// ── 진입점: 페이지 로드 시 상태 확인 후 UI 분기 ──
+RACE.init = function(){
+  var range = RACE.getRoundRange();
+  if (!range) {
+    document.getElementById('emptyWrap').style.display = 'block';
+    document.getElementById('sbTitle').textContent = '당첨결과 데이터가 없습니다';
+    document.getElementById('sbDesc').textContent = "'번호 등록' 메뉴에서 mll_results가 채워지면 시뮬레이션을 실행할 수 있어요.";
+    document.getElementById('btnRunCatchup').disabled = true;
+    return;
+  }
+  RACE.ensureStrategies();
+  RACE.refreshUI();
+};
+
+RACE.refreshUI = function(){
+  var range = RACE.getRoundRange();
+  var meta = RACE.loadMeta();
+  var lastSim = meta.lastSimulatedRound || 0;
+  var pending = range ? range.all.filter(function(r){return r>lastSim;}).length : 0;
+
+  if (!lastSim) {
+    document.getElementById('sbTitle').textContent = '아직 시뮬레이션 전입니다';
+    document.getElementById('sbDesc').textContent = '제'+range.min+'회 ~ 제'+range.max+'회('+range.all.length+'개 회차)를 처음부터 시뮬레이션합니다. 약 4~6분 정도 걸려요.';
+    document.getElementById('tabbar').style.display = 'none';
+    document.getElementById('tabpanel').style.display = 'none';
+  } else {
+    document.getElementById('tabbar').style.display = 'flex';
+    document.getElementById('tabpanel').style.display = 'block';
+    if (pending > 0) {
+      document.getElementById('sbTitle').textContent = '새로 추가된 '+pending+'개 회차가 대기 중입니다';
+      document.getElementById('sbDesc').textContent = '최근 시뮬레이션: 제'+lastSim+'회까지 완료 · 최신 결과: 제'+range.max+'회까지 등록됨';
+    } else {
+      document.getElementById('sbTitle').textContent = '제'+range.max+'회까지 시뮬레이션 완료';
+      document.getElementById('sbDesc').textContent = '매주 토요일 추첨 후 mll_results가 갱신되면, 여기서 "시뮬레이션 실행"을 눌러 한 회차씩 이어서 처리하세요.';
+    }
+    RACE.populateRoundSelectors();
+    RACE.renderOverall();
+    RACE.renderRound();
+    RACE.renderPeriod();
+    RACE.renderNext();
+  }
+};
+
+RACE.switchTab = function(tab){
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab===tab); });
+  document.querySelectorAll('.tabpanel-section').forEach(function(p){ p.classList.toggle('active', p.id==='panel-'+tab); });
+};
+
+RACE.populateRoundSelectors = function(){
+  var raceResults = RACE.loadResults();
+  var rounds = Object.keys(raceResults).map(Number).sort(function(a,b){return b-a;});
+  var roundSel = document.getElementById('roundSel');
+  var fromSel = document.getElementById('periodFromSel');
+  var toSel = document.getElementById('periodToSel');
+  roundSel.innerHTML = rounds.map(function(r){ return '<option value="'+r+'">제'+r+'회</option>'; }).join('');
+  var ascRounds = rounds.slice().sort(function(a,b){return a-b;});
+  fromSel.innerHTML = ascRounds.map(function(r){ return '<option value="'+r+'">제'+r+'회</option>'; }).join('');
+  toSel.innerHTML = ascRounds.map(function(r){ return '<option value="'+r+'">제'+r+'회</option>'; }).join('');
+  toSel.value = ascRounds[ascRounds.length-1];
+};
+
+// ── 전체 누적순위 탭 ──
+RACE.renderOverall = function(){
+  var agg = RACE.aggregate(null, null);
+  var sortKey = document.getElementById('overallSortSel').value;
+  var filterKey = document.getElementById('overallFilterSel').value;
+
+  var list = agg.list.filter(function(x){
+    if (filterKey==='cond') return !x.isRandom;
+    if (filterKey==='rand') return x.isRandom;
+    return true;
+  });
+
+  if (sortKey==='winCount') list.sort(function(a,b){return b.winCount-a.winCount;});
+  else if (sortKey==='winRate') list.sort(function(a,b){ return (b.winCount/(b.generated||1)) - (a.winCount/(a.generated||1)); });
+  else if (sortKey==='name') list.sort(function(a,b){return a.no-b.no;});
+  // 'rank'는 이미 정렬돼 있음(원본 순위 유지)
+
+  // 통계 박스
+  var totalPrize = agg.list.reduce(function(s,x){return s+x.totalPrize;},0);
+  var totalWin = agg.list.reduce(function(s,x){return s+x.winCount;},0);
+  var topHorse = agg.list[0];
+  var roundsCount = agg.roundsUsed.length;
+  document.getElementById('overallStatGrid').innerHTML =
+    RACE.statBox('시뮬레이션 회차수', roundsCount+'회', '') +
+    RACE.statBox('전체 누적 당첨금', RACE.fmtMoney(totalPrize), 'gold') +
+    RACE.statBox('전체 누적 당첨건수', totalWin.toLocaleString()+'건', 'green') +
+    RACE.statBox('1위 말', topHorse ? topHorse.name : '-', 'gold');
+
+  var rows = list.map(function(x){
+    var winRate = x.generated ? (x.winCount/x.generated*100) : 0;
+    var rankCls = x.rank===1 ? 'top1' : '';
+    var rankPill = x.rank<=3 ? '<span class="rank-pill rank-'+x.rank+'">'+x.rank+'</span>' : '<span class="rank-pill rank-etc">'+x.rank+'</span>';
+    return '<tr class="'+rankCls+'">' +
+      '<td>'+rankPill+'</td>' +
+      '<td class="horse-name">'+RACE.horseTagHtml(x)+x.name+'</td>' +
+      '<td class="prize-val font-num">'+RACE.fmtMoney(x.totalPrize)+'</td>' +
+      '<td class="win-val font-num">'+x.winCount.toLocaleString()+'건</td>' +
+      '<td class="font-num">'+RACE.fmtPct(winRate)+'</td>' +
+      '<td class="font-num">'+x.gradeCounts[1]+' / '+x.gradeCounts[2]+' / '+x.gradeCounts[3]+' / '+x.gradeCounts[4]+' / '+x.gradeCounts[5]+'</td>' +
+      '<td class="font-num">'+x.generated.toLocaleString()+'개</td>' +
+      '<td><button class="dl-btn" onclick="RACE.openDetail('+x.no+')">상세보기</button></td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('overallTable').innerHTML =
+    '<thead><tr><th>순위</th><th style="text-align:left;">말 이름</th><th>누적당첨금</th><th>당첨건수</th><th>당첨율</th><th>1/2/3/4/5등</th><th>생성건수</th><th>상세</th></tr></thead>' +
+    '<tbody>'+(rows || '<tr><td colspan="8" style="padding:30px;color:var(--text-faint);">데이터가 없습니다</td></tr>')+'</tbody>';
+};
+
+RACE.statBox = function(label, val, colorCls){
+  return '<div class="stat-box"><div class="label">'+label+'</div><div class="val '+(colorCls||'')+'">'+val+'</div></div>';
+};
+
+// ── 회차별 결과 탭 ──
+RACE.renderRound = function(){
+  var roundSel = document.getElementById('roundSel');
+  var round = parseInt(roundSel.value);
+  if (!round) return;
+  var raceResults = RACE.loadResults();
+  var roundData = raceResults[round];
+  var lottoResults = MLL.loadResults();
+  var winData = lottoResults[round];
+  var strategies = RACE.ensureStrategies();
+
+  document.getElementById('roundDateLabel').textContent = winData ? ('추첨일 '+MLL.getDrawDate(round)) : '';
+
+  if (!roundData) {
+    document.getElementById('roundTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">이 회차는 아직 시뮬레이션되지 않았습니다</td></tr></tbody>';
+    document.getElementById('roundStatGrid').innerHTML = '';
+    return;
+  }
+
+  var list = strategies.map(function(s){
+    var rd = roundData[s.no] || {gradeCounts:{1:0,2:0,3:0,4:0,5:0,fail:0}, winCount:0, totalPrize:0, generated:0};
+    return Object.assign({no:s.no, name:s.name, isRandom:s.isRandom}, rd);
+  });
+  list.sort(function(a,b){
+    if (b.totalPrize !== a.totalPrize) return b.totalPrize - a.totalPrize;
+    if (b.winCount !== a.winCount) return b.winCount - a.winCount;
+    return a.generated - b.generated;
+  });
+  list.forEach(function(x,i){ x.rank = i+1; });
+
+  var totalPrize = list.reduce(function(s,x){return s+x.totalPrize;},0);
+  var totalWin = list.reduce(function(s,x){return s+x.winCount;},0);
+  var best1 = list.filter(function(x){return x.gradeCounts[1]>0;}).length;
+
+  document.getElementById('roundStatGrid').innerHTML =
+    RACE.statBox('이 회차 당첨번호', winData ? RACE.ballsHtml(winData.nums, winData.bonus) : '-', '') +
+    RACE.statBox('100필 총 당첨금', RACE.fmtMoney(totalPrize), 'gold') +
+    RACE.statBox('100필 총 당첨건수', totalWin.toLocaleString()+'건', 'green') +
+    RACE.statBox('이 회차 1위 말', list[0] ? list[0].name : '-', 'gold');
+
+  var rows = list.map(function(x){
+    var winRate = x.generated ? (x.winCount/x.generated*100) : 0;
+    var rankCls = x.rank===1 ? 'top1' : '';
+    var rankPill = x.rank<=3 ? '<span class="rank-pill rank-'+x.rank+'">'+x.rank+'</span>' : '<span class="rank-pill rank-etc">'+x.rank+'</span>';
+    return '<tr class="'+rankCls+'">' +
+      '<td>'+rankPill+'</td>' +
+      '<td class="horse-name">'+RACE.horseTagHtml(x)+x.name+'</td>' +
+      '<td class="prize-val font-num">'+RACE.fmtMoney(x.totalPrize)+'</td>' +
+      '<td class="win-val font-num">'+x.winCount+'건</td>' +
+      '<td class="font-num">'+RACE.fmtPct(winRate)+'</td>' +
+      '<td class="font-num">'+x.gradeCounts[1]+' / '+x.gradeCounts[2]+' / '+x.gradeCounts[3]+' / '+x.gradeCounts[4]+' / '+x.gradeCounts[5]+'</td>' +
+      '<td class="font-num">'+x.generated+'개</td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('roundTable').innerHTML =
+    '<thead><tr><th>순위</th><th style="text-align:left;">말 이름</th><th>당첨금</th><th>당첨건수</th><th>당첨율</th><th>1/2/3/4/5등</th><th>생성건수</th></tr></thead>' +
+    '<tbody>'+(rows || '<tr><td colspan="7" style="padding:30px;color:var(--text-faint);">데이터가 없습니다</td></tr>')+'</tbody>';
+};
+
+// ── 기간별 통계 탭 ──
+RACE.renderPeriod = function(){
+  var fromSel = document.getElementById('periodFromSel');
+  var toSel = document.getElementById('periodToSel');
+  var from = parseInt(fromSel.value), to = parseInt(toSel.value);
+  if (!from || !to) return;
+  if (from > to) { var t=from; from=to; to=t; }
+
+  var agg = RACE.aggregate(from, to);
+  var totalPrize = agg.list.reduce(function(s,x){return s+x.totalPrize;},0);
+  var totalWin = agg.list.reduce(function(s,x){return s+x.winCount;},0);
+
+  document.getElementById('periodStatGrid').innerHTML =
+    RACE.statBox('대상 회차수', agg.roundsUsed.length+'회 (제'+from+'~'+to+'회)', '') +
+    RACE.statBox('기간 누적 당첨금', RACE.fmtMoney(totalPrize), 'gold') +
+    RACE.statBox('기간 누적 당첨건수', totalWin.toLocaleString()+'건', 'green') +
+    RACE.statBox('기간 1위 말', agg.list[0] ? agg.list[0].name : '-', 'gold');
+
+  var rows = agg.list.map(function(x){
+    var winRate = x.generated ? (x.winCount/x.generated*100) : 0;
+    var rankCls = x.rank===1 ? 'top1' : '';
+    var rankPill = x.rank<=3 ? '<span class="rank-pill rank-'+x.rank+'">'+x.rank+'</span>' : '<span class="rank-pill rank-etc">'+x.rank+'</span>';
+    return '<tr class="'+rankCls+'">' +
+      '<td>'+rankPill+'</td>' +
+      '<td class="horse-name">'+RACE.horseTagHtml(x)+x.name+'</td>' +
+      '<td class="prize-val font-num">'+RACE.fmtMoney(x.totalPrize)+'</td>' +
+      '<td class="win-val font-num">'+x.winCount.toLocaleString()+'건</td>' +
+      '<td class="font-num">'+RACE.fmtPct(winRate)+'</td>' +
+      '<td class="font-num">'+x.gradeCounts[1]+' / '+x.gradeCounts[2]+' / '+x.gradeCounts[3]+' / '+x.gradeCounts[4]+' / '+x.gradeCounts[5]+'</td>' +
+      '<td class="font-num">'+x.generated.toLocaleString()+'개</td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('periodTable').innerHTML =
+    '<thead><tr><th>순위</th><th style="text-align:left;">말 이름</th><th>누적당첨금</th><th>당첨건수</th><th>당첨율</th><th>1/2/3/4/5등</th><th>생성건수</th></tr></thead>' +
+    '<tbody>'+(rows || '<tr><td colspan="7" style="padding:30px;color:var(--text-faint);">데이터가 없습니다</td></tr>')+'</tbody>';
+};
+
+// ── 다음회차 예상번호 탭 ──
+RACE.renderNext = function(){
+  var nextData = RACE.loadNextNumbers();
+  var strategies = RACE.ensureStrategies();
+  if (!nextData) {
+    document.getElementById('nextRoundLabel').textContent = '아직 생성되지 않았습니다';
+    document.getElementById('nextTable').innerHTML = '';
+    return;
+  }
+  document.getElementById('nextRoundLabel').textContent = '제'+nextData.round+'회 추첨 예정 · 100필 추천 조합 (각 100개씩 보관 중)';
+
+  var rows = strategies.map(function(s){
+    var combos = nextData[s.no] || [];
+    return '<tr>' +
+      '<td class="horse-name">'+RACE.horseTagHtml(s)+s.name+'</td>' +
+      '<td class="font-num">'+combos.length+'개 보관</td>' +
+      '<td><button class="dl-btn" onclick="RACE.openDownloadPanel('+s.no+')">📥 원하는 개수 다운로드</button></td>' +
+      '<td><button class="dl-btn" onclick="RACE.openDetail('+s.no+')">상세보기</button></td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('nextTable').innerHTML =
+    '<thead><tr><th style="text-align:left;">말 이름</th><th>보관된 공표 조합</th><th>즉석 다운로드</th><th>상세</th></tr></thead>' +
+    '<tbody>'+rows+'</tbody>';
+};
+
+// ── 전략 상세 모달 ──
+RACE.openDetail = function(strategyNo){
+  var strategies = RACE.ensureStrategies();
+  var s = strategies.find(function(x){return x.no===strategyNo;});
+  if (!s) return;
+  var agg = RACE.aggregate(null, null);
+  var item = agg.list.find(function(x){return x.no===strategyNo;});
+
+  var condHtml = s.isRandom ? '<div class="modal-row"><span class="k">조건</span><span class="v">조건 없음 (완전 무작위)</span></div>' :
+    [
+      ['홀짝비율', s.odd_even||'무관'],
+      ['연속제한', s.consecutive_limit||'-'],
+      ['번호합', (s.sum_min||'-')+' ~ '+(s.sum_max||'-')],
+      ['상위빈도범위', s.top_range||'-'],
+      ['상위번호사용', s.top_use||'-'],
+      ['최근분석회차', (s.recent_rounds===0||!s.recent_rounds) ? '전체기간' : s.recent_rounds+'회'],
+      ['보너스포함', s.bonus_include==='Y' ? 'Y' : 'N']
+    ].map(function(r){ return '<div class="modal-row"><span class="k">'+r[0]+'</span><span class="v">'+r[1]+'</span></div>'; }).join('');
+
+  var box = document.getElementById('detailModalBox');
+  box.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+      '<h3>🐎 '+s.name+' '+RACE.horseTagHtml(s)+'</h3>' +
+      '<button onclick="RACE.closeDetail()" style="background:none;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;line-height:1;padding:0 0 0 12px;">✕</button>' +
+    '</div>' +
+    (item ? (
+      '<div class="modal-row"><span class="k">전체 순위</span><span class="v">'+item.rank+'위 / 100필</span></div>' +
+      '<div class="modal-row"><span class="k">누적 당첨금</span><span class="v" style="color:var(--gold);">'+RACE.fmtMoney(item.totalPrize)+'</span></div>' +
+      '<div class="modal-row"><span class="k">누적 당첨건수</span><span class="v">'+item.winCount.toLocaleString()+'건</span></div>' +
+      '<div class="modal-row"><span class="k">1/2/3/4/5등</span><span class="v">'+item.gradeCounts[1]+' / '+item.gradeCounts[2]+' / '+item.gradeCounts[3]+' / '+item.gradeCounts[4]+' / '+item.gradeCounts[5]+'</span></div>' +
+      '<div class="modal-row"><span class="k">참여 회차수</span><span class="v">'+item.roundsPlayed+'회</span></div>'
+    ) : '<div class="modal-row"><span class="k">상태</span><span class="v">시뮬레이션 데이터 없음</span></div>') +
+    '<div style="margin-top:10px;font-size:11px;color:var(--text-faint);font-weight:600;">전략 조건</div>' +
+    condHtml +
+    '<div class="dl-panel">' +
+      '<div class="dl-panel-row">' +
+        '<span style="font-size:11.5px;color:var(--text-dim);">원하는 개수</span>' +
+        '<input type="number" id="dlCount" value="5" min="1" max="100">' +
+        '<button class="btn btn-gold" style="padding:8px 14px;" onclick="RACE.previewOnDemand('+s.no+')">번호 추첨</button>' +
+        '<button class="btn btn-outline" style="padding:8px 14px;" onclick="RACE.downloadFromModal('+s.no+')">📥 CSV 다운로드</button>' +
+      '</div>' +
+      '<div style="font-size:10px;color:var(--text-faint);margin-top:8px;">※ 이 말이 갖고 있는 공표된 조합과는 별개로, 지금 이 조건으로 즉석에서 새로 추첨합니다.</div>' +
+      '<div class="combo-preview" id="dlPreview"></div>' +
+    '</div>';
+
+  document.getElementById('detailModal').classList.add('show');
+};
+
+RACE.closeDetail = function(){ document.getElementById('detailModal').classList.remove('show'); };
+
+RACE.previewOnDemand = function(strategyNo){
+  var count = Math.max(1, Math.min(100, parseInt(document.getElementById('dlCount').value)||5));
+  var combos = RACE.generateOnDemand(strategyNo, count);
+  var html = combos.map(function(c,i){
+    return '<div class="combo-row"><span class="combo-idx">'+(i+1)+'</span>'+RACE.ballsHtml(c, null)+'</div>';
+  }).join('');
+  document.getElementById('dlPreview').innerHTML = html || '<span style="color:var(--text-faint);">생성 실패</span>';
+};
+
+RACE.downloadFromModal = function(strategyNo){
+  var count = Math.max(1, Math.min(100, parseInt(document.getElementById('dlCount').value)||5));
+  RACE.downloadComboCSV(strategyNo, count);
+};
+
+RACE.openDownloadPanel = function(strategyNo){ RACE.openDetail(strategyNo); };
+
+document.addEventListener('click', function(e){
+  if (e.target.id === 'detailModal') RACE.closeDetail();
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') RACE.closeDetail();
+});
+
+document.addEventListener('DOMContentLoaded', function(){ RACE.init(); });
+</script>
 
 </body>
 </html>
