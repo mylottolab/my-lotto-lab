@@ -92,7 +92,25 @@ a{color:inherit;}
 .method-panel{display:none;}
 .method-panel.active{display:block;}
 
-/* ── 번호 공 패드 (기존 lotto_input_page_v4.html과 동일한 UX) ── */
+/* ── 번호등록 2단 레이아웃 (좌:입력방식, 우:실시간 등록현황) ── */
+.enter-layout{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start;}
+@media (max-width:980px){.enter-layout{grid-template-columns:1fr;}}
+.enter-left{min-width:0;}
+.enter-right{min-width:0;}
+.live-reg-card{padding:16px;position:sticky;top:16px;}
+@media (max-width:980px){.live-reg-card{position:static;}}
+.live-reg-table-wrap{max-height:560px;overflow-y:auto;border-radius:10px;border:1px solid var(--border-soft);}
+table.live-reg-table{width:100%;border-collapse:collapse;}
+.live-reg-table thead th{background:var(--surface-2);color:var(--text-dim);font-size:10px;font-weight:600;padding:8px 8px;text-align:center;position:sticky;top:0;border-bottom:1px solid var(--border-soft);}
+.live-reg-table tbody td{padding:7px 8px;font-size:11px;text-align:center;border-bottom:1px solid var(--border-soft);}
+.live-reg-table tbody tr:hover{background:var(--surface-2);}
+.live-ball-row{display:flex;gap:3px;justify-content:center;flex-wrap:wrap;}
+.live-ball{width:21px;height:21px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;flex-shrink:0;}
+.live-type-tag{font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.live-type-tag.t-자동{background:rgba(63,179,127,.15);color:var(--green);}
+.live-type-tag.t-반자동{background:rgba(224,179,65,.15);color:var(--gold);}
+.live-type-tag.t-수동{background:rgba(91,110,232,.15);color:#9aa8f5;}
+.live-empty{padding:26px 10px;text-align:center;color:var(--text-faint);font-size:11.5px;line-height:1.7;}
 .sr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
 .sc{background:var(--indigo);color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;}
 .sd{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text-faint);min-height:34px;margin-bottom:12px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
@@ -250,6 +268,8 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
 
   <!-- 패널1: 번호 등록 -->
   <div class="tabpanel-section active" id="panel-enter">
+    <div class="enter-layout">
+    <div class="enter-left">
     <div class="method-grid">
       <div class="method-card active" data-method="manual" onclick="MOCKUI.switchMethod('manual')">
         <div class="ico">🔢</div><div class="lbl">직접입력</div><div class="badge">추천</div>
@@ -382,6 +402,21 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
         </div>
         <div class="result-box" id="qrCamResultBox"></div>
       </div>
+    </div>
+    </div>
+
+    <!-- 우측: 입력방식과 무관하게 항상 보이는 내 등록현황 실시간 패널 -->
+    <div class="enter-right">
+      <div class="card live-reg-card">
+        <div class="section-title" style="margin-bottom:10px;">📝 등록번호 <span style="font-size:10.5px;color:var(--text-faint);font-weight:400;" id="liveRegSummary"></span></div>
+        <div class="live-reg-table-wrap">
+          <table class="live-reg-table" id="liveRegTable">
+            <thead><tr><th>등록번호</th><th>구매형태</th></tr></thead>
+            <tbody id="liveRegBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     </div>
   </div>
 
@@ -1434,7 +1469,39 @@ MOCKUI.gradeLabel = function(grade){
   return '<span class="grade-tag g'+grade+'">'+grade+'등</span>';
 };
 
+MOCKUI.renderLiveReg = function(){
+  var tbody = document.getElementById('liveRegBody');
+  var summary = document.getElementById('liveRegSummary');
+  if (!tbody) return; // 이 패널이 없는 화면일 수도 있으니 안전 체크
+  var nickObj = MOCK.getNickname();
+  if (!nickObj) {
+    tbody.innerHTML = '<tr><td colspan="2"><div class="live-empty">닉네임을 설정하면<br>등록한 번호가 여기 쌓여요.</div></td></tr>';
+    if (summary) summary.textContent = '';
+    return;
+  }
+  var entries = MOCK.loadEntries().filter(function(e){ return e.nickname===nickObj.nickname; })
+    .sort(function(a,b){ return b.createdAt-a.createdAt; });
+
+  if (summary) summary.textContent = '· 총 '+entries.length+'개 ('+(entries.length*MOCK.PRICE_PER_GAME).toLocaleString()+'원)';
+
+  if (!entries.length) {
+    tbody.innerHTML = '<tr><td colspan="2"><div class="live-empty">아직 등록한 번호가 없어요.<br>왼쪽에서 번호를 등록해보세요.</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = entries.map(function(e){
+    var ballsHtml = '<div class="live-ball-row">' + e.nums.map(function(n){
+      return '<span class="live-ball" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+n+'</span>';
+    }).join('') + '</div>';
+    return '<tr>' +
+      '<td>'+ballsHtml+'</td>' +
+      '<td><span class="live-type-tag t-'+e.type+'">'+e.type+'</span></td>' +
+      '</tr>';
+  }).join('');
+};
+
 MOCKUI.renderMy = function(){
+  MOCKUI.renderLiveReg();
   var nickObj = MOCK.getNickname();
   var nick = nickObj ? nickObj.nickname : null;
   document.getElementById('myNickLabel').textContent = nick || '-';
