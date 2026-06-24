@@ -729,6 +729,7 @@ MLL.generateNumbers = function(strategy, lotto_history) {
   var topRange      = parseInt(strategy.top_range) || 0;
   var topUse        = strategy.top_use !== '' && strategy.top_use !== undefined ? parseInt(strategy.top_use) : null;
   var lastWeekMode  = strategy.last_week_mode || '무관';
+  var bonusInclude  = (strategy.bonus_include || 'N').toUpperCase() === 'Y';
 
   // 기본 풀
   var pool = MLL._buildPool(rangeStart, rangeEnd);
@@ -736,7 +737,7 @@ MLL.generateNumbers = function(strategy, lotto_history) {
   var topNums = [];
   if (topRange > 0 && lotto_history && lotto_history.length > 0) {
     var recent = parseInt(strategy.recent_rounds) || lotto_history.length;
-    topNums = MLL._getTopFrequency(lotto_history, recent, topRange);
+    topNums = MLL._getTopFrequency(lotto_history, recent, topRange, bonusInclude);
   }
   // 지난주 당첨번호
   var lastWinNums = [];
@@ -824,10 +825,11 @@ MLL._buildPool = function(start, end) {
   return pool.length>=6 ? pool : Array.from({length:45},function(_,i){return i+1;});
 };
 
-MLL._getTopFrequency = function(history, recent, topN) {
+MLL._getTopFrequency = function(history, recent, topN, bonusInclude) {
   var freq = {};
   history.slice(0, recent).forEach(function(h){
     (h.nums||[]).forEach(function(n){ freq[n]=(freq[n]||0)+1; });
+    if (bonusInclude && h.bonus) { freq[h.bonus]=(freq[h.bonus]||0)+1; }
   });
   return Object.keys(freq).map(function(n){ return [parseInt(n), freq[n]]; })
     .sort(function(a,b){ return b[1]-a[1]; }).slice(0, topN).map(function(x){ return x[0]; });
@@ -1184,6 +1186,7 @@ function renderCondSummary(){
     ['상위번호사용', s.top_use||'-'],
     ['최근분석회차', s.recent_rounds||'-'],
     ['지난주기준', s.last_week_mode||'무관'],
+    ['보너스포함', (s.bonus_include||'N')==='Y' ? 'Y (보너스 포함)' : 'N (본번호만)'],
   ];
   document.getElementById('condSummary').innerHTML =
     '<div class="cond-grid">'+
@@ -1258,7 +1261,7 @@ function doGenerate(round){
   // lotto_results에서 당첨이력 가져오기
   var results = MLL.loadResults();
   var history = Object.keys(results).map(Number).sort(function(a,b){return b-a;}).map(function(r){
-    return {round:r, nums:results[r].nums||[]};
+    return {round:r, nums:results[r].nums||[], bonus:results[r].bonus||null};
   });
 
   setTimeout(function(){
@@ -1473,9 +1476,10 @@ function downloadPDF(){
 
   var results = MLL.loadResults();
   var history = Object.keys(results).map(Number).sort(function(a,b){return b-a;}).map(function(round){
-    return {round:round, nums:results[round].nums||[]};
+    return {round:round, nums:results[round].nums||[], bonus:results[round].bonus||null};
   });
   var recentN = parseInt(r.strategy.recent_rounds)||history.length;
+  var bonusIncludePdf = (r.strategy.bonus_include||'N').toUpperCase()==='Y';
   var topData = r.result.top_data||[];
 
   // Top20 빈도표 HTML
@@ -1486,7 +1490,10 @@ function downloadPDF(){
       topRows+='<td style="padding:3px 8px;font-size:10px;"><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:'+MLL.BC(topData[j])+';color:'+MLL.TC(topData[j])+';text-align:center;line-height:18px;font-size:8px;font-weight:700;">'+topData[j]+'</span></td>';
       // 빈도수 계산
       var freq=0;
-      history.slice(0,recentN).forEach(function(h){if(h.nums.indexOf(topData[j])>=0)freq++;});
+      history.slice(0,recentN).forEach(function(h){
+        if(h.nums.indexOf(topData[j])>=0)freq++;
+        if(bonusIncludePdf && h.bonus===topData[j])freq++;
+      });
       topRows+='<td style="padding:3px 8px;font-size:10px;color:#555;">('+freq+'회)</td>';
     }
     topRows+='</tr>';
@@ -1577,10 +1584,11 @@ function downloadPDF(){
     '<tr><th>시작번호</th><td>'+(r.strategy.range_start||'-')+'</td><th>번호합최대</th><td>'+(r.strategy.sum_max||'-')+'</td></tr>'+
     '<tr><th>최근분석회차</th><td>'+(r.strategy.recent_rounds||'-')+'회</td><th>지난주기준</th><td>'+(r.strategy.last_week_mode||'무관')+'</td></tr>'+
     '<tr><th>반복출력방식</th><td>'+(r.strategy.repeat_mode||'AABBCC')+'</td><th>무작위포함</th><td>'+(r.strategy.random_mix||'N')+'</td></tr>'+
-    '<tr><th>총생성개수</th><td><b>'+r.result.generated+'개</b></td><th>생성일시</th><td>'+dateStr+'</td></tr>'+
+    '<tr><th>보너스포함</th><td>'+((r.strategy.bonus_include||'N')==='Y'?'Y':'N')+'</td><th>총생성개수</th><td><b>'+r.result.generated+'개</b></td></tr>'+
+    '<tr><th>생성일시</th><td colspan="3">'+dateStr+'</td></tr>'+
     '</table>'+
 
-    '<div class="section-title">출현빈도 상세현황 (Top'+(r.strategy.top_range||topData.length)+' / 최근 '+(r.strategy.recent_rounds||history.length)+'회 기준)</div>'+
+    '<div class="section-title">출현빈도 상세현황 (Top'+(r.strategy.top_range||topData.length)+' / 최근 '+(r.strategy.recent_rounds||history.length)+'회 기준'+(bonusIncludePdf?' · 보너스포함':'')+')</div>'+
     '<table><tbody>'+topRows+'</tbody></table>'+
 
 

@@ -583,10 +583,11 @@ MLL._checkSum = function(nums, min, max) {
   return true;
 };
 
-MLL._getTopFrequency = function(history, recent, topN) {
+MLL._getTopFrequency = function(history, recent, topN, bonusInclude) {
   var freq = {};
   history.slice(0, recent).forEach(function(h) {
     (h.nums||[]).forEach(function(n){ freq[n] = (freq[n]||0)+1; });
+    if (bonusInclude && h.bonus) { freq[h.bonus] = (freq[h.bonus]||0)+1; }
   });
   return Object.keys(freq).map(function(n){ return [parseInt(n), freq[n]]; })
     .sort(function(a,b){ return b[1]-a[1]; }).slice(0, topN).map(function(x){ return x[0]; });
@@ -594,8 +595,8 @@ MLL._getTopFrequency = function(history, recent, topN) {
 
 // condition 객체 필드: name, odd_even, consecutive_limit, sum_min, sum_max,
 //   range_start, range_end, include_numbers, exclude_numbers,
-//   top_range, top_use, recent_rounds, last_week_mode
-// history: MLL.loadResults()를 최근회차순으로 정렬한 [{round,nums}] 배열
+//   top_range, top_use, recent_rounds, last_week_mode, bonus_include
+// history: MLL.loadResults()를 최근회차순으로 정렬한 [{round,nums,bonus}] 배열
 MLL.matchesCondition = function(nums, condition, history) {
   var oddEven     = (condition.odd_even || '').trim();
   var consLimit   = parseInt(condition.consecutive_limit) || 0;
@@ -608,6 +609,7 @@ MLL.matchesCondition = function(nums, condition, history) {
   var topRange    = parseInt(condition.top_range) || 0;
   var topUse      = (condition.top_use !== '' && condition.top_use !== undefined && condition.top_use !== null) ? parseInt(condition.top_use) : null;
   var lastWeekMode= condition.last_week_mode || '무관';
+  var bonusInclude= (condition.bonus_include || 'N').toUpperCase() === 'Y';
 
   // 홀짝비율
   if (oddEven && oddEven !== '무관') {
@@ -646,7 +648,7 @@ MLL.matchesCondition = function(nums, condition, history) {
   // 상위빈도 조건 — 조합 내 상위빈도번호 개수가 정확히 topUse여야 함
   if (topRange > 0 && topUse !== null && history && history.length) {
     var recent = parseInt(condition.recent_rounds) || history.length;
-    var topNums = MLL._getTopFrequency(history, recent, topRange);
+    var topNums = MLL._getTopFrequency(history, recent, topRange, bonusInclude);
     var topCnt = nums.filter(function(n){ return topNums.indexOf(n) >= 0; }).length;
     if (topCnt !== topUse) return false;
   }
@@ -1291,7 +1293,8 @@ RS.CONDITION_FIELDS = [
   { id:'c-top-range',     key:'top_range' },
   { id:'c-top-use',       key:'top_use' },
   { id:'c-recent-rounds', key:'recent_rounds' },
-  { id:'c-last-week',     key:'last_week_mode' }
+  { id:'c-last-week',     key:'last_week_mode' },
+  { id:'c-bonus-include', key:'bonus_include' }
 ];
 
 RS.renderByCondition = function(container) {
@@ -1340,6 +1343,11 @@ RS.renderByCondition = function(container) {
               '<option value="적은순">적은순 (겹침 적은 것 우선)</option>' +
               '<option value="많은순">많은순 (겹침 많은 것 우선)</option>' +
             '</select></div>' +
+          '<div><div class="cond-label">보너스포함 <span class="hint">빈도분석에 보너스번호 포함</span></div>' +
+            '<select class="cond-select" id="c-bonus-include">' +
+              '<option value="N">N (본번호 6개만 분석)</option>' +
+              '<option value="Y">Y (본번호+보너스 7개 분석)</option>' +
+            '</select></div>' +
         '</div>' +
 
         '<button class="cond-searchbtn" onclick="RS.runConditionSearch()">🔍 찾기 Click!</button>' +
@@ -1386,7 +1394,7 @@ RS.runConditionSearch = function() {
   var entries = MLL.loadEntries();
   var results = MLL.loadResults();
   var history = Object.keys(results).map(Number).sort(function(a,b){ return b-a; }).map(function(r){
-    return { round:r, nums: results[r].nums || [] };
+    return { round:r, nums: results[r].nums || [], bonus: results[r].bonus || null };
   });
 
   var matched = MLL.searchEntriesByCondition(entries, cond, history);
