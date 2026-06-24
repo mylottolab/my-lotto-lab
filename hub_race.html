@@ -39,6 +39,15 @@ MLL.loadResults = function() {
 
 MLL.BC = function(n) { return n<=10?'#e0b341':n<=20?'#5b6ee8':n<=30?'#d4537e':n<=40?'#8b91ab':'#3fb37f'; };
 MLL.TC = function(n) { return n<=10?'#1a1404':'#fff'; };
+
+MLL.ADMIN_PW_KEY = 'mll_admin_auth';
+MLL.ADMIN_PW = 'lotto2024!';
+MLL.checkAdmin = function() { return sessionStorage.getItem(MLL.ADMIN_PW_KEY) === 'ok'; };
+MLL.loginAdmin = function(pw) {
+  if (pw === MLL.ADMIN_PW) { sessionStorage.setItem(MLL.ADMIN_PW_KEY, 'ok'); return true; }
+  return false;
+};
+MLL.logoutAdmin = function() { sessionStorage.removeItem(MLL.ADMIN_PW_KEY); };
 </script>
 <script>
 // =====================================================
@@ -567,6 +576,7 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
     <div class="page-sub" id="pageSubLine">1회부터 직전 회차까지, 매 회차 직전 데이터만으로 100개 전략이 번호를 뽑고 실제 결과로 채점합니다.</div>
   </div>
   <div class="head-actions">
+    <button class="btn btn-outline" id="btnAdminToggle" onclick="RACE.openAdminLogin()">🛠 관리자</button>
     <button class="btn btn-outline" onclick="RACE.resetAll()">⟲ 초기화</button>
     <button class="btn btn-gold" id="btnRunCatchup" onclick="RACE.runCatchup()">▶ 시뮬레이션 실행</button>
     <button class="btn btn-outline" id="btnStopCatchup" onclick="RACE.stopCatchup()" style="display:none;border-color:var(--red);color:var(--red);">⏹ 중단</button>
@@ -671,10 +681,47 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
   <div class="modal-box" id="detailModalBox"></div>
 </div>
 
+<!-- 관리자 로그인 모달 -->
+<div class="modal-overlay" id="adminLoginModal">
+  <div class="modal-box" style="max-width:340px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <h3>🛠 관리자 인증</h3>
+      <button onclick="RACE.closeAdminLogin()" style="background:none;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <p style="font-size:11.5px;color:var(--text-dim);margin-bottom:14px;">100필의 조건식을 편집하려면 관리자 비밀번호가 필요합니다.</p>
+    <input type="password" id="adminPwInput" placeholder="관리자 비밀번호" style="width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-size:13px;outline:none;margin-bottom:10px;" onkeydown="if(event.key==='Enter')RACE.submitAdminLogin();">
+    <div id="adminLoginMsg" style="font-size:11px;color:var(--red);margin-bottom:10px;min-height:14px;"></div>
+    <button class="btn btn-gold" style="width:100%;" onclick="RACE.submitAdminLogin()">로그인</button>
+  </div>
+</div>
+
+<!-- 관리자 조건판집 모달 -->
+<div class="modal-overlay" id="adminEditModal">
+  <div class="modal-box" style="max-width:880px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+      <h3>🛠 100필 조건식 관리</h3>
+      <div>
+        <button class="btn btn-outline" style="padding:6px 12px;font-size:11px;margin-right:6px;" onclick="RACE.logoutAdminMode()">로그아웃</button>
+        <button onclick="RACE.closeAdminEdit()" style="background:none;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;line-height:1;">✕</button>
+      </div>
+    </div>
+    <p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">조건을 수정하고 저장하면 <b style="color:var(--red);">기존 시뮬레이션 결과(순위·통계·공표 조합)가 전부 초기화</b>되고, 새 조건으로 재시뮬레이션이 필요합니다.</p>
+    <div class="filter-row">
+      <span class="filter-label">번호</span>
+      <select class="filter-select" id="adminEditSelect" onchange="RACE.loadEditForm()"></select>
+      <span class="filter-label" id="adminEditTag"></span>
+    </div>
+    <div id="adminEditForm"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn btn-gold" onclick="RACE.saveEditedStrategy()">💾 이 말 조건 저장</button>
+      <button class="btn btn-outline" onclick="RACE.exportStrategiesJSON()">📤 전체 조건 내보내기(JSON)</button>
+      <button class="btn btn-outline" style="border-color:var(--red);color:var(--red);" onclick="RACE.resetStrategiesToSeed()">⟲ 원본(엑셀) 조건으로 복원</button>
+    </div>
+    <div id="adminEditMsg" style="font-size:11.5px;margin-top:10px;"></div>
+  </div>
+</div>
+
 <script>
-// =====================================================
-// 100 전략 레이스 - 메인 컨트롤러
-// =====================================================
 // =====================================================
 // 100 전략 레이스 - 메인 컨트롤러
 // =====================================================
@@ -728,12 +775,169 @@ RACE.loadNextNumbers = function(){
 };
 RACE.saveNextNumbers = function(obj){ localStorage.setItem(RACE.NEXTNUMS_KEY, JSON.stringify(obj)); };
 
-RACE.resetAll = function(){
-  if (!confirm('100 전략 레이스의 모든 시뮬레이션 데이터(순위·통계·예상번호)를 초기화할까요?\n전략 정의(100필 목록)는 유지됩니다.')) return;
+RACE.clearSimulationData = function(){
   localStorage.removeItem(RACE.RESULTS_KEY);
   localStorage.removeItem(RACE.META_KEY);
   localStorage.removeItem(RACE.NEXTNUMS_KEY);
+};
+
+RACE.resetAll = function(){
+  if (!confirm('100 전략 레이스의 모든 시뮬레이션 데이터(순위·통계·예상번호)를 초기화할까요?\n전략 정의(100필 목록)는 유지됩니다.')) return;
+  RACE.clearSimulationData();
   location.reload();
+};
+
+// =====================================================
+// ── 관리자: 조건식 편집 ──
+// =====================================================
+RACE.openAdminLogin = function(){
+  if (MLL.checkAdmin()) { RACE.openAdminEdit(); return; }
+  document.getElementById('adminPwInput').value = '';
+  document.getElementById('adminLoginMsg').textContent = '';
+  document.getElementById('adminLoginModal').classList.add('show');
+  setTimeout(function(){ var el=document.getElementById('adminPwInput'); if(el) el.focus(); }, 50);
+};
+RACE.closeAdminLogin = function(){ document.getElementById('adminLoginModal').classList.remove('show'); };
+
+RACE.submitAdminLogin = function(){
+  var pw = document.getElementById('adminPwInput').value;
+  if (MLL.loginAdmin(pw)) {
+    RACE.closeAdminLogin();
+    RACE.openAdminEdit();
+  } else {
+    document.getElementById('adminLoginMsg').textContent = '비밀번호가 올바르지 않습니다.';
+  }
+};
+
+RACE.logoutAdminMode = function(){
+  MLL.logoutAdmin();
+  document.getElementById('adminEditModal').classList.remove('show');
+};
+
+RACE.openAdminEdit = function(){
+  var strategies = RACE.ensureStrategies();
+  var sel = document.getElementById('adminEditSelect');
+  sel.innerHTML = strategies.map(function(s){
+    return '<option value="'+s.no+'">'+s.name+(s.isRandom?' (무작위)':'')+'</option>';
+  }).join('');
+  document.getElementById('adminEditModal').classList.add('show');
+  RACE.loadEditForm();
+};
+RACE.closeAdminEdit = function(){ document.getElementById('adminEditModal').classList.remove('show'); };
+
+RACE.EDIT_FIELDS = [
+  {key:'odd_even', label:'홀짝비율 (홀:짝, 예 3:3, 빈칸=무관)', type:'text'},
+  {key:'consecutive_limit', label:'연속제한 (최대 연속개수, 빈칸=제한없음)', type:'number'},
+  {key:'sum_min', label:'번호합 최소', type:'number'},
+  {key:'sum_max', label:'번호합 최대', type:'number'},
+  {key:'top_range', label:'상위빈도범위 (최근 N개 중 상위 M개)', type:'number'},
+  {key:'top_use', label:'상위번호사용 (조합당 포함 개수)', type:'number'},
+  {key:'recent_rounds', label:'최근분석회차 (0=전체기간)', type:'number'},
+  {key:'bonus_include', label:'보너스포함 (Y/N)', type:'select', options:['N','Y']},
+  {key:'set_count', label:'생성조합수', type:'number'}
+];
+
+RACE.loadEditForm = function(){
+  var strategies = RACE.ensureStrategies();
+  var no = parseInt(document.getElementById('adminEditSelect').value);
+  var s = strategies.find(function(x){return x.no===no;});
+  if (!s) return;
+  document.getElementById('adminEditTag').innerHTML = RACE.horseTagHtml(s);
+
+  if (s.isRandom) {
+    document.getElementById('adminEditForm').innerHTML =
+      '<div style="font-size:12px;color:var(--text-dim);padding:16px;background:var(--surface-2);border-radius:10px;margin-top:10px;">'+
+      '이 말(69~100번)은 조건 없이 항상 완전 무작위로 추첨하도록 설계되어 있습니다.<br>'+
+      '생성조합수만 조정할 수 있습니다.</div>'+
+      '<div class="form-row" style="margin-top:10px;display:flex;align-items:center;gap:8px;">'+
+      '<span style="font-size:11.5px;color:var(--text-dim);min-width:140px;">생성조합수</span>'+
+      '<input class="filter-input" id="edit_set_count" type="number" value="'+(s.set_count||100)+'" style="flex:1;">'+
+      '</div>';
+    return;
+  }
+
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-top:10px;">';
+  RACE.EDIT_FIELDS.forEach(function(f){
+    var val = s[f.key];
+    val = (val===null || val===undefined) ? '' : val;
+    html += '<div><div style="font-size:10.5px;color:var(--text-faint);margin-bottom:4px;">'+f.label+'</div>';
+    if (f.type === 'select') {
+      html += '<select class="filter-select" id="edit_'+f.key+'" style="width:100%;">' +
+        f.options.map(function(o){ return '<option value="'+o+'"'+(String(val)===o?' selected':'')+'>'+o+'</option>'; }).join('') +
+        '</select>';
+    } else {
+      html += '<input class="filter-input" id="edit_'+f.key+'" type="'+(f.type==='number'?'text':'text')+'" value="'+val+'" style="width:100%;">';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('adminEditForm').innerHTML = html;
+};
+
+RACE.saveEditedStrategy = function(){
+  if (!MLL.checkAdmin()) { alert('관리자 인증이 필요합니다.'); return; }
+  var strategies = RACE.ensureStrategies();
+  var no = parseInt(document.getElementById('adminEditSelect').value);
+  var idx = strategies.findIndex(function(x){return x.no===no;});
+  if (idx < 0) return;
+  var s = strategies[idx];
+
+  if (s.isRandom) {
+    var sc = parseInt(document.getElementById('edit_set_count').value) || 100;
+    strategies[idx] = Object.assign({}, s, { set_count: sc });
+  } else {
+    var updated = Object.assign({}, s);
+    RACE.EDIT_FIELDS.forEach(function(f){
+      var el = document.getElementById('edit_'+f.key);
+      if (!el) return;
+      var raw = el.value;
+      if (f.key === 'bonus_include') { updated.bonus_include = raw; return; }
+      if (raw === '' || raw === null) { updated[f.key] = (f.key==='odd_even') ? '' : null; return; }
+      if (f.key === 'odd_even') { updated.odd_even = raw.trim(); return; }
+      var num = parseInt(raw);
+      updated[f.key] = isNaN(num) ? null : num;
+    });
+    // 기본 검증
+    if (updated.sum_min!==null && updated.sum_max!==null && updated.sum_min > updated.sum_max) {
+      document.getElementById('adminEditMsg').innerHTML = '<span style="color:var(--red);">번호합 최소가 최대보다 클 수 없습니다.</span>';
+      return;
+    }
+    if (updated.odd_even) {
+      var parts = updated.odd_even.split(':');
+      if (parts.length!==2 || (parseInt(parts[0])+parseInt(parts[1]))!==6) {
+        document.getElementById('adminEditMsg').innerHTML = '<span style="color:var(--red);">홀짝비율은 "홀:짝" 합이 6이어야 합니다 (예 3:3, 4:2).</span>';
+        return;
+      }
+    }
+    strategies[idx] = updated;
+  }
+
+  RACE.saveStrategies(strategies);
+  RACE.clearSimulationData();
+  document.getElementById('adminEditMsg').innerHTML = '<span style="color:var(--green);">✅ 저장되었습니다. 기존 시뮬레이션 결과가 초기화되어, 다시 "시뮬레이션 실행"이 필요합니다.</span>';
+  RACE.refreshUI();
+};
+
+RACE.resetStrategiesToSeed = function(){
+  if (!MLL.checkAdmin()) { alert('관리자 인증이 필요합니다.'); return; }
+  if (!confirm('100필의 조건을 엑셀 원본(시드) 상태로 되돌릴까요?\n현재 수정된 조건과 모든 시뮬레이션 결과가 사라집니다.')) return;
+  var seed = MLL.RACE_STRATEGY_SEED.map(function(s){ return Object.assign({}, s); });
+  RACE.saveStrategies(seed);
+  RACE.clearSimulationData();
+  document.getElementById('adminEditMsg').innerHTML = '<span style="color:var(--green);">✅ 원본 조건으로 복원되었습니다.</span>';
+  RACE.openAdminEdit();
+  RACE.refreshUI();
+};
+
+RACE.exportStrategiesJSON = function(){
+  var strategies = RACE.ensureStrategies();
+  var json = JSON.stringify(strategies, null, 2);
+  var blob = new Blob([json], {type:'application/json;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'race_strategies_'+Date.now()+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 };
 
 // ── history 빌더: D회차보다 작은 회차만, 최신순 [{round,nums,bonus}] ──
@@ -971,23 +1175,34 @@ RACE.generateOnDemand = function(strategyNo, count){
   return MLL.raceGenerate(strategyForCount, history);
 };
 
-RACE.downloadComboCSV = function(strategyNo, count){
+RACE._xlsxLoaded = false;
+RACE._loadXLSX = function(callback){
+  if (RACE._xlsxLoaded && window.XLSX) { callback(); return; }
+  var script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  script.onload = function(){ RACE._xlsxLoaded = true; callback(); };
+  script.onerror = function(){ alert('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'); };
+  document.head.appendChild(script);
+};
+
+RACE.downloadComboXLSX = function(strategyNo, count){
   var combos = RACE.generateOnDemand(strategyNo, count);
   if (!combos.length) { alert('번호 생성에 실패했습니다.'); return; }
   var strategies = RACE.ensureStrategies();
   var s = strategies.find(function(x){ return x.no === strategyNo; });
-  var lines = ['번호1,번호2,번호3,번호4,번호5,번호6'];
-  combos.forEach(function(c){ lines.push(c.join(',')); });
-  var csv = '\uFEFF' + lines.join('\n');
-  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = (s ? s.name.replace(/[^\w가-힣]/g,'_') : ('strategy'+strategyNo)) + '_번호조합_'+count+'개.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  var info = MLL.getLottoInfo();
+
+  RACE._loadXLSX(function(){
+    var rows = [['#','번호1','번호2','번호3','번호4','번호5','번호6']];
+    combos.forEach(function(c,idx){ rows.push([idx+1, c[0], c[1], c[2], c[3], c[4], c[5]]); });
+    var ws = XLSX.utils.aoa_to_sheet(rows);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '추천번호');
+    var now = new Date();
+    var dateStr = now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+    var fileName = (s ? s.name.replace(/[^\w가-힣]/g,'_') : ('strategy'+strategyNo)) + '_제'+info.saleRound+'회_'+count+'개_'+dateStr+'.xlsx';
+    XLSX.writeFile(wb, fileName);
+  });
 };
 </script>
 <script>
@@ -1030,9 +1245,22 @@ RACE.init = function(){
 
 RACE.refreshUI = function(){
   var range = RACE.getRoundRange();
+
+  if (!range) {
+    document.getElementById('emptyWrap').style.display = 'block';
+    document.getElementById('sbTitle').textContent = '당첨결과 데이터가 없습니다';
+    document.getElementById('sbDesc').textContent = "'번호 등록' 메뉴에서 mll_results가 채워지면 시뮬레이션을 실행할 수 있어요.";
+    document.getElementById('btnRunCatchup').disabled = true;
+    document.getElementById('tabbar').style.display = 'none';
+    document.getElementById('tabpanel').style.display = 'none';
+    return;
+  }
+  document.getElementById('emptyWrap').style.display = 'none';
+  document.getElementById('btnRunCatchup').disabled = false;
+
   var meta = RACE.loadMeta();
   var lastSim = meta.lastSimulatedRound || 0;
-  var pending = range ? range.all.filter(function(r){return r>lastSim;}).length : 0;
+  var pending = range.all.filter(function(r){return r>lastSim;}).length;
 
   if (!lastSim) {
     document.getElementById('sbTitle').textContent = '아직 시뮬레이션 전입니다';
@@ -1291,7 +1519,7 @@ RACE.openDetail = function(strategyNo){
         '<span style="font-size:11.5px;color:var(--text-dim);">원하는 개수</span>' +
         '<input type="number" id="dlCount" value="5" min="1" max="100">' +
         '<button class="btn btn-gold" style="padding:8px 14px;" onclick="RACE.previewOnDemand('+s.no+')">번호 추첨</button>' +
-        '<button class="btn btn-outline" style="padding:8px 14px;" onclick="RACE.downloadFromModal('+s.no+')">📥 CSV 다운로드</button>' +
+        '<button class="btn btn-outline" style="padding:8px 14px;" onclick="RACE.downloadFromModal('+s.no+')">📥 엑셀 다운로드</button>' +
       '</div>' +
       '<div style="font-size:10px;color:var(--text-faint);margin-top:8px;">※ 이 말이 갖고 있는 공표된 조합과는 별개로, 지금 이 조건으로 즉석에서 새로 추첨합니다.</div>' +
       '<div class="combo-preview" id="dlPreview"></div>' +
@@ -1313,16 +1541,22 @@ RACE.previewOnDemand = function(strategyNo){
 
 RACE.downloadFromModal = function(strategyNo){
   var count = Math.max(1, Math.min(100, parseInt(document.getElementById('dlCount').value)||5));
-  RACE.downloadComboCSV(strategyNo, count);
+  RACE.downloadComboXLSX(strategyNo, count);
 };
 
 RACE.openDownloadPanel = function(strategyNo){ RACE.openDetail(strategyNo); };
 
 document.addEventListener('click', function(e){
   if (e.target.id === 'detailModal') RACE.closeDetail();
+  if (e.target.id === 'adminLoginModal') RACE.closeAdminLogin();
+  if (e.target.id === 'adminEditModal') RACE.closeAdminEdit();
 });
 document.addEventListener('keydown', function(e){
-  if (e.key === 'Escape') RACE.closeDetail();
+  if (e.key === 'Escape') {
+    RACE.closeDetail();
+    RACE.closeAdminLogin();
+    RACE.closeAdminEdit();
+  }
 });
 
 document.addEventListener('DOMContentLoaded', function(){ RACE.init(); });
