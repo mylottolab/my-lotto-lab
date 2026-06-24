@@ -611,7 +611,7 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
     <div class="stat-grid" id="overallStatGrid"></div>
     <div class="filter-row">
       <span class="filter-label">정렬</span>
-      <select class="filter-select" id="overallSortSel" onchange="RACE.renderOverall()">
+      <select class="filter-select" id="overallSortSel" onchange="RACE.setOverallSortFromSelect()">
         <option value="rank">순위 (당첨금 기준)</option>
         <option value="winCount">당첨건수</option>
         <option value="winRate">당첨율</option>
@@ -1193,8 +1193,8 @@ RACE.downloadComboXLSX = function(strategyNo, count){
   var info = MLL.getLottoInfo();
 
   RACE._loadXLSX(function(){
-    var rows = [['#','번호1','번호2','번호3','번호4','번호5','번호6']];
-    combos.forEach(function(c,idx){ rows.push([idx+1, c[0], c[1], c[2], c[3], c[4], c[5]]); });
+    var rows = [['번호1','번호2','번호3','번호4','번호5','번호6']];
+    combos.forEach(function(c){ rows.push([c[0], c[1], c[2], c[3], c[4], c[5]]); });
     var ws = XLSX.utils.aoa_to_sheet(rows);
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '추천번호');
@@ -1306,7 +1306,6 @@ RACE.populateRoundSelectors = function(){
 // ── 전체 누적순위 탭 ──
 RACE.renderOverall = function(){
   var agg = RACE.aggregate(null, null);
-  var sortKey = document.getElementById('overallSortSel').value;
   var filterKey = document.getElementById('overallFilterSel').value;
 
   var list = agg.list.filter(function(x){
@@ -1315,10 +1314,24 @@ RACE.renderOverall = function(){
     return true;
   });
 
-  if (sortKey==='winCount') list.sort(function(a,b){return b.winCount-a.winCount;});
-  else if (sortKey==='winRate') list.sort(function(a,b){ return (b.winCount/(b.generated||1)) - (a.winCount/(a.generated||1)); });
-  else if (sortKey==='name') list.sort(function(a,b){return a.no-b.no;});
-  // 'rank'는 이미 정렬돼 있음(원본 순위 유지)
+  var st = RACE.overallSortState;
+  var cmp;
+  if (st.key==='prize') cmp = function(a,b){return a.totalPrize-b.totalPrize;};
+  else if (st.key==='winCount') cmp = function(a,b){return a.winCount-b.winCount;};
+  else if (st.key==='winRate') cmp = function(a,b){return (a.winCount/(a.generated||1))-(b.winCount/(b.generated||1));};
+  else if (st.key==='generated') cmp = function(a,b){return a.generated-b.generated;};
+  else if (st.key==='name') cmp = function(a,b){return a.no-b.no;};
+  else cmp = function(a,b){return a.rank-b.rank;}; // rank: 1위가 위로 (오름차순이 기본)
+
+  list.sort(function(a,b){
+    var r = cmp(a,b);
+    return st.dir==='asc' ? r : -r;
+  });
+
+  // 상단 select와 헤더클릭 정렬 동기화 (select 값도 같이 갱신)
+  var selMap = {rank:'rank', winCount:'winCount', winRate:'winRate', name:'name', prize:'rank', generated:'rank'};
+  var selEl = document.getElementById('overallSortSel');
+  if (selEl && selMap[st.key]) selEl.value = selMap[st.key];
 
   // 통계 박스
   var totalPrize = agg.list.reduce(function(s,x){return s+x.totalPrize;},0);
@@ -1337,19 +1350,66 @@ RACE.renderOverall = function(){
     var rankPill = x.rank<=3 ? '<span class="rank-pill rank-'+x.rank+'">'+x.rank+'</span>' : '<span class="rank-pill rank-etc">'+x.rank+'</span>';
     return '<tr class="'+rankCls+'">' +
       '<td>'+rankPill+'</td>' +
-      '<td class="horse-name">'+RACE.horseTagHtml(x)+x.name+'</td>' +
+      '<td>'+RACE.horseTagHtml(x)+'</td>' +
+      '<td class="horse-name">'+x.name+'</td>' +
       '<td class="prize-val font-num">'+RACE.fmtMoney(x.totalPrize)+'</td>' +
       '<td class="win-val font-num">'+x.winCount.toLocaleString()+'건</td>' +
       '<td class="font-num">'+RACE.fmtPct(winRate)+'</td>' +
       '<td class="font-num">'+x.gradeCounts[1]+' / '+x.gradeCounts[2]+' / '+x.gradeCounts[3]+' / '+x.gradeCounts[4]+' / '+x.gradeCounts[5]+'</td>' +
       '<td class="font-num">'+x.generated.toLocaleString()+'개</td>' +
       '<td><button class="dl-btn" onclick="RACE.openDetail('+x.no+')">상세보기</button></td>' +
+      '<td>'+RACE.inlineDownloadHtml(x.no)+'</td>' +
       '</tr>';
   }).join('');
 
   document.getElementById('overallTable').innerHTML =
-    '<thead><tr><th>순위</th><th style="text-align:left;">말 이름</th><th>누적당첨금</th><th>당첨건수</th><th>당첨율</th><th>1/2/3/4/5등</th><th>생성건수</th><th>상세</th></tr></thead>' +
-    '<tbody>'+(rows || '<tr><td colspan="8" style="padding:30px;color:var(--text-faint);">데이터가 없습니다</td></tr>')+'</tbody>';
+    '<thead><tr>' +
+      RACE.sortableTh('순위', null) +
+      '<th>전략기준</th>' +
+      RACE.sortableTh('전략명(Horse Name)', 'name', 'left') +
+      RACE.sortableTh('누적당첨금', 'prize') +
+      RACE.sortableTh('당첨건수', 'winCount') +
+      RACE.sortableTh('당첨율', 'winRate') +
+      '<th>1/2/3/4/5등</th>' +
+      RACE.sortableTh('생성건수', 'generated') +
+      '<th>상세</th>' +
+      '<th>이번주 추첨분<br>추천번호 받기</th>' +
+    '</tr></thead>' +
+    '<tbody>'+(rows || '<tr><td colspan="10" style="padding:30px;color:var(--text-faint);">데이터가 없습니다</td></tr>')+'</tbody>';
+};
+
+// 클릭 정렬 가능한 헤더 셀. RACE.overallSortState에 현재 정렬키/방향 저장
+RACE.overallSortState = { key:'rank', dir:'asc' };
+RACE.sortableTh = function(label, key, align){
+  if (!key) return '<th'+(align?' style="text-align:'+align+';"':'')+'>'+label+'</th>';
+  var st = RACE.overallSortState;
+  var arrow = (st.key===key) ? (st.dir==='asc' ? ' ▲' : ' ▼') : '';
+  return '<th style="cursor:pointer;user-select:none;'+(align?'text-align:'+align+';':'')+'" onclick="RACE.sortOverallBy(\''+key+'\')">'+label+arrow+'</th>';
+};
+RACE.sortOverallBy = function(key){
+  var st = RACE.overallSortState;
+  if (st.key === key) { st.dir = (st.dir==='asc') ? 'desc' : 'asc'; }
+  else { st.key = key; st.dir = (key==='name' || key==='rank') ? 'asc' : 'desc'; }
+  RACE.renderOverall();
+};
+RACE.setOverallSortFromSelect = function(){
+  var val = document.getElementById('overallSortSel').value;
+  var keyMap = {rank:'rank', winCount:'winCount', winRate:'winRate', name:'name'};
+  RACE.overallSortState = { key: keyMap[val]||'rank', dir: (val==='name') ? 'asc' : 'desc' };
+  RACE.renderOverall();
+};
+
+// 행 안에 들어가는 수량입력 + 즉석 다운로드 버튼
+RACE.inlineDownloadHtml = function(strategyNo){
+  var inputId = 'inlineQty_'+strategyNo;
+  return '<div style="display:flex;align-items:center;gap:5px;justify-content:center;">' +
+    '<input type="number" id="'+inputId+'" value="5" min="1" max="100" style="width:48px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 4px;font-size:11px;text-align:center;">' +
+    '<button class="dl-btn" onclick="RACE.downloadInline('+strategyNo+',\''+inputId+'\')">📥 다운로드</button>' +
+  '</div>';
+};
+RACE.downloadInline = function(strategyNo, inputId){
+  var count = Math.max(1, Math.min(100, parseInt(document.getElementById(inputId).value)||5));
+  RACE.downloadComboXLSX(strategyNo, count);
 };
 
 RACE.statBox = function(label, val, colorCls){
