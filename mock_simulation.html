@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 모의 실전 시뮬레이션</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f;
+  --accent:#e8732f; --accent-bg:rgba(232,115,47,.13);
+  --indigo:#5b6ee8; --indigo-dim:#2a3270;
+  --green:#3fb37f; --red:#d4537e;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
+.font-num{font-variant-numeric:tabular-nums;}
+a{color:inherit;}
+
+.topbar{border-bottom:1px solid var(--border-soft);}
+.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
+.brand-text .t1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
+.brand-text .t2{font-size:10px;color:var(--text-faint);margin-top:1px;}
+.crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);}
+.crumb a{text-decoration:none;cursor:pointer;}
+.crumb a:hover{color:var(--text);}
+.crumb .sep{color:var(--text-faint);}
+.crumb .cur{color:var(--accent);}
+.nick-badge{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-dim);border:1px solid var(--border);padding:6px 12px;border-radius:20px;cursor:pointer;}
+.nick-badge:hover{border-color:var(--gold-dim);}
+.nick-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+
+.page-head{max-width:1180px;margin:0 auto;padding:28px 24px 0;}
+.page-title{font-size:21px;font-weight:600;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.page-title .ico{color:var(--accent);}
+.status-pill{font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:.02em;}
+.status-pill.open{background:rgba(63,179,127,.15);color:var(--green);}
+.status-pill.closed{background:rgba(212,83,94,.15);color:var(--red);}
+.page-sub{font-size:12px;color:var(--text-dim);margin-top:8px;line-height:1.7;}
+.page-sub b{color:var(--text);}
+
+.warn-banner{max-width:1180px;margin:16px auto 0;padding:0 24px;}
+.warn-card{background:rgba(212,83,94,.07);border:1px solid rgba(212,83,94,.25);border-radius:12px;padding:13px 16px;font-size:11.5px;color:#e08a93;line-height:1.7;display:flex;gap:10px;align-items:flex-start;}
+.warn-card .ico{flex-shrink:0;font-size:15px;}
+
+.countdown-card{max-width:1180px;margin:16px auto 0;padding:0 24px;}
+.cd-inner{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.cd-label{font-size:11.5px;color:var(--text-dim);}
+.cd-time{font-size:18px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums;}
+
+.tabbar{max-width:1180px;margin:22px auto 0;padding:0 24px;display:flex;gap:6px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap;}
+.tab-btn{background:none;border:none;color:var(--text-dim);font-size:12.5px;font-weight:600;padding:11px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+.tabpanel{max-width:1180px;margin:0 auto;padding:22px 24px 80px;}
+.tabpanel-section{display:none;}
+.tabpanel-section.active{display:block;}
+
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:20px;}
+.section-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+
+.btn{border:none;border-radius:9px;padding:10px 16px;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s,transform .1s;display:inline-flex;align-items:center;gap:6px;}
+.btn:active{transform:scale(.97);}
+.btn-gold{background:var(--gold);color:#1a1404;}
+.btn-gold:hover{background:#eec25f;}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text-dim);}
+.btn-outline:hover{border-color:var(--gold-dim);color:var(--text);}
+.btn-indigo{background:var(--indigo);color:#fff;}
+.btn-indigo:hover{background:#6f80f0;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+.ball{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;flex-shrink:0;}
+
+/* ── 입력방식 선택 카드 ── */
+.method-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px;}
+@media (max-width:880px){.method-grid{grid-template-columns:repeat(3,1fr);}}
+@media (max-width:520px){.method-grid{grid-template-columns:repeat(2,1fr);}}
+.method-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:14px 10px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;}
+.method-card:hover{border-color:var(--gold-dim);}
+.method-card.active{border-color:var(--gold);background:rgba(224,179,65,.06);}
+.method-card .ico{font-size:22px;margin-bottom:6px;}
+.method-card .lbl{font-size:11px;font-weight:600;color:var(--text-dim);}
+.method-card.active .lbl{color:var(--gold);}
+.method-card .badge{font-size:8.5px;color:var(--accent);font-weight:700;margin-top:2px;}
+
+.method-panel{display:none;}
+.method-panel.active{display:block;}
+
+/* ── 직접입력 그리드 ── */
+.grid-table{width:100%;border-collapse:collapse;}
+.grid-table th{font-size:10.5px;color:var(--text-faint);padding:6px 4px;text-align:center;}
+.grid-table td{padding:4px;text-align:center;}
+.grid-table input[type=number]{width:44px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 4px;font-size:12px;text-align:center;outline:none;}
+.grid-table input[type=number]:focus{border-color:var(--gold-dim);}
+.toggle-btn{border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);border-radius:6px;padding:5px 10px;font-size:10.5px;cursor:pointer;min-width:36px;}
+.toggle-btn.on{background:rgba(91,110,232,.16);border-color:var(--indigo);color:#9aa8f5;}
+.toggle-btn.on2{background:rgba(224,179,65,.16);border-color:var(--gold-dim);color:var(--gold);}
+
+/* ── 음성/문자 채팅 ── */
+.chat-box{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:16px;min-height:160px;max-height:320px;overflow-y:auto;margin-bottom:12px;}
+.chat-bubble{max-width:85%;padding:9px 13px;border-radius:12px;font-size:12.5px;line-height:1.6;margin-bottom:10px;white-space:pre-wrap;}
+.chat-bubble.user{background:var(--indigo);color:#fff;margin-left:auto;border-bottom-right-radius:3px;}
+.chat-bubble.ai{background:var(--surface);border:1px solid var(--border);margin-right:auto;border-bottom-left-radius:3px;}
+.chat-input-row{display:flex;gap:8px;align-items:center;}
+.chat-input-row input[type=text]{flex:1;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:11px 14px;font-size:13px;outline:none;}
+.chat-input-row input[type=text]:focus{border-color:var(--gold-dim);}
+.btn-mic{width:42px;height:42px;border-radius:50%;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);font-size:17px;cursor:pointer;flex-shrink:0;transition:background .15s,border-color .15s;}
+.btn-mic.on{background:rgba(212,83,94,.18);border-color:var(--red);color:var(--red);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(212,83,94,.4);}50%{box-shadow:0 0 0 8px rgba(212,83,94,0);}}
+.lang-toggle{display:inline-flex;border:1px solid var(--border);border-radius:20px;overflow:hidden;font-size:10.5px;font-weight:700;}
+.lang-toggle button{background:none;border:none;color:var(--text-dim);padding:5px 12px;cursor:pointer;}
+.lang-toggle button.active{background:var(--gold);color:#1a1404;}
+
+/* ── 엑셀 ── */
+.upload-area{border:2px dashed var(--border);border-radius:12px;padding:30px;text-align:center;cursor:pointer;transition:border-color .15s;}
+.upload-area:hover,.upload-area.dragover{border-color:var(--gold-dim);background:rgba(224,179,65,.04);}
+.upload-area .ico{font-size:30px;margin-bottom:8px;}
+
+/* ── QR 스캔 ── */
+#qr-reader{max-width:340px;margin:0 auto;border-radius:12px;overflow:hidden;}
+
+/* ── 결과/안내 메시지 ── */
+.result-box{margin-top:12px;padding:11px 14px;border-radius:9px;font-size:12px;display:none;}
+.result-box.show{display:block;}
+.result-box.success{background:rgba(63,179,127,.1);color:var(--green);border:1px solid rgba(63,179,127,.25);}
+.result-box.error{background:rgba(212,83,94,.1);color:var(--red);border:1px solid rgba(212,83,94,.25);}
+
+/* ── 통계 ── */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+@media (max-width:760px){.stat-grid{grid-template-columns:1fr 1fr;}}
+.stat-box{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:14px 16px;}
+.stat-box .label{font-size:10.5px;color:var(--text-faint);}
+.stat-box .val{font-size:19px;font-weight:600;margin-top:5px;}
+.stat-box .val.gold{color:var(--gold);}
+.stat-box .val.green{color:var(--green);}
+.stat-box .val.red{color:var(--red);}
+
+.entry-table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border-soft);margin-top:14px;}
+table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
+.entry-table thead th{background:var(--surface-2);color:var(--text-dim);font-size:10.5px;font-weight:600;padding:9px 10px;text-align:center;white-space:nowrap;}
+.entry-table tbody td{padding:8px 10px;font-size:11.5px;text-align:center;border-bottom:1px solid var(--border-soft);}
+.entry-table tbody tr:hover{background:var(--surface-2);}
+.grade-tag{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:20px;}
+.grade-tag.g1{background:var(--gold);color:#1a1404;}
+.grade-tag.g2,.grade-tag.g3{background:rgba(224,179,65,.18);color:var(--gold);}
+.grade-tag.g4,.grade-tag.g5{background:rgba(63,179,127,.15);color:var(--green);}
+.grade-tag.g0{background:var(--surface-2);color:var(--text-faint);}
+.grade-tag.gwait{background:rgba(91,110,232,.15);color:#9aa8f5;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:420px;width:100%;padding:26px;text-align:center;}
+.modal-box h3{font-size:16px;font-weight:600;margin-bottom:10px;}
+.modal-box p{font-size:12.5px;color:var(--text-dim);line-height:1.7;margin-bottom:18px;}
+.modal-box input[type=text]{width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:11px 14px;font-size:14px;outline:none;text-align:center;margin-bottom:8px;}
+.modal-box input[type=text]:focus{border-color:var(--gold-dim);}
+.modal-err{font-size:11px;color:var(--red);min-height:16px;margin-bottom:8px;}
+
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--gold);cursor:pointer;border:1px solid var(--gold-dim);padding:9px 18px;border-radius:8px;transition:background .15s;}
+.back-link:hover{background:rgba(224,179,65,.08);}
+.spinner{width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#1a1404;animation:spin .7s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand" onclick="location.href='main_page.html'">
+      <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="brand-text">
+        <div class="t1">My Lotto Lab</div>
+        <div class="t2">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="crumb">
+        <a onclick="location.href='main_page.html'">홈</a>
+        <span class="sep">/</span>
+        <span class="cur">모의 실전 시뮬레이션</span>
+      </div>
+      <div class="nick-badge" id="nickBadge" onclick="MOCKUI.openNicknameModal(true)">
+        <span class="dot"></span><span id="nickBadgeText">닉네임 설정</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page-head">
+  <div class="page-title">
+    <span class="ico">🎯</span>
+    <span id="pageTitleText">제0회 (0000.00.00 추첨) 모의 실전 시뮬레이션</span>
+    <span class="status-pill" id="statusPill"></span>
+  </div>
+  <div class="page-sub">실제 돈이 들어가지 않는 <b>가상 체험</b>입니다. 1게임은 1,000원으로 가정해 구입비와 당첨금을 비교하고, 로또 당첨이 얼마나 어려운지 직접 경험해보세요.</div>
+</div>
+
+<div class="warn-banner">
+  <div class="warn-card">
+    <span class="ico">⚠️</span>
+    <span><b style="color:#f0a3ab;">이 시뮬레이션의 목적은 "로또는 당첨되기 매우 어렵다"는 것을 체감하게 하는 데 있습니다.</b> 실제 로또 구매는 신중히 결정하시고, 절대 중독되지 않도록 적정 금액 내에서만 즐기시길 권장합니다. 도박 문제로 어려움을 겪고 있다면 한국도박문제예방치유원(1336)에 상담받아보세요.</span>
+  </div>
+</div>
+
+<div class="countdown-card">
+  <div class="cd-inner">
+    <div>
+      <div class="cd-label">접수기간</div>
+      <div style="font-size:12.5px;color:var(--text-dim);margin-top:2px;">매주 일요일 06:00 ~ 토요일 20:00</div>
+    </div>
+    <div style="flex:1;"></div>
+    <div style="text-align:right;">
+      <div class="cd-label" id="cdLabel">마감까지</div>
+      <div class="cd-time font-num" id="cdTime">--:--:--</div>
+    </div>
+  </div>
+</div>
+
+<div class="tabbar" id="tabbar">
+  <button class="tab-btn active" data-tab="enter" onclick="MOCKUI.switchTab('enter')">✏️ 번호 등록</button>
+  <button class="tab-btn" data-tab="my" onclick="MOCKUI.switchTab('my')">📋 내 등록현황</button>
+  <button class="tab-btn" data-tab="stats" onclick="MOCKUI.switchTab('stats')">📊 내 수익통계</button>
+  <button class="tab-btn" data-tab="board" onclick="MOCKUI.switchTab('board')">🏆 전체 참여순위</button>
+</div>
+
+<div class="tabpanel" id="tabpanel">
+
+  <!-- 패널1: 번호 등록 -->
+  <div class="tabpanel-section active" id="panel-enter">
+    <div class="method-grid">
+      <div class="method-card active" data-method="manual" onclick="MOCKUI.switchMethod('manual')">
+        <div class="ico">🔢</div><div class="lbl">직접입력</div><div class="badge">추천</div>
+      </div>
+      <div class="method-card" data-method="voice" onclick="MOCKUI.switchMethod('voice')">
+        <div class="ico">🎤</div><div class="lbl">음성입력</div><div class="badge">추천</div>
+      </div>
+      <div class="method-card" data-method="text" onclick="MOCKUI.switchMethod('text')">
+        <div class="ico">💬</div><div class="lbl">문자입력</div>
+      </div>
+      <div class="method-card" data-method="excel" onclick="MOCKUI.switchMethod('excel')">
+        <div class="ico">📊</div><div class="lbl">엑셀입력</div>
+      </div>
+      <div class="method-card" data-method="qrimg" onclick="MOCKUI.switchMethod('qrimg')">
+        <div class="ico">🖼</div><div class="lbl">이미지 스캔</div>
+      </div>
+      <div class="method-card" data-method="qrcam" onclick="MOCKUI.switchMethod('qrcam')">
+        <div class="ico">📷</div><div class="lbl">카메라 스캔</div>
+      </div>
+    </div>
+
+    <!-- 방식1: 직접입력 -->
+    <div class="method-panel active" id="method-manual">
+      <div class="card">
+        <div class="section-title">🔢 직접입력 <span style="font-size:11px;color:var(--text-faint);font-weight:400;">번호를 탭/입력하세요. 여러 줄 동시 등록 가능합니다.</span></div>
+        <div style="overflow-x:auto;">
+          <table class="grid-table" id="manualGridTable"></table>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+          <button class="btn btn-outline" onclick="MOCKUI.addGridRow()">+ 줄 추가</button>
+          <button class="btn btn-outline" onclick="MOCKUI.clearGrid()">초기화</button>
+          <button class="btn btn-gold" onclick="MOCKUI.saveGrid()">번호 등록하기</button>
+        </div>
+        <div class="result-box" id="manualResultBox"></div>
+      </div>
+    </div>
+
+    <!-- 방식2: 음성입력 -->
+    <div class="method-panel" id="method-voice">
+      <div class="card">
+        <div class="section-title" style="justify-content:space-between;">
+          <span>🎤 음성입력 <span style="font-size:11px;color:var(--text-faint);font-weight:400;">마이크 버튼을 누르고 자연스럽게 말씀해보세요</span></span>
+          <span class="lang-toggle" id="voiceLangToggle">
+            <button class="active" data-lang="ko" onclick="MOCKUI.setVoiceLang('ko')">한국어</button>
+            <button data-lang="en" onclick="MOCKUI.setVoiceLang('en')">English</button>
+          </span>
+        </div>
+        <div class="chat-box" id="voiceChatBox"></div>
+        <div class="chat-input-row">
+          <button class="btn-mic" id="btnMic" onclick="MOCKUI.toggleMic()">🎤</button>
+          <input type="text" id="voiceTextInput" placeholder="마이크를 누르거나 직접 입력하세요" onkeydown="if(event.key==='Enter')MOCKUI.sendVoiceText();">
+          <button class="btn btn-gold" onclick="MOCKUI.sendVoiceText()">전송</button>
+        </div>
+        <div style="font-size:10.5px;color:var(--text-faint);margin-top:8px;" id="voiceHint">예) "1, 5, 10, 23, 35, 40 등록해줘" · "자동 5게임" · "오천원어치"</div>
+      </div>
+    </div>
+
+    <!-- 방식3: 문자입력(AI 자연어) -->
+    <div class="method-panel" id="method-text">
+      <div class="card">
+        <div class="section-title" style="justify-content:space-between;">
+          <span>💬 문자입력 <span style="font-size:11px;color:var(--text-faint);font-weight:400;">자연어로 편하게 적어주세요</span></span>
+          <span class="lang-toggle" id="textLangToggle">
+            <button class="active" data-lang="ko" onclick="MOCKUI.setTextLang('ko')">한국어</button>
+            <button data-lang="en" onclick="MOCKUI.setTextLang('en')">English</button>
+          </span>
+        </div>
+        <div class="chat-box" id="textChatBox"></div>
+        <div class="chat-input-row">
+          <input type="text" id="textTextInput" placeholder="예: 자동 3게임, 1 5 10 23 35 40 등록해줘" onkeydown="if(event.key==='Enter')MOCKUI.sendTextOrder();">
+          <button class="btn btn-gold" onclick="MOCKUI.sendTextOrder()">전송</button>
+        </div>
+        <div style="font-size:10.5px;color:var(--text-faint);margin-top:8px;" id="textHint">예) "1, 5, 10, 23, 35, 40 등록해줘" · "자동 5게임" · "Register 1 5 10 23 35 40" · "5 random games"</div>
+      </div>
+    </div>
+
+    <!-- 방식4: 엑셀입력 -->
+    <div class="method-panel" id="method-excel">
+      <div class="card">
+        <div class="section-title">📊 엑셀입력 <span style="font-size:11px;color:var(--text-faint);font-weight:400;">템플릿을 받아 작성한 뒤 업로드하세요</span></div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <button class="btn btn-outline" onclick="MOCKUI.downloadExcelTemplate()">📥 빈 템플릿 받기</button>
+        </div>
+        <div class="upload-area" id="excelDropArea" onclick="document.getElementById('excelFileInput').click()"
+             ondragover="MOCKUI.onDrag(event,true)" ondragleave="MOCKUI.onDrag(event,false)" ondrop="MOCKUI.onExcelDrop(event)">
+          <div class="ico">📁</div>
+          <div style="font-size:12.5px;color:var(--text-dim);">클릭 또는 파일을 끌어다 놓으세요 (.xlsx, .csv)</div>
+          <div style="font-size:11px;color:var(--text-faint);margin-top:4px;" id="excelFileName">선택된 파일 없음</div>
+        </div>
+        <input type="file" id="excelFileInput" accept=".xlsx,.csv" style="display:none;" onchange="MOCKUI.onExcelFileSelect(this)">
+        <div style="margin-top:12px;"><button class="btn btn-gold" onclick="MOCKUI.uploadExcelFile()">업로드 및 등록</button></div>
+        <div class="result-box" id="excelResultBox"></div>
+      </div>
+    </div>
+
+    <!-- 방식5: 이미지 스캔(QR 사진 업로드) -->
+    <div class="method-panel" id="method-qrimg">
+      <div class="card">
+        <div class="section-title">🖼 이미지 스캔 <span style="font-size:11px;color:var(--text-faint);font-weight:400;">예전에 구매한 실물 로또용지의 QR을 사진으로 찍어 올려보세요</span></div>
+        <div class="upload-area" id="qrImgDropArea" onclick="document.getElementById('qrImgFileInput').click()"
+             ondragover="MOCKUI.onDrag(event,true)" ondragleave="MOCKUI.onDrag(event,false)" ondrop="MOCKUI.onQrImgDrop(event)">
+          <div class="ico">🖼</div>
+          <div style="font-size:12.5px;color:var(--text-dim);">QR이 보이는 로또용지 사진을 올려주세요</div>
+          <div style="font-size:11px;color:var(--text-faint);margin-top:4px;" id="qrImgFileName">선택된 파일 없음</div>
+        </div>
+        <input type="file" id="qrImgFileInput" accept="image/*" multiple style="display:none;" onchange="MOCKUI.onQrImgSelect(this)">
+        <div class="result-box" id="qrImgResultBox"></div>
+        <div style="font-size:10.5px;color:var(--text-faint);margin-top:10px;">※ 인식된 번호는 실제 추첨여부와 무관하게, 이번 모의 시뮬레이션 회차용으로만 등록됩니다.</div>
+      </div>
+    </div>
+
+    <!-- 방식6: 카메라 스캔(실시간) -->
+    <div class="method-panel" id="method-qrcam">
+      <div class="card">
+        <div class="section-title">📷 카메라 스캔 <span style="font-size:11px;color:var(--text-faint);font-weight:400;">카메라로 QR을 직접 비춰서 인식합니다</span></div>
+        <div id="qrGuide" style="text-align:center;padding:20px;">
+          <div style="font-size:30px;margin-bottom:10px;">📷</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">버튼을 눌러 카메라를 켜고 QR코드를 비춰주세요</div>
+          <button class="btn btn-gold" onclick="MOCKUI.startCamScan()">카메라 시작</button>
+        </div>
+        <div id="qr-reader" style="display:none;"></div>
+        <div style="text-align:center;margin-top:10px;display:none;" id="qrCamStopWrap">
+          <button class="btn btn-outline" onclick="MOCKUI.stopCamScan()">카메라 중지</button>
+        </div>
+        <div class="result-box" id="qrCamResultBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 패널2: 내 등록현황 -->
+  <div class="tabpanel-section" id="panel-my">
+    <div class="card">
+      <div class="section-title">📋 내 등록현황 (<span id="myNickLabel">-</span>)</div>
+      <div class="entry-table-wrap">
+        <table class="entry-table" id="myEntryTable"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 패널3: 내 수익통계 -->
+  <div class="tabpanel-section" id="panel-stats">
+    <div class="stat-grid" id="statsGrid"></div>
+    <div class="card">
+      <div class="section-title">등수별 적중 현황</div>
+      <div id="gradeBreakdown" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
+    </div>
+  </div>
+
+  <!-- 패널4: 전체 참여순위 -->
+  <div class="tabpanel-section" id="panel-board">
+    <div class="card">
+      <div class="section-title">🏆 전체 참여자 순위 <span style="font-size:11px;color:var(--text-faint);font-weight:400;">누적 당첨금 기준</span></div>
+      <div class="entry-table-wrap">
+        <table class="entry-table" id="leaderboardTable"></table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 닉네임 입력 모달 -->
+<div class="modal-overlay" id="nicknameModal">
+  <div class="modal-box">
+    <h3 id="nickModalTitle">🎲 닉네임을 정해주세요</h3>
+    <p>모의 실전 시뮬레이션에서 사용할 닉네임입니다.<br>한글/영문/숫자/밑줄 2~12자, 한 번 정하면 이 브라우저에서 계속 사용돼요.</p>
+    <input type="text" id="nickInput" placeholder="예: 행운의로또왕" maxlength="12" onkeydown="if(event.key==='Enter')MOCKUI.submitNickname();">
+    <div class="modal-err" id="nickErr"></div>
+    <button class="btn btn-gold" style="width:100%;" onclick="MOCKUI.submitNickname()">시작하기</button>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// 모의 실전 시뮬레이션 - 핵심 엔진
+// =====================================================
+if (typeof window.MLL === 'undefined') { window.MLL = {}; }
+var MLL = window.MLL;
+
+MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
+MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
+MLL.RESULTS_KEY = 'mll_results';
+
+MLL.getLottoInfo = function() {
+  var now = new Date();
+  var ko  = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+  var day = ko.getDay(), hour = ko.getHours(), min = ko.getMinutes();
+  var elapsed   = now.getTime() - MLL.ROUND1_TS;
+  var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
+  var nextRound = thisRound + 1;
+  var soldOut = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
+  var saleRound = soldOut ? thisRound : nextRound;
+  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound };
+};
+
+MLL.getDrawDate = function(round) {
+  var d = new Date(MLL.ROUND1_TS + (round - 1) * MLL.WEEK_MS);
+  var y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+  return y+'.'+m+'.'+dd;
+};
+
+MLL.loadResults = function() {
+  try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }
+  catch(e) { return {}; }
+};
+
+MLL.BC = function(n) { return n<=10?'#e0b341':n<=20?'#5b6ee8':n<=30?'#d4537e':n<=40?'#8b91ab':'#3fb37f'; };
+MLL.TC = function(n) { return n<=10?'#1a1404':'#fff'; };
+
+MLL.calcGrade = function(myNums, winNums, bonusNum) {
+  var match = 0;
+  myNums.forEach(function(n){ if(winNums.indexOf(n) >= 0) match++; });
+  var hasBonus = myNums.indexOf(bonusNum) >= 0;
+  if (match===6) return 1;
+  if (match===5 && hasBonus) return 2;
+  if (match===5) return 3;
+  if (match===4) return 4;
+  if (match===3) return 5;
+  return 0;
+};
+MLL.calcPrize = function(grade, result) {
+  if (!result || grade===0) return 0;
+  if (grade===1) return result.prize1 || 0;
+  if (grade===2) return result.prize2 || 0;
+  if (grade===3) return result.prize3 || 0;
+  if (grade===4) return 50000;
+  if (grade===5) return 5000;
+  return 0;
+};
+
+MLL.uuid = function() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
+    return v.toString(16);
+  });
+};
+
+// =====================================================
+// MOCK 전용 네임스페이스
+// =====================================================
+var MOCK = {};
+
+MOCK.NICK_KEY = 'mll_mock_nickname';
+MOCK.REGISTRY_KEY = 'mll_mock_nicknames_registry';
+MOCK.ENTRIES_KEY = 'mll_mock_entries';
+MOCK.PRICE_PER_GAME = 1000;
+MOCK.GRID_ROWS = 5;
+
+// ── 접수기간: 일요일 06:00 ~ 토요일 20:00 (KST) ──
+MOCK.isOpen = function() {
+  var now = new Date();
+  var ko = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+  var day = ko.getDay(), hour = ko.getHours(), min = ko.getMinutes();
+  if (day===6 && (hour>20 || (hour===20 && min>=0))) return false;
+  if (day===0 && hour<6) return false;
+  return true;
+};
+
+MOCK.getDeadlineLabel = function(){
+  return '접수기간: 매주 일요일 06:00 ~ 토요일 20:00';
+};
+
+// ── 닉네임 ──
+MOCK.getNickname = function(){
+  try { return JSON.parse(localStorage.getItem(MOCK.NICK_KEY)||'null'); } catch(e){ return null; }
+};
+MOCK.loadRegistry = function(){
+  try { return JSON.parse(localStorage.getItem(MOCK.REGISTRY_KEY)||'{}'); } catch(e){ return {}; }
+};
+MOCK.saveRegistry = function(reg){ localStorage.setItem(MOCK.REGISTRY_KEY, JSON.stringify(reg)); };
+
+MOCK.NICK_PATTERN = /^[가-힣a-zA-Z0-9_]{2,12}$/;
+
+MOCK.registerNickname = function(nick){
+  nick = (nick||'').trim();
+  if (!MOCK.NICK_PATTERN.test(nick)) {
+    return { ok:false, reason:'닉네임은 한글/영문/숫자/밑줄 2~12자로 입력해주세요.' };
+  }
+  var reg = MOCK.loadRegistry();
+  if (reg[nick]) {
+    return { ok:false, reason:'이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.' };
+  }
+  reg[nick] = true;
+  MOCK.saveRegistry(reg);
+  var data = { nickname: nick, createdAt: Date.now() };
+  localStorage.setItem(MOCK.NICK_KEY, JSON.stringify(data));
+  return { ok:true, nickname:nick };
+};
+
+// ── 등록 데이터 CRUD ──
+MOCK.loadEntries = function(){
+  try { return JSON.parse(localStorage.getItem(MOCK.ENTRIES_KEY)||'[]'); } catch(e){ return []; }
+};
+MOCK.saveEntries = function(list){ localStorage.setItem(MOCK.ENTRIES_KEY, JSON.stringify(list)); };
+
+MOCK.addEntries = function(items){
+  var entries = MOCK.loadEntries();
+  items.forEach(function(item){
+    if (!item.id) item.id = MLL.uuid();
+    if (!item.createdAt) item.createdAt = Date.now();
+    item.grade = null;
+    item.prizeMoney = 0;
+    entries.push(item);
+  });
+  MOCK.saveEntries(entries);
+  return items;
+};
+
+// 특정 회차에 대해 아직 채점 안 된 항목들을 실제 mll_results로 채점
+MOCK.gradeEntriesForRound = function(round){
+  var results = MLL.loadResults();
+  var win = results[round];
+  if (!win || !win.nums) return 0;
+  var entries = MOCK.loadEntries();
+  var count = 0;
+  entries.forEach(function(e){
+    if (e.round === round && e.grade === null) {
+      e.grade = MLL.calcGrade(e.nums, win.nums, win.bonus);
+      e.prizeMoney = MLL.calcPrize(e.grade, win);
+      count++;
+    }
+  });
+  if (count) MOCK.saveEntries(entries);
+  return count;
+};
+
+// 닉네임별 통계 (구입비/당첨금/수익률)
+MOCK.getStatsForNickname = function(nick){
+  var entries = MOCK.loadEntries().filter(function(e){ return e.nickname===nick; });
+  var totalGames = entries.length;
+  var totalCost = totalGames * MOCK.PRICE_PER_GAME;
+  var totalPrize = entries.reduce(function(s,e){ return s + (e.prizeMoney||0); }, 0);
+  var gradeCounts = {1:0,2:0,3:0,4:0,5:0};
+  entries.forEach(function(e){ if (e.grade>=1 && e.grade<=5) gradeCounts[e.grade]++; });
+  var roi = totalCost>0 ? (totalPrize/totalCost*100) : 0;
+  return { entries:entries, totalGames:totalGames, totalCost:totalCost, totalPrize:totalPrize, gradeCounts:gradeCounts, roi:roi };
+};
+
+// 전체 참여자 랭킹 (수익률/당첨금 기준)
+MOCK.getLeaderboard = function(){
+  var entries = MOCK.loadEntries();
+  var byNick = {};
+  entries.forEach(function(e){
+    if (!byNick[e.nickname]) byNick[e.nickname] = { nickname:e.nickname, games:0, cost:0, prize:0 };
+    byNick[e.nickname].games++;
+    byNick[e.nickname].cost += MOCK.PRICE_PER_GAME;
+    byNick[e.nickname].prize += (e.prizeMoney||0);
+  });
+  var list = Object.values(byNick).map(function(x){
+    x.roi = x.cost>0 ? (x.prize/x.cost*100) : 0;
+    return x;
+  });
+  list.sort(function(a,b){ return b.prize - a.prize; });
+  list.forEach(function(x,i){ x.rank = i+1; });
+  return list;
+};
+</script>
+<script>
+// =====================================================
+// 자연어 파서 - 한국어 / 영어 지원
+// =====================================================
+MOCK.parseOrder = function(text, lang){
+  lang = lang || 'ko';
+  var t = text.trim();
+  if (lang === 'en') return MOCK._parseOrderEn(t);
+  return MOCK._parseOrderKo(t);
+};
+
+// ── 공통 숫자 추출 (1~45) ──
+MOCK._extractNums = function(str){
+  var nums = [];
+  var matches = str.match(/\b([1-9]|[1-3][0-9]|4[0-5])\b/g) || [];
+  matches.forEach(function(m){ var n=parseInt(m); if(n>=1&&n<=45) nums.push(n); });
+  return nums;
+};
+
+// ── 한국어 파서 ──
+MOCK._parseOrderKo = function(t){
+  var direct = MOCK._extractDirectNumbersKo(t);
+  if (direct.length > 0) return { ok:true, type:'direct', combos:direct };
+
+  var include = MOCK._extractIncludeKo(t);
+  var count = MOCK._extractGameOrdersKo(t);
+  if (include.length > 0 && include.length < 6) {
+    return { ok:true, type:'semi', include:include, count: count>0?count:1 };
+  }
+  if (count > 0) return { ok:true, type:'auto', count:count };
+  return { ok:false, reason:'이해하지 못했어요. 예) "1, 5, 10, 23, 35, 40 등록해줘" · "자동 5게임" · "2번 꼭 넣고 오천원어치"' };
+};
+
+MOCK._extractIncludeKo = function(t){
+  var include = [];
+  var incPats = [
+    /([0-9,\s번]+?)\s*(?:은|는|이|가)?\s*(?:꼭|반드시|무조건)\s*(?:넣|포함)/,
+    /(?:꼭|반드시|무조건)\s*([0-9,\s번]+?)\s*(?:넣|포함)/
+  ];
+  incPats.forEach(function(pat){
+    var m = t.match(pat);
+    if (m) { MOCK._extractNums(m[1]).forEach(function(n){ if(include.indexOf(n)<0) include.push(n); }); }
+  });
+  return include;
+};
+
+MOCK._extractDirectNumbersKo = function(t){
+  var results = [];
+  var numPat = /\b([1-9]|[1-3][0-9]|4[0-5])\b/g;
+  var allNums = [], m;
+  while ((m = numPat.exec(t)) !== null) allNums.push(parseInt(m[1]));
+  for (var i=0; i<=allNums.length-6; i+=6){
+    var g = allNums.slice(i, i+6);
+    if (new Set(g).size===6 && g.every(function(n){return n>=1&&n<=45;})){
+      results.push(g.slice().sort(function(a,b){return a-b;}));
+    }
+  }
+  return results;
+};
+
+MOCK._extractGameOrdersKo = function(t){
+  var processed = t.replace(/,/g,'');
+  var moneyMap = {'이천':2,'삼천':3,'사천':4,'오천':5,'육천':6,'칠천':7,'팔천':8,'구천':9,'천':1,
+    '이만':20,'삼만':30,'사만':40,'오만':50,'만':10};
+  processed = processed.replace(/(\d+)000\s*원/g, function(m,n){ return parseInt(n)+'게임'; });
+  processed = processed.replace(/(\d+)만\s*(원어치|원)?/g, function(m,n){ return (parseInt(n)*10)+'게임'; });
+  Object.keys(moneyMap).forEach(function(k){
+    processed = processed.replace(new RegExp(k+'\\s*(원어치|원)?','g'), moneyMap[k]+'게임');
+  });
+  var m = processed.match(/(\d+)\s*(?:게임|장|개)/);
+  if (m) return Math.min(parseInt(m[1]), 100);
+  return 0;
+};
+
+// ── 영어 파서 ──
+MOCK._parseOrderEn = function(t){
+  var direct = MOCK._extractDirectNumbersEn(t);
+  if (direct.length > 0) return { ok:true, type:'direct', combos:direct };
+
+  var include = MOCK._extractIncludeEn(t);
+  var count = MOCK._extractGameOrdersEn(t);
+  if (include.length > 0 && include.length < 6) {
+    return { ok:true, type:'semi', include:include, count: count>0?count:1 };
+  }
+  if (count > 0) return { ok:true, type:'auto', count:count };
+  return { ok:false, reason:'Sorry, I could not understand. Try "register 1 5 10 23 35 40" · "5 random games" · "must include 7, 5 games"' };
+};
+
+MOCK._extractIncludeEn = function(t){
+  var include = [];
+  var lower = t.toLowerCase();
+  var m = lower.match(/(?:must\s*include|include|with)\s*([0-9,\s]+?)(?:\s*,|\s+and|\s*$)/);
+  if (m) { MOCK._extractNums(m[1]).forEach(function(n){ if(include.indexOf(n)<0) include.push(n); }); }
+  return include;
+};
+
+MOCK._extractDirectNumbersEn = function(t){
+  // "register/add/use 1, 5, 10, 23, 35, 40" 패턴 - 숫자 추출은 한국어와 동일
+  return MOCK._extractDirectNumbersKo(t);
+};
+
+MOCK._extractGameOrdersEn = function(t){
+  var lower = t.toLowerCase();
+  // "5 games", "5 random games", "5 quick picks", "give me 10 quick picks", "$5000 worth"
+  var m = lower.match(/(\d+)\s*(?:\w+\s+)?(?:games?|quick\s*picks?|tickets?|picks?)/);
+  if (m) return Math.min(parseInt(m[1]), 100);
+  var m2 = lower.match(/\$?\s*(\d+)\s*(?:dollars?|worth)/);
+  if (m2) {
+    var dollars = parseInt(m2[1]);
+    return Math.min(dollars, 100);
+  }
+  var m3 = lower.match(/^\s*(\d+)\s*$/);
+  if (m3) return Math.min(parseInt(m3[1]), 100);
+  return 0;
+};
+</script>
+<script>
+// =====================================================
+// MOCKUI - 화면 컨트롤러
+// =====================================================
+var MOCKUI = {};
+MOCKUI.currentMethod = 'manual';
+MOCKUI.voiceLang = 'ko';
+MOCKUI.textLang = 'ko';
+
+// ── 초기화 ──
+MOCKUI.init = function(){
+  MOCKUI.refreshHeader();
+  MOCKUI.buildGrid();
+  MOCKUI.checkNicknameOnLoad();
+  MOCKUI.gradeIfPossible();
+  MOCKUI.renderMy();
+  MOCKUI.renderStats();
+  MOCKUI.renderLeaderboard();
+  setInterval(MOCKUI.refreshHeader, 1000);
+};
+
+MOCKUI.gradeIfPossible = function(){
+  var info = MLL.getLottoInfo();
+  // 이미 추첨이 끝난(현재 회차보다 작은) 모의등록 회차들을 채점
+  var entries = MOCK.loadEntries();
+  var rounds = Array.from(new Set(entries.map(function(e){return e.round;})));
+  rounds.forEach(function(r){
+    if (r < info.thisRound || (r === info.thisRound)) {
+      MOCK.gradeEntriesForRound(r);
+    }
+  });
+};
+
+// ── 헤더: 타이틀 + 상태 + 카운트다운 ──
+MOCKUI.refreshHeader = function(){
+  var info = MLL.getLottoInfo();
+  var round = info.saleRound;
+  var drawDate = MLL.getDrawDate(round);
+  document.getElementById('pageTitleText').textContent = '제'+round+'회 ('+drawDate+' 추첨) 모의 실전 시뮬레이션';
+
+  var open = MOCK.isOpen();
+  var pill = document.getElementById('statusPill');
+  pill.textContent = open ? '접수중' : '접수마감';
+  pill.className = 'status-pill ' + (open ? 'open' : 'closed');
+
+  MOCKUI.refreshCountdown(open);
+};
+
+MOCKUI.refreshCountdown = function(open){
+  var now = new Date();
+  var ko = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+  var target;
+  if (open) {
+    // 다음 토요일 20:00까지
+    target = new Date(ko);
+    var daysUntilSat = (6 - ko.getDay() + 7) % 7;
+    target.setDate(ko.getDate() + daysUntilSat);
+    target.setHours(20,0,0,0);
+    if (target <= ko) target.setDate(target.getDate()+7);
+    document.getElementById('cdLabel').textContent = '접수마감까지';
+  } else {
+    // 다음 일요일 06:00까지
+    target = new Date(ko);
+    var daysUntilSun = (7 - ko.getDay()) % 7;
+    if (daysUntilSun === 0 && ko.getHours() < 6) daysUntilSun = 0;
+    else if (daysUntilSun === 0) daysUntilSun = 7;
+    target.setDate(ko.getDate() + daysUntilSun);
+    target.setHours(6,0,0,0);
+    document.getElementById('cdLabel').textContent = '접수재개까지';
+  }
+  var diff = Math.max(0, target.getTime() - ko.getTime());
+  var h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
+  document.getElementById('cdTime').textContent =
+    String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+};
+
+// ── 탭 전환 ──
+MOCKUI.switchTab = function(tab){
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab===tab); });
+  document.querySelectorAll('.tabpanel-section').forEach(function(p){ p.classList.toggle('active', p.id==='panel-'+tab); });
+  if (tab==='my') MOCKUI.renderMy();
+  if (tab==='stats') MOCKUI.renderStats();
+  if (tab==='board') MOCKUI.renderLeaderboard();
+};
+
+// ── 입력방식 전환 ──
+MOCKUI.switchMethod = function(method){
+  MOCKUI.currentMethod = method;
+  document.querySelectorAll('.method-card').forEach(function(c){ c.classList.toggle('active', c.dataset.method===method); });
+  document.querySelectorAll('.method-panel').forEach(function(p){ p.classList.toggle('active', p.id==='method-'+method); });
+};
+
+// ── 닉네임 ──
+MOCKUI.checkNicknameOnLoad = function(){
+  var nick = MOCK.getNickname();
+  if (nick) {
+    document.getElementById('nickBadgeText').textContent = nick.nickname;
+  } else {
+    MOCKUI.openNicknameModal(false);
+  }
+};
+
+MOCKUI.openNicknameModal = function(isChange){
+  document.getElementById('nickModalTitle').textContent = isChange ? '🎲 닉네임 변경' : '🎲 닉네임을 정해주세요';
+  document.getElementById('nickInput').value = '';
+  document.getElementById('nickErr').textContent = '';
+  document.getElementById('nicknameModal').classList.add('show');
+  setTimeout(function(){ document.getElementById('nickInput').focus(); }, 50);
+};
+
+MOCKUI.submitNickname = function(){
+  var val = document.getElementById('nickInput').value;
+  var result = MOCK.registerNickname(val);
+  if (!result.ok) {
+    document.getElementById('nickErr').textContent = result.reason;
+    return;
+  }
+  document.getElementById('nickBadgeText').textContent = result.nickname;
+  document.getElementById('nicknameModal').classList.remove('show');
+  MOCKUI.renderMy();
+  MOCKUI.renderStats();
+};
+
+MOCKUI.requireNickname = function(){
+  var nick = MOCK.getNickname();
+  if (!nick) { MOCKUI.openNicknameModal(false); return null; }
+  return nick.nickname;
+};
+</script>
+<script>
+// =====================================================
+// 방식1: 직접입력 그리드
+// =====================================================
+MOCKUI.gridRowCount = 0;
+
+MOCKUI.buildGrid = function(){
+  MOCKUI.gridRowCount = 0;
+  var thead = '<thead><tr><th>#</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>구분</th><th></th></tr></thead>';
+  document.getElementById('manualGridTable').innerHTML = thead + '<tbody id="manualGridBody"></tbody>';
+  for (var i=0; i<MOCK.GRID_ROWS; i++) MOCKUI.addGridRow();
+};
+
+MOCKUI.addGridRow = function(){
+  var i = MOCKUI.gridRowCount++;
+  var tbody = document.getElementById('manualGridBody');
+  var tr = document.createElement('tr');
+  tr.id = 'gr'+i;
+  var numCells = '';
+  for (var n=1; n<=6; n++) {
+    numCells += '<td><input type="number" id="g_n'+i+'_'+n+'" min="1" max="45" placeholder="-" oninput="MOCKUI.gridAutoNext(this,'+i+','+n+')"></td>';
+  }
+  tr.innerHTML = '<td style="color:var(--text-faint);font-size:11px;">'+(i+1)+'</td>' + numCells +
+    '<td><button class="toggle-btn" id="g_auto'+i+'" onclick="MOCKUI.toggleGridType('+i+')">수동</button></td>' +
+    '<td><button class="toggle-btn" onclick="document.getElementById(\'gr'+i+'\').remove()">✕</button></td>';
+  tbody.appendChild(tr);
+};
+
+MOCKUI.gridAutoNext = function(el, row, col){
+  var v = el.value.replace(/[^0-9]/g,'');
+  el.value = v;
+  if (v.length >= 2) {
+    var n = parseInt(v);
+    if (n<1) el.value='1'; else if (n>45) el.value='45';
+    if (col<6) { var nx=document.getElementById('g_n'+row+'_'+(col+1)); if (nx){nx.focus();nx.select();} }
+  }
+};
+
+MOCKUI.toggleGridType = function(i){
+  var btn = document.getElementById('g_auto'+i);
+  var cur = btn.textContent;
+  if (cur==='수동') { btn.textContent='자동'; btn.className='toggle-btn on'; }
+  else if (cur==='자동') { btn.textContent='반자동'; btn.className='toggle-btn on2'; }
+  else { btn.textContent='수동'; btn.className='toggle-btn'; }
+};
+
+MOCKUI.clearGrid = function(){
+  document.getElementById('manualGridBody').innerHTML = '';
+  MOCKUI.gridRowCount = 0;
+  for (var i=0; i<MOCK.GRID_ROWS; i++) MOCKUI.addGridRow();
+  MOCKUI.showResultBox('manualResultBox', '', '');
+};
+
+MOCKUI.fillRandom = function(fixedNums){
+  var pool = []; for (var i=1;i<=45;i++) if (fixedNums.indexOf(i)<0) pool.push(i);
+  for (var i=pool.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var tmp=pool[i]; pool[i]=pool[j]; pool[j]=tmp; }
+  var need = 6 - fixedNums.length;
+  return fixedNums.concat(pool.slice(0,need)).sort(function(a,b){return a-b;});
+};
+
+MOCKUI.saveGrid = function(){
+  var nick = MOCKUI.requireNickname();
+  if (!nick) return;
+  if (!MOCK.isOpen()) { MOCKUI.showResultBox('manualResultBox', 'error', '⛔ 지금은 접수 기간이 아닙니다. ('+MOCK.getDeadlineLabel()+')'); return; }
+
+  var info = MLL.getLottoInfo();
+  var round = info.saleRound;
+  var rows = document.querySelectorAll('#manualGridBody tr');
+  var items = [], ok=0, skip=0;
+  rows.forEach(function(tr){
+    var id = tr.id.replace('gr','');
+    var nums = [];
+    for (var n=1; n<=6; n++) {
+      var v = parseInt(document.getElementById('g_n'+id+'_'+n).value);
+      if (!isNaN(v)) nums.push(v);
+    }
+    var typeBtn = document.getElementById('g_auto'+id);
+    var type = typeBtn ? typeBtn.textContent : '수동';
+
+    if (nums.length===0 && type==='수동') return; // 완전 빈 줄(수동) 무시
+
+    if (type==='자동') {
+      // 입력값 무시, 완전 무작위 6개
+      var finalNums = MOCKUI.fillRandom([]);
+      items.push({ nickname:nick, round:round, nums:finalNums, type:'자동', inputMethod:'manual' });
+      ok++; return;
+    }
+    if (type==='반자동') {
+      if (new Set(nums).size !== nums.length || nums.some(function(n){return n<1||n>45;})) { skip++; return; }
+      if (nums.length >= 6) { skip++; return; } // 6개 다 채우면 반자동 의미 없음(수동으로)
+      var finalNums2 = MOCKUI.fillRandom(nums.slice());
+      items.push({ nickname:nick, round:round, nums:finalNums2, type:'반자동', inputMethod:'manual' });
+      ok++; return;
+    }
+    // 수동
+    if (nums.length<6) { skip++; return; }
+    if (new Set(nums).size!==6 || nums.some(function(n){return n<1||n>45;})) { skip++; return; }
+    items.push({ nickname:nick, round:round, nums:nums.slice().sort(function(a,b){return a-b;}), type:'수동', inputMethod:'manual' });
+    ok++;
+  });
+  if (!items.length) { MOCKUI.showResultBox('manualResultBox', 'error', '등록할 번호가 없습니다. 번호를 입력하거나 자동/반자동을 선택해주세요.'); return; }
+  MOCK.addEntries(items);
+  var msg = '✅ '+ok+'개 게임 등록 완료! (제'+round+'회, '+(ok*MOCK.PRICE_PER_GAME).toLocaleString()+'원)';
+  if (skip>0) msg += ' · 미완성/오류 '+skip+'개 건너뜀';
+  MOCKUI.showResultBox('manualResultBox', 'success', msg);
+  MOCKUI.clearGrid();
+  MOCKUI.renderMy();
+  MOCKUI.renderStats();
+};
+
+MOCKUI.showResultBox = function(id, type, msg){
+  var box = document.getElementById(id);
+  if (!type) { box.classList.remove('show'); return; }
+  box.className = 'result-box show ' + type;
+  box.textContent = msg;
+};
+</script>
+<script>
+// =====================================================
+// 방식2/3: 음성입력 + 문자입력 (공통 자연어 처리)
+// =====================================================
+MOCKUI.addChatBubble = function(boxId, who, text){
+  var box = document.getElementById(boxId);
+  var div = document.createElement('div');
+  div.className = 'chat-bubble ' + who;
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+};
+
+MOCKUI.processNaturalOrder = function(boxId, text, lang){
+  var nick = MOCKUI.requireNickname();
+  if (!nick) return;
+  MOCKUI.addChatBubble(boxId, 'user', text);
+
+  if (!MOCK.isOpen()) {
+    MOCKUI.addChatBubble(boxId, 'ai', (lang==='en' ? '⛔ Entries are closed right now. ' : '⛔ 지금은 접수 기간이 아닙니다. ') + MOCK.getDeadlineLabel());
+    return;
+  }
+
+  var result = MOCK.parseOrder(text, lang);
+  if (!result.ok) {
+    MOCKUI.addChatBubble(boxId, 'ai', result.reason);
+    return;
+  }
+
+  var info = MLL.getLottoInfo();
+  var round = info.saleRound;
+  var items = [];
+
+  if (result.type === 'direct') {
+    result.combos.forEach(function(nums){
+      items.push({ nickname:nick, round:round, nums:nums, type:'수동', inputMethod: (lang==='en'?'voice_en':'voice') });
+    });
+  } else if (result.type === 'semi') {
+    for (var i=0; i<result.count; i++) {
+      var nums2 = MOCKUI.fillRandom(result.include.slice());
+      items.push({ nickname:nick, round:round, nums:nums2, type:'반자동', inputMethod: (lang==='en'?'voice_en':'voice') });
+    }
+  } else if (result.type === 'auto') {
+    for (var i=0; i<result.count; i++) {
+      var nums = MOCKUI.genAutoNums();
+      items.push({ nickname:nick, round:round, nums:nums, type:'자동', inputMethod: (lang==='en'?'voice_en':'voice') });
+    }
+  }
+
+  if (!items.length) {
+    MOCKUI.addChatBubble(boxId, 'ai', lang==='en' ? 'Could not generate any games.' : '등록할 게임을 만들지 못했어요.');
+    return;
+  }
+
+  MOCK.addEntries(items);
+  var cost = items.length * MOCK.PRICE_PER_GAME;
+  var msg = lang==='en'
+    ? '✅ Registered '+items.length+' game(s) for round '+round+' ('+cost.toLocaleString()+' KRW)'
+    : '✅ 제'+round+'회 '+items.length+'개 게임 등록 완료! ('+cost.toLocaleString()+'원)';
+  MOCKUI.addChatBubble(boxId, 'ai', msg);
+  MOCKUI.renderMy();
+  MOCKUI.renderStats();
+};
+
+MOCKUI.genAutoNums = function(){
+  var pool = []; for (var i=1;i<=45;i++) pool.push(i);
+  for (var i=pool.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var tmp=pool[i]; pool[i]=pool[j]; pool[j]=tmp; }
+  return pool.slice(0,6).sort(function(a,b){return a-b;});
+};
+
+// ── 음성입력 ──
+MOCKUI.micOn = false;
+MOCKUI.recognition = null;
+
+MOCKUI.setVoiceLang = function(lang){
+  MOCKUI.voiceLang = lang;
+  document.querySelectorAll('#voiceLangToggle button').forEach(function(b){ b.classList.toggle('active', b.dataset.lang===lang); });
+  document.getElementById('voiceHint').textContent = lang==='en'
+    ? 'e.g. "register 1 5 10 23 35 40" · "5 random games" · "give me 10 quick picks"'
+    : '예) "1, 5, 10, 23, 35, 40 등록해줘" · "자동 5게임" · "오천원어치"';
+};
+
+MOCKUI.toggleMic = function(){
+  if (MOCKUI.micOn) MOCKUI.stopMic(); else MOCKUI.startMic();
+};
+
+MOCKUI.startMic = function(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    MOCKUI.addChatBubble('voiceChatBox', 'ai', '이 브라우저는 음성 인식을 지원하지 않아요. 텍스트로 입력해주세요.');
+    return;
+  }
+  var recognition = new SR();
+  recognition.lang = MOCKUI.voiceLang==='en' ? 'en-US' : 'ko-KR';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.onresult = function(e){
+    var text = e.results[0][0].transcript;
+    MOCKUI.processNaturalOrder('voiceChatBox', text, MOCKUI.voiceLang);
+  };
+  recognition.onend = function(){ MOCKUI.stopMic(); };
+  recognition.onerror = function(){ MOCKUI.stopMic(); MOCKUI.addChatBubble('voiceChatBox','ai', MOCKUI.voiceLang==='en' ? 'Voice recognition error. Please type instead.' : '음성 인식 오류. 텍스트로 입력해주세요.'); };
+  MOCKUI.recognition = recognition;
+  recognition.start();
+  MOCKUI.micOn = true;
+  document.getElementById('btnMic').classList.add('on');
+};
+
+MOCKUI.stopMic = function(){
+  if (MOCKUI.recognition) { try { MOCKUI.recognition.stop(); } catch(e){} }
+  MOCKUI.micOn = false;
+  document.getElementById('btnMic').classList.remove('on');
+};
+
+MOCKUI.sendVoiceText = function(){
+  var inp = document.getElementById('voiceTextInput');
+  var text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  MOCKUI.processNaturalOrder('voiceChatBox', text, MOCKUI.voiceLang);
+};
+
+// ── 문자입력 ──
+MOCKUI.setTextLang = function(lang){
+  MOCKUI.textLang = lang;
+  document.querySelectorAll('#textLangToggle button').forEach(function(b){ b.classList.toggle('active', b.dataset.lang===lang); });
+  document.getElementById('textHint').textContent = lang==='en'
+    ? 'e.g. "Register 1 5 10 23 35 40" · "5 random games" · "give me 10 quick picks"'
+    : '예) "1, 5, 10, 23, 35, 40 등록해줘" · "자동 5게임" · "오천원어치"';
+};
+
+MOCKUI.sendTextOrder = function(){
+  var inp = document.getElementById('textTextInput');
+  var text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  MOCKUI.processNaturalOrder('textChatBox', text, MOCKUI.textLang);
+};
+</script>
+<script>
+// =====================================================
+// 방식4: 엑셀입력
+// =====================================================
+MOCKUI._xlsxLoaded = false;
+MOCKUI._loadXLSX = function(callback){
+  if (MOCKUI._xlsxLoaded && window.XLSX) { callback(); return; }
+  var script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  script.onload = function(){ MOCKUI._xlsxLoaded = true; callback(); };
+  script.onerror = function(){ MOCKUI.showResultBox('excelResultBox','error','엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'); };
+  document.head.appendChild(script);
+};
+
+MOCKUI.downloadExcelTemplate = function(){
+  MOCKUI._loadXLSX(function(){
+    var info = MLL.getLottoInfo();
+    var round = info.saleRound;
+    var wb = XLSX.utils.book_new();
+    var wsData = [
+      ['회차','번호1','번호2','번호3','번호4','번호5','번호6','구분(자동/반자동/수동)'],
+      [round, 3,14,22,31,38,45, '수동'],
+      [round, '','','','','','', '자동'],
+      [round, 7,11,'','','','', '반자동(나머지 자동채움)'],
+    ];
+    var ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:8},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:20}];
+    XLSX.utils.book_append_sheet(wb, ws, '모의시뮬레이션');
+    XLSX.writeFile(wb, 'mock_lotto_template.xlsx');
+  });
+};
+
+MOCKUI.onDrag = function(e, over){
+  e.preventDefault();
+  e.currentTarget.classList.toggle('dragover', over);
+};
+
+MOCKUI.onExcelDrop = function(e){
+  e.preventDefault();
+  MOCKUI.onDrag(e, false);
+  var files = Array.from(e.dataTransfer.files);
+  if (files.length) {
+    document.getElementById('excelFileInput').files = e.dataTransfer.files;
+    document.getElementById('excelFileName').textContent = files[0].name;
+  }
+};
+
+MOCKUI.onExcelFileSelect = function(inp){
+  document.getElementById('excelFileName').textContent = inp.files[0] ? inp.files[0].name : '선택된 파일 없음';
+};
+
+MOCKUI.uploadExcelFile = function(){
+  var nick = MOCKUI.requireNickname();
+  if (!nick) return;
+  if (!MOCK.isOpen()) { MOCKUI.showResultBox('excelResultBox','error','⛔ 지금은 접수 기간이 아닙니다. ('+MOCK.getDeadlineLabel()+')'); return; }
+
+  var inp = document.getElementById('excelFileInput');
+  if (!inp.files.length) { MOCKUI.showResultBox('excelResultBox','error','파일을 먼저 선택해주세요.'); return; }
+  var file = inp.files[0];
+
+  MOCKUI._loadXLSX(function(){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var rows = [];
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          var lines = e.target.result.split('\n').filter(function(l){return l.trim();});
+          var headers = lines[0].split(',').map(function(h){return h.trim();});
+          for (var i=1;i<lines.length;i++){
+            var cols = lines[i].split(',').map(function(c){return c.trim();});
+            var obj = {}; headers.forEach(function(h,j){obj[h]=cols[j]||'';}); rows.push(obj);
+          }
+        } else {
+          var wb2 = XLSX.read(e.target.result, {type:'array'});
+          var ws2 = wb2.Sheets[wb2.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(ws2, {defval:''});
+        }
+        MOCKUI.processExcelRows(rows);
+      } catch(err) { MOCKUI.showResultBox('excelResultBox','error','파일 읽기 오류: '+err.message); }
+    };
+    if (file.name.toLowerCase().endsWith('.csv')) reader.readAsText(file, 'utf-8');
+    else reader.readAsArrayBuffer(file);
+  });
+};
+
+MOCKUI.processExcelRows = function(rows){
+  var nick = MOCK.getNickname().nickname;
+  var ok=0, skip=0, blocked=0, items=[];
+  var open = MOCK.isOpen();
+
+  rows.forEach(function(row){
+    try {
+      var round = parseInt(row['회차']);
+      var n1=row['번호1'],n2=row['번호2'],n3=row['번호3'],n4=row['번호4'],n5=row['번호5'],n6=row['번호6'];
+      var nums = [n1,n2,n3,n4,n5,n6].map(function(v){return parseInt(v);}).filter(function(v){return !isNaN(v);});
+      var typeRaw = String(row['구분(자동/반자동/수동)']||row['구분']||'수동').trim();
+      var type = typeRaw.indexOf('자동')===0 ? '자동' : typeRaw.indexOf('반자동')===0 ? '반자동' : '수동';
+
+      if (!round || round<1) throw new Error('회차 오류');
+      if (!open) { blocked++; return; }
+
+      var finalNums;
+      if (type==='자동') {
+        finalNums = MOCKUI.fillRandom([]);
+      } else if (type==='반자동') {
+        if (new Set(nums).size!==nums.length || nums.some(function(n){return n<1||n>45;}) || nums.length>=6) { skip++; return; }
+        finalNums = MOCKUI.fillRandom(nums.slice());
+      } else {
+        if (nums.length!==6 || new Set(nums).size!==6 || nums.some(function(n){return n<1||n>45;})) { skip++; return; }
+        finalNums = nums.slice().sort(function(a,b){return a-b;});
+      }
+      items.push({ nickname:nick, round:round, nums:finalNums, type:type, inputMethod:'excel' });
+      ok++;
+    } catch(e) { skip++; }
+  });
+
+  if (items.length) MOCK.addEntries(items);
+  var msg = '✅ '+ok+'개 게임 등록 완료! ('+(ok*MOCK.PRICE_PER_GAME).toLocaleString()+'원)';
+  if (skip>0) msg += ' · 오류 '+skip+'개 건너뜀';
+  if (blocked>0) msg += ' · 접수기간 외 '+blocked+'개 차단';
+  MOCKUI.showResultBox('excelResultBox', ok>0?'success':'error', msg);
+  document.getElementById('excelFileInput').value = '';
+  document.getElementById('excelFileName').textContent = '선택된 파일 없음';
+  MOCKUI.renderMy();
+  MOCKUI.renderStats();
+};
+</script>
+<script>
+// =====================================================
+// 방식5: 이미지 스캔 (QR이 찍힌 사진 업로드)
+// 방식6: 카메라 스캔 (실시간)
+// 공통: 실물 로또용지 QR을 인식해 "번호조합"만 가져오고,
+//       회차는 항상 이번 모의 시뮬레이션 대상 회차로 등록한다.
+// =====================================================
+MOCKUI._qrLibLoaded = false;
+MOCKUI._loadQrLibs = function(callback){
+  if (MOCKUI._qrLibLoaded) { callback(); return; }
+  var s1 = document.createElement('script');
+  s1.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+  var s2 = document.createElement('script');
+  s2.src = 'https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js';
+  var loaded = 0;
+  function onEach(){ loaded++; if (loaded===2) { MOCKUI._qrLibLoaded = true; callback(); } }
+  s1.onload = onEach; s2.onload = onEach;
+  document.head.appendChild(s1); document.head.appendChild(s2);
+};
+
+MOCKUI.parseLottoQrUrl = function(url){
+  try {
+    var match = url.match(/[?&]v=([^&]+)/); if (!match) return null;
+    var v = match[1];
+    var roundMatch = v.match(/^(\d+)/); if (!roundMatch) return null;
+    var origRound = parseInt(roundMatch[1]);
+    var combos = []; var pat = /([mqs])(\d{12})/g; var m;
+    while ((m = pat.exec(v)) !== null) {
+      var type = m[1]==='m' ? '수동' : m[1]==='q' ? '자동' : '반자동';
+      var nums = []; for (var i=0;i<12;i+=2) nums.push(parseInt(m[2].slice(i,i+2)));
+      if (nums.length===6 && nums.every(function(n){return n>=1&&n<=45;}) && new Set(nums).size===6)
+        combos.push({ type:type, nums:nums });
+    }
+    if (!origRound || !combos.length) return null;
+    return { origRound:origRound, combos:combos };
+  } catch(e) { return null; }
+};
+
+MOCKUI.zxingDecode = function(imageData, w, h){
+  return new Promise(function(resolve){
+    try {
+      var hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      var reader = new ZXing.MultiFormatReader(); reader.setHints(hints);
+      var src = new ZXing.RGBLuminanceSource(imageData.data, w, h);
+      var bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
+      resolve(reader.decode(bitmap).getText());
+    } catch(e) { resolve(null); }
+  });
+};
+
+MOCKUI.registerQrCombos = function(parsed, resultBoxId){
+  var nick = MOCKUI.requireNickname();
+  if (!nick) return;
+  if (!MOCK.isOpen()) { MOCKUI.showResultBox(resultBoxId, 'error', '⛔ 지금은 접수 기간이 아닙니다. ('+MOCK.getDeadlineLabel()+')'); return; }
+  var info = MLL.getLottoInfo();
+  var round = info.saleRound; // 항상 이번 모의시뮬레이션 대상 회차로 등록
+  var items = parsed.combos.map(function(c){
+    return { nickname:nick, round:round, nums:c.nums.slice(), type:c.type, inputMethod:'qrscan' };
+  });
+  MOCK.addEntries(items);
+  MOCKUI.showResultBox(resultBoxId, 'success',
+    '✅ QR 인식 성공! (원래 제'+parsed.origRound+'회 용지 → 이번 제'+round+'회 모의등록으로 반영) '+items.length+'개 게임, '+(items.length*MOCK.PRICE_PER_GAME).toLocaleString()+'원');
+  MOCKUI.renderMy();
+  MOCKUI.renderStats();
+};
+
+// ── 방식5: 이미지 업로드 ──
+MOCKUI.imgQueue = [];
+MOCKUI.isProcessingImg = false;
+
+MOCKUI.onQrImgDrop = function(e){
+  e.preventDefault();
+  MOCKUI.onDrag(e, false);
+  MOCKUI.addQrImages(Array.from(e.dataTransfer.files));
+};
+MOCKUI.onQrImgSelect = function(inp){
+  if (inp.files.length) MOCKUI.addQrImages(Array.from(inp.files));
+  inp.value = '';
+};
+
+MOCKUI.addQrImages = function(files){
+  var imgs = files.filter(function(f){ return f.type.startsWith('image/'); });
+  if (!imgs.length) { MOCKUI.showResultBox('qrImgResultBox','error','이미지 파일만 업로드 가능합니다.'); return; }
+  document.getElementById('qrImgFileName').textContent = imgs.length+'개 파일 처리 중...';
+  imgs.forEach(function(f){ MOCKUI.imgQueue.push(f); });
+  if (!MOCKUI.isProcessingImg) {
+    MOCKUI._loadQrLibs(function(){ MOCKUI.processImgQueue(); });
+  }
+};
+
+MOCKUI._loadImage = function(url){
+  return new Promise(function(resolve, reject){
+    var img = new Image();
+    img.onload = function(){ resolve(img); };
+    img.onerror = reject;
+    img.src = url;
+  });
+};
+
+MOCKUI.processImgQueue = async function(){
+  if (!MOCKUI.imgQueue.length) { MOCKUI.isProcessingImg = false; document.getElementById('qrImgFileName').textContent = '선택된 파일 없음'; return; }
+  MOCKUI.isProcessingImg = true;
+  var file = MOCKUI.imgQueue.shift();
+  try {
+    var url = URL.createObjectURL(file);
+    var img = await MOCKUI._loadImage(url);
+    var canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    var qrText = null;
+    if ('BarcodeDetector' in window) {
+      try {
+        var det = new BarcodeDetector({formats:['qr_code']});
+        var blob = await new Promise(function(r){ canvas.toBlob(r, 'image/jpeg', 0.95); });
+        var bmp = await createImageBitmap(blob);
+        var codes = await det.detect(bmp);
+        if (codes.length>0) qrText = codes[0].rawValue;
+      } catch(e) {}
+    }
+    if (!qrText) {
+      var imageData = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height);
+      qrText = await MOCKUI.zxingDecode(imageData, canvas.width, canvas.height);
+    }
+    if (qrText) {
+      var parsed = MOCKUI.parseLottoQrUrl(qrText);
+      if (parsed) MOCKUI.registerQrCombos(parsed, 'qrImgResultBox');
+      else MOCKUI.showResultBox('qrImgResultBox','error','"'+file.name+'" — 로또 QR이 아닙니다.');
+    } else {
+      MOCKUI.showResultBox('qrImgResultBox','error','"'+file.name+'" — QR 인식 실패. QR 부분을 크게 찍어주세요.');
+    }
+  } catch(e) {
+    MOCKUI.showResultBox('qrImgResultBox','error','"'+file.name+'" 처리 오류: '+e.message);
+  }
+  setTimeout(function(){ MOCKUI.processImgQueue(); }, 300);
+};
+
+// ── 방식6: 실시간 카메라 ──
+MOCKUI.html5Qr = null;
+
+MOCKUI.startCamScan = function(){
+  MOCKUI._loadQrLibs(function(){
+    document.getElementById('qrGuide').style.display = 'none';
+    document.getElementById('qr-reader').style.display = 'block';
+    document.getElementById('qrCamStopWrap').style.display = 'block';
+    MOCKUI.html5Qr = new Html5Qrcode('qr-reader');
+    MOCKUI.html5Qr.start(
+      { facingMode:'environment' },
+      { fps:15, qrbox:{width:230,height:230}, aspectRatio:1.0, experimentalFeatures:{useBarCodeDetectorIfSupported:true} },
+      function(text){ MOCKUI.handleCamQrSuccess(text); },
+      function(){}
+    ).catch(function(err){
+      MOCKUI.showResultBox('qrCamResultBox','error','카메라를 시작할 수 없습니다: '+err);
+      MOCKUI.stopCamScan();
+    });
+  });
+};
+
+MOCKUI.handleCamQrSuccess = function(text){
+  if (!text) return;
+  if (text.indexOf('dhlottery')>=0 || text.indexOf('qr.dh')>=0) {
+    var parsed = MOCKUI.parseLottoQrUrl(text);
+    if (parsed) {
+      if (navigator.vibrate) navigator.vibrate([100,50,100]);
+      MOCKUI.registerQrCombos(parsed, 'qrCamResultBox');
+      MOCKUI.stopCamScan();
+    }
+  }
+};
+
+MOCKUI.stopCamScan = function(){
+  if (MOCKUI.html5Qr) {
+    MOCKUI.html5Qr.stop().then(function(){
+      MOCKUI.html5Qr.clear();
+      MOCKUI.html5Qr = null;
+    }).catch(function(){ MOCKUI.html5Qr = null; });
+  }
+  document.getElementById('qrGuide').style.display = 'block';
+  document.getElementById('qr-reader').style.display = 'none';
+  document.getElementById('qrCamStopWrap').style.display = 'none';
+};
+</script>
+<script>
+// =====================================================
+// 내 등록현황 / 통계 / 리더보드
+// =====================================================
+MOCKUI.gradeLabel = function(grade){
+  if (grade===null) return '<span class="grade-tag gwait">추첨대기</span>';
+  if (grade===0) return '<span class="grade-tag g0">낙첨</span>';
+  return '<span class="grade-tag g'+grade+'">'+grade+'등</span>';
+};
+
+MOCKUI.renderMy = function(){
+  var nickObj = MOCK.getNickname();
+  var nick = nickObj ? nickObj.nickname : null;
+  document.getElementById('myNickLabel').textContent = nick || '-';
+  if (!nick) {
+    document.getElementById('myEntryTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">닉네임을 먼저 설정해주세요.</td></tr></tbody>';
+    return;
+  }
+  var entries = MOCK.loadEntries().filter(function(e){ return e.nickname===nick; })
+    .sort(function(a,b){ return b.createdAt-a.createdAt; });
+
+  if (!entries.length) {
+    document.getElementById('myEntryTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">아직 등록한 번호가 없습니다.</td></tr></tbody>';
+    return;
+  }
+
+  var rows = entries.map(function(e){
+    var ballsHtml = e.nums.map(function(n){ return '<span class="ball" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';width:24px;height:24px;font-size:10px;">'+n+'</span>'; }).join(' ');
+    return '<tr>' +
+      '<td>제'+e.round+'회</td>' +
+      '<td>'+ballsHtml+'</td>' +
+      '<td>'+e.type+'</td>' +
+      '<td>'+MOCKUI.methodLabel(e.inputMethod)+'</td>' +
+      '<td>'+MOCKUI.gradeLabel(e.grade)+'</td>' +
+      '<td class="font-num">'+(e.prizeMoney||0).toLocaleString()+'원</td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('myEntryTable').innerHTML =
+    '<thead><tr><th>회차</th><th>번호</th><th>구분</th><th>입력방법</th><th>결과</th><th>당첨금</th></tr></thead>' +
+    '<tbody>'+rows+'</tbody>';
+};
+
+MOCKUI.methodLabel = function(m){
+  return { manual:'직접입력', voice:'음성(한)', voice_en:'음성(영)', excel:'엑셀', qrscan:'QR스캔' }[m] || m;
+};
+
+MOCKUI.renderStats = function(){
+  var nickObj = MOCK.getNickname();
+  if (!nickObj) {
+    document.getElementById('statsGrid').innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--text-faint);text-align:center;">닉네임을 먼저 설정해주세요.</div>';
+    document.getElementById('gradeBreakdown').innerHTML = '';
+    return;
+  }
+  var stats = MOCK.getStatsForNickname(nickObj.nickname);
+  var roiColor = stats.roi >= 100 ? 'green' : (stats.totalGames>0 ? 'red' : '');
+
+  document.getElementById('statsGrid').innerHTML =
+    MOCKUI.statBox('총 등록 게임수', stats.totalGames.toLocaleString()+'개', '') +
+    MOCKUI.statBox('가상 구입비', stats.totalCost.toLocaleString()+'원', 'gold') +
+    MOCKUI.statBox('가상 당첨금', stats.totalPrize.toLocaleString()+'원', 'green') +
+    MOCKUI.statBox('수익률(당첨금/구입비)', stats.roi.toFixed(1)+'%', roiColor);
+
+  var gradeNames = {1:'1등',2:'2등',3:'3등',4:'4등',5:'5등'};
+  var html = [1,2,3,4,5].map(function(g){
+    return '<div class="stat-box" style="flex:1;min-width:90px;"><div class="label">'+gradeNames[g]+'</div><div class="val">'+(stats.gradeCounts[g]||0)+'건</div></div>';
+  }).join('');
+  document.getElementById('gradeBreakdown').innerHTML = html;
+};
+
+MOCKUI.statBox = function(label, val, colorCls){
+  return '<div class="stat-box"><div class="label">'+label+'</div><div class="val '+(colorCls||'')+'">'+val+'</div></div>';
+};
+
+MOCKUI.renderLeaderboard = function(){
+  var list = MOCK.getLeaderboard();
+  if (!list.length) {
+    document.getElementById('leaderboardTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">아직 참여자가 없습니다.</td></tr></tbody>';
+    return;
+  }
+  var myNickObj = MOCK.getNickname();
+  var myNick = myNickObj ? myNickObj.nickname : null;
+  var rows = list.map(function(x){
+    var isMe = x.nickname === myNick;
+    return '<tr style="'+(isMe?'background:rgba(224,179,65,.06);':'')+'">' +
+      '<td>'+x.rank+'</td>' +
+      '<td style="text-align:left;font-weight:'+(isMe?'700':'400')+';">'+x.nickname+(isMe?' (나)':'')+'</td>' +
+      '<td class="font-num">'+x.games.toLocaleString()+'개</td>' +
+      '<td class="font-num">'+x.cost.toLocaleString()+'원</td>' +
+      '<td class="font-num" style="color:var(--gold);">'+x.prize.toLocaleString()+'원</td>' +
+      '<td class="font-num">'+x.roi.toFixed(1)+'%</td>' +
+      '</tr>';
+  }).join('');
+  document.getElementById('leaderboardTable').innerHTML =
+    '<thead><tr><th>순위</th><th style="text-align:left;">닉네임</th><th>게임수</th><th>구입비</th><th>당첨금</th><th>수익률</th></tr></thead>' +
+    '<tbody>'+rows+'</tbody>';
+};
+
+document.addEventListener('DOMContentLoaded', function(){ MOCKUI.init(); });
+</script>
+
+</body>
+</html>
