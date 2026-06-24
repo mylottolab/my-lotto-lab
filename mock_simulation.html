@@ -1470,6 +1470,19 @@ MOCKUI.gradeLabel = function(grade){
   return '<span class="grade-tag g'+grade+'">'+grade+'등</span>';
 };
 
+// "결과" 칸: 추첨대기 / 당첨 / 낙첨만 표시
+MOCKUI.resultLabel = function(grade){
+  if (grade===null) return '<span class="grade-tag gwait">추첨대기</span>';
+  if (grade===0) return '<span class="grade-tag g0">낙첨</span>';
+  return '<span class="grade-tag g'+grade+'">당첨</span>';
+};
+
+// "등수" 칸: 당첨일 때만 구체적 등수(1~5등), 그 외엔 빈칸
+MOCKUI.rankLabel = function(grade){
+  if (grade===null || grade===0) return '<span style="color:var(--text-faint);">-</span>';
+  return '<span class="grade-tag g'+grade+'">'+grade+'등</span>';
+};
+
 MOCKUI.renderLiveReg = function(){
   var tbody = document.getElementById('liveRegBody');
   var summary = document.getElementById('liveRegSummary');
@@ -1525,13 +1538,14 @@ MOCKUI.renderMy = function(){
       '<td>'+ballsHtml+'</td>' +
       '<td>'+e.type+'</td>' +
       '<td>'+MOCKUI.methodLabel(e.inputMethod)+'</td>' +
-      '<td>'+MOCKUI.gradeLabel(e.grade)+'</td>' +
+      '<td>'+MOCKUI.resultLabel(e.grade)+'</td>' +
+      '<td>'+MOCKUI.rankLabel(e.grade)+'</td>' +
       '<td class="font-num">'+(e.prizeMoney||0).toLocaleString()+'원</td>' +
       '</tr>';
   }).join('');
 
   document.getElementById('myEntryTable').innerHTML =
-    '<thead><tr><th>회차</th><th>번호</th><th>구분</th><th>입력방법</th><th>결과</th><th>당첨금</th></tr></thead>' +
+    '<thead><tr><th>회차</th><th>번호</th><th>구분</th><th>입력방법</th><th>결과</th><th>등수</th><th>당첨금</th></tr></thead>' +
     '<tbody>'+rows+'</tbody>';
 };
 
