@@ -2121,6 +2121,297 @@ RS.toggleAiVoice = function() {
 // v=<회차><타입+12자리숫자>... 형태 (타입: m=수동, q=자동, s=반자동)
 // 예) v=1227m010203040506q070809101112
 // =====================================================
+// =====================================================
+// 공용 QR 디코딩 엔진 v2 (My Lotto Lab 전체 통일)
+// 실제 로또용지 사진으로 검증된 다단계 재시도:
+// 1) 원본  2) 그레이스케일  3) 히스토그램 평활화(equalizeHist)
+// 4) 회전(90/180/270도)  5) 확대(1.5x/2x/3x)  6) CLAHE 근사(여러 clip/tile)
+// =====================================================
+
+MLL.zxingDecode = function(imageData, w, h){
+  return new Promise(function(resolve){
+    try {
+      var hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      var reader = new ZXing.MultiFormatReader(); reader.setHints(hints);
+      var src = new ZXing.RGBLuminanceSource(imageData.data, w, h);
+      var bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
+      resolve(reader.decode(bitmap).getText());
+    } catch(e) { resolve(null); }
+  });
+};
+
+// 캔버스에서 BarcodeDetector → ZXing 순서로 디코딩 시도 (공통 마지막 단계)
+// BarcodeDetector는 캔버스를 직접 createImageBitmap에 넘길 수 있어 toBlob(JPEG 인코딩) 비용을 보통 건너뛴다.
+// 일부 환경에서 캔버스 직접 전달이 안 되면 toBlob 경유로 폴백한다.
+MLL._decodeCanvas = async function(canvas){
+  if ('BarcodeDetector' in window) {
+    try {
+      var det = new BarcodeDetector({formats:['qr_code']});
+      var bmp;
+      try { bmp = await createImageBitmap(canvas); }
+      catch(e1) {
+        var blob = await new Promise(function(r){ canvas.toBlob(r, 'image/jpeg', 0.95); });
+        bmp = await createImageBitmap(blob);
+      }
+      var codes = await det.detect(bmp);
+      if (codes.length>0) return codes[0].rawValue;
+    } catch(e) {}
+  }
+  try {
+    var ctx = canvas.getContext('2d');
+    var imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+    var text = await MLL.zxingDecode(imageData, canvas.width, canvas.height);
+    if (text) return text;
+  } catch(e) {}
+  return null;
+};
+
+// 그레이스케일 ImageData 생성 (원본 캔버스로부터)
+MLL._toGrayCanvas = function(srcCanvas){
+  var w = srcCanvas.width, h = srcCanvas.height;
+  var canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(srcCanvas, 0, 0);
+  var imgData = ctx.getImageData(0,0,w,h);
+  var data = imgData.data;
+  for (var i=0; i<data.length; i+=4){
+    var g = Math.round(data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114);
+    data[i]=data[i+1]=data[i+2]=g;
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return canvas;
+};
+
+// 전체 히스토그램 평활화 (equalizeHist 근사) — 그레이 캔버스에 적용
+MLL._equalizeHistCanvas = function(grayCanvas){
+  var w = grayCanvas.width, h = grayCanvas.height;
+  var canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(grayCanvas, 0, 0);
+  var imgData = ctx.getImageData(0,0,w,h);
+  var data = imgData.data;
+  var hist = new Float64Array(256);
+  var n = w*h;
+  for (var i=0; i<data.length; i+=4) hist[data[i]]++;
+  var cdf = new Float64Array(256);
+  var sum = 0;
+  for (var i=0;i<256;i++){ sum += hist[i]; cdf[i]=sum; }
+  var lut = new Uint8ClampedArray(256);
+  for (var i=0;i<256;i++) lut[i] = Math.round(cdf[i]/n*255);
+  for (var i=0; i<data.length; i+=4){
+    var v = lut[data[i]];
+    data[i]=data[i+1]=data[i+2]=v;
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return canvas;
+};
+
+// 회전된 캔버스 생성 (90/180/270도)
+MLL._rotateCanvas = function(srcCanvas, angle){
+  var w = srcCanvas.width, h = srcCanvas.height;
+  var canvas = document.createElement('canvas');
+  var ctx;
+  if (angle === 180) {
+    canvas.width = w; canvas.height = h;
+    ctx = canvas.getContext('2d');
+    ctx.translate(w, h); ctx.rotate(Math.PI);
+    ctx.drawImage(srcCanvas, 0, 0);
+  } else {
+    canvas.width = h; canvas.height = w;
+    ctx = canvas.getContext('2d');
+    if (angle === 90) { ctx.translate(h, 0); ctx.rotate(Math.PI/2); }
+    else { ctx.translate(0, w); ctx.rotate(-Math.PI/2); }
+    ctx.drawImage(srcCanvas, 0, 0);
+  }
+  return canvas;
+};
+
+// 확대된 캔버스 생성
+MLL._scaleCanvas = function(srcCanvas, scale){
+  var canvas = document.createElement('canvas');
+  canvas.width = Math.round(srcCanvas.width*scale);
+  canvas.height = Math.round(srcCanvas.height*scale);
+  var ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(srcCanvas, 0, 0, canvas.width, canvas.height);
+  return canvas;
+};
+
+// CLAHE 근사: 타일별 클립 히스토그램 평활화 + bilinear 보간 (그레이 캔버스 대상)
+// 성능: 픽셀 루프 전에 행/열별 보간 인덱스·가중치를 미리 계산해 반복 비용을 줄인다.
+MLL._claheCanvas = function(grayCanvas, clipLimit, tiles){
+  var w = grayCanvas.width, h = grayCanvas.height;
+  var canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(grayCanvas, 0, 0);
+  var imgData = ctx.getImageData(0,0,w,h);
+  var data = imgData.data;
+
+  var th = Math.floor(h/tiles), tw = Math.floor(w/tiles);
+  if (th<1 || tw<1) return grayCanvas;
+
+  // 타일별 LUT(256단계) 계산 — luts는 [tiles*tiles][256] 평탄화된 Uint8ClampedArray
+  var luts = new Array(tiles*tiles);
+  for (var ty=0; ty<tiles; ty++){
+    var y0=ty*th, y1=(ty<tiles-1)?y0+th:h;
+    for (var tx=0; tx<tiles; tx++){
+      var x0=tx*tw, x1=(tx<tiles-1)?x0+tw:w;
+      var hist = new Float64Array(256);
+      var n=0;
+      for (var y=y0; y<y1; y++){
+        var rowBase = y*w*4;
+        for (var x=x0; x<x1; x++){
+          hist[data[rowBase+x*4]]++; n++;
+        }
+      }
+      var clipVal = Math.max(1, clipLimit*n/256);
+      var excess = 0;
+      for (var i=0;i<256;i++){ if (hist[i]>clipVal){ excess += hist[i]-clipVal; hist[i]=clipVal; } }
+      var redistr = excess/256;
+      var lut = new Uint8ClampedArray(256);
+      var sum=0;
+      for (var i=0;i<256;i++){ sum += hist[i]+redistr; lut[i] = Math.round(sum*255/n); }
+      luts[ty*tiles+tx] = lut;
+    }
+  }
+
+  // 행(y), 열(x)별 보간 인덱스/가중치 사전계산 (루프 안에서 반복계산 제거)
+  var ty0Arr = new Int32Array(h), ty1Arr = new Int32Array(h), wyArr = new Float64Array(h);
+  for (var y=0; y<h; y++){
+    var fy = y/th - 0.5;
+    var t0 = Math.max(0, Math.min(tiles-1, Math.floor(fy)));
+    ty0Arr[y]=t0; ty1Arr[y]=Math.max(0, Math.min(tiles-1, t0+1)); wyArr[y]=Math.max(0, Math.min(1, fy-t0));
+  }
+  var tx0Arr = new Int32Array(w), tx1Arr = new Int32Array(w), wxArr = new Float64Array(w);
+  for (var x=0; x<w; x++){
+    var fx = x/tw - 0.5;
+    var t0x = Math.max(0, Math.min(tiles-1, Math.floor(fx)));
+    tx0Arr[x]=t0x; tx1Arr[x]=Math.max(0, Math.min(tiles-1, t0x+1)); wxArr[x]=Math.max(0, Math.min(1, fx-t0x));
+  }
+
+  for (var y=0; y<h; y++){
+    var ty0=ty0Arr[y], ty1=ty1Arr[y], wy=wyArr[y], wy1=1-wy;
+    var lutRow0Base = ty0*tiles, lutRow1Base = ty1*tiles;
+    var rowBase = y*w*4;
+    for (var x=0; x<w; x++){
+      var tx0=tx0Arr[x], tx1=tx1Arr[x], wx=wxArr[x], wx1=1-wx;
+      var idx = rowBase+x*4;
+      var v = data[idx];
+      var v00=luts[lutRow0Base+tx0][v], v01=luts[lutRow0Base+tx1][v];
+      var v10=luts[lutRow1Base+tx0][v], v11=luts[lutRow1Base+tx1][v];
+      var val = v00*wy1*wx1 + v01*wy1*wx + v10*wy*wx1 + v11*wy*wx;
+      data[idx]=data[idx+1]=data[idx+2]=val+0.5|0;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return canvas;
+};
+
+// 이미지를 캔버스로 변환 (기준 크기)
+MLL._imgToCanvas = function(img, maxDim){
+  var nw = img.naturalWidth, nh = img.naturalHeight;
+  var scale = maxDim ? Math.min(1, maxDim/Math.max(nw,nh)) : 1;
+  var canvas = document.createElement('canvas');
+  canvas.width = Math.round(nw*scale);
+  canvas.height = Math.round(nh*scale);
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas;
+};
+
+MLL.loadImageEl = function(src){
+  return new Promise(function(res, rej){
+    var img = new Image();
+    img.onload = function(){ res(img); };
+    img.onerror = rej;
+    img.src = src;
+  });
+};
+
+// 이미지 1장에 대해 검증된 다단계 전략을 순차 시도, 성공하면 즉시 반환
+// 빠른 단계부터 시도하고, 느린 CLAHE는 정말 필요할 때만(최후수단) 원본 해상도로 시도한다.
+// (주의: CLAHE는 다운스케일된 이미지에서는 효과가 크게 떨어지므로 반드시 원본 해상도에 적용해야 한다)
+MLL.decodeQrFromImage = async function(img, onProgress){
+  function report(label){ if (onProgress) try{ onProgress(label); }catch(e){} }
+
+  var workCanvas = MLL._imgToCanvas(img, 2000);
+
+  report('이미지 분석 중');
+  var text = await MLL._decodeCanvas(workCanvas);
+  if (text) return text;
+
+  var grayCanvas = MLL._toGrayCanvas(workCanvas);
+  text = await MLL._decodeCanvas(grayCanvas);
+  if (text) return text;
+
+  report('밝기 보정 중');
+  var eqCanvas = MLL._equalizeHistCanvas(grayCanvas);
+  text = await MLL._decodeCanvas(eqCanvas);
+  if (text) return text;
+
+  report('기울기 보정 중');
+  for (var k=0; k<3; k++) {
+    var angle = [90,180,270][k];
+    var rotated = MLL._rotateCanvas(workCanvas, angle);
+    text = await MLL._decodeCanvas(rotated);
+    if (text) return text;
+  }
+
+  report('확대해서 재시도 중');
+  var baseDim = Math.max(workCanvas.width, workCanvas.height);
+  var scales = [1.5, 2.0, 3.0].filter(function(s){ return baseDim*s <= 4000; });
+  for (var i=0; i<scales.length; i++) {
+    var scaled = MLL._scaleCanvas(workCanvas, scales[i]);
+    text = await MLL._decodeCanvas(scaled);
+    if (text) return text;
+  }
+
+  // CLAHE는 다운스케일하면 효과가 거의 사라지므로, 원본 전체 해상도 그레이스케일로 별도 처리
+  // (이미지가 매우 큰 경우 시간이 좀 걸릴 수 있어 진행 안내를 표시한다)
+  report('정밀 대비 보정 중 (사진에 따라 몇 초 걸릴 수 있어요)');
+  var fullCanvas = document.createElement('canvas');
+  fullCanvas.width = img.naturalWidth; fullCanvas.height = img.naturalHeight;
+  fullCanvas.getContext('2d').drawImage(img, 0, 0);
+  var fullGrayCanvas = MLL._toGrayCanvas(fullCanvas);
+
+  var claheCombos = [{clip:2.0, tiles:8}, {clip:3.0, tiles:8}, {clip:2.0, tiles:12}, {clip:1.5, tiles:10}, {clip:2.5, tiles:6}];
+  for (var j=0; j<claheCombos.length; j++) {
+    var c = claheCombos[j];
+    var claheCanvas = MLL._claheCanvas(fullGrayCanvas, c.clip, c.tiles);
+    text = await MLL._decodeCanvas(claheCanvas);
+    if (text) return text;
+  }
+
+  return null;
+};
+
+// 동행복권 QR URL 파싱 (회차 + [수동/자동/반자동] 조합들)
+MLL.parseLottoQrUrl = function(url){
+  try {
+    var match = url.match(/[?&]v=([^&]+)/); if (!match) return null;
+    var v = match[1];
+    var roundMatch = v.match(/^(\d+)/); if (!roundMatch) return null;
+    var round = parseInt(roundMatch[1]);
+    var combos = []; var pat = /([mqs])(\d{12})/g; var m;
+    while ((m = pat.exec(v)) !== null) {
+      var type = m[1]==='m' ? '수동' : m[1]==='q' ? '자동' : '반자동';
+      var nums = []; for (var i=0;i<12;i+=2) nums.push(parseInt(m[2].slice(i,i+2)));
+      if (nums.length===6 && nums.every(function(n){return n>=1&&n<=45;}) && new Set(nums).size===6)
+        combos.push({ type:type, nums:nums });
+    }
+    if (!round || !combos.length) return null;
+    return { round:round, combos:combos };
+  } catch(e) { return null; }
+};
+
+
+
+
 RS.parseLottoQrUrl = function(url) {
   try {
     var match = url.match(/[?&]v=([^&]+)/);
@@ -2169,34 +2460,12 @@ RS.loadImageEl = function(src) {
   });
 };
 
-// 그레이스케일 변환 + 대비 스트레칭(min-max normalize). QR은 흑백이라 대비 강화에 특히 효과적.
-RS.enhanceContrast = function(imageData) {
-  var data = imageData.data; var len = data.length;
-  var gray = new Uint8ClampedArray(len/4); var min = 255, max = 0;
-  for (var i=0, j=0; i<len; i+=4, j++) {
-    var g = data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114;
-    gray[j] = g; if (g<min) min=g; if (g>max) max=g;
-  }
-  var range = (max-min) || 1;
-  for (var i=0, j=0; i<len; i+=4, j++) {
-    var v = Math.round((gray[j]-min)/range*255);
-    data[i]=data[i+1]=data[i+2]=v;
-  }
-  return imageData;
-};
-
 // 지정된 가로/세로 크기로 캔버스에 그린 뒤 BarcodeDetector → zxing 순서로 디코딩 시도
-RS.tryDecodeImage = async function(img, w, h, enhance) {
+RS.tryDecodeImage = async function(img, w, h) {
   var canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  var ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, w, h);
-  if (enhance) {
-    var imgData = ctx.getImageData(0, 0, w, h);
-    RS.enhanceContrast(imgData);
-    ctx.putImageData(imgData, 0, 0);
-  }
+  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
 
   if ('BarcodeDetector' in window) {
     try {
@@ -2208,41 +2477,11 @@ RS.tryDecodeImage = async function(img, w, h, enhance) {
     } catch (e) {}
   }
   try {
-    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var imageData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
     var text = await RS.zxingDecode(imageData, canvas.width, canvas.height);
     if (text) return text;
   } catch (e) {}
   return null;
-};
-
-// 이미지 1장에 대해 4단계 전부 순차 시도, 성공하면 즉시 반환
-// 1) 원본  2) 1280px  3) 800px  4) 1280px 기준 대비강화
-RS.decodeQrFromImage = async function(img) {
-  var nw = img.naturalWidth, nh = img.naturalHeight;
-
-  var qrText = await RS.tryDecodeImage(img, nw, nh, false);
-  if (qrText) return qrText;
-
-  var maxDim1 = 1280;
-  var scale1 = Math.min(1, maxDim1 / Math.max(nw, nh));
-  if (scale1 < 1) {
-    qrText = await RS.tryDecodeImage(img, Math.round(nw*scale1), Math.round(nh*scale1), false);
-    if (qrText) return qrText;
-  }
-
-  var maxDim2 = 800;
-  var scale2 = Math.min(1, maxDim2 / Math.max(nw, nh));
-  if (scale2 < 1) {
-    qrText = await RS.tryDecodeImage(img, Math.round(nw*scale2), Math.round(nh*scale2), false);
-    if (qrText) return qrText;
-  }
-
-  var maxDim3 = 1280;
-  var scale3 = Math.min(1, maxDim3 / Math.max(nw, nh));
-  var w3 = scale3 < 1 ? Math.round(nw*scale3) : nw;
-  var h3 = scale3 < 1 ? Math.round(nh*scale3) : nh;
-  qrText = await RS.tryDecodeImage(img, w3, h3, true);
-  return qrText;
 };
 
 // 인식된 회차/조합을 결과로 저장 (camera_qr.html과 동일하게 확인 단계 없이 즉시 저장)
@@ -2334,10 +2573,12 @@ RS.processImgQueue = async function() {
 
   try {
     var url = URL.createObjectURL(file);
-    var img = await RS.loadImageEl(url);
+    var img = await MLL.loadImageEl(url);
     URL.revokeObjectURL(url);
 
-    var qrText = await RS.decodeQrFromImage(img);
+    var qrText = await MLL.decodeQrFromImage(img, function(stage){
+      RS.showImgProcStatus('"'+file.name+'" '+stage+'...', 50);
+    });
 
     if (qrText) {
       var parsed = RS.parseLottoQrUrl(qrText);
@@ -2348,13 +2589,13 @@ RS.processImgQueue = async function() {
         RS.showAccMsg(msgEl, 'error', '"'+file.name+'" — 로또 QR이 아닙니다');
       }
     } else {
-      RS.showAccMsg(msgEl, 'error', '"'+file.name+'" — QR 인식 실패. QR 부분을 크게 찍어주세요');
+      RS.showAccMsg(msgEl, 'error', '"'+file.name+'" — QR 인식 실패. QR 부분을 크게, 또렷하게 다시 찍어주세요');
     }
   } catch (e) {
     RS.showAccMsg(msgEl, 'error', '"'+file.name+'" 오류: '+e.message);
   }
   RS.setImgProgress(100);
-  setTimeout(function() { RS.processImgQueue(); }, 300);
+  setTimeout(function() { RS.processImgQueue(); }, 100);
 };
 
 RS.showImgProcStatus = function(text, pct) {
