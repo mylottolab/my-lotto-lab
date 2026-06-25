@@ -265,13 +265,14 @@ body{
       <div class="glow"></div>
       <div class="hcard-top">
         <div class="hcard-icon"><svg viewBox="0 0 24 24"><path d="M5 19l6-6M19 19l-6-6" stroke-linecap="round"/><path d="M9 9L5 5M15 9l4-4" stroke-linecap="round"/><circle cx="11" cy="11" r="1" fill="var(--card-accent,var(--gold))" stroke="none"/></svg></div>
-        <span class="hcard-tag soon">준비중</span>
+        <span class="hcard-tag live">이용 가능</span>
       </div>
       <div>
         <div class="hcard-name">Battles</div>
-        <div class="hcard-desc">전략으로 맞붙는 1:1·팀전·무제한 대결</div>
+        <div class="hcard-desc">전략으로 맞붙는 1:1·팀전·무제한·토너먼트 대결</div>
+        <div class="hcard-time">⏰ 신청시간 매주 일요일 0시 ~ 토요일 오후 8시</div>
       </div>
-      <div class="hcard-stat"><span class="num font-num" style="color:var(--text-faint);">Soon</span></div>
+      <div class="hcard-stat"><span class="num font-num" id="statBattleCount">0</span><span class="unit">개 배틀 진행중</span></div>
       <div class="hcard-arrow">→</div>
     </div>
 
@@ -383,6 +384,16 @@ function formatWinnerShops(raw){
     var soldOut = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
     var saleRound = soldOut ? thisRound : nextRound;
     mockRoundEl.textContent = saleRound.toLocaleString();
+  }
+
+  var battleCountEl = document.getElementById('statBattleCount');
+  if (battleCountEl) {
+    try {
+      var battleRooms = JSON.parse(localStorage.getItem('mll_battle_rooms')||'[]');
+      var activeStatuses = ['waiting','pending_numbers','active','stage_running'];
+      var activeCount = battleRooms.filter(function(r){ return activeStatuses.indexOf(r.status)>=0; }).length;
+      battleCountEl.textContent = activeCount.toLocaleString();
+    } catch(e) { battleCountEl.textContent = '0'; }
   }
 
   if(rounds.length){
