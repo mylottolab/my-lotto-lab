@@ -1328,6 +1328,72 @@ MOCKUI.zxingDecode = function(imageData, w, h){
   });
 };
 
+// 그레이스케일 변환 + 대비 스트레칭(min-max normalize). QR은 흑백이라 대비 강화에 특히 효과적.
+MOCKUI.enhanceContrast = function(imageData){
+  var data = imageData.data; var len = data.length;
+  var gray = new Uint8ClampedArray(len/4); var min = 255, max = 0;
+  for (var i=0, j=0; i<len; i+=4, j++){
+    var g = data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114;
+    gray[j] = g; if (g<min) min=g; if (g>max) max=g;
+  }
+  var range = (max-min) || 1;
+  for (var i=0, j=0; i<len; i+=4, j++){
+    var v = Math.round((gray[j]-min)/range*255);
+    data[i]=data[i+1]=data[i+2]=v;
+  }
+  return imageData;
+};
+
+// 지정 크기로 캔버스에 그린 뒤 BarcodeDetector → ZXing 순서로 디코딩
+MOCKUI.tryDecodeImage = async function(img, w, h, enhance){
+  var canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  if (enhance) {
+    var imgData = ctx.getImageData(0, 0, w, h);
+    MOCKUI.enhanceContrast(imgData);
+    ctx.putImageData(imgData, 0, 0);
+  }
+  if ('BarcodeDetector' in window) {
+    try {
+      var det = new BarcodeDetector({formats:['qr_code']});
+      var blob = await new Promise(function(r){ canvas.toBlob(r, 'image/jpeg', 0.95); });
+      var bmp = await createImageBitmap(blob);
+      var codes = await det.detect(bmp);
+      if (codes.length>0) return codes[0].rawValue;
+    } catch(e) {}
+  }
+  try {
+    var imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+    var text = await MOCKUI.zxingDecode(imageData, canvas.width, canvas.height);
+    if (text) return text;
+  } catch(e) {}
+  return null;
+};
+
+// 이미지 1장에 대해 4단계 전부 순차 시도: 1)원본 2)1280px 3)800px 4)1280px 기준 대비강화
+MOCKUI.decodeQrFromImage = async function(img){
+  var nw = img.naturalWidth, nh = img.naturalHeight;
+  var qrText = await MOCKUI.tryDecodeImage(img, nw, nh, false);
+  if (qrText) return qrText;
+
+  var maxDim1 = 1280, scale1 = Math.min(1, maxDim1/Math.max(nw,nh));
+  if (scale1 < 1) {
+    qrText = await MOCKUI.tryDecodeImage(img, Math.round(nw*scale1), Math.round(nh*scale1), false);
+    if (qrText) return qrText;
+  }
+  var maxDim2 = 800, scale2 = Math.min(1, maxDim2/Math.max(nw,nh));
+  if (scale2 < 1) {
+    qrText = await MOCKUI.tryDecodeImage(img, Math.round(nw*scale2), Math.round(nh*scale2), false);
+    if (qrText) return qrText;
+  }
+  var maxDim3 = 1280, scale3 = Math.min(1, maxDim3/Math.max(nw,nh));
+  var w3 = scale3<1 ? Math.round(nw*scale3) : nw, h3 = scale3<1 ? Math.round(nh*scale3) : nh;
+  qrText = await MOCKUI.tryDecodeImage(img, w3, h3, true);
+  return qrText;
+};
+
 MOCKUI.registerQrCombos = function(parsed, resultBoxId){
   var nick = MOCKUI.requireNickname();
   if (!nick) return;
@@ -1384,24 +1450,10 @@ MOCKUI.processImgQueue = async function(){
   try {
     var url = URL.createObjectURL(file);
     var img = await MOCKUI._loadImage(url);
-    var canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-    canvas.getContext('2d').drawImage(img, 0, 0);
     URL.revokeObjectURL(url);
-    var qrText = null;
-    if ('BarcodeDetector' in window) {
-      try {
-        var det = new BarcodeDetector({formats:['qr_code']});
-        var blob = await new Promise(function(r){ canvas.toBlob(r, 'image/jpeg', 0.95); });
-        var bmp = await createImageBitmap(blob);
-        var codes = await det.detect(bmp);
-        if (codes.length>0) qrText = codes[0].rawValue;
-      } catch(e) {}
-    }
-    if (!qrText) {
-      var imageData = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height);
-      qrText = await MOCKUI.zxingDecode(imageData, canvas.width, canvas.height);
-    }
+
+    var qrText = await MOCKUI.decodeQrFromImage(img);
+
     if (qrText) {
       var parsed = MOCKUI.parseLottoQrUrl(qrText);
       if (parsed) MOCKUI.registerQrCombos(parsed, 'qrImgResultBox');

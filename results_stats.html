@@ -583,11 +583,10 @@ MLL._checkSum = function(nums, min, max) {
   return true;
 };
 
-MLL._getTopFrequency = function(history, recent, topN, bonusInclude) {
+MLL._getTopFrequency = function(history, recent, topN) {
   var freq = {};
   history.slice(0, recent).forEach(function(h) {
     (h.nums||[]).forEach(function(n){ freq[n] = (freq[n]||0)+1; });
-    if (bonusInclude && h.bonus) { freq[h.bonus] = (freq[h.bonus]||0)+1; }
   });
   return Object.keys(freq).map(function(n){ return [parseInt(n), freq[n]]; })
     .sort(function(a,b){ return b[1]-a[1]; }).slice(0, topN).map(function(x){ return x[0]; });
@@ -595,8 +594,8 @@ MLL._getTopFrequency = function(history, recent, topN, bonusInclude) {
 
 // condition 객체 필드: name, odd_even, consecutive_limit, sum_min, sum_max,
 //   range_start, range_end, include_numbers, exclude_numbers,
-//   top_range, top_use, recent_rounds, last_week_mode, bonus_include
-// history: MLL.loadResults()를 최근회차순으로 정렬한 [{round,nums,bonus}] 배열
+//   top_range, top_use, recent_rounds, last_week_mode
+// history: MLL.loadResults()를 최근회차순으로 정렬한 [{round,nums}] 배열
 MLL.matchesCondition = function(nums, condition, history) {
   var oddEven     = (condition.odd_even || '').trim();
   var consLimit   = parseInt(condition.consecutive_limit) || 0;
@@ -609,7 +608,6 @@ MLL.matchesCondition = function(nums, condition, history) {
   var topRange    = parseInt(condition.top_range) || 0;
   var topUse      = (condition.top_use !== '' && condition.top_use !== undefined && condition.top_use !== null) ? parseInt(condition.top_use) : null;
   var lastWeekMode= condition.last_week_mode || '무관';
-  var bonusInclude= (condition.bonus_include || 'N').toUpperCase() === 'Y';
 
   // 홀짝비율
   if (oddEven && oddEven !== '무관') {
@@ -648,7 +646,7 @@ MLL.matchesCondition = function(nums, condition, history) {
   // 상위빈도 조건 — 조합 내 상위빈도번호 개수가 정확히 topUse여야 함
   if (topRange > 0 && topUse !== null && history && history.length) {
     var recent = parseInt(condition.recent_rounds) || history.length;
-    var topNums = MLL._getTopFrequency(history, recent, topRange, bonusInclude);
+    var topNums = MLL._getTopFrequency(history, recent, topRange);
     var topCnt = nums.filter(function(n){ return topNums.indexOf(n) >= 0; }).length;
     if (topCnt !== topUse) return false;
   }
@@ -1293,8 +1291,7 @@ RS.CONDITION_FIELDS = [
   { id:'c-top-range',     key:'top_range' },
   { id:'c-top-use',       key:'top_use' },
   { id:'c-recent-rounds', key:'recent_rounds' },
-  { id:'c-last-week',     key:'last_week_mode' },
-  { id:'c-bonus-include', key:'bonus_include' }
+  { id:'c-last-week',     key:'last_week_mode' }
 ];
 
 RS.renderByCondition = function(container) {
@@ -1343,11 +1340,6 @@ RS.renderByCondition = function(container) {
               '<option value="적은순">적은순 (겹침 적은 것 우선)</option>' +
               '<option value="많은순">많은순 (겹침 많은 것 우선)</option>' +
             '</select></div>' +
-          '<div><div class="cond-label">보너스포함 <span class="hint">빈도분석에 보너스번호 포함</span></div>' +
-            '<select class="cond-select" id="c-bonus-include">' +
-              '<option value="N">N (본번호 6개만 분석)</option>' +
-              '<option value="Y">Y (본번호+보너스 7개 분석)</option>' +
-            '</select></div>' +
         '</div>' +
 
         '<button class="cond-searchbtn" onclick="RS.runConditionSearch()">🔍 찾기 Click!</button>' +
@@ -1394,7 +1386,7 @@ RS.runConditionSearch = function() {
   var entries = MLL.loadEntries();
   var results = MLL.loadResults();
   var history = Object.keys(results).map(Number).sort(function(a,b){ return b-a; }).map(function(r){
-    return { round:r, nums: results[r].nums || [], bonus: results[r].bonus || null };
+    return { round:r, nums: results[r].nums || [] };
   });
 
   var matched = MLL.searchEntriesByCondition(entries, cond, history);
@@ -2177,12 +2169,34 @@ RS.loadImageEl = function(src) {
   });
 };
 
+// 그레이스케일 변환 + 대비 스트레칭(min-max normalize). QR은 흑백이라 대비 강화에 특히 효과적.
+RS.enhanceContrast = function(imageData) {
+  var data = imageData.data; var len = data.length;
+  var gray = new Uint8ClampedArray(len/4); var min = 255, max = 0;
+  for (var i=0, j=0; i<len; i+=4, j++) {
+    var g = data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114;
+    gray[j] = g; if (g<min) min=g; if (g>max) max=g;
+  }
+  var range = (max-min) || 1;
+  for (var i=0, j=0; i<len; i+=4, j++) {
+    var v = Math.round((gray[j]-min)/range*255);
+    data[i]=data[i+1]=data[i+2]=v;
+  }
+  return imageData;
+};
+
 // 지정된 가로/세로 크기로 캔버스에 그린 뒤 BarcodeDetector → zxing 순서로 디코딩 시도
-RS.tryDecodeImage = async function(img, w, h) {
+RS.tryDecodeImage = async function(img, w, h, enhance) {
   var canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  if (enhance) {
+    var imgData = ctx.getImageData(0, 0, w, h);
+    RS.enhanceContrast(imgData);
+    ctx.putImageData(imgData, 0, 0);
+  }
 
   if ('BarcodeDetector' in window) {
     try {
@@ -2194,11 +2208,41 @@ RS.tryDecodeImage = async function(img, w, h) {
     } catch (e) {}
   }
   try {
-    var imageData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     var text = await RS.zxingDecode(imageData, canvas.width, canvas.height);
     if (text) return text;
   } catch (e) {}
   return null;
+};
+
+// 이미지 1장에 대해 4단계 전부 순차 시도, 성공하면 즉시 반환
+// 1) 원본  2) 1280px  3) 800px  4) 1280px 기준 대비강화
+RS.decodeQrFromImage = async function(img) {
+  var nw = img.naturalWidth, nh = img.naturalHeight;
+
+  var qrText = await RS.tryDecodeImage(img, nw, nh, false);
+  if (qrText) return qrText;
+
+  var maxDim1 = 1280;
+  var scale1 = Math.min(1, maxDim1 / Math.max(nw, nh));
+  if (scale1 < 1) {
+    qrText = await RS.tryDecodeImage(img, Math.round(nw*scale1), Math.round(nh*scale1), false);
+    if (qrText) return qrText;
+  }
+
+  var maxDim2 = 800;
+  var scale2 = Math.min(1, maxDim2 / Math.max(nw, nh));
+  if (scale2 < 1) {
+    qrText = await RS.tryDecodeImage(img, Math.round(nw*scale2), Math.round(nh*scale2), false);
+    if (qrText) return qrText;
+  }
+
+  var maxDim3 = 1280;
+  var scale3 = Math.min(1, maxDim3 / Math.max(nw, nh));
+  var w3 = scale3 < 1 ? Math.round(nw*scale3) : nw;
+  var h3 = scale3 < 1 ? Math.round(nh*scale3) : nh;
+  qrText = await RS.tryDecodeImage(img, w3, h3, true);
+  return qrText;
 };
 
 // 인식된 회차/조합을 결과로 저장 (camera_qr.html과 동일하게 확인 단계 없이 즉시 저장)
@@ -2293,28 +2337,7 @@ RS.processImgQueue = async function() {
     var img = await RS.loadImageEl(url);
     URL.revokeObjectURL(url);
 
-    // 1차: 원본 크기로 시도, 실패하면 2차: 적정 크기로 다운스케일해서 재시도
-    // (최신 스마트폰 사진은 4000px가 넘는 경우가 많아 디코더가 처리에 실패하는 경우가 있음)
-    var qrText = await RS.tryDecodeImage(img, img.naturalWidth, img.naturalHeight);
-    if (!qrText) {
-      var maxDim = 1280;
-      var scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
-      if (scale < 1) {
-        var w2 = Math.round(img.naturalWidth * scale);
-        var h2 = Math.round(img.naturalHeight * scale);
-        qrText = await RS.tryDecodeImage(img, w2, h2);
-      }
-    }
-    // 3차: 그래도 실패하면 더 작게(800px) 한 번 더 — 너무 촘촘한 경우 반대로 작을 때 더 잘 읽히기도 함
-    if (!qrText) {
-      var maxDim2 = 800;
-      var scale2 = Math.min(1, maxDim2 / Math.max(img.naturalWidth, img.naturalHeight));
-      if (scale2 < 1) {
-        var w3 = Math.round(img.naturalWidth * scale2);
-        var h3 = Math.round(img.naturalHeight * scale2);
-        qrText = await RS.tryDecodeImage(img, w3, h3);
-      }
-    }
+    var qrText = await RS.decodeQrFromImage(img);
 
     if (qrText) {
       var parsed = RS.parseLottoQrUrl(qrText);
