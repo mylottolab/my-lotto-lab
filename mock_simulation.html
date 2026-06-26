@@ -1932,7 +1932,7 @@ MLL.MARKING_CONFIG = {
   defaultCid: '158',
   pricePerSheet: 300,   // 전표용지 1매당 300원
   extraImagePrice: 500, // 이미지 1개 추가(2개째부터)당 500원
-  imageBasePath: 'character_images/' // 캐릭터 이미지 폴더 (상대경로)
+  imageBasePath: '' // 캐릭터 이미지 경로: 현재는 HTML 파일과 같은 위치(루트)에 직접 올려둔 상태에 맞춤. 추후 character_images/ 같은 하위폴더로 정리하면 이 값만 'character_images/'로 바꾸면 전체 반영됨.
 };
 
 // ── 캐릭터 목록(이미지 폴더 스캔 대체: 정적 목록, 실제로는 145개 PNG 파일과 1:1) ──
@@ -1954,7 +1954,7 @@ MLL.openMarkingModal = function(rows, fileBase){
   MLL.markingState.pendingFileBase = fileBase || 'lotto_marking';
   MLL.markingState.selectedCids = [];
   MLL._renderMarkingModal();
-  document.getElementById('mllMarkingModal').classList.add('show');
+  document.getElementById('mllMarkingModal').style.display = 'flex';
 };
 
 MLL._ensureMarkingModalDom = function(){
@@ -1962,18 +1962,27 @@ MLL._ensureMarkingModalDom = function(){
   var overlay = document.createElement('div');
   overlay.id = 'mllMarkingModal';
   overlay.className = 'modal-overlay';
+  // 외부 페이지의 CSS(부모 transform/contain 등)에 의해 position:fixed가 깨지는 것을 방지하기 위해
+  // 핵심 위치 속성을 인라인 스타일로 강제 지정 (외부 스타일시트보다 우선 적용됨)
+  overlay.setAttribute('style', 'position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;width:100vw;height:100vh;background:rgba(0,0,0,.65);z-index:999999;display:none;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;');
   overlay.innerHTML =
-    '<div class="modal-box" style="max-width:760px;">' +
-      '<button class="modal-close-x" style="position:absolute;top:20px;right:20px;background:none;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;" onclick="MLL.closeMarkingModal()">✕</button>' +
-      '<h3 style="font-size:16px;font-weight:700;margin-bottom:8px;">🖨 마킹용지 PDF로 받기</h3>' +
-      '<p style="font-size:11.5px;color:var(--text-dim,#8b91ab);line-height:1.7;margin-bottom:14px;">실물 로또 판매점에 바로 제출 가능한 마킹용지 형태로 출력합니다. 이미지를 여러 개 선택하면 용지마다 순서대로 번갈아 적용됩니다.</p>' +
-      '<div id="mllCharGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:320px;overflow-y:auto;padding:4px;border:1px solid var(--border,#252b48);border-radius:10px;margin-bottom:14px;"></div>' +
-      '<div id="mllMarkingPriceBox" style="font-size:12.5px;color:var(--text-dim,#8b91ab);margin-bottom:12px;"></div>' +
+    '<div class="modal-box" style="position:relative;max-width:760px;width:100%;max-height:88vh;overflow-y:auto;background:#11152a;border:1px solid #252b48;border-radius:16px;padding:24px;box-sizing:border-box;">' +
+      '<button class="modal-close-x" style="position:absolute;top:20px;right:20px;background:none;border:none;color:#5a6080;font-size:18px;cursor:pointer;" onclick="MLL.closeMarkingModal()">✕</button>' +
+      '<h3 style="font-size:16px;font-weight:700;margin-bottom:8px;color:#eef0f6;">🖨 마킹용지 PDF로 받기</h3>' +
+      '<p style="font-size:11.5px;color:#8b91ab;line-height:1.7;margin-bottom:14px;">실물 로또 판매점에 바로 제출 가능한 마킹용지 형태로 출력합니다. 이미지를 여러 개 선택하면 용지마다 순서대로 번갈아 적용됩니다.</p>' +
+      '<div id="mllCharGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:320px;overflow-y:auto;padding:4px;border:1px solid #252b48;border-radius:10px;margin-bottom:14px;"></div>' +
+      '<div id="mllMarkingPriceBox" style="font-size:12.5px;color:#8b91ab;margin-bottom:12px;"></div>' +
       '<div id="mllMarkingResultBox" style="margin-top:10px;padding:11px 14px;border-radius:9px;font-size:12px;display:none;"></div>' +
       '<button class="btn" style="width:100%;background:#2FBFA3;color:#fff;border:none;border-radius:9px;padding:12px;font-size:13.5px;font-weight:700;cursor:pointer;" onclick="MLL.submitMarkingRequest()">PDF 생성하기</button>' +
     '</div>';
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) MLL.closeMarkingModal(); });
   document.body.appendChild(overlay);
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') MLL.closeMarkingModal();
+  });
 };
+
+
 
 MLL._renderMarkingModal = function(){
   MLL._ensureMarkingModalDom();
@@ -2019,7 +2028,7 @@ MLL._updateMarkingPriceBox = function(){
 
 MLL.closeMarkingModal = function(){
   var el = document.getElementById('mllMarkingModal');
-  if (el) el.classList.remove('show');
+  if (el) el.style.display = 'none';
 };
 
 MLL._showMarkingResult = function(type, msg){
@@ -2128,6 +2137,8 @@ MLL._mergePdfBlobs = async function(blobs){
   var mergedBytes = await merged.save();
   return new Blob([mergedBytes], {type:'application/pdf'});
 };
+
+
 
 
 
