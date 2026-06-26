@@ -389,7 +389,11 @@ MLL.renderRow = function(entry, sessionTag, opts) {
     '<button onclick="MLL.deleteEntry(\''+entry.id+'\');if(window.refreshTable)refreshTable();" ' +
     'style="background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;">🗑</button>';
 
-  return '<tr style="'+rowStyle+'">' +
+  var isSlipChecked = window.MLL_SLIP_CHECKED && window.MLL_SLIP_CHECKED[entry.id];
+  var slipCheckHtml = '<input type="checkbox" '+(isSlipChecked?'checked':'')+' onchange="toggleSlipCheck(\''+entry.id+'\', this.checked)">';
+
+  return '<tr id="slip_row_'+entry.id+'" style="'+rowStyle+'">' +
+    '<td style="text-align:center;padding:4px 4px;">'+slipCheckHtml+'</td>' +
     '<td style="text-align:center;padding:4px 4px;"><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">'+entry.round+'회</span></td>' +
     '<td style="padding:4px 6px;"><div style="display:flex;gap:1px;align-items:center;flex-wrap:wrap;">'+ballsHTML+'</div></td>' +
     '<td style="text-align:center;padding:4px 4px;">'+typeHTML+'</td>' +
@@ -818,6 +822,7 @@ document.addEventListener('click',function(e){
   <div class="tw">
     <table style="min-width:500px;">
       <thead><tr>
+        <th style="width:28px;"><input type="checkbox" id="checkAllSlip" onclick="toggleAllSlipCheck(this.checked)" title="전표작성용 체크"></th>
         <th style="width:52px;">회차</th>
         <th style="width:160px;">번호</th>
         <th style="width:54px;">구매형태</th>
@@ -829,6 +834,10 @@ document.addEventListener('click',function(e){
       </tr></thead>
       <tbody id="tb"></tbody>
     </table>
+  </div>
+  <div id="slipActionBar" style="display:flex;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;background:#e8f4ff;border-radius:7px;border:1px solid #b3d8ff;">
+    <span style="font-size:11px;color:#1a7ad4;">🎫 전표작성 체크 <b id="slipCheckedCount">0</b>개 선택됨</span>
+    <button onclick="makeSlipFromChecked()" id="btnSlipMake" disabled style="margin-left:auto;background:#1a7ad4;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:11.5px;font-weight:700;cursor:pointer;">🖨️ 로또구매전표 작성</button>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid #eee;font-size:11px;color:#222;">
     <div style="line-height:1.5;">
@@ -1349,6 +1358,46 @@ window.cancelResult = cancelResult;
 window.refreshTable = refreshTable;
 window.delItem      = delItem;
 
+// =====================================================
+// 전표작성(마킹용지) 체크 관리 — 4개 입력화면 공통 패턴
+// =====================================================
+window.MLL_SLIP_CHECKED = {};
+
+function toggleSlipCheck(id, checked){
+  if (checked) window.MLL_SLIP_CHECKED[id] = true;
+  else delete window.MLL_SLIP_CHECKED[id];
+  var row = document.getElementById('slip_row_'+id);
+  if (row) row.style.background = checked ? '#fff8e1' : '';
+  updateSlipCheckedDisplay();
+}
+
+function toggleAllSlipCheck(checked){
+  var entries = MLL.loadEntries();
+  entries.forEach(function(e){
+    if (checked) window.MLL_SLIP_CHECKED[e.id] = true;
+    else delete window.MLL_SLIP_CHECKED[e.id];
+  });
+  if (window.refreshTable) refreshTable();
+  updateSlipCheckedDisplay();
+}
+
+function updateSlipCheckedDisplay(){
+  var count = Object.keys(window.MLL_SLIP_CHECKED).length;
+  var cntEl = document.getElementById('slipCheckedCount');
+  var btnEl = document.getElementById('btnSlipMake');
+  if (cntEl) cntEl.textContent = count;
+  if (btnEl) btnEl.disabled = count === 0;
+}
+
+function makeSlipFromChecked(){
+  var ids = Object.keys(window.MLL_SLIP_CHECKED);
+  if (!ids.length) { alert('전표로 작성할 번호조합을 먼저 체크해주세요.'); return; }
+  var allEntries = MLL.loadEntries();
+  var selected = allEntries.filter(function(e){ return window.MLL_SLIP_CHECKED[e.id]; });
+  var rows = selected.map(function(e){ return e.nums.slice().sort(function(a,b){ return a-b; }); });
+  MLL.openMarkingModal(rows, '로또구매전표_' + selected.length + '매');
+}
+
 // 회차 드롭다운
 (function() {
   var info = MLL.getLottoInfo();
@@ -1357,6 +1406,247 @@ window.delItem      = delItem;
     var o=document.createElement('option'); o.value=r; o.textContent=r+'회'; sel.appendChild(o);
   }
 })();
+
+</script>
+
+<script>
+var MLL_CHAR_NAMES = {"16": "잘 맞추는 신묘한 조상님", "17": "복을 부르는 우리 다둥이", "18": "로또로 돈번 복돼지", "19": "재물운 부르는 불난집 꿈", "20": "역대 최고금액 407억 당첨점 춘천복권명당", "21": "강풍 부는 남태평양 바닷가", "22": "황혼의 나무", "23": "비상(飛上)", "24": "그해 겨울은 따뜻했네", "25": "눈을 머금은 큰나무", "26": "아,! 졸려.", "65": "단풍", "75": "1등당첨 환호하는 복돼지", "150": "달마가 여기 온 까닭은?", "151": "신묘한 조상님", "153": "복을 부르는 다둥이", "154": "로또 잘 맞추는 복돼지", "155": "대박 길조 큰불", "156": "누구에게나 1등은 온다", "158": "함께 이겨내자. 응?", "159": "어딘가 길이 있어", "27": "네가 좋아하기를", "28": "지친 널 지켜보는 나", "29": "살다보면 즐거운 날도", "30": "비가 와도 함께라면", "31": "운무가 깔려 있는 풍경", "32": "가을 고궁", "33": "2025년은 푸른 뱀의 해: 이번주 1등은 푸른 뱀띠", "38": "1등 날라가기 전에", "39": "우리가 응원할께요", "40": "다산왕 로또옥자", "41": "난 로또박사 맘껏 찍어", "42": "당첨 많은 복쥐", "43": "네잎클로버 쥔 토끼", "44": "큰 재물 부르는 큰불", "45": "황금들녁", "46": "금화 가득 로또돼지", "47": "무슨 번호로 살까?", "48": "아빠 힘내세요, 1등 당첨!", "49": "우린 이 번호로 정했어요", "50": "1등로또 사러 가는길", "51": "나도 蘭이나 치고 살고싶다", "52": "이번주 1등은 돼지띠", "53": "이번주 1등은 용띠", "54": "이번주 1등은 토끼띠", "55": "이번주 1등은 범띠", "56": "이번주 1등은 소띠", "57": "이번주 1등은 쥐띠", "58": "어둠을 뚫고 비상하는 吉鳥", "59": "2022호랑이 대박복권", "60": "여명", "61": "이 겨울 지나면", "62": "이 사막을 벗어날까?", "63": "이런 곳에도 서광이 있다", "64": "맥켄나의 황금", "66": "나는 안드로메다로 간다", "68": "다시 평온해진 그 바닷가", "69": "북극 빙하도 녹는 봄은 온다", "70": "나무열매 먹는 작은 새", "71": "아이들과 함께", "72": "봄나들이 가는 철새가족", "73": "나비 그리고 봄", "74": "소원과 함께하는 촛불", "76": "크리스마스 선물 상자들", "77": "저 곳에 다시 갈 수 있을까?", "78": "그냥 바라만 보는 도시야경", "79": "이렇게 넓은데 내 집은???", "80": "댕댕이의 봄날은 간다", "81": "소가 뛰어 노는 저곳에서..", "89": "그래 결정할 때가 왔어!", "90": "이 고요함을 즐기고 싶다", "91": "빛 잃은 나의 삶, 곧 광명이", "92": "이 꽃이 이쁘다.....", "93": "돌아가는 길에 핀 노란 꽃", "94": "가을 여명의 나무숲길", "95": "복 부르는 석류", "96": "꽃과 나비", "97": "내 마음을 적셔주는 폭포수", "98": "파도에 지워질 수도 있지만.......", "99": "신록의 계절 다시 시작한다", "100": "1등 되면 저런 곳에서", "101": "떠나고 싶다, 사람없는 곳에", "102": "내게도 희망의 싹이 튼다", "103": "이 과일 드시고 하세요.", "104": "초가을 호숫가", "105": "꽃은 피었으나 막막함이...", "106": "이름 모를 들꽃도 아름답다.", "107": "내 마음이야, 어둠이와도", "108": "이길 지나면 평탄할까?", "109": "초원의 빛", "110": "은하수 저 우주 너머로", "111": "저 너머 신대륙이 있다.", "112": "에베레스트 산행중", "113": "옛날 다니던 시골길 풍경", "114": "늦가을 나무숲 속에서", "115": "희망없는 적막한 겨울길", "116": "새로운 날이 떴다.", "117": "비 온 직 후 상쾌함이.....", "118": "걷다보면 어딘가 나오겠지", "119": "때가 되면 날개를 활짝편다", "120": "배꽃을 아십니까?", "121": "빗물 방울 맺힌 창가", "122": "감귤나무 있는 옛 초가집", "123": "캐나다 암곡의 늦여름 풍경", "124": "당첨되면 저기 사무실낸다", "125": "晩秋1", "126": "晩秋2", "127": "晩秋3", "128": "潔雪1", "129": "오묘한 기운 뿜는 불빛", "130": "나의 부인도 두섭", "131": "솜 머리 써서 찍어 볼까?", "132": "한켠에 다소곳이 있는 화분", "133": "봄, 마구 자란 화초", "134": "녀석 제대로 찾았네.", "135": "해바라기", "136": "석양이 지는 화초 들녁에서", "137": "동이 트는 들녁", "138": "관석(貫石)의 칼로 로또를!", "139": "풍경이나 보며 한번 쉬자", "140": "한번 먹어 볼까? 로또1등", "141": "깊숙한 숲속에도 서광이", "142": "나의 든든한 나무 아래에서", "143": "潔雪2", "144": "가을 운무가 짙은 가로수 길", "145": "햇살이 들어오는 여름 숲속", "146": "로또 당첨 기운 주는 폭포", "147": "2025년은 뱀의 해: 이번주 1등은 뱀띠", "148": "2025년은 뱀의 해: 이번주 1등은 뱀띠", "149": "이번주 1등은 말띠", "160": "이번주 1등은 양띠", "161": "무제", "34": "", "35": "", "36": "", "37": "", "82": "", "83": "", "84": "", "85": "", "86": "", "87": "", "88": "", "152": "", "157": ""};
+</script>
+<script>
+// =====================================================
+// ⚠️⚠️⚠️ 매우 중요한 보안 경고 ⚠️⚠️⚠️
+// 이 코드는 "지금 당장 동작을 보고 싶다"는 명시적 요청에 따라
+// 위험을 감수하고 구현된 테스트용 코드입니다.
+//
+// makinglotto.com의 관리자 인증정보(HTTP Basic Auth)가 이 파일에
+// 평문으로 포함되어 있습니다. 이 페이지의 "소스 보기"를 하는 누구나
+// 그 인증정보를 그대로 가져갈 수 있습니다.
+//
+// 절대로 이 상태로 외부에 공개 배포하거나 실제 서비스에 올리면 안 됩니다.
+// My Lotto Lab 서버가 구축되면, 이 인증정보는 반드시 서버 환경변수로
+// 옮기고, 이 파일의 직접 호출 코드는 전부 제거해야 합니다.
+// (설계서 v1.2, 4.5.1절 참고)
+// =====================================================
+
+if (typeof window.MLL === 'undefined') { window.MLL = {}; }
+var MLL = window.MLL;
+
+MLL.MARKING_CONFIG = {
+  baseUrl: 'https://makinglotto.com',
+  loginUrl: 'https://makinglotto.com/admin/starter/8w6q5ndxdwsua52b',
+  mainPageUrl: 'https://makinglotto.com/lottomaking',
+  slipdownUrl: 'https://makinglotto.com/lottomaking/slipdown',
+  authUser: 'admin',
+  authPass: 'ysw6673', // ⚠️ 평문 노출, 테스트 전용. 서버 이전 시 즉시 제거할 것.
+  chunkSize: 15,
+  defaultCid: '158',
+  pricePerSheet: 300,   // 전표용지 1매당 300원
+  extraImagePrice: 500, // 이미지 1개 추가(2개째부터)당 500원
+  imageBasePath: '' // 캐릭터 이미지 경로: 현재는 HTML 파일과 같은 위치(루트)에 직접 올려둔 상태에 맞춤. 추후 character_images/ 같은 하위폴더로 정리하면 이 값만 'character_images/'로 바꾸면 전체 반영됨.
+};
+
+// ── 캐릭터 목록(이미지 폴더 스캔 대체: 정적 목록, 실제로는 145개 PNG 파일과 1:1) ──
+MLL.getAvailableCharacterIds = function(){
+  if (typeof MLL_CHAR_NAMES === 'undefined') return [];
+  return Object.keys(MLL_CHAR_NAMES).map(Number).sort(function(a,b){return a-b;});
+};
+MLL.getCharacterName = function(cid){
+  if (typeof MLL_CHAR_NAMES === 'undefined') return '';
+  return MLL_CHAR_NAMES[String(cid)] || '';
+};
+
+// ── 캐릭터 선택 모달 상태 ──
+MLL.markingState = { selectedCids: [], pendingRows: null, pendingFileBase: 'lotto_marking' };
+
+MLL.openMarkingModal = function(rows, fileBase){
+  if (!rows || !rows.length) { alert('받을 번호조합이 없습니다.'); return; }
+  MLL.markingState.pendingRows = rows;
+  MLL.markingState.pendingFileBase = fileBase || 'lotto_marking';
+  MLL.markingState.selectedCids = [];
+  MLL._renderMarkingModal();
+  document.getElementById('mllMarkingModal').style.display = 'flex';
+};
+
+MLL._ensureMarkingModalDom = function(){
+  if (document.getElementById('mllMarkingModal')) return;
+  var overlay = document.createElement('div');
+  overlay.id = 'mllMarkingModal';
+  overlay.className = 'modal-overlay';
+  // 외부 페이지의 CSS(부모 transform/contain 등)에 의해 position:fixed가 깨지는 것을 방지하기 위해
+  // 핵심 위치 속성을 인라인 스타일로 강제 지정 (외부 스타일시트보다 우선 적용됨)
+  overlay.setAttribute('style', 'position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;width:100vw;height:100vh;background:rgba(0,0,0,.65);z-index:999999;display:none;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;');
+  overlay.innerHTML =
+    '<div class="modal-box" style="position:relative;max-width:760px;width:100%;max-height:88vh;overflow-y:auto;background:#11152a;border:1px solid #252b48;border-radius:16px;padding:24px;box-sizing:border-box;">' +
+      '<button class="modal-close-x" style="position:absolute;top:20px;right:20px;background:none;border:none;color:#5a6080;font-size:18px;cursor:pointer;" onclick="MLL.closeMarkingModal()">✕</button>' +
+      '<h3 style="font-size:16px;font-weight:700;margin-bottom:8px;color:#eef0f6;">🖨 마킹용지 PDF로 받기</h3>' +
+      '<p style="font-size:11.5px;color:#8b91ab;line-height:1.7;margin-bottom:14px;">실물 로또 판매점에 바로 제출 가능한 마킹용지 형태로 출력합니다. 이미지를 여러 개 선택하면 용지마다 순서대로 번갈아 적용됩니다.</p>' +
+      '<div id="mllCharGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:320px;overflow-y:auto;padding:4px;border:1px solid #252b48;border-radius:10px;margin-bottom:14px;"></div>' +
+      '<div id="mllMarkingPriceBox" style="font-size:12.5px;color:#8b91ab;margin-bottom:12px;"></div>' +
+      '<div id="mllMarkingResultBox" style="margin-top:10px;padding:11px 14px;border-radius:9px;font-size:12px;display:none;"></div>' +
+      '<button class="btn" style="width:100%;background:#2FBFA3;color:#fff;border:none;border-radius:9px;padding:12px;font-size:13.5px;font-weight:700;cursor:pointer;" onclick="MLL.submitMarkingRequest()">PDF 생성하기</button>' +
+    '</div>';
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) MLL.closeMarkingModal(); });
+  document.body.appendChild(overlay);
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') MLL.closeMarkingModal();
+  });
+};
+
+
+
+MLL._renderMarkingModal = function(){
+  MLL._ensureMarkingModalDom();
+  var ids = MLL.getAvailableCharacterIds();
+  var grid = document.getElementById('mllCharGrid');
+  grid.innerHTML = ids.map(function(id){
+    var name = MLL.getCharacterName(id);
+    return '<div class="mll-char-card" data-cid="'+id+'" onclick="MLL.toggleCharacter('+id+')" style="cursor:pointer;border:2px solid var(--border,#252b48);border-radius:8px;overflow:hidden;text-align:center;background:var(--surface-2,#161b35);">' +
+      '<img src="'+MLL.MARKING_CONFIG.imageBasePath+id+'.png" style="width:100%;aspect-ratio:2/1;object-fit:cover;display:block;" loading="lazy">' +
+      '<div style="font-size:9px;padding:3px 2px;color:var(--text-dim,#8b91ab);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+id+(name?(' '+name.slice(0,8)):'')+'</div>' +
+    '</div>';
+  }).join('');
+  MLL._updateMarkingPriceBox();
+};
+
+MLL.toggleCharacter = function(cid){
+  var s = MLL.markingState;
+  var idx = s.selectedCids.indexOf(cid);
+  if (idx>=0) s.selectedCids.splice(idx,1);
+  else s.selectedCids.push(cid);
+  document.querySelectorAll('.mll-char-card').forEach(function(el){
+    var on = s.selectedCids.indexOf(parseInt(el.dataset.cid))>=0;
+    el.style.borderColor = on ? '#2FBFA3' : 'var(--border,#252b48)';
+    el.style.boxShadow = on ? '0 0 0 2px rgba(47,191,163,.3)' : 'none';
+  });
+  MLL._updateMarkingPriceBox();
+};
+
+MLL._updateMarkingPriceBox = function(){
+  var rows = MLL.markingState.pendingRows || [];
+  var sheetCount = rows.length;
+  var imgCount = Math.max(1, MLL.markingState.selectedCids.length); // 0개 선택시 디폴트 1개 취급
+  var cfg = MLL.MARKING_CONFIG;
+  var sheetCost = sheetCount * cfg.pricePerSheet;
+  var extraImgCost = Math.max(0, imgCount-1) * cfg.extraImagePrice;
+  var total = sheetCost + extraImgCost;
+  document.getElementById('mllMarkingPriceBox').innerHTML =
+    '용지 '+sheetCount+'매 × '+cfg.pricePerSheet.toLocaleString()+'원 = '+sheetCost.toLocaleString()+'원' +
+    (extraImgCost>0 ? ' + 이미지 추가 '+(imgCount-1)+'개 × '+cfg.extraImagePrice.toLocaleString()+'원 = '+extraImgCost.toLocaleString()+'원' : ' (이미지 1개는 무료)') +
+    '<br><b style="color:#2FBFA3;font-size:14px;">합계: '+total.toLocaleString()+'원</b>' +
+    '<div style="font-size:10px;color:var(--text-faint,#5a6080);margin-top:4px;">⚠️ 테스트 모드: 현재는 실제 포인트 차감 없이 동작만 확인합니다. (서버 구축 후 정식 차감 적용)</div>';
+};
+
+MLL.closeMarkingModal = function(){
+  var el = document.getElementById('mllMarkingModal');
+  if (el) el.style.display = 'none';
+};
+
+MLL._showMarkingResult = function(type, msg){
+  var box = document.getElementById('mllMarkingResultBox');
+  box.style.display = 'block';
+  box.style.background = type==='error' ? 'rgba(212,83,94,.1)' : 'rgba(63,179,127,.1)';
+  box.style.border = '1px solid ' + (type==='error' ? 'rgba(212,83,94,.25)' : 'rgba(63,179,127,.25)');
+  box.style.color = type==='error' ? '#D4537E' : '#3FB37F';
+  box.textContent = msg;
+};
+
+// ── makinglotto.com 연동 ──
+MLL.submitMarkingRequest = function(){
+  var rows = MLL.markingState.pendingRows;
+  if (!rows || !rows.length) { MLL._showMarkingResult('error','받을 번호조합이 없습니다.'); return; }
+  MLL._showMarkingResult('success', '⏳ PDF 생성 요청 중입니다... (여러 페이지인 경우 다소 시간이 걸려요)');
+  MLL._runMarkingPipeline(rows, MLL.markingState.selectedCids, MLL.markingState.pendingFileBase);
+};
+
+MLL._runMarkingPipeline = async function(rows, cids, fileBase){
+  var cfg = MLL.MARKING_CONFIG;
+  if (!cids || !cids.length) cids = [parseInt(cfg.defaultCid)];
+
+  var chunks = [];
+  for (var i=0; i<rows.length; i+=cfg.chunkSize) chunks.push(rows.slice(i, i+cfg.chunkSize));
+
+  try {
+    // 1) 로그인 (브라우저 fetch는 CORS 정책상 실패할 가능성이 높음 - 그 경우 명확히 안내)
+    var authHeader = 'Basic ' + btoa(cfg.authUser + ':' + cfg.authPass);
+    var pdfBlobs = [];
+
+    for (var c=0; c<chunks.length; c++) {
+      MLL._showMarkingResult('success', '⏳ '+(c+1)+'/'+chunks.length+' 페이지 생성 중...');
+      // ⚠️ 캐릭터 순환의 현실적 한계:
+      // makinglotto.com API는 한 번 호출에 최대 15게임까지만 처리하며, 응답도 "그 청크 전체에 1개의 캐릭터"로 옵니다.
+      // 따라서 "용지 1매(게임 1개)마다 다른 캐릭터"를 완벽히 구현하려면 게임 1개당 API를 1번씩 호출해야 하는데,
+      // 이 경우 60게임 기준 호출이 4번 -> 60번으로 늘어나 처리 시간이 매우 길어지고 makinglotto.com 서버 부담도 커집니다.
+      // 따라서 지금 구현은 "15게임(청크) 단위로 캐릭터를 순환"하는 실용적 절충안입니다.
+      // 진짜 게임 1개 단위 순환이 꼭 필요하면, 청크 크기를 1로 낮추고 처리시간 증가를 감안해야 합니다(설계서 v1.2, 4.5.3절 비고로 별도 협의 필요).
+      var chunkRows = chunks[c];
+      var cid = cids[c % cids.length];
+
+      var payload = { cid: String(cid), rows: chunkRows };
+      var form = new FormData();
+      form.append('data', new Blob([JSON.stringify(payload)], {type:'application/json'}));
+
+      var resp = await fetch(cfg.slipdownUrl, {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'X-Requested-With': 'XMLHttpRequest' },
+        body: form
+      });
+
+      if (!resp.ok) throw new Error('서버 응답 오류 (코드 '+resp.status+')');
+      var blob = await resp.blob();
+      if (blob.size < 500) throw new Error('PDF 생성 실패 (빈 응답)');
+      pdfBlobs.push(blob);
+      await new Promise(function(r){ setTimeout(r, 500); }); // 요청 간격 (서버 부담 방지)
+    }
+
+    // 2) 병합 (브라우저에서는 pypdf 대신 pdf-lib 사용)
+    MLL._showMarkingResult('success', '⏳ 페이지 병합 중...');
+    var mergedBlob = await MLL._mergePdfBlobs(pdfBlobs);
+
+    // 3) 다운로드
+    var url = URL.createObjectURL(mergedBlob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = fileBase + '_마킹용지.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    MLL._showMarkingResult('success', '✅ 마킹용지 PDF 생성 완료! ('+rows.length+'게임, '+chunks.length+'페이지)');
+  } catch(e) {
+    MLL._showMarkingResult('error',
+      '⚠️ PDF 생성 실패: ' + e.message +
+      ' — 브라우저에서 외부 서버(makinglotto.com)로 직접 요청 시 CORS(보안 정책)로 막힐 수 있습니다. ' +
+      '이 기능은 서버가 구축된 뒤 서버를 통해 호출해야 안정적으로 동작합니다.');
+    console.error('[MLL marking] error:', e);
+  }
+};
+
+// pdf-lib 동적 로드 + 병합
+MLL._pdfLibLoaded = false;
+MLL._loadPdfLib = function(){
+  return new Promise(function(resolve, reject){
+    if (MLL._pdfLibLoaded && window.PDFLib) { resolve(); return; }
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+    script.onload = function(){ MLL._pdfLibLoaded = true; resolve(); };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
+
+MLL._mergePdfBlobs = async function(blobs){
+  await MLL._loadPdfLib();
+  var merged = await PDFLib.PDFDocument.create();
+  for (var i=0; i<blobs.length; i++) {
+    var bytes = await blobs[i].arrayBuffer();
+    var src = await PDFLib.PDFDocument.load(bytes);
+    var pages = await merged.copyPages(src, src.getPageIndices());
+    pages.forEach(function(p){ merged.addPage(p); });
+  }
+  var mergedBytes = await merged.save();
+  return new Blob([mergedBytes], {type:'application/pdf'});
+};
 
 </script>
 </body>
