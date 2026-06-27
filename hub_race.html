@@ -15,6 +15,7 @@ MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
 MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
 MLL.RESULTS_KEY = 'mll_results';
 
+// status: 'open'(접수중) / 'closing'(접수마감, 토요일20시~결과발표전) / 'waiting'(접수대기, 결과발표후~일요일06시)
 MLL.getLottoInfo = function() {
   var now = new Date();
   var ko  = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
@@ -22,10 +23,31 @@ MLL.getLottoInfo = function() {
   var elapsed   = now.getTime() - MLL.ROUND1_TS;
   var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
   var nextRound = thisRound + 1;
-  var soldOut = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
-  var saleRound = soldOut ? thisRound : nextRound;
-  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound };
+
+  var inClosedWindow = (day===6 && (hour>20||(hour===20&&min>=0))) || (day===0 && hour<6);
+
+  var results = MLL.loadResults ? MLL.loadResults() : {};
+  var thisRoundDrawn = !!(results[thisRound] && results[thisRound].nums);
+
+  var status, saleRound, soldOut;
+  if (!inClosedWindow) {
+    status = 'open';
+    saleRound = nextRound;
+    soldOut = false;
+  } else if (!thisRoundDrawn) {
+    status = 'closing';
+    saleRound = thisRound;
+    soldOut = true;
+  } else {
+    status = 'waiting';
+    saleRound = nextRound;
+    soldOut = true;
+  }
+
+  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound, status:status };
 };
+
+MLL.STATUS_LABEL = { open:'접수중', closing:'접수마감', waiting:'접수대기' };
 
 MLL.getDrawDate = function(round) {
   var d = new Date(MLL.ROUND1_TS + (round - 1) * MLL.WEEK_MS);
@@ -169,6 +191,7 @@ MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
 MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
 MLL.RESULTS_KEY = 'mll_results';
 
+// status: 'open'(접수중) / 'closing'(접수마감, 토요일20시~결과발표전) / 'waiting'(접수대기, 결과발표후~일요일06시)
 MLL.getLottoInfo = function() {
   var now = new Date();
   var ko  = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
@@ -176,10 +199,31 @@ MLL.getLottoInfo = function() {
   var elapsed   = now.getTime() - MLL.ROUND1_TS;
   var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
   var nextRound = thisRound + 1;
-  var soldOut = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
-  var saleRound = soldOut ? thisRound : nextRound;
-  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound };
+
+  var inClosedWindow = (day===6 && (hour>20||(hour===20&&min>=0))) || (day===0 && hour<6);
+
+  var results = MLL.loadResults ? MLL.loadResults() : {};
+  var thisRoundDrawn = !!(results[thisRound] && results[thisRound].nums);
+
+  var status, saleRound, soldOut;
+  if (!inClosedWindow) {
+    status = 'open';
+    saleRound = nextRound;
+    soldOut = false;
+  } else if (!thisRoundDrawn) {
+    status = 'closing';
+    saleRound = thisRound;
+    soldOut = true;
+  } else {
+    status = 'waiting';
+    saleRound = nextRound;
+    soldOut = true;
+  }
+
+  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound, status:status };
 };
+
+MLL.STATUS_LABEL = { open:'접수중', closing:'접수마감', waiting:'접수대기' };
 
 MLL.loadResults = function() {
   try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }

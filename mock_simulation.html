@@ -477,6 +477,7 @@ MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
 MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
 MLL.RESULTS_KEY = 'mll_results';
 
+// status: 'open'(접수중) / 'closing'(접수마감, 토요일20시~결과발표전) / 'waiting'(접수대기, 결과발표후~일요일06시)
 MLL.getLottoInfo = function() {
   var now = new Date();
   var ko  = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
@@ -484,10 +485,31 @@ MLL.getLottoInfo = function() {
   var elapsed   = now.getTime() - MLL.ROUND1_TS;
   var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
   var nextRound = thisRound + 1;
-  var soldOut = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
-  var saleRound = soldOut ? thisRound : nextRound;
-  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound };
+
+  var inClosedWindow = (day===6 && (hour>20||(hour===20&&min>=0))) || (day===0 && hour<6);
+
+  var results = MLL.loadResults ? MLL.loadResults() : {};
+  var thisRoundDrawn = !!(results[thisRound] && results[thisRound].nums);
+
+  var status, saleRound, soldOut;
+  if (!inClosedWindow) {
+    status = 'open';
+    saleRound = nextRound;
+    soldOut = false;
+  } else if (!thisRoundDrawn) {
+    status = 'closing';
+    saleRound = thisRound;
+    soldOut = true;
+  } else {
+    status = 'waiting';
+    saleRound = nextRound;
+    soldOut = true;
+  }
+
+  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound, status:status };
 };
+
+MLL.STATUS_LABEL = { open:'접수중', closing:'접수마감', waiting:'접수대기' };
 
 MLL.getDrawDate = function(round) {
   var d = new Date(MLL.ROUND1_TS + (round - 1) * MLL.WEEK_MS);
@@ -544,12 +566,7 @@ MOCK.GRID_ROWS = 5;
 
 // ── 접수기간: 일요일 06:00 ~ 토요일 20:00 (KST) ──
 MOCK.isOpen = function() {
-  var now = new Date();
-  var ko = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
-  var day = ko.getDay(), hour = ko.getHours(), min = ko.getMinutes();
-  if (day===6 && (hour>20 || (hour===20 && min>=0))) return false;
-  if (day===0 && hour<6) return false;
-  return true;
+  return MLL.getLottoInfo().status === 'open';
 };
 
 MOCK.getDeadlineLabel = function(){
@@ -1096,30 +1113,34 @@ MOCKUI.refreshHeader = function(){
   var info = MLL.getLottoInfo();
   var round = info.saleRound;
   var drawDate = MLL.getDrawDate(round);
+  var statusLabel = MLL.STATUS_LABEL[info.status];
   document.getElementById('pageTitleText').textContent = '제'+round+'회 ('+drawDate+' 추첨) 모의 실전 시뮬레이션';
 
-  var open = MOCK.isOpen();
   var pill = document.getElementById('statusPill');
-  pill.textContent = open ? '접수중' : '접수마감';
-  pill.className = 'status-pill ' + (open ? 'open' : 'closed');
+  pill.textContent = statusLabel;
+  pill.className = 'status-pill ' + (info.status === 'open' ? 'open' : 'closed');
 
-  MOCKUI.refreshCountdown(open);
+  MOCKUI.refreshCountdown(info.status);
 };
 
-MOCKUI.refreshCountdown = function(open){
+MOCKUI.refreshCountdown = function(status){
   var now = new Date();
   var ko = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
-  var target;
-  if (open) {
-    // 다음 토요일 20:00까지
+  var target = null;
+
+  if (status === 'open') {
     target = new Date(ko);
     var daysUntilSat = (6 - ko.getDay() + 7) % 7;
     target.setDate(ko.getDate() + daysUntilSat);
     target.setHours(20,0,0,0);
     if (target <= ko) target.setDate(target.getDate()+7);
     document.getElementById('cdLabel').textContent = '접수마감까지';
+  } else if (status === 'closing') {
+    // 추첨결과 발표 시각은 정확히 특정할 수 없으므로 카운트다운 대신 안내 문구로 대체
+    document.getElementById('cdLabel').textContent = '추첨결과 반영 대기중';
+    document.getElementById('cdTime').textContent = '곧 다음회차로 전환';
+    return;
   } else {
-    // 다음 일요일 06:00까지
     target = new Date(ko);
     var daysUntilSun = (7 - ko.getDay()) % 7;
     if (daysUntilSun === 0 && ko.getHours() < 6) daysUntilSun = 0;

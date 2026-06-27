@@ -381,8 +381,14 @@ function formatWinnerShops(raw){
     var elapsed = Date.now() - ROUND1_TS;
     var thisRound = Math.floor(elapsed/WEEK_MS)+1;
     var nextRound = thisRound+1;
-    var soldOut = (day===6 && (hour>20||(hour===20&&min===0))) || (day===0 && hour<6);
-    var saleRound = soldOut ? thisRound : nextRound;
+    var inClosedWindow = (day===6 && (hour>20||(hour===20&&min>=0))) || (day===0 && hour<6);
+    var results = {};
+    try { results = JSON.parse(localStorage.getItem('mll_results')||'{}'); } catch(e){}
+    var thisRoundDrawn = !!(results[thisRound] && results[thisRound].nums);
+    var saleRound;
+    if (!inClosedWindow) saleRound = nextRound;
+    else if (!thisRoundDrawn) saleRound = thisRound;
+    else saleRound = nextRound;
     mockRoundEl.textContent = saleRound.toLocaleString();
   }
 
