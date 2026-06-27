@@ -66,7 +66,7 @@ tr.checked td{background:#fff8e1;}
 .btn-make-slip:hover{background:#1568b8;}
 .btn-make-slip:disabled{background:#ccc;cursor:not-allowed;}
 
-.input-method-tag{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;}
+.input-method-tag{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;display:inline-block;max-width:160px;line-height:1.4;white-space:normal;text-align:center;}
 .tag-general{color:#1a7ad4;background:#e8f4ff;}
 .tag-camera{color:#2f9e44;background:#e8fff0;}
 .tag-excel{color:#e67700;background:#fff3e0;}
@@ -136,8 +136,8 @@ tr.checked td{background:#fff8e1;}
             <option value="mock">모의실전시뮬레이션</option>
             <option value="favorite">관심번호(최애번호)</option>
             <option value="strategy">전략비교평가</option>
-            <option value="race">100전략레이스(즉석)</option>
-            <option value="generator">전략등록(즉석)</option>
+            <option value="race">100전략레이스 (위의 "즉석에서 가져오기"를 클릭하세요)</option>
+            <option value="generator">전략등록 (위의 "즉석에서 가져오기"를 클릭하세요)</option>
           </select>
         </div>
         <div class="filter-group">
@@ -1443,7 +1443,7 @@ SLIP.checkedIds = {}; // {rowKey: true} - 로또전표(마킹용지) 체크
 SLIP.SOURCE_LABEL = {
   general:'일반방식', camera:'실구매(카메라/QR)', excel:'엑셀대량', ai:'AI음성·문자',
   mock:'모의실전시뮬레이션', favorite:'관심번호(최애번호)', strategy:'전략비교평가',
-  race:'100전략레이스(즉석)', generator:'전략등록(즉석)'
+  race:'100전략레이스 (위의 "즉석에서 가져오기"를 클릭하세요)', generator:'전략등록 (위의 "즉석에서 가져오기"를 클릭하세요)'
 };
 SLIP.SOURCE_TAG_CLASS = {
   general:'tag-general', camera:'tag-camera', excel:'tag-excel', ai:'tag-ai',
