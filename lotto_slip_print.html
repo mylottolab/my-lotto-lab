@@ -71,6 +71,11 @@ tr.checked td{background:#fff8e1;}
 .tag-camera{color:#2f9e44;background:#e8fff0;}
 .tag-excel{color:#e67700;background:#fff3e0;}
 .tag-ai{color:#9c36b5;background:#f8f0fc;}
+.tag-mock{color:#3fb37f;background:#e8fff5;}
+.tag-favorite{color:#e0b341;background:#fffbe8;}
+.tag-strategy{color:#7048e8;background:#f0ecff;}
+.tag-race{color:#7048e8;background:#f0ecff;}
+.tag-generator{color:#e8478e;background:#fff0f6;}
 </style>
 </head>
 <body>
@@ -92,7 +97,20 @@ tr.checked td{background:#fff8e1;}
     <h1>편리한 로또구매전표 작성</h1>
     <span class="printer-badge">🖨️ 로또인쇄</span>
   </div>
-  <div class="page-sub">앞서 등록하신 번호조합을 모아 보여드립니다. 원하는 조합을 체크하고 "로또구매전표 작성"을 누르면, 실물 판매점에 바로 제출 가능한 마킹용지 PDF로 만들어 드려요.</div>
+  <div class="page-sub">앞서 등록하신 번호조합을 모아 보여드립니다. 원하는 조합을 체크하고 "로또구매전표 작성"을 누르면, 실물 판매점에 바로 제출 가능한 마킹용지 PDF로 만들어 드려요. 100전략레이스·전략등록처럼 그때그때 생성되는 항목은 아래 "즉석 가져오기" 버튼으로 바로 받아올 수 있어요.</div>
+
+  <!-- 즉석생성 그룹 (저장 안 되는 소스 - 클릭 시점에 그 자리에서 받아옴) -->
+  <div class="panel" id="onDemandPanel">
+    <div class="ph">⚡ 즉석에서 가져오기 (매번 새로 생성됨)</div>
+    <div class="pb" style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn-filter" style="background:#7048e8;" onclick="SLIP.openRaceFetchModal()">🏇 100전략레이스에서 가져오기</button>
+      <button class="btn-filter" style="background:#e8478e;" onclick="SLIP.openGeneratorFetchModal()">✨ 전략등록(번호생성기)에서 가져오기</button>
+    </div>
+  </div>
+
+  <!-- 백그라운드에서 다른 페이지의 생성로직을 그대로 호출하기 위한 숨김 iframe (화면 전환 없이 같은 자리에서 처리되는 느낌 유지) -->
+  <iframe id="raceEngineFrame" src="hub_race.html" style="display:none;width:0;height:0;border:0;" aria-hidden="true"></iframe>
+  <iframe id="generatorEngineFrame" src="number_generator.html" style="display:none;width:0;height:0;border:0;" aria-hidden="true"></iframe>
 
   <!-- 필터 패널 -->
   <div class="panel" id="filterPanel">
@@ -108,13 +126,18 @@ tr.checked td{background:#fff8e1;}
           <input type="date" id="filterTo">
         </div>
         <div class="filter-group">
-          <label>입력방식</label>
+          <label>입력방식 또는 Data출처</label>
           <select id="filterMethod">
             <option value="">전체</option>
             <option value="general">일반방식 편한등록</option>
             <option value="camera">실구매 로또등록(카메라/QR)</option>
             <option value="excel">엑셀 파일 대량등록</option>
             <option value="ai">AI 도우미 음성·문자</option>
+            <option value="mock">모의실전시뮬레이션</option>
+            <option value="favorite">관심번호(최애번호)</option>
+            <option value="strategy">전략비교평가</option>
+            <option value="race">100전략레이스(즉석)</option>
+            <option value="generator">전략등록(즉석)</option>
           </select>
         </div>
         <div class="filter-group">
@@ -137,6 +160,22 @@ tr.checked td{background:#fff8e1;}
 <div class="bottom-bar" id="bottomBar" style="display:none;">
   <div class="info">체크된 조합 <b id="checkedCountDisplay">0</b>개</div>
   <button class="btn-make-slip" id="btnMakeSlip" onclick="SLIP.openMarkingForChecked()" disabled>🖨️ 로또구매전표 작성</button>
+</div>
+
+<!-- 즉석생성 모달 (100전략레이스 / 전략등록 공용) -->
+<div id="onDemandModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:22px;position:relative;">
+    <button onclick="SLIP.closeOnDemandModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;color:#999;cursor:pointer;">✕</button>
+    <h3 id="onDemandTitle" style="font-size:15px;font-weight:700;margin-bottom:6px;"></h3>
+    <p id="onDemandDesc" style="font-size:11.5px;color:#888;line-height:1.6;margin-bottom:14px;"></p>
+    <div id="onDemandFormArea"></div>
+    <div id="onDemandResultArea" style="margin-top:14px;"></div>
+  </div>
+</div>
+
+<!-- "매번 다른 결과" 안내 토스트 -->
+<div id="onDemandToast" style="display:none;position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1c1c2e;color:#fff;padding:10px 18px;border-radius:8px;font-size:12px;z-index:10000;box-shadow:0 4px 16px rgba(0,0,0,.3);">
+  ⚠️ 본 로직의 특성상 매 출력 시마다 번호조합의 변경이 발생합니다.
 </div>
 
 
@@ -474,17 +513,17 @@ MLL.getComboHistoryStat = async function(nums){
   });
 
   perRound.sort(function(a,b){ return b.round - a.round; }); // 최신 회차부터
-  var hitRounds = perRound.filter(function(r){ return r.grade >= 1 && r.grade <= 5; });
   var GRADE_LABEL = ['낙첨','1등','2등','3등','4등','5등'];
-  var recentHits = hitRounds.slice(0,3).map(function(r){ return GRADE_LABEL[r.grade]; });
-  while (recentHits.length < 3) recentHits.push('-');
+  // "최근/최근-1/최근-2"는 적중 여부와 무관하게, 조회시점 기준 가장 최근 3개 회차를 그대로 보여줌 (낙첨이면 낙첨)
+  var recentRounds = perRound.slice(0,3).map(function(r){ return GRADE_LABEL[r.grade]; });
+  while (recentRounds.length < 3) recentRounds.push('-');
 
   return {
     totalRoundsChecked: perRound.length, // 대조에 사용된 전체 회차 수
     grade1: gradeCounts[1], grade2: gradeCounts[2], grade3: gradeCounts[3],
     grade4: gradeCounts[4], grade5: gradeCounts[5],
     totalPrize: totalPrize,
-    recent: recentHits[0], recent1: recentHits[1], recent2: recentHits[2]
+    recent: recentRounds[0], recent1: recentRounds[1], recent2: recentRounds[2]
   };
 };
 
@@ -1395,22 +1434,96 @@ MLL._mergePdfBlobs = async function(blobs){
 </script>
 <script>
 // =====================================================
-// SLIP - 편리한 로또구매전표 작성 화면 컨트롤러 (v2: 역대성적/최애번호 반영)
+// SLIP - 편리한 로또구매전표 작성 화면 컨트롤러 (v3: 전체 Data출처 통합)
 // =====================================================
 var SLIP = {};
-SLIP.checkedIds = {}; // {entryId: true} - 로또전표(마킹용지) 체크
+SLIP.checkedIds = {}; // {rowKey: true} - 로또전표(마킹용지) 체크
 
-SLIP.METHOD_LABEL = { general:'일반방식', camera:'실구매(카메라/QR)', excel:'엑셀대량', ai:'AI음성·문자' };
-SLIP.METHOD_TAG_CLASS = { general:'tag-general', camera:'tag-camera', excel:'tag-excel', ai:'tag-ai' };
+// "입력방식 또는 Data출처" 통합 라벨 (영구저장 소스 + 즉석생성 소스 전체)
+SLIP.SOURCE_LABEL = {
+  general:'일반방식', camera:'실구매(카메라/QR)', excel:'엑셀대량', ai:'AI음성·문자',
+  mock:'모의실전시뮬레이션', favorite:'관심번호(최애번호)', strategy:'전략비교평가',
+  race:'100전략레이스(즉석)', generator:'전략등록(즉석)'
+};
+SLIP.SOURCE_TAG_CLASS = {
+  general:'tag-general', camera:'tag-camera', excel:'tag-excel', ai:'tag-ai',
+  mock:'tag-mock', favorite:'tag-favorite', strategy:'tag-strategy',
+  race:'tag-race', generator:'tag-generator'
+};
 
 SLIP.init = function(){
   SLIP.buildRoundFilterOptions();
   SLIP.render();
 };
 
+// 영구저장 4개 소스(Data등록)를 공통 행 형식으로 변환
+SLIP._fromDataEntries = function(){
+  return MLL.loadEntries().map(function(e){
+    return {
+      rowKey: 'entry_'+e.id, refId: e.id, source: e.inputMethod || 'general',
+      round: e.round, nums: e.nums, type: e.type, isReal: !!e.isReal, memo: e.memo || '',
+      createdAt: e.createdAt, status: e.status, grade: e.grade, prizeMoney: e.prizeMoney,
+      isFavorite: !!e.isFavorite
+    };
+  });
+};
+
+// 모의실전시뮬레이션(mll_mock_entries)을 공통 행 형식으로 변환
+SLIP._fromMockEntries = function(){
+  if (typeof MOCK === 'undefined' || !MOCK.loadEntries) return [];
+  return MOCK.loadEntries().map(function(e){
+    return {
+      rowKey: 'mock_'+e.id, refId: e.id, source: 'mock',
+      round: e.round, nums: e.nums, type: e.type, isReal: false, memo: '['+(e.nickname||'')+']',
+      createdAt: e.createdAt, status: (e.grade!==null && e.grade!==undefined)?'추첨후':'추첨전',
+      grade: e.grade, prizeMoney: e.prizeMoney, isFavorite: false
+    };
+  });
+};
+
+// 관심번호/최애번호 저장소(mll_favorites)를 공통 행 형식으로 변환 (중복 표시 허용)
+SLIP._fromFavorites = function(){
+  if (!MLL.loadFavorites) return [];
+  return MLL.loadFavorites().map(function(f){
+    return {
+      rowKey: 'fav_'+f.id, refId: f.id, source: 'favorite',
+      round: f.round, nums: f.nums, type: f.type, isReal: !!f.isReal, memo: f.memo || '',
+      createdAt: f.createdAt, status: f.status, grade: f.grade, prizeMoney: f.prizeMoney,
+      isFavorite: true
+    };
+  });
+};
+
+// 전략비교평가(mll_strategy_results) - 1건이 numbers 배열(여러 조합)을 가지므로 펼쳐서 변환
+SLIP._fromStrategyResults = function(){
+  if (!MLL.loadStrategyResults) return [];
+  var rows = [];
+  MLL.loadStrategyResults().forEach(function(sr){
+    (sr.numbers || []).forEach(function(nums, idx){
+      rows.push({
+        rowKey: 'strategy_'+sr.id+'_'+idx, refId: sr.id, source: 'strategy',
+        round: sr.round, nums: nums, type: '전략', isReal: false, memo: '['+(sr.strategyName||'')+']',
+        createdAt: sr.createdAt || Date.now(), status: null, grade: null, prizeMoney: 0,
+        isFavorite: false
+      });
+    });
+  });
+  return rows;
+};
+
+// 영구저장 4개 소스 + 즉석생성으로 추가된 임시항목을 모두 합친 전체 목록
+SLIP._onDemandRows = [];
+SLIP.getAllRows = function(){
+  return SLIP._fromDataEntries()
+    .concat(SLIP._fromMockEntries())
+    .concat(SLIP._fromFavorites())
+    .concat(SLIP._fromStrategyResults())
+    .concat(SLIP._onDemandRows);
+};
+
 SLIP.buildRoundFilterOptions = function(){
-  var entries = MLL.loadEntries();
-  var rounds = Array.from(new Set(entries.map(function(e){ return e.round; }))).sort(function(a,b){ return b-a; });
+  var rows = SLIP.getAllRows();
+  var rounds = Array.from(new Set(rows.map(function(e){ return e.round; }))).sort(function(a,b){ return b-a; });
   var sel = document.getElementById('filterRound');
   rounds.forEach(function(r){
     var opt = document.createElement('option');
@@ -1420,7 +1533,7 @@ SLIP.buildRoundFilterOptions = function(){
 };
 
 SLIP.getFilteredEntries = function(){
-  var entries = MLL.loadEntries();
+  var rows = SLIP.getAllRows();
   var from = document.getElementById('filterFrom').value;
   var to = document.getElementById('filterTo').value;
   var method = document.getElementById('filterMethod').value;
@@ -1428,17 +1541,17 @@ SLIP.getFilteredEntries = function(){
 
   if (from) {
     var fromTs = new Date(from+'T00:00:00').getTime();
-    entries = entries.filter(function(e){ return e.createdAt >= fromTs; });
+    rows = rows.filter(function(e){ return e.createdAt >= fromTs; });
   }
   if (to) {
     var toTs = new Date(to+'T23:59:59').getTime();
-    entries = entries.filter(function(e){ return e.createdAt <= toTs; });
+    rows = rows.filter(function(e){ return e.createdAt <= toTs; });
   }
-  if (method) entries = entries.filter(function(e){ return e.inputMethod === method; });
-  if (round) entries = entries.filter(function(e){ return String(e.round) === String(round); });
+  if (method) rows = rows.filter(function(e){ return e.source === method; });
+  if (round) rows = rows.filter(function(e){ return String(e.round) === String(round); });
 
-  entries.sort(function(a,b){ return b.createdAt - a.createdAt; });
-  return entries;
+  rows.sort(function(a,b){ return b.createdAt - a.createdAt; });
+  return rows;
 };
 
 SLIP.applyFilter = function(){ SLIP.render(); };
@@ -1456,7 +1569,7 @@ SLIP._comboKey = function(nums){
 };
 
 SLIP.render = async function(){
-  var allCount = MLL.loadEntries().length;
+  var allCount = SLIP.getAllRows().length;
   var entries = SLIP.getFilteredEntries();
   document.getElementById('phCount').textContent = '(' + entries.length + '개 / 전체 ' + allCount + '개)';
 
@@ -1466,7 +1579,7 @@ SLIP.render = async function(){
       '<div class="empty-guide">' +
         '<div class="ico">📭</div>' +
         '<div class="msg">아직 등록된 번호가 없습니다.</div>' +
-        '<div class="sub">직전메뉴인 "일반방식 편한등록"을 사용하여 입력 후 방문해 주시기 바랍니다.<br>카메라/QR·엑셀·AI 음성·문자 입력 후에도 이곳에서 모아볼 수 있어요.</div>' +
+        '<div class="sub">직전메뉴인 "일반방식 편한등록"을 사용하여 입력 후 방문해 주시기 바랍니다.<br>카메라/QR·엑셀·AI 음성·문자·모의시뮬레이션·관심번호·전략비교평가 등 다른 곳에 등록하신 내용도 모두 이곳에서 모아볼 수 있어요.</div>' +
         '<a class="link-btn" href="lotto_input_page_v4.html">일반방식 편한등록으로 이동 →</a>' +
       '</div>';
     document.getElementById('bottomBar').style.display = 'none';
@@ -1497,7 +1610,7 @@ SLIP.render = async function(){
     }
   }
 
-  var allChecked = entries.every(function(e){ return SLIP.checkedIds[e.id]; });
+  var allChecked = entries.every(function(e){ return SLIP.checkedIds[e.rowKey]; });
   var html =
     '<div class="list-toolbar">' +
       '<label style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:#555;cursor:pointer;">' +
@@ -1507,7 +1620,7 @@ SLIP.render = async function(){
       '<span class="checked-cnt" id="checkedCntLabel"></span>' +
     '</div>' +
     '<div class="tw"><table><thead><tr>' +
-      '<th>입력일자</th><th>회차</th><th>번호</th><th>메모</th><th>구매형태</th><th>입력방식</th><th>구분</th>' +
+      '<th>입력일자</th><th>회차</th><th>번호</th><th>메모</th><th>구매형태</th><th>입력방식 또는 Data출처</th><th>구분</th>' +
       '<th>역대1등</th><th>역대2등</th><th>역대3등</th><th>역대4등</th><th>역대5등</th><th>총상금액</th>' +
       '<th>최근</th><th>최근-1</th><th>최근-2</th>' +
       '<th style="width:36px;">로또전표</th><th style="width:36px;">최애번호</th>' +
@@ -1528,13 +1641,13 @@ SLIP._renderRow = function(entry, stat){
     return '<span style="width:19px;height:19px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';margin:1px;">'+n+'</span>';
   }).join('');
 
-  var typeColor = entry.type==='자동'?'#2f9e44':entry.type==='반자동'?'#e67700':'#1a7ad4';
-  var typeBg = entry.type==='자동'?'#e8fff0':entry.type==='반자동'?'#fff3e0':'#e8f4ff';
+  var typeColor = entry.type==='자동'?'#2f9e44':entry.type==='반자동'?'#e67700':entry.type==='전략'?'#7048e8':'#1a7ad4';
+  var typeBg = entry.type==='자동'?'#e8fff0':entry.type==='반자동'?'#fff3e0':entry.type==='전략'?'#f0ecff':'#e8f4ff';
   var typeHtml = '<span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;color:'+typeColor+';background:'+typeBg+';border:1px solid '+typeColor+';">'+entry.type+'</span>';
 
-  var methodCls = SLIP.METHOD_TAG_CLASS[entry.inputMethod] || 'tag-general';
-  var methodLabel = SLIP.METHOD_LABEL[entry.inputMethod] || entry.inputMethod;
-  var methodHtml = '<span class="input-method-tag '+methodCls+'">'+methodLabel+'</span>';
+  var srcCls = SLIP.SOURCE_TAG_CLASS[entry.source] || 'tag-general';
+  var srcLabel = SLIP.SOURCE_LABEL[entry.source] || entry.source;
+  var srcHtml = '<span class="input-method-tag '+srcCls+'">'+srcLabel+'</span>';
 
   var realHtml = entry.isReal
     ? '<span style="background:#f5c518;color:#7a5e00;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;">실구매</span>'
@@ -1543,16 +1656,18 @@ SLIP._renderRow = function(entry, stat){
   var d = new Date(entry.createdAt);
   var dateStr = d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0');
 
-  var isChecked = !!SLIP.checkedIds[entry.id];
+  var isChecked = !!SLIP.checkedIds[entry.rowKey];
   var isFav = !!entry.isFavorite;
+  // 최애번호 토글은 mll_entries(일반/카메라/엑셀/AI) 기준으로만 가능 (모의시뮬/전략비교는 별도 저장소라 미지원)
+  var favSupported = ['general','camera','excel','ai'].indexOf(entry.source) >= 0;
 
-  return '<tr id="row_'+entry.id+'" class="'+(isChecked?'checked':'')+'">' +
+  return '<tr id="row_'+entry.rowKey+'" class="'+(isChecked?'checked':'')+'">' +
     '<td style="color:#999;">'+dateStr+'</td>' +
     '<td><span style="background:#555;color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">'+entry.round+'회</span></td>' +
     '<td><div style="display:flex;gap:1px;align-items:center;justify-content:center;flex-wrap:nowrap;">'+ballsHtml+'</div></td>' +
     '<td style="text-align:left;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#888;">'+(entry.memo||'')+'</td>' +
     '<td>'+typeHtml+'</td>' +
-    '<td>'+methodHtml+'</td>' +
+    '<td>'+srcHtml+'</td>' +
     '<td>'+realHtml+'</td>' +
     '<td>'+(stat.grade1||0)+'</td>' +
     '<td>'+(stat.grade2||0)+'</td>' +
@@ -1563,15 +1678,15 @@ SLIP._renderRow = function(entry, stat){
     '<td style="color:#666;">'+stat.recent+'</td>' +
     '<td style="color:#999;">'+stat.recent1+'</td>' +
     '<td style="color:#999;">'+stat.recent2+'</td>' +
-    '<td><input type="checkbox" '+(isChecked?'checked':'')+' onchange="SLIP.toggleOne(\''+entry.id+'\', this.checked)" title="이 조합을 로또전표(마킹용지)에 포함"></td>' +
-    '<td><input type="checkbox" '+(isFav?'checked':'')+' onchange="SLIP.toggleFavorite(\''+entry.id+'\', this)" title="최애번호(관심번호) 저장소에 추가/제거"></td>' +
+    '<td><input type="checkbox" '+(isChecked?'checked':'')+' onchange="SLIP.toggleOne(\''+entry.rowKey+'\', this.checked)" title="이 조합을 로또전표(마킹용지)에 포함"></td>' +
+    '<td>'+(favSupported ? '<input type="checkbox" '+(isFav?'checked':'')+' onchange="SLIP.toggleFavorite(\''+entry.refId+'\', this)" title="최애번호(관심번호) 저장소에 추가/제거">' : '<span style="color:#ccc;font-size:9px;">-</span>')+'</td>' +
   '</tr>';
 };
 
-SLIP.toggleOne = function(id, checked){
-  if (checked) SLIP.checkedIds[id] = true;
-  else delete SLIP.checkedIds[id];
-  var row = document.getElementById('row_'+id);
+SLIP.toggleOne = function(rowKey, checked){
+  if (checked) SLIP.checkedIds[rowKey] = true;
+  else delete SLIP.checkedIds[rowKey];
+  var row = document.getElementById('row_'+rowKey);
   if (row) row.classList.toggle('checked', checked);
   SLIP.updateCheckedDisplay();
 };
@@ -1579,15 +1694,15 @@ SLIP.toggleOne = function(id, checked){
 SLIP.toggleAll = function(checked){
   var entries = SLIP.getFilteredEntries();
   entries.forEach(function(e){
-    if (checked) SLIP.checkedIds[e.id] = true;
-    else delete SLIP.checkedIds[e.id];
+    if (checked) SLIP.checkedIds[e.rowKey] = true;
+    else delete SLIP.checkedIds[e.rowKey];
   });
   SLIP.render();
 };
 
-// 최애번호(관심번호 저장소) 토글 — results_stats.html의 MLL.toggleFavorite 재사용
-SLIP.toggleFavorite = function(id, checkboxEl){
-  var nowFav = MLL.toggleFavorite(id);
+// 최애번호(관심번호 저장소) 토글 — results_stats.html의 MLL.toggleFavorite 재사용 (mll_entries 기준 소스만 지원)
+SLIP.toggleFavorite = function(refId, checkboxEl){
+  var nowFav = MLL.toggleFavorite(refId);
   if (nowFav === null) { alert('항목을 찾을 수 없습니다.'); return; }
   if (checkboxEl) checkboxEl.checked = nowFav;
 };
@@ -1601,15 +1716,182 @@ SLIP.updateCheckedDisplay = function(){
 };
 
 SLIP.openMarkingForChecked = function(){
-  var ids = Object.keys(SLIP.checkedIds);
-  if (!ids.length) { alert('전표로 작성할 번호조합을 먼저 체크해주세요.'); return; }
-  var allEntries = MLL.loadEntries();
-  var selected = allEntries.filter(function(e){ return SLIP.checkedIds[e.id]; });
+  var rowKeys = Object.keys(SLIP.checkedIds);
+  if (!rowKeys.length) { alert('전표로 작성할 번호조합을 먼저 체크해주세요.'); return; }
+  var allRows = SLIP.getAllRows();
+  var selected = allRows.filter(function(e){ return SLIP.checkedIds[e.rowKey]; });
   var rows = selected.map(function(e){ return e.nums.slice().sort(function(a,b){ return a-b; }); });
   MLL.openMarkingModal(rows, '로또구매전표_' + selected.length + '매');
 };
 
 document.addEventListener('DOMContentLoaded', function(){ SLIP.init(); });
+
+// =====================================================
+// 즉석생성 그룹 — 100전략레이스 / 전략등록(번호생성기)
+// 화면 전환 없이, 숨김 iframe으로 해당 페이지의 생성 로직을 그대로 호출하여
+// "한 자리에 머물러 있다"는 느낌을 유지한다. 매번 새로 생성되므로 안내 토스트를 함께 띄운다.
+// =====================================================
+SLIP.showOnDemandToast = function(){
+  var toast = document.getElementById('onDemandToast');
+  toast.style.display = 'block';
+  setTimeout(function(){ toast.style.display = 'none'; }, 2600);
+};
+
+SLIP.closeOnDemandModal = function(){
+  document.getElementById('onDemandModalOverlay').style.display = 'none';
+};
+
+SLIP._waitForFrame = function(frameId){
+  return new Promise(function(resolve, reject){
+    var frame = document.getElementById(frameId);
+    var tries = 0;
+    var check = function(){
+      tries++;
+      try {
+        if (frame.contentWindow && frame.contentWindow.RACE && frameId==='raceEngineFrame') { resolve(frame.contentWindow); return; }
+        if (frame.contentWindow && frame.contentWindow.MLL && frameId==='generatorEngineFrame') { resolve(frame.contentWindow); return; }
+      } catch(e) {}
+      if (tries > 100) { reject(new Error('엔진 로드 시간 초과')); return; }
+      setTimeout(check, 100);
+    };
+    check();
+  });
+};
+
+// ── 100전략레이스에서 가져오기 ──
+SLIP.openRaceFetchModal = async function(){
+  document.getElementById('onDemandTitle').textContent = '🏇 100전략레이스에서 가져오기';
+  document.getElementById('onDemandDesc').textContent = '100가지 전략 중 하나를 선택하고 개수를 입력하면, 그 자리에서 즉시 번호를 생성해 로또전표 후보에 추가합니다.';
+  document.getElementById('onDemandFormArea').innerHTML = '<div style="text-align:center;padding:20px;color:#999;">불러오는 중...</div>';
+  document.getElementById('onDemandResultArea').innerHTML = '';
+  document.getElementById('onDemandModalOverlay').style.display = 'flex';
+
+  try {
+    var win = await SLIP._waitForFrame('raceEngineFrame');
+    var strategies = win.RACE.ensureStrategies();
+    var options = strategies.map(function(s){ return '<option value="'+s.no+'">'+s.name+'</option>'; }).join('');
+    document.getElementById('onDemandFormArea').innerHTML =
+      '<div class="filter-group" style="margin-bottom:10px;">' +
+        '<label>전략 선택</label>' +
+        '<select id="raceStrategySelect" style="width:100%;">'+options+'</select>' +
+      '</div>' +
+      '<div class="filter-group" style="margin-bottom:14px;">' +
+        '<label>생성 개수</label>' +
+        '<input type="number" id="raceCountInput" value="10" min="1" max="100" style="width:100%;">' +
+      '</div>' +
+      '<button class="btn-filter" style="width:100%;background:#7048e8;" onclick="SLIP.fetchFromRace()">⚡ 즉시 생성하기</button>';
+  } catch(e) {
+    document.getElementById('onDemandFormArea').innerHTML = '<div style="color:#e03131;font-size:12px;">엔진을 불러오지 못했습니다: '+e.message+'</div>';
+  }
+};
+
+SLIP.fetchFromRace = async function(){
+  var win = await SLIP._waitForFrame('raceEngineFrame');
+  var strategyNo = parseInt(document.getElementById('raceStrategySelect').value);
+  var count = Math.max(1, Math.min(100, parseInt(document.getElementById('raceCountInput').value)||10));
+  SLIP.showOnDemandToast();
+  var combos = win.RACE.generateOnDemand(strategyNo, count);
+  if (!combos || !combos.length) {
+    document.getElementById('onDemandResultArea').innerHTML = '<div style="color:#e03131;font-size:12px;">번호 생성에 실패했습니다.</div>';
+    return;
+  }
+  SLIP._renderOnDemandResult(combos, 'race', strategyNo);
+};
+
+// ── 전략등록(번호생성기)에서 가져오기 ──
+SLIP.openGeneratorFetchModal = async function(){
+  document.getElementById('onDemandTitle').textContent = '✨ 전략등록(번호생성기)에서 가져오기';
+  document.getElementById('onDemandDesc').textContent = '직접 만들어두신 전략 중 하나를 선택하고 개수를 입력하면, 그 자리에서 즉시 번호를 생성해 로또전표 후보에 추가합니다.';
+  document.getElementById('onDemandFormArea').innerHTML = '<div style="text-align:center;padding:20px;color:#999;">불러오는 중...</div>';
+  document.getElementById('onDemandResultArea').innerHTML = '';
+  document.getElementById('onDemandModalOverlay').style.display = 'flex';
+
+  try {
+    var win = await SLIP._waitForFrame('generatorEngineFrame');
+    var myStrategies = win.MLL.loadStrategies();
+    if (!myStrategies || !myStrategies.length) {
+      SLIP.closeOnDemandModal();
+      alert('현재 이용자님이 만드신 전략이 없어요. 전략부터 만드세요!');
+      return;
+    }
+    var options = myStrategies.map(function(s){ return '<option value="'+s.id+'">'+s.name+'</option>'; }).join('');
+    document.getElementById('onDemandFormArea').innerHTML =
+      '<div class="filter-group" style="margin-bottom:10px;">' +
+        '<label>내 전략 선택</label>' +
+        '<select id="genStrategySelect" style="width:100%;">'+options+'</select>' +
+      '</div>' +
+      '<div class="filter-group" style="margin-bottom:14px;">' +
+        '<label>생성 개수</label>' +
+        '<input type="number" id="genCountInput" value="10" min="1" max="100" style="width:100%;">' +
+      '</div>' +
+      '<button class="btn-filter" style="width:100%;background:#e8478e;" onclick="SLIP.fetchFromGenerator()">⚡ 즉시 생성하기</button>';
+  } catch(e) {
+    document.getElementById('onDemandFormArea').innerHTML = '<div style="color:#e03131;font-size:12px;">엔진을 불러오지 못했습니다: '+e.message+'</div>';
+  }
+};
+
+SLIP.fetchFromGenerator = async function(){
+  var win = await SLIP._waitForFrame('generatorEngineFrame');
+  var stId = document.getElementById('genStrategySelect').value;
+  var count = Math.max(1, Math.min(100, parseInt(document.getElementById('genCountInput').value)||10));
+  var strategy = win.MLL.getStrategy ? win.MLL.getStrategy(stId) : win.MLL.loadStrategies().find(function(s){ return s.id===stId; });
+  if (!strategy) { document.getElementById('onDemandResultArea').innerHTML = '<div style="color:#e03131;font-size:12px;">전략을 찾을 수 없습니다.</div>'; return; }
+
+  SLIP.showOnDemandToast();
+  var strategyForCount = Object.assign({}, strategy, { set_count: count });
+  var results = win.MLL.loadResults();
+  var history = Object.keys(results).map(Number).sort(function(a,b){return b-a;}).map(function(r){
+    return {round:r, nums:results[r].nums||[], bonus:results[r].bonus||null};
+  });
+  var result = win.MLL.generateNumbers(strategyForCount, history);
+  var combos = (result && result.numbers) ? result.numbers : [];
+  if (!combos.length) {
+    document.getElementById('onDemandResultArea').innerHTML = '<div style="color:#e03131;font-size:12px;">번호 생성에 실패했습니다.</div>';
+    return;
+  }
+  SLIP._renderOnDemandResult(combos, 'generator', strategy.id);
+};
+
+// 즉석생성 결과를 모달 안에 보여주고, 로또전표 추가용 임시 체크상태(SLIP._onDemandCombos)로 보관
+SLIP._onDemandCombos = [];
+SLIP._renderOnDemandResult = function(combos, source, refKey){
+  SLIP._onDemandCombos = combos.map(function(nums, i){ return { nums: nums, checked: true, idx: i }; });
+  var rows = SLIP._onDemandCombos.map(function(c, i){
+    var sorted = c.nums.slice().sort(function(a,b){return a-b;});
+    var balls = sorted.map(function(n){
+      return '<span style="width:19px;height:19px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0;background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';margin:1px;">'+n+'</span>';
+    }).join('');
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0f0f0;">' +
+      '<input type="checkbox" checked onchange="SLIP.toggleOnDemandCombo('+i+', this.checked)">' +
+      '<div style="display:flex;gap:1px;">'+balls+'</div>' +
+    '</div>';
+  }).join('');
+  document.getElementById('onDemandResultArea').innerHTML =
+    '<div style="font-size:11.5px;color:#555;margin-bottom:8px;">생성된 '+combos.length+'개 — 로또전표에 추가할 것만 체크하세요</div>' +
+    '<div style="max-height:240px;overflow-y:auto;border:1px solid #eee;border-radius:8px;padding:8px 12px;margin-bottom:12px;">'+rows+'</div>' +
+    '<button class="btn-filter" style="width:100%;background:#1a7ad4;" onclick="SLIP.addOnDemandToSlip(\''+source+'\')">✅ 체크된 조합 로또전표에 추가</button>';
+};
+
+SLIP.toggleOnDemandCombo = function(i, checked){ SLIP._onDemandCombos[i].checked = checked; };
+
+SLIP.addOnDemandToSlip = function(source){
+  var selected = SLIP._onDemandCombos.filter(function(c){ return c.checked; });
+  if (!selected.length) { alert('추가할 조합을 1개 이상 체크해주세요.'); return; }
+  selected.forEach(function(c, i){
+    var rowKey = 'ondemand_'+source+'_'+Date.now()+'_'+i;
+    SLIP._onDemandRows = SLIP._onDemandRows || [];
+    SLIP._onDemandRows.push({
+      rowKey: rowKey, refId: rowKey, source: source,
+      round: MLL.getLottoInfo().saleRound, nums: c.nums, type: '즉석생성', isReal: false,
+      memo: source==='race' ? '[100전략레이스 즉석생성]' : '[전략등록 즉석생성]',
+      createdAt: Date.now(), status: null, grade: null, prizeMoney: 0, isFavorite: false
+    });
+    SLIP.checkedIds[rowKey] = true; // 추가하면서 바로 로또전표 체크도 켜둠
+  });
+  SLIP.closeOnDemandModal();
+  SLIP.render();
+  alert('✅ '+selected.length+'개 조합이 로또전표 후보로 추가되었습니다. 하단의 "로또구매전표 작성" 버튼으로 인쇄하실 수 있어요.');
+};
 
 </script>
 </body>
