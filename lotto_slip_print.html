@@ -185,21 +185,25 @@ MLL.getLottoInfo = function() {
   var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
   var nextRound = thisRound + 1;
 
+  // 토요일 20:00 ~ 일요일 06:00 사이의 "마감대 시간"인지 (요일/시각만으로 판정)
   var inClosedWindow = (day===6 && (hour>20||(hour===20&&min>=0))) || (day===0 && hour<6);
 
-  var results = MLL.loadResults ? MLL.loadResults() : {};
-  var thisRoundDrawn = !!(results[thisRound] && results[thisRound].nums);
+  var results = MLL.loadResults();
+  var thisRoundDrawn = !!(results[thisRound] && results[thisRound].nums); // thisRound 추첨결과가 이미 발표됐는지
 
   var status, saleRound, soldOut;
   if (!inClosedWindow) {
+    // 평상시(일요일 06시~토요일 20시): 항상 접수중, 대상은 다음 회차
     status = 'open';
     saleRound = nextRound;
     soldOut = false;
   } else if (!thisRoundDrawn) {
+    // 마감대 진입했지만 아직 이번회차 결과 발표 전: 접수마감, 대상은 "이번회차"(아직 안 끝난 회차) 그대로 보여줌
     status = 'closing';
     saleRound = thisRound;
     soldOut = true;
   } else {
+    // 이번회차 결과 발표됨 ~ 일요일 06시 전: 접수대기, 대상은 다음 회차로 이미 넘어감
     status = 'waiting';
     saleRound = nextRound;
     soldOut = true;
@@ -428,6 +432,60 @@ MLL.applyResults = function(resultsObj) {
   });
   MLL.saveEntries(entries);
   return updated;
+};
+
+// ── 전체 역사 데이터(lotto_results_full.json) 로드 ──
+// GitHub 저장소에 올려진 lotto_details1.xlsx(사용자가 수동 갱신)를 JSON으로 변환한 파일.
+// mll_results(auto_update.html이 부분적으로 채워주는 캐시)와는 별개의, 1회~최신회차 전체를 담은 완전한 데이터셋.
+MLL._fullHistoryCache = null;
+MLL._fullHistoryPromise = null;
+
+MLL.loadFullHistory = function(){
+  if (MLL._fullHistoryCache) return Promise.resolve(MLL._fullHistoryCache);
+  if (MLL._fullHistoryPromise) return MLL._fullHistoryPromise;
+  MLL._fullHistoryPromise = fetch('lotto_results_full.json')
+    .then(function(res){ if (!res.ok) throw new Error('fetch failed: '+res.status); return res.json(); })
+    .then(function(data){ MLL._fullHistoryCache = data; return data; })
+    .catch(function(err){
+      console.warn('[MLL] lotto_results_full.json 로드 실패, 부분 데이터(mll_results)로 대체:', err.message);
+      MLL._fullHistoryCache = MLL.loadResults(); // 실패 시 최소한 자동업데이트 캐시로 대체
+      return MLL._fullHistoryCache;
+    });
+  return MLL._fullHistoryPromise;
+};
+
+// 6개 번호조합을 "역대 전체 회차(1회~최신)"와 전부 대조하여 등수별 누적횟수를 계산.
+// 등록 이력(mll_entries)과는 무관하게, 순수하게 "이 번호가 그 회차에 나왔다면 몇 등이었을까"를 매 회차 가상으로 채점함.
+// async 함수이므로 호출 측에서 await 또는 .then()으로 받아야 함.
+MLL.getComboHistoryStat = async function(nums){
+  var history = await MLL.loadFullHistory();
+  var gradeCounts = [0,0,0,0,0,0];
+  var totalPrize = 0;
+  var perRound = []; // {round, grade, prizeMoney} 회차 오름차순 누적용(최근판정을 위해 round 내림차순 정렬은 아래에서)
+
+  Object.keys(history).forEach(function(roundKey){
+    var res = history[roundKey];
+    if (!res || !res.nums) return;
+    var grade = MLL.calcGrade(nums, res.nums, res.bonus);
+    var prize = MLL.calcPrize(grade, res);
+    if (grade >= 1 && grade <= 5) gradeCounts[grade]++;
+    totalPrize += prize;
+    perRound.push({ round: parseInt(roundKey), grade: grade, prizeMoney: prize });
+  });
+
+  perRound.sort(function(a,b){ return b.round - a.round; }); // 최신 회차부터
+  var hitRounds = perRound.filter(function(r){ return r.grade >= 1 && r.grade <= 5; });
+  var GRADE_LABEL = ['낙첨','1등','2등','3등','4등','5등'];
+  var recentHits = hitRounds.slice(0,3).map(function(r){ return GRADE_LABEL[r.grade]; });
+  while (recentHits.length < 3) recentHits.push('-');
+
+  return {
+    totalRoundsChecked: perRound.length, // 대조에 사용된 전체 회차 수
+    grade1: gradeCounts[1], grade2: gradeCounts[2], grade3: gradeCounts[3],
+    grade4: gradeCounts[4], grade5: gradeCounts[5],
+    totalPrize: totalPrize,
+    recent: recentHits[0], recent1: recentHits[1], recent2: recentHits[2]
+  };
 };
 
 // =====================================================
@@ -1397,42 +1455,7 @@ SLIP._comboKey = function(nums){
   return nums.slice().sort(function(a,b){ return a-b; }).join('-');
 };
 
-SLIP.buildComboStats = function(){
-  var allEntries = MLL.loadEntries();
-  var groups = {};
-  allEntries.forEach(function(e){
-    var key = SLIP._comboKey(e.nums);
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(e);
-  });
-
-  var stats = {};
-  Object.keys(groups).forEach(function(key){
-    var list = groups[key];
-    var confirmed = list.filter(function(e){ return e.status === '추첨후' && e.grade !== null && e.grade !== undefined; });
-    var gradeCounts = [0,0,0,0,0,0];
-    var totalPrize = 0;
-    confirmed.forEach(function(e){
-      if (e.grade >= 0 && e.grade <= 5) gradeCounts[e.grade]++;
-      totalPrize += (e.prizeMoney || 0);
-    });
-    var recentSorted = confirmed.slice().sort(function(a,b){ return b.round - a.round; });
-    var recentGrades = recentSorted.slice(0,3).map(function(e){
-      return e.grade === 0 ? '낙첨' : (e.grade ? MLL.GRADE_LABEL[e.grade] : '-');
-    });
-    while (recentGrades.length < 3) recentGrades.push('-');
-
-    stats[key] = {
-      grade1: gradeCounts[1], grade2: gradeCounts[2], grade3: gradeCounts[3],
-      grade4: gradeCounts[4], grade5: gradeCounts[5],
-      totalPrize: totalPrize,
-      recent: recentGrades[0], recent1: recentGrades[1], recent2: recentGrades[2]
-    };
-  });
-  return stats;
-};
-
-SLIP.render = function(){
+SLIP.render = async function(){
   var allCount = MLL.loadEntries().length;
   var entries = SLIP.getFilteredEntries();
   document.getElementById('phCount').textContent = '(' + entries.length + '개 / 전체 ' + allCount + '개)';
@@ -1463,7 +1486,17 @@ SLIP.render = function(){
     return;
   }
 
-  var comboStats = SLIP.buildComboStats();
+  document.getElementById('listBody').innerHTML = '<div class="empty-guide"><div class="ico">⏳</div><div class="msg">역대 회차와 대조하는 중...</div></div>';
+
+  // 화면에 보이는 행들의 조합별 통계를 한 번씩만 계산(캐시)
+  var statCache = {};
+  for (var i=0; i<entries.length; i++) {
+    var key = SLIP._comboKey(entries[i].nums);
+    if (!statCache[key]) {
+      statCache[key] = await MLL.getComboHistoryStat(entries[i].nums);
+    }
+  }
+
   var allChecked = entries.every(function(e){ return SLIP.checkedIds[e.id]; });
   var html =
     '<div class="list-toolbar">' +
@@ -1479,7 +1512,7 @@ SLIP.render = function(){
       '<th>최근</th><th>최근-1</th><th>최근-2</th>' +
       '<th style="width:36px;">로또전표</th><th style="width:36px;">최애번호</th>' +
     '</tr></thead><tbody>' +
-    entries.map(function(e){ return SLIP._renderRow(e, comboStats[SLIP._comboKey(e.nums)]); }).join('') +
+    entries.map(function(e){ return SLIP._renderRow(e, statCache[SLIP._comboKey(e.nums)]); }).join('') +
     '</tbody></table></div>';
 
   document.getElementById('listBody').innerHTML = html;

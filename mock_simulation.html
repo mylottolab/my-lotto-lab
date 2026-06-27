@@ -566,6 +566,55 @@ MLL.calcPrize = function(grade, result) {
   return 0;
 };
 
+// ── 전체 역사 데이터(lotto_results_full.json) — GitHub에 올려진 lotto_details1.xlsx를 변환한 완전한 1회~최신회차 데이터셋 ──
+MLL._fullHistoryCache = null;
+MLL._fullHistoryPromise = null;
+MLL.loadFullHistory = function(){
+  if (MLL._fullHistoryCache) return Promise.resolve(MLL._fullHistoryCache);
+  if (MLL._fullHistoryPromise) return MLL._fullHistoryPromise;
+  MLL._fullHistoryPromise = fetch('lotto_results_full.json')
+    .then(function(res){ if (!res.ok) throw new Error('fetch failed: '+res.status); return res.json(); })
+    .then(function(data){ MLL._fullHistoryCache = data; return data; })
+    .catch(function(err){
+      console.warn('[MLL] lotto_results_full.json 로드 실패, 부분 데이터(mll_results)로 대체:', err.message);
+      MLL._fullHistoryCache = MLL.loadResults();
+      return MLL._fullHistoryCache;
+    });
+  return MLL._fullHistoryPromise;
+};
+
+// 6개 번호조합을 역대 전체 회차(1회~최신)와 전부 대조하여 등수별 누적횟수 계산 (등록이력과 무관)
+MLL.getComboHistoryStat = async function(nums){
+  var history = await MLL.loadFullHistory();
+  var gradeCounts = [0,0,0,0,0,0];
+  var totalPrize = 0;
+  var perRound = [];
+
+  Object.keys(history).forEach(function(roundKey){
+    var res = history[roundKey];
+    if (!res || !res.nums) return;
+    var grade = MLL.calcGrade(nums, res.nums, res.bonus);
+    var prize = MLL.calcPrize(grade, res);
+    if (grade >= 1 && grade <= 5) gradeCounts[grade]++;
+    totalPrize += prize;
+    perRound.push({ round: parseInt(roundKey), grade: grade });
+  });
+
+  perRound.sort(function(a,b){ return b.round - a.round; });
+  var hitRounds = perRound.filter(function(r){ return r.grade >= 1 && r.grade <= 5; });
+  var GRADE_LABEL_FULL = ['낙첨','1등','2등','3등','4등','5등'];
+  var recentHits = hitRounds.slice(0,3).map(function(r){ return GRADE_LABEL_FULL[r.grade]; });
+  while (recentHits.length < 3) recentHits.push('-');
+
+  return {
+    totalRoundsChecked: perRound.length,
+    grade1: gradeCounts[1], grade2: gradeCounts[2], grade3: gradeCounts[3],
+    grade4: gradeCounts[4], grade5: gradeCounts[5],
+    totalPrize: totalPrize,
+    recent: recentHits[0], recent1: recentHits[1], recent2: recentHits[2]
+  };
+};
+
 MLL.uuid = function() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     var r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
@@ -637,36 +686,6 @@ MOCK.addEntries = function(items){
   });
   MOCK.saveEntries(entries);
   return items;
-};
-
-// 같은 6개 숫자 조합 기준 역대 성적 — 모의시뮬레이션 전용 저장소(MOCK.ENTRIES_KEY) 기준
-MOCK.getComboStat = function(nums, excludeEntryId){
-  var key = nums.slice().sort(function(a,b){return a-b;}).join('-');
-  var list = MOCK.loadEntries().filter(function(e){
-    var k = e.nums.slice().sort(function(a,b){return a-b;}).join('-');
-    return k === key && e.id !== excludeEntryId;
-  });
-  var confirmed = list.filter(function(e){ return e.grade !== null && e.grade !== undefined; });
-  var gradeCounts = [0,0,0,0,0,0];
-  var totalPrize = 0;
-  confirmed.forEach(function(e){
-    if (e.grade >= 0 && e.grade <= 5) gradeCounts[e.grade]++;
-    totalPrize += (e.prizeMoney || 0);
-  });
-  var recentSorted = confirmed.slice().sort(function(a,b){ return b.round - a.round; });
-  var GRADE_LABEL = ['낙첨','1등','2등','3등','4등','5등'];
-  var recentGrades = recentSorted.slice(0,3).map(function(e){
-    return (e.grade>=0 && e.grade<=5) ? GRADE_LABEL[e.grade] : '-';
-  });
-  while (recentGrades.length < 3) recentGrades.push('-');
-
-  return {
-    totalCount: list.length,
-    grade1: gradeCounts[1], grade2: gradeCounts[2], grade3: gradeCounts[3],
-    grade4: gradeCounts[4], grade5: gradeCounts[5],
-    totalPrize: totalPrize,
-    recent: recentGrades[0], recent1: recentGrades[1], recent2: recentGrades[2]
-  };
 };
 
 // 특정 회차에 대해 아직 채점 안 된 항목들을 실제 mll_results로 채점
@@ -1317,16 +1336,18 @@ MOCKUI.ballUpd = function(){
   }
 };
 
-// 6개 번호조합 완성 시 "이 번호조합의 참고사항"(역대 성적) 약식통계 표시
-MOCKUI.renderComboStat = function(nums, statBar){
-  var stat = MOCK.getComboStat(nums);
-  if (!stat.totalCount) {
+// 6개 번호조합 완성 시 "이 번호조합의 참고사항" — 1회~최신회차 전체 역사와 대조한 약식통계
+// (등록 이력과 무관하게, 이 번호가 역대 모든 회차에 나왔다면 몇 등이었을지 가상으로 채점)
+MOCKUI.renderComboStat = async function(nums, statBar){
+  statBar.style.display = 'block';
+  statBar.innerHTML = '<span style="color:var(--text-faint);">역대 회차와 대조하는 중...</span>';
+  var stat = await MLL.getComboHistoryStat(nums);
+  if (!stat.totalRoundsChecked) {
     statBar.style.display = 'none';
     return;
   }
-  statBar.style.display = 'block';
   statBar.innerHTML =
-    '<div style="color:var(--gold);font-weight:700;margin-bottom:5px;">★ 이 번호조합의 참고사항★ (과거 '+stat.totalCount+'회 등록 이력)</div>' +
+    '<div style="color:var(--gold);font-weight:700;margin-bottom:5px;">★ 이 번호조합의 참고사항★ (역대 '+stat.totalRoundsChecked+'회차 전체 대조)</div>' +
     '<div style="display:grid;grid-template-columns:repeat(5,1fr) 1.3fr repeat(3,0.8fr);gap:4px;text-align:center;color:var(--text-dim);">' +
       '<span>역대1등</span><span>2등</span><span>3등</span><span>4등</span><span>5등</span><span>총상금액</span><span>최근</span><span>최근-1</span><span>최근-2</span>' +
     '</div>' +
@@ -1368,25 +1389,27 @@ MOCKUI.openAutoPickModal = function(combos, nick, round){
   document.getElementById('autoPickModal').classList.add('show');
 };
 
-MOCKUI.renderAutoPickList = function(){
+MOCKUI.renderAutoPickList = async function(){
   var st = MOCKUI.autoPickState;
-  var html = st.combos.map(function(nums, i){
+  document.getElementById('autoPickList').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">역대 회차와 대조하는 중...</div>';
+
+  var rows = [];
+  for (var i=0; i<st.combos.length; i++) {
+    var nums = st.combos[i];
     var sorted = nums.slice().sort(function(a,b){return a-b;});
     var ballsHtml = sorted.map(function(n){
       return '<span style="width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;background:'+MOCKUI.ballBC(n)+';color:'+MOCKUI.ballTC(n)+';margin:1px;">'+n+'</span>';
     }).join('');
-    var stat = MOCK.getComboStat(sorted);
-    var statHtml = stat.totalCount
-      ? '<span style="color:var(--gold);">과거 '+stat.totalCount+'회 등록 · 1등'+stat.grade1+' 2등'+stat.grade2+' 3등'+stat.grade3+' 4등'+stat.grade4+' 5등'+stat.grade5+' · 총상금 '+stat.totalPrize.toLocaleString()+'원</span>'
-      : '<span style="color:var(--text-faint);">신규 조합 (이력 없음)</span>';
+    var stat = await MLL.getComboHistoryStat(sorted);
+    var statHtml = '<span style="color:var(--gold);">역대 1등'+stat.grade1+' 2등'+stat.grade2+' 3등'+stat.grade3+' 4등'+stat.grade4+' 5등'+stat.grade5+' · 총상금 '+stat.totalPrize.toLocaleString()+'원</span>';
     var isChecked = st.checked[i];
-    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:'+(isChecked?'var(--surface-2)':'transparent')+';">' +
+    rows.push('<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:'+(isChecked?'var(--surface-2)':'transparent')+';">' +
       '<input type="checkbox" '+(isChecked?'checked':'')+' onchange="MOCKUI.toggleAutoPick('+i+', this.checked)">' +
       '<div style="display:flex;gap:1px;">'+ballsHtml+'</div>' +
       '<div style="font-size:10px;flex:1;">'+statHtml+'</div>' +
-    '</div>';
-  }).join('');
-  document.getElementById('autoPickList').innerHTML = html;
+    '</div>');
+  }
+  document.getElementById('autoPickList').innerHTML = rows.join('');
   MOCKUI.updateAutoPickCount();
 };
 
