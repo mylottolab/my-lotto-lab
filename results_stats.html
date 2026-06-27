@@ -1221,7 +1221,7 @@ RS.renderResultTable = function(rows, getRes, isAll, roundsDesc) {
 
   var theadHtml = '<thead><tr>' + cols.map(function(c){
     var sorted = RS.sort.key === c.key;
-    var arrow = c.noSort ? '' : '<span class="sort-arrow">'+(sorted ? (RS.sort.dir==='asc'?'▲':'▼') : '↕')+'</span>';
+    var arrow = c.noSort ? '' : '<span class="sort-arrow">'+(sorted ? (RS.sort.dir==='asc'?'^':'v') : '-')+'</span>';
     var cls = sorted ? ' class="sorted"' : '';
     var onclick = c.noSort ? '' : ' onclick="RS.toggleSort(\''+c.key+'\')"';
     return '<th'+cls+onclick+'>'+c.label+arrow+'</th>';
@@ -1751,7 +1751,7 @@ RS.renderFavTable = function(rows, getRes, roundsDesc) {
 
   var theadHtml = '<thead><tr>' + cols.map(function(c){
     var sorted = RS.sort.key === c.key;
-    var arrow = c.noSort ? '' : '<span class="sort-arrow">'+(sorted ? (RS.sort.dir==='asc'?'▲':'▼') : '↕')+'</span>';
+    var arrow = c.noSort ? '' : '<span class="sort-arrow">'+(sorted ? (RS.sort.dir==='asc'?'^':'v') : '-')+'</span>';
     var cls = sorted ? ' class="sorted"' : '';
     var onclick = c.noSort ? '' : ' onclick="RS.toggleSort(\''+c.key+'\')"';
     return '<th'+cls+onclick+'>'+c.label+arrow+'</th>';

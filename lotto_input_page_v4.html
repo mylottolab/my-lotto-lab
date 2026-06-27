@@ -945,9 +945,9 @@ body{background:#f3f4f6;font-size:14px;}
 .sh{cursor:pointer;user-select:none;}
 .sh:hover{background:#eef2ff;color:#1a7ad4;}
 .sa{font-size:8px;margin-left:2px;}
-.sa.asc::after{content:'▲';color:#1a7ad4;}
-.sa.desc::after{content:'▼';color:#1a7ad4;}
-.sa:not(.asc):not(.desc)::after{content:'⇅';color:#ccc;}
+.sa.asc::after{content:'^';color:#1a7ad4;}
+.sa.desc::after{content:'v';color:#1a7ad4;}
+.sa:not(.asc):not(.desc)::after{content:'-';color:#ccc;}
 .sdiv td{background:#f0f0f0!important;padding:3px 6px;font-size:9px;font-weight:700;color:#888;text-align:left;}
 
 .rph{padding:11px 15px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #eee;flex-wrap:wrap;}

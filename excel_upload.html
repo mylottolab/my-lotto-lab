@@ -211,14 +211,14 @@ document.addEventListener('click',function(e){
       </colgroup>
       <thead><tr>
         <th><input type="checkbox" id="checkAllSlip" onclick="toggleAllSlipCheck(this.checked)" title="전표작성용 체크"></th>
-        <th onclick="sortBy('round')">회차<span id="sa-round"> ▼</span></th>
+        <th onclick="sortBy('round')">회차<span id="sa-round"> v</span></th>
         <th>번호</th>
-        <th onclick="sortBy('memo')">메모<span id="sa-memo"> ⇅</span></th>
-        <th onclick="sortBy('type')">구매형태<span id="sa-type"> ⇅</span></th>
+        <th onclick="sortBy('memo')">메모<span id="sa-memo"> -</span></th>
+        <th onclick="sortBy('type')">구매형태<span id="sa-type"> -</span></th>
         <th>구분</th>
-        <th onclick="sortBy('status')">추첨<span id="sa-status"> ⇅</span></th>
-        <th onclick="sortBy('grade')">결과<span id="sa-grade"> ⇅</span></th>
-        <th onclick="sortBy('prizeMoney')">당첨금<span id="sa-prizeMoney"> ⇅</span></th>
+        <th onclick="sortBy('status')">추첨<span id="sa-status"> -</span></th>
+        <th onclick="sortBy('grade')">결과<span id="sa-grade"> -</span></th>
+        <th onclick="sortBy('prizeMoney')">당첨금<span id="sa-prizeMoney"> -</span></th>
         <th>삭제</th>
       </tr></thead>
       <tbody id="tb"></tbody>
@@ -1186,7 +1186,7 @@ function sortBy(col){
   if(sortCol===col) sortDir*=-1; else {sortCol=col;sortDir=-1;}
   ['round','memo','type','status','grade','prizeMoney'].forEach(function(c){
     var el=document.getElementById('sa-'+c); if(!el) return;
-    el.textContent=c===sortCol?(sortDir===-1?' ▼':' ▲'):' ⇅';
+    el.textContent=c===sortCol?(sortDir===-1?' v':' ^'):' -';
   });
   refreshTable();
 }

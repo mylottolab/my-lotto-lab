@@ -1487,7 +1487,7 @@ RACE.overallSortState = { key:'rank', dir:'asc' };
 RACE.sortableTh = function(label, key, align){
   if (!key) return '<th'+(align?' style="text-align:'+align+';"':'')+'>'+label+'</th>';
   var st = RACE.overallSortState;
-  var arrow = (st.key===key) ? (st.dir==='asc' ? ' ▲' : ' ▼') : '';
+  var arrow = (st.key===key) ? (st.dir==='asc' ? ' ^' : ' v') : '';
   return '<th style="cursor:pointer;user-select:none;'+(align?'text-align:'+align+';':'')+'" onclick="RACE.sortOverallBy(\''+key+'\')">'+label+arrow+'</th>';
 };
 RACE.sortOverallBy = function(key){

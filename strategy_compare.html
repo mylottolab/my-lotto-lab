@@ -1029,7 +1029,7 @@ function showAllSummary(){
       });
     }
 
-    var arrow = function(key){ return sortKey===key ? (sortDir===-1?' ▼':' ▲') : ''; };
+    var arrow = function(key){ return sortKey===key ? (sortDir===-1?' v':' ^') : ''; };
 
     var headCols = isDrawn
       ? '<th onclick="sortSummary(\'name\')" style="cursor:pointer;">전략명'+arrow('name')+'</th>'+
