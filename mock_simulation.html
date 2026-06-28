@@ -116,6 +116,24 @@ table.live-reg-table{width:100%;border-collapse:collapse;}
 .sd{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12.5px;color:var(--text-dim);min-height:34px;margin-bottom:12px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
 .sb{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;flex-shrink:0;}
 .sb.faded{opacity:.4;}
+
+.ticker-wrap{display:flex;align-items:center;justify-content:center;gap:16px;min-width:0;}
+.ticker-balls{display:flex;align-items:center;gap:6px;min-height:26px;overflow:hidden;}
+.ticker-balls .tb-ball{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;flex-shrink:0;animation:tbIn .4s ease-out;}
+.ticker-balls .tb-empty{font-size:11px;color:var(--text-faint);}
+@keyframes tbIn{
+  0%{opacity:0;transform:translateY(8px) scale(.7);}
+  100%{opacity:1;transform:translateY(0) scale(1);}
+}
+.ticker-counter{display:flex;flex-direction:column;align-items:center;gap:1px;}
+.ticker-count{font-size:18px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums;}
+.ticker-count.rolling{animation:tcRoll .5s ease-out;}
+@keyframes tcRoll{
+  0%{transform:translateY(6px) scale(.9);opacity:.3;}
+  60%{transform:translateY(-2px) scale(1.1);opacity:1;}
+  100%{transform:translateY(0) scale(1);opacity:1;}
+}
+@media (max-width:640px){ .ticker-wrap{display:none;} }
 .ng{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-bottom:14px;max-width:430px;}
 @media (max-width:480px){.ng{gap:5px;max-width:100%;}}
 .nb{width:100%;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;cursor:pointer;border:none;outline:none;transition:transform .1s;}
@@ -250,7 +268,13 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
       <div class="cd-label">접수기간</div>
       <div style="font-size:12.5px;color:var(--text-dim);margin-top:2px;">매주 일요일 06:00 ~ 토요일 20:00</div>
     </div>
-    <div style="flex:1;"></div>
+    <div class="ticker-wrap" id="tickerWrap" style="flex:1;">
+      <div class="ticker-balls" id="tickerBalls"></div>
+      <div class="ticker-counter">
+        <span class="cd-label">전체 등록조합</span>
+        <span class="ticker-count font-num" id="tickerCount">0</span>
+      </div>
+    </div>
     <div style="text-align:right;">
       <div class="cd-label" id="cdLabel">마감까지</div>
       <div class="cd-time font-num" id="cdTime">--:--:--</div>
@@ -686,6 +710,10 @@ MOCK.addEntries = function(items){
     entries.push(item);
   });
   MOCK.saveEntries(entries);
+  if (typeof MOCKUI !== 'undefined' && MOCKUI.renderTicker) {
+    MOCKUI.tickerIdx = 0; // 새 등록건을 곧바로 보여주도록 처음으로 리셋
+    MOCKUI.renderTicker();
+  }
   return items;
 };
 
@@ -1155,6 +1183,46 @@ MOCKUI.voiceLang = 'ko';
 MOCKUI.textLang = 'ko';
 
 // ── 초기화 ──
+// ── 상단바 중앙: 등록된 조합 롤링 표시 + 전체 등록조합수 디지털 카운터 ──
+MOCKUI.tickerIdx = 0;
+
+MOCKUI.renderTicker = function(){
+  var ballsEl = document.getElementById('tickerBalls');
+  var countEl = document.getElementById('tickerCount');
+  if (!ballsEl || !countEl) return;
+
+  var info = MLL.getLottoInfo();
+  var round = info.saleRound;
+  var entries = MOCK.loadEntries().filter(function(e){ return Number(e.round) === Number(round); });
+
+  // 카운터: 값이 바뀐 경우에만 롤링 애니메이션 재생
+  var newCount = entries.length;
+  var oldCount = Number((countEl.textContent||'0').replace(/,/g,'')) || 0;
+  countEl.textContent = newCount.toLocaleString();
+  if (newCount !== oldCount) {
+    countEl.classList.remove('rolling');
+    void countEl.offsetWidth; // 강제 리플로우로 애니메이션 재시작
+    countEl.classList.add('rolling');
+  }
+
+  // 공 롤링: 최신 등록건부터 차례로 순환 표시
+  if (!entries.length) {
+    ballsEl.innerHTML = '<span class="tb-empty">아직 등록된 조합이 없습니다</span>';
+    return;
+  }
+  if (MOCKUI.tickerIdx >= entries.length) MOCKUI.tickerIdx = 0;
+  var entry = entries[entries.length - 1 - MOCKUI.tickerIdx];
+  var sorted = entry.nums.slice().sort(function(a,b){ return a-b; });
+  ballsEl.innerHTML = sorted.map(function(n){
+    return '<span class="tb-ball" style="background:'+MOCKUI.ballBC(n)+';color:'+MOCKUI.ballTC(n)+';">'+n+'</span>';
+  }).join('');
+};
+
+MOCKUI.advanceTicker = function(){
+  MOCKUI.tickerIdx++;
+  MOCKUI.renderTicker();
+};
+
 MOCKUI.init = function(){
   MOCKUI.refreshHeader();
   MOCKUI.buildGrid();
@@ -1163,7 +1231,9 @@ MOCKUI.init = function(){
   MOCKUI.renderMy();
   MOCKUI.renderStats();
   MOCKUI.renderLeaderboard();
+  MOCKUI.renderTicker();
   setInterval(MOCKUI.refreshHeader, 1000);
+  setInterval(MOCKUI.advanceTicker, 2500);
 };
 
 MOCKUI.gradeIfPossible = function(){
