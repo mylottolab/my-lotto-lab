@@ -1382,7 +1382,17 @@ RACE.getOrGenerateCombos = function(strategyNo, count){
   return combos;
 };
 
+RACE.PRICE_PER_COMBO = 50; // 엑셀 다운로드 1조합당 과금(원)
+
 RACE.downloadComboXLSX = function(strategyNo, count){
+  var totalFee = count * RACE.PRICE_PER_COMBO;
+  var ok = confirm(
+    '엑셀 다운로드는 추천번호조합 1개당 '+RACE.PRICE_PER_COMBO.toLocaleString()+'원이 과금됩니다.\n' +
+    count.toLocaleString()+'개 다운로드 시 총 '+totalFee.toLocaleString()+'원이 청구됩니다.\n' +
+    '(테스트 모드이므로 실제 차감되지 않습니다)\n\n계속 다운로드하시겠습니까?'
+  );
+  if (!ok) return;
+
   var combos = RACE.getOrGenerateCombos(strategyNo, count);
   if (!combos.length) { alert('번호 생성에 실패했습니다.'); return; }
   var strategies = RACE.ensureStrategies();
