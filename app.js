@@ -39,6 +39,10 @@ APP.STR = {
   info_grades: { kr: '등급 수', en: 'Prize Tiers' },
   info_odds: { kr: '잭폿 확률', en: 'Jackpot Odds' },
   info_next: { kr: '다음 추첨', en: 'Next Draw' },
+  gtab_live_unit: { kr: '건', en: '' },
+  live_reg_count: { kr: '이번 추첨 등록현황', en: 'Entries This Draw' },
+  live_reg_amount: { kr: '이번 추첨 등록금액', en: 'Amount This Draw' },
+  live_deadline: { kr: '구매마감까지', en: 'Closes In' },
   method_manual: { kr: '수동', en: 'Manual' },
   method_manual_d: { kr: '직접 선택', en: 'Pick yourself' },
   method_auto: { kr: '자동', en: 'Auto' },
@@ -177,6 +181,7 @@ APP.renderAll = function(){
   APP.renderInfoCard();
   APP.renderSectionTabs();
   APP.renderSectionBody();
+  APP.startLiveTicker();
 };
 
 APP.selectGame = function(code){
@@ -185,14 +190,35 @@ APP.selectGame = function(code){
   APP.renderAll();
 };
 
+APP.gameLiveStats = function(gameCode){
+  var g = GLOBAL.GAMES[gameCode];
+  var drawDate = GLOBAL.getNextDrawDate(gameCode);
+  var entries = APP.loadEntries().filter(function(e){ return e.gameCode === gameCode && e.drawDate === drawDate; });
+  var pointsTotal = entries.length * g.pricePerGame;
+  var deadline = new Date(drawDate + 'T00:00:00').getTime(); // 추첨일 0시를 마감으로 단순화
+  return { drawDate: drawDate, count: entries.length, pointsTotal: pointsTotal, deadlineMs: deadline };
+};
+
+APP.formatCountdown = function(ms){
+  if (ms <= 0) return '00:00:00';
+  var totalSec = Math.floor(ms/1000);
+  var hh = Math.floor(totalSec/3600);
+  var mm = Math.floor((totalSec%3600)/60);
+  var ss = totalSec%60;
+  function pad(n){ return String(n).padStart(2,'0'); }
+  return pad(hh)+':'+pad(mm)+':'+pad(ss);
+};
+
 APP.renderGameTabs = function(){
   var html = GLOBAL.gameList().map(function(g){
     var active = g.code === APP.state.gameCode;
     var name = APP.state.lang === 'en' ? g.nameEn : g.nameKr;
     var drawLabel = APP.state.lang === 'en' ? g.drawDaysLabelEn : g.drawDaysLabelKr;
+    var live = APP.gameLiveStats(g.code);
     return '<div class="game-tab' + (active ? ' active' : '') + '" style="--tab-accent:' + g.accent + ';" onclick="APP.selectGame(\'' + g.code + '\')">' +
       '<div class="gname"><span class="dot"></span>' + name + '</div>' +
       '<div class="gsub">' + g.mainPickCount + '/' + g.mainPoolSize + ' + ' + g.subPickCount + '/' + g.subPoolSize + ' · ' + drawLabel + '</div>' +
+      '<div class="gtab-live"><span class="gtl-dot"></span><span class="font-num gtab-live-count" data-live-count="' + g.code + '">' + live.count.toLocaleString() + '</span>' + APP.t('gtab_live_unit') + ' · <span class="font-num" data-live-cd="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</span></div>' +
     '</div>';
   }).join('');
   document.getElementById('gameTabs').innerHTML = html;
@@ -206,6 +232,7 @@ APP.renderInfoCard = function(){
   var drawLabel = lang === 'en' ? g.drawDaysLabelEn : g.drawDaysLabelKr;
   var nextDraw = GLOBAL.getNextDrawDate(g.code);
   var matrixStr = g.mainPickCount + '/' + g.mainPoolSize + ' + ' + g.subPickCount + '/' + g.subPoolSize + ' (' + subLabel + ')';
+  var live = APP.gameLiveStats(g.code);
 
   document.getElementById('infoCard').innerHTML =
     '<div class="info-item"><div class="k">' + APP.t('info_matrix') + '</div><div class="v accent">' + matrixStr + '</div></div>' +
@@ -213,6 +240,40 @@ APP.renderInfoCard = function(){
     '<div class="info-item"><div class="k">' + APP.t('info_grades') + '</div><div class="v">' + g.grades.length + '</div></div>' +
     '<div class="info-item"><div class="k">' + APP.t('info_odds') + '</div><div class="v">' + g.jackpotOdds + '</div></div>' +
     '<div class="info-item"><div class="k">' + APP.t('info_next') + '</div><div class="v accent">' + nextDraw + '</div></div>';
+
+  document.getElementById('liveBar').innerHTML =
+    '<div class="live-stat">' +
+      '<div class="ls-label">' + APP.t('live_reg_count') + '</div>' +
+      '<div class="ls-val font-num" data-live-count="' + g.code + '">' + live.count.toLocaleString() + '<span class="ls-unit">' + APP.t('gtab_live_unit') + '</span></div>' +
+    '</div>' +
+    '<div class="live-stat">' +
+      '<div class="ls-label">' + APP.t('live_reg_amount') + '</div>' +
+      '<div class="ls-val font-num" data-live-amount="' + g.code + '">' + live.pointsTotal.toLocaleString() + '<span class="ls-unit">P</span></div>' +
+    '</div>' +
+    '<div class="live-stat">' +
+      '<div class="ls-label"><span class="ls-dot"></span>' + APP.t('live_deadline') + '</div>' +
+      '<div class="ls-val cd font-num" data-live-cd-big="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</div>' +
+    '</div>';
+};
+
+// ── 실시간 카운트다운/등록현황 1초마다 갱신 (전체 리렌더 없이 텍스트만 갱신해 깜빡임 방지) ──
+APP.startLiveTicker = function(){
+  if (APP._liveTickerStarted) return;
+  APP._liveTickerStarted = true;
+  setInterval(function(){
+    GLOBAL.gameList().forEach(function(g){
+      var live = APP.gameLiveStats(g.code);
+      var cdStr = APP.formatCountdown(live.deadlineMs - Date.now());
+
+      document.querySelectorAll('[data-live-cd="' + g.code + '"]').forEach(function(el){ el.textContent = cdStr; });
+      document.querySelectorAll('[data-live-count="' + g.code + '"]').forEach(function(el){ el.textContent = live.count.toLocaleString(); });
+
+      var bigCd = document.querySelector('[data-live-cd-big="' + g.code + '"]');
+      if (bigCd) bigCd.textContent = cdStr;
+      var bigAmt = document.querySelector('[data-live-amount="' + g.code + '"]');
+      if (bigAmt) bigAmt.innerHTML = live.pointsTotal.toLocaleString() + '<span class="ls-unit">P</span>';
+    });
+  }, 1000);
 };
 
 APP.renderSectionTabs = function(){

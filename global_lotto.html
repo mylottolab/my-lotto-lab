@@ -54,6 +54,23 @@ button{font-family:inherit;cursor:pointer;}
 .info-item .v{font-size:14.5px;font-weight:700;color:var(--text);}
 .info-item .v.accent{color:var(--game-accent);}
 
+.gtab-live{margin-top:10px;padding-top:9px;border-top:1px solid var(--border-soft);font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:4px;}
+.gtl-dot{width:6px;height:6px;border-radius:50%;background:var(--tab-accent);animation:gtlPulse 1.4s infinite;flex-shrink:0;}
+@keyframes gtlPulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.gtab-live-count{color:var(--text);font-weight:700;}
+
+.live-bar{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
+.live-stat{flex:1;min-width:200px;background:var(--surface);border:1px solid var(--game-accent);border-radius:14px;padding:18px 22px;}
+.ls-label{font-size:11.5px;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.ls-dot{width:7px;height:7px;border-radius:50%;background:var(--game-accent);animation:gtlPulse 1.4s infinite;}
+.ls-val{font-size:30px;font-weight:800;color:var(--game-accent);}
+.ls-val.cd{font-variant-numeric:tabular-nums;}
+.ls-unit{font-size:13px;font-weight:600;color:var(--text-dim);margin-left:6px;}
+@media (max-width:680px){
+  .live-bar{flex-direction:column;}
+  .ls-val{font-size:24px;}
+}
+
 /* 섹션 탭 */
 .section-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border-soft);margin-bottom:20px;}
 .section-tab{padding:11px 18px;font-size:13.5px;font-weight:600;color:var(--text-faint);border-bottom:2px solid transparent;}
@@ -156,6 +173,7 @@ table.data-table tbody tr:hover{background:var(--surface-2);}
 <div class="wrap">
   <div class="game-tabs" id="gameTabs"></div>
   <div class="info-card" id="infoCard"></div>
+  <div class="live-bar" id="liveBar"></div>
 
   <div class="section-tabs" id="sectionTabs"></div>
   <div id="sectionBody"></div>
