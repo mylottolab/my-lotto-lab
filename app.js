@@ -50,6 +50,11 @@ APP.STR = {
   live_approx: { kr: '근사값', en: 'approx.' },
   krw_equiv: { kr: '한화 상당', en: 'KRW equiv.' },
   help_title_suffix: { kr: '이란?', en: ': What is it?' },
+  help_prize_title: { kr: '당첨등수 및 당첨금', en: 'Prize Tiers & Amounts' },
+  help_match: { kr: '일치조건', en: 'Match' },
+  help_prize_amount: { kr: '당첨금', en: 'Prize' },
+  help_prize_note_fixed: { kr: '※ 잭폿 외 등급은 고정금액이에요 (운영사 공식 발표 기준, 일부 주는 판매량에 따라 달라질 수 있음).', en: '※ All non-jackpot prizes are fixed amounts (per official rules; may be pari-mutuel in some jurisdictions).' },
+  help_prize_note_pari: { kr: '※ EuroMillions은 고정금액이 아니라 상금풀(판매액의 50%)을 등급별 비율로 나눠요. 그래서 실제 당첨금은 회차마다 달라져요.', en: '※ EuroMillions has no fixed amounts — each tier gets a fixed % share of the prize pool (50% of sales), so actual payouts vary draw to draw.' },
   help_close: { kr: '닫기', en: 'Close' },
   draw_result_title: { kr: '추첨결과', en: 'Draw Result' },
   draw_result_main: { kr: '당첨번호', en: 'Winning Numbers' },
@@ -509,6 +514,20 @@ APP.openHelp = function(gameCode){
   var name = lang === 'en' ? g.nameEn : g.nameKr;
   document.getElementById('helpTitle').textContent = name + APP.t('help_title_suffix');
   document.getElementById('helpBody').textContent = lang === 'en' ? g.helpEn : g.helpKr;
+
+  var rows = g.grades.map(function(gr){
+    var label = lang === 'en' ? gr.labelEn : gr.labelKr;
+    var matchStr = gr.sub > 0 ? (gr.main + '+' + gr.sub) : (gr.main + '+0');
+    return '<tr><td>' + label + '</td><td class="font-num">' + matchStr + '</td><td class="font-num">' + gr.prizeLabel + '</td></tr>';
+  }).join('');
+
+  var noteKey = (g.subPoolType === 'DUAL') ? 'help_prize_note_pari' : 'help_prize_note_fixed';
+  document.getElementById('helpPrizeTable').innerHTML =
+    '<div class="ls-label" style="margin-top:6px;margin-bottom:8px;">' + APP.t('help_prize_title') + '</div>' +
+    '<table class="data-table"><thead><tr><th>' + APP.t('th_grade') + '</th><th>' + APP.t('help_match') + '</th><th>' + APP.t('help_prize_amount') + '</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>' +
+    '<div class="ls-asof" style="margin-top:10px;">' + APP.t(noteKey) + '</div>';
+
   document.getElementById('helpModal').classList.add('show');
 };
 APP.closeHelp = function(){ document.getElementById('helpModal').classList.remove('show'); };
