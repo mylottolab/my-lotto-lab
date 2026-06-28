@@ -34,6 +34,8 @@ button{font-family:inherit;cursor:pointer;}
 .points-badge{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:6px 14px;}
 .points-badge .lbl{font-size:11px;color:var(--text-dim);}
 .points-badge .val{font-size:14px;font-weight:700;color:var(--gold);}
+.back-to-kr{font-size:12.5px;font-weight:600;color:var(--text-dim);padding:6px 12px;border:1px solid var(--border);border-radius:20px;}
+.back-to-kr:hover{color:var(--text);border-color:var(--text-dim);}
 
 .wrap{max-width:1180px;margin:0 auto;padding:24px;}
 
@@ -138,6 +140,7 @@ table.data-table tbody tr:hover{background:var(--surface-2);}
       </div>
     </div>
     <div class="topbar-right">
+      <a href="main_page.html" class="back-to-kr" id="t_backToKr">🇰🇷 한국 로또</a>
       <div class="lang-toggle">
         <button id="langKrBtn" class="active" onclick="APP.setLang('kr')">KR</button>
         <button id="langEnBtn" onclick="APP.setLang('en')">EN</button>

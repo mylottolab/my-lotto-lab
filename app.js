@@ -29,6 +29,7 @@ APP.STR = {
   brandName: { kr: 'My Lotto Lab — Global', en: 'My Lotto Lab — Global' },
   brandSub: { kr: '해외 발행 복권 가상등록 테스트베드', en: 'A testbed for international lottery odds' },
   pointsLabel: { kr: '포인트', en: 'Points' },
+  backToKr: { kr: '🇰🇷 한국 로또', en: '🇰🇷 Korea Lotto' },
   tab_register: { kr: '번호 등록', en: 'Register Numbers' },
   tab_my: { kr: '내 등록현황', en: 'My Entries' },
   tab_stats: { kr: '통계', en: 'Statistics' },
@@ -155,6 +156,12 @@ APP.init = function(){
   if (savedLang) APP.state.lang = savedLang;
   document.getElementById('langKrBtn').classList.toggle('active', APP.state.lang==='kr');
   document.getElementById('langEnBtn').classList.toggle('active', APP.state.lang==='en');
+
+  // 다른 페이지(메인 메뉴의 로또 전환 드롭다운 등)에서 ?game=POWERBALL 식으로 들어오면 해당 게임을 바로 선택
+  var params = new URLSearchParams(window.location.search);
+  var requestedGame = (params.get('game') || '').toUpperCase();
+  if (GLOBAL.GAMES[requestedGame]) APP.state.gameCode = requestedGame;
+
   APP.renderAll();
 };
 
@@ -162,6 +169,7 @@ APP.renderAll = function(){
   document.getElementById('t_brandName').textContent = APP.t('brandName');
   document.getElementById('t_brandSub').textContent = APP.t('brandSub');
   document.getElementById('t_pointsLabel').textContent = APP.t('pointsLabel');
+  document.getElementById('t_backToKr').textContent = APP.t('backToKr');
   document.getElementById('pointsBalance').textContent = APP.getPoints().balance.toLocaleString();
   document.getElementById('t_cancelBtn').textContent = APP.t('cancel_btn');
   document.getElementById('t_confirmBtn').textContent = APP.t('confirm_btn');
