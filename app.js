@@ -40,17 +40,18 @@ APP.STR = {
   info_grades: { kr: '등급 수', en: 'Prize Tiers' },
   info_odds: { kr: '잭폿 확률', en: 'Jackpot Odds' },
   info_next: { kr: '다음 추첨', en: 'Next Draw' },
-  live_deadline: { kr: '판매마감까지', en: 'Sales Close In' },
+  live_deadline: { kr: '다음 추첨까지', en: 'Next Drawing In' },
   live_real_jackpot: { kr: '실제 잭폿 금액', en: 'Real Jackpot Amount' },
   live_cash_value: { kr: '현금가치', en: 'Cash Value' },
   live_as_of: { kr: '기준', en: 'as of' },
   live_local: { kr: '현지시각', en: 'Local Time' },
   live_kst: { kr: '한국시각', en: 'Korea Time (KST)' },
-  live_reopen: { kr: '판매재개', en: 'Sales Resume' },
+  live_reopen: { kr: '추첨 후 판매재개', en: 'Sales Resume After Draw' },
   live_approx: { kr: '근사값', en: 'approx.' },
   krw_equiv: { kr: '한화 상당', en: 'KRW equiv.' },
   help_title_suffix: { kr: '이란?', en: ': What is it?' },
   help_prize_title: { kr: '당첨등수 및 당첨금', en: 'Prize Tiers & Amounts' },
+  help_ticket_price: { kr: '1게임 구매비용:', en: 'Price per Play:' },
   help_match: { kr: '일치조건', en: 'Match' },
   help_prize_amount: { kr: '당첨금', en: 'Prize' },
   help_prize_note_fixed: { kr: '※ 잭폿 외 등급은 고정금액이에요 (운영사 공식 발표 기준, 일부 주는 판매량에 따라 달라질 수 있음).', en: '※ All non-jackpot prizes are fixed amounts (per official rules; may be pari-mutuel in some jurisdictions).' },
@@ -98,6 +99,18 @@ APP.STR = {
   compare_title: { kr: '종목간 당첨율 비교', en: 'Win Rate Comparison Across Games' },
   compare_note: { kr: '같은 100건을 등록해도 종목마다 당첨율이 얼마나 다른지 직접 체감해보세요.', en: 'See how differently each game pays out, even with the same number of entries.' },
   admin_pw_label: { kr: '관리자 비밀번호', en: 'Admin Password' },
+  admin_logged_in_as: { kr: '🔓 관리자로 로그인됨', en: '🔓 Logged in as Admin' },
+  admin_logout: { kr: '로그아웃', en: 'Log Out' },
+  admin_jackpot_title: { kr: '잭폿/현금가치 수정', en: 'Edit Jackpot / Cash Value' },
+  admin_jackpot_amount: { kr: '잭폿 금액', en: 'Jackpot Amount' },
+  admin_jackpot_cash: { kr: '현금가치 (표시문구 / 숫자)', en: 'Cash Value (label / number)' },
+  admin_jackpot_asof: { kr: '기준 시각', en: 'As Of' },
+  admin_save_jackpot: { kr: '잭폿 정보 저장', en: 'Save Jackpot Info' },
+  admin_jackpot_saved: { kr: '저장했습니다. 화면에 바로 반영됩니다.', en: 'Saved. Reflected immediately on screen.' },
+  admin_jackpot_hint: { kr: '왼쪽 칸은 화면에 보이는 문구("$348 Million"), 오른쪽 칸은 한화 환산용 실제 숫자(348000000)예요. 둘 다 채워주세요.', en: 'Left field is the display text ("$348 Million"); right field is the actual number used for KRW conversion (348000000). Fill both.' },
+  admin_fx_title: { kr: '환율 수정 (한화 환산 기준)', en: 'Edit Exchange Rate (for KRW conversion)' },
+  admin_save_fx: { kr: '환율 저장', en: 'Save Exchange Rate' },
+  admin_fx_hint: { kr: '여기서 저장한 환율은 3종 모든 복권의 "한화 상당" 표시에 공통으로 쓰여요. 고시환율(예: 한국은행, 시중은행 매매기준율)을 확인 후 입력해주세요.', en: 'This rate is shared across all 3 lotteries for KRW-equivalent display. Check an official source (e.g. central bank rate) before entering.' },
   admin_login: { kr: '입장', en: 'Enter' },
   admin_wrong_pw: { kr: '비밀번호가 올바르지 않습니다.', en: 'Incorrect password.' },
   admin_draw_date: { kr: '결과를 입력할 추첨일', en: 'Draw Date to Enter Results' },
@@ -173,6 +186,8 @@ document.addEventListener('DOMContentLoaded', function(){ APP.init(); });
 // 렌더링
 // =====================================================
 APP.init = function(){
+  APP.syncFxToEngine(); // 관리자가 저장해둔 환율이 있으면 엔진에 동기화
+
   var savedLang = localStorage.getItem(APP.STORAGE.LANG);
   if (savedLang) APP.state.lang = savedLang;
   document.getElementById('langKrBtn').classList.toggle('active', APP.state.lang==='kr');
@@ -242,10 +257,49 @@ APP.selectGame = function(code){
   APP.renderAll();
 };
 
+// ── 잭폿/현금가치: 관리자가 수정한 값이 있으면 그걸 우선 쓰고, 없으면 engine.js의 기본 스냅샷 사용 ──
+APP.JACKPOT_OVERRIDE_KEY = 'mll_global_jackpot_override';
+APP.loadJackpotOverrides = function(){
+  try { return JSON.parse(localStorage.getItem(APP.JACKPOT_OVERRIDE_KEY) || '{}'); } catch(e){ return {}; }
+};
+APP.getJackpot = function(gameCode){
+  var overrides = APP.loadJackpotOverrides();
+  var base = GLOBAL.JACKPOT_SNAPSHOT[gameCode];
+  var ov = overrides[gameCode];
+  if (!ov) return base;
+  return Object.assign({}, base, ov); // override에 있는 필드만 덮어씀(없는 필드는 기본값 유지)
+};
+APP.saveJackpotOverride = function(gameCode, data){
+  var overrides = APP.loadJackpotOverrides();
+  overrides[gameCode] = data;
+  localStorage.setItem(APP.JACKPOT_OVERRIDE_KEY, JSON.stringify(overrides));
+};
+
+// ── 환율: 관리자가 수정한 값이 있으면 우선 사용, 없으면 engine.js의 기본 스냅샷 ──
+APP.FX_OVERRIDE_KEY = 'mll_global_fx_override';
+APP.getFx = function(){
+  try {
+    var ov = JSON.parse(localStorage.getItem(APP.FX_OVERRIDE_KEY) || 'null');
+    if (ov) return ov;
+  } catch(e){}
+  return GLOBAL.FX_SNAPSHOT;
+};
+APP.saveFxOverride = function(data){
+  localStorage.setItem(APP.FX_OVERRIDE_KEY, JSON.stringify(data));
+};
+// GLOBAL.toKrw/fmtKrw는 GLOBAL.FX_SNAPSHOT을 직접 참조하므로, override가 있으면 그 값을 GLOBAL.FX_SNAPSHOT에 덮어써서
+// 엔진의 모든 환산 로직이 자동으로 최신 환율을 쓰게 한다 (페이지 시작 시 1회 동기화).
+APP.syncFxToEngine = function(){
+  var fx = APP.getFx();
+  GLOBAL.FX_SNAPSHOT.USD_KRW = fx.USD_KRW;
+  GLOBAL.FX_SNAPSHOT.EUR_KRW = fx.EUR_KRW;
+  GLOBAL.FX_SNAPSHOT.asOf = fx.asOf;
+};
+
 APP.gameLiveStats = function(gameCode){
   var deadline = GLOBAL.getRealDeadlineMs(gameCode);
   var reopen = GLOBAL.getRealReopenMs(gameCode);
-  var jackpot = GLOBAL.JACKPOT_SNAPSHOT[gameCode];
+  var jackpot = APP.getJackpot(gameCode);
   return { deadlineMs: deadline, reopenMs: reopen, jackpot: jackpot };
 };
 
@@ -515,6 +569,12 @@ APP.openHelp = function(gameCode){
   document.getElementById('helpTitle').textContent = name + APP.t('help_title_suffix');
   document.getElementById('helpBody').textContent = lang === 'en' ? g.helpEn : g.helpKr;
 
+  var priceKrw = GLOBAL.fmtKrw(g.ticketPriceValue, g.ticketPriceCurrency);
+  document.getElementById('helpTicketPrice').innerHTML =
+    '<span class="ls-label" style="display:inline;">' + APP.t('help_ticket_price') + '</span> ' +
+    '<span class="font-num" style="font-weight:700;color:var(--game-accent);">' + g.ticketPriceLabel + '</span>' +
+    ' <span style="color:var(--text-dim);font-size:11.5px;">(' + priceKrw + ' ' + APP.t('krw_equiv') + ')</span>';
+
   var rows = g.grades.map(function(gr){
     var label = lang === 'en' ? gr.labelEn : gr.labelKr;
     var matchStr = gr.sub > 0 ? (gr.main + '+' + gr.sub) : (gr.main + '+0');
@@ -679,6 +739,8 @@ APP.adminHtml = function(){
   var g = GLOBAL.GAMES[APP.state.gameCode];
   var lang = APP.state.lang;
   var nextDraw = GLOBAL.getNextDrawDate(g.code);
+  var jp = APP.getJackpot(g.code);
+  var fx = APP.getFx();
 
   var mainInputs = '';
   for (var i=0;i<g.mainPickCount;i++) mainInputs += '<input type="number" class="cnt-in admin-main-input" min="1" max="' + g.mainPoolSize + '" style="width:54px;">';
@@ -692,7 +754,47 @@ APP.adminHtml = function(){
       return '<tr class="history-row" onclick="APP.openResultPopup(\'' + g.code + '\',\'' + d.drawDate + '\')"><td>' + d.drawDate + '</td><td class="font-num">' + d.mainNumbers.join(', ') + '</td><td class="font-num">' + d.subNumbers.join(', ') + '</td></tr>';
     }).join('');
 
-  return '<div class="card">' +
+  return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">' +
+    '<div style="font-size:12.5px;color:var(--text-dim);">' + APP.t('admin_logged_in_as') + '</div>' +
+    '<button class="btn btn-outline" onclick="APP.adminLogout()">' + APP.t('admin_logout') + '</button>' +
+  '</div>' +
+  '<div class="card">' +
+    '<h3>' + (lang==='en'?g.nameEn:g.nameKr) + ' \u2014 ' + APP.t('admin_jackpot_title') + '</h3>' +
+    '<div class="grid-label"><span class="glabel">' + APP.t('admin_jackpot_amount') + ' (' + jp.currency + ')</span></div>' +
+    '<div class="action-row" style="margin-bottom:12px;">' +
+      '<input type="text" class="cnt-in" id="adminJpAmountLabel" style="width:160px;" value="' + jp.amountLabel + '" placeholder="$348 Million">' +
+      '<input type="number" class="cnt-in" id="adminJpAmountValue" style="width:160px;" value="' + jp.amountValue + '" placeholder="348000000">' +
+    '</div>' +
+    '<div class="grid-label"><span class="glabel">' + APP.t('admin_jackpot_cash') + '</span></div>' +
+    '<div class="action-row" style="margin-bottom:12px;">' +
+      '<input type="text" class="cnt-in" id="adminJpCashLabel" style="width:160px;" value="' + (jp.cashLabel||'') + '" placeholder="$157.5 Million">' +
+      '<input type="number" class="cnt-in" id="adminJpCashValue" style="width:160px;" value="' + (jp.cashValue||'') + '" placeholder="157500000">' +
+    '</div>' +
+    '<div class="grid-label"><span class="glabel">' + APP.t('admin_jackpot_asof') + '</span></div>' +
+    '<div class="action-row" style="margin-bottom:16px;">' +
+      '<input type="text" class="cnt-in" id="adminJpAsOf" style="width:240px;" value="' + jp.asOf + '" placeholder="2026-06-28 09:00 (ET)">' +
+    '</div>' +
+    '<button class="btn btn-gold" onclick="APP.adminSaveJackpot()">' + APP.t('admin_save_jackpot') + '</button>' +
+    '<div class="ls-asof" style="margin-top:10px;">' + APP.t('admin_jackpot_hint') + '</div>' +
+  '</div>' +
+  '<div class="card">' +
+    '<h3>' + APP.t('admin_fx_title') + '</h3>' +
+    '<div class="grid-label"><span class="glabel">USD → KRW</span></div>' +
+    '<div class="action-row" style="margin-bottom:12px;">' +
+      '<input type="number" class="cnt-in" id="adminFxUsd" style="width:120px;" value="' + fx.USD_KRW + '" step="0.01">' +
+    '</div>' +
+    '<div class="grid-label"><span class="glabel">EUR → KRW</span></div>' +
+    '<div class="action-row" style="margin-bottom:12px;">' +
+      '<input type="number" class="cnt-in" id="adminFxEur" style="width:120px;" value="' + fx.EUR_KRW + '" step="0.01">' +
+    '</div>' +
+    '<div class="grid-label"><span class="glabel">' + APP.t('admin_jackpot_asof') + '</span></div>' +
+    '<div class="action-row" style="margin-bottom:16px;">' +
+      '<input type="text" class="cnt-in" id="adminFxAsOf" style="width:240px;" value="' + fx.asOf + '" placeholder="2026-06-28">' +
+    '</div>' +
+    '<button class="btn btn-gold" onclick="APP.adminSaveFx()">' + APP.t('admin_save_fx') + '</button>' +
+    '<div class="ls-asof" style="margin-top:10px;">' + APP.t('admin_fx_hint') + '</div>' +
+  '</div>' +
+  '<div class="card">' +
     '<h3>' + (lang==='en'?g.nameEn:g.nameKr) + ' \u2014 ' + APP.t('admin_draw_date') + '</h3>' +
     '<div class="action-row" style="margin-bottom:16px;">' +
       '<input type="date" class="cnt-in" id="adminDrawDate" style="width:140px;" value="' + nextDraw + '">' +
@@ -714,6 +816,46 @@ APP.adminLogin = function(){
   APP.adminLoggedIn = true;
   sessionStorage.setItem(APP.STORAGE.ADMIN_SESSION, '1');
   APP.renderSectionBody();
+};
+
+APP.adminLogout = function(){
+  APP.adminLoggedIn = false;
+  sessionStorage.removeItem(APP.STORAGE.ADMIN_SESSION);
+  APP.renderSectionBody();
+};
+
+APP.adminSaveJackpot = function(){
+  var g = GLOBAL.GAMES[APP.state.gameCode];
+  var amountLabel = document.getElementById('adminJpAmountLabel').value.trim();
+  var amountValue = parseFloat(document.getElementById('adminJpAmountValue').value);
+  var cashLabel = document.getElementById('adminJpCashLabel').value.trim();
+  var cashValueRaw = document.getElementById('adminJpCashValue').value;
+  var asOf = document.getElementById('adminJpAsOf').value.trim();
+
+  if (!amountLabel || isNaN(amountValue) || !asOf) { alert(APP.t('select_all_numbers')); return; }
+
+  APP.saveJackpotOverride(g.code, {
+    amountLabel: amountLabel,
+    amountValue: amountValue,
+    cashLabel: cashLabel || null,
+    cashValue: cashValueRaw ? parseFloat(cashValueRaw) : null,
+    asOf: asOf,
+    currency: GLOBAL.JACKPOT_SNAPSHOT[g.code].currency
+  });
+  alert(APP.t('admin_jackpot_saved'));
+  APP.renderAll();
+};
+
+APP.adminSaveFx = function(){
+  var usd = parseFloat(document.getElementById('adminFxUsd').value);
+  var eur = parseFloat(document.getElementById('adminFxEur').value);
+  var asOf = document.getElementById('adminFxAsOf').value.trim();
+  if (isNaN(usd) || isNaN(eur) || !asOf) { alert(APP.t('select_all_numbers')); return; }
+
+  APP.saveFxOverride({ USD_KRW: usd, EUR_KRW: eur, asOf: asOf });
+  APP.syncFxToEngine();
+  alert(APP.t('admin_jackpot_saved'));
+  APP.renderAll();
 };
 
 APP.adminSaveResult = function(){

@@ -17,9 +17,10 @@ GLOBAL.GAMES = {
     subLabelKr: '파워볼', subLabelEn: 'Powerball',
     drawDays: [1, 3, 6], // 월(1) 수(3) 토(6)
     drawDaysLabelKr: '매주 월·수·토', drawDaysLabelEn: 'Mon / Wed / Sat',
-    cutoffHour: 22, cutoffMinute: 0, cutoffTz: 'America/New_York',
+    cutoffHour: 22, cutoffMinute: 59, cutoffTz: 'America/New_York',
     pricePerGame: 1,
     jackpotOdds: '1 / 292,201,338',
+    ticketPriceValue: 2, ticketPriceCurrency: 'USD', ticketPriceLabel: '$2',
     helpKr: '미국 45개 주에서 발행되는 대표 복권이에요. 1~69 중 5개의 본번호와, 완전히 별도의 풀인 1~26 중 파워볼 1개를 맞춰요. 본번호와 파워볼은 서로 다른 공이라 같은 숫자를 양쪽에 동시에 써도 돼요. 6개를 모두 맞추면 잭폿! 파워볼 번호 하나만 맞아도 작은 상금이 있어요. 매주 월·수·토요일 추첨해요.',
     helpEn: 'America\'s flagship multi-state lottery, sold in 45 states. Pick 5 main numbers (1-69) plus 1 Powerball from a completely separate pool (1-26) — so the same number can appear in both. Match all 6 to win the jackpot; matching just the Powerball alone still wins a small prize. Drawn every Monday, Wednesday and Saturday.',
     grades: [
@@ -43,9 +44,10 @@ GLOBAL.GAMES = {
     subLabelKr: '메가볼', subLabelEn: 'Mega Ball',
     drawDays: [2, 5], // 화(2) 금(5)
     drawDaysLabelKr: '매주 화·금', drawDaysLabelEn: 'Tue / Fri',
-    cutoffHour: 21, cutoffMinute: 59, cutoffTz: 'America/New_York',
+    cutoffHour: 23, cutoffMinute: 0, cutoffTz: 'America/New_York',
     pricePerGame: 1,
     jackpotOdds: '1 / 290,472,000',
+    ticketPriceValue: 5, ticketPriceCurrency: 'USD', ticketPriceLabel: '$5',
     helpKr: '파워볼과 함께 미국을 대표하는 복권이에요. 1~70 중 5개의 본번호와, 별도 풀인 1~24 중 메가볼 1개를 맞춰요. 구조는 파워볼과 거의 같지만 숫자 범위가 조금 더 넓어요. 2025년 개편으로 모든 비잭폿 상금에 2~10배 배율이 기본 적용돼요. 매주 화·금요일 추첨해요.',
     helpEn: 'Along with Powerball, this is one of America\'s two biggest lotteries. Pick 5 main numbers (1-70) plus 1 Mega Ball from a separate pool (1-24). Structurally similar to Powerball but with a slightly wider main number range. Since the 2025 redesign, every ticket includes a built-in 2x-10x multiplier on non-jackpot prizes. Drawn every Tuesday and Friday.',
     grades: [
@@ -69,9 +71,10 @@ GLOBAL.GAMES = {
     subLabelKr: '럭키스타', subLabelEn: 'Lucky Stars',
     drawDays: [2, 5], // 화(2) 금(5)
     drawDaysLabelKr: '매주 화·금', drawDaysLabelEn: 'Tue / Fri',
-    cutoffHour: 19, cutoffMinute: 30, cutoffTz: 'Europe/London',
+    cutoffHour: 21, cutoffMinute: 0, cutoffTz: 'Europe/Paris',
     pricePerGame: 1,
     jackpotOdds: '1 / 139,838,160',
+    ticketPriceValue: 2.5, ticketPriceCurrency: 'EUR', ticketPriceLabel: '€2.50',
     helpKr: '유럽 9개국(영국·프랑스·스페인 등)이 공동 운영하는 복권이에요. 1~50 중 5개의 본번호와, 별도 풀인 1~12 중 럭키스타 2개(!)를 맞춰요 — 보조번호가 1개가 아니라 2개라는 게 미국 복권들과 가장 다른 점이에요. 등급도 13단계로 세분화돼 있어서, 본번호 2개만 맞아도 당첨금이 나와요. 매주 화·금요일 프랑스 파리에서 추첨해요.',
     helpEn: 'Jointly run by 9 European countries (UK, France, Spain, and more). Pick 5 main numbers (1-50) plus 2 Lucky Stars (!) from a separate pool (1-12) — needing two bonus numbers instead of one is the key difference from the US lotteries. Prize tiers are split into 13 levels, so even matching just 2 main numbers can win something. Drawn every Tuesday and Friday in Paris.',
     grades: [
