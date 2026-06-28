@@ -29,7 +29,8 @@ APP.STR = {
   brandName: { kr: 'My Lotto Lab — Global', en: 'My Lotto Lab — Global' },
   brandSub: { kr: '해외 발행 복권 가상등록 테스트베드', en: 'A testbed for international lottery odds' },
   pointsLabel: { kr: '포인트', en: 'Points' },
-  backToKr: { kr: '🇰🇷 한국 로또', en: '🇰🇷 Korea Lotto' },
+  lotto_in_use: { kr: '이용중', en: 'In Use' },
+  lotto_switch: { kr: 'GLOBAL', en: 'GLOBAL' },
   tab_register: { kr: '번호 등록', en: 'Register Numbers' },
   tab_my: { kr: '내 등록현황', en: 'My Entries' },
   tab_stats: { kr: '통계', en: 'Statistics' },
@@ -173,16 +174,51 @@ APP.renderAll = function(){
   document.getElementById('t_brandName').textContent = APP.t('brandName');
   document.getElementById('t_brandSub').textContent = APP.t('brandSub');
   document.getElementById('t_pointsLabel').textContent = APP.t('pointsLabel');
-  document.getElementById('t_backToKr').textContent = APP.t('backToKr');
   document.getElementById('pointsBalance').textContent = APP.getPoints().balance.toLocaleString();
   document.getElementById('t_cancelBtn').textContent = APP.t('cancel_btn');
   document.getElementById('t_confirmBtn').textContent = APP.t('confirm_btn');
+  APP.renderLottoDropdown();
   APP.renderGameTabs();
   APP.renderInfoCard();
   APP.renderSectionTabs();
   APP.renderSectionBody();
   APP.startLiveTicker();
 };
+
+// ── 우측상단 로또 전환 드롭다운 (메인페이지와 동일한 컴포넌트) ──
+APP.renderLottoDropdown = function(){
+  var lang = APP.state.lang;
+  var current = GLOBAL.GAMES[APP.state.gameCode];
+
+  // 트리거 버튼: 현재 보고 있는 게임의 국기+이름
+  document.getElementById('lottoBtnFlag').className = 'flag-ic flag-us';
+  if (APP.state.gameCode === 'EUROMILLIONS') document.getElementById('lottoBtnFlag').className = 'flag-ic flag-eu';
+  document.getElementById('lottoBtnLabel').textContent = lang === 'en' ? current.nameEn : current.nameKr;
+
+  // 메뉴 항목들: 이름은 언어에 맞게, 현재 게임만 "이용중", 한국 로또는 항상 GLOBAL 태그(여기서 나가는 곳이므로)
+  document.querySelectorAll('#lottoMenu [data-lotto-name-kr]').forEach(function(el){
+    el.textContent = lang === 'en' ? el.dataset.lottoNameEn : el.dataset.lottoNameKr;
+  });
+  ['POWERBALL','MEGAMILLIONS','EUROMILLIONS'].forEach(function(code){
+    var tag = document.getElementById('lottoTag_' + code);
+    var item = document.getElementById('lottoItem_' + code);
+    var isActive = (code === APP.state.gameCode);
+    tag.textContent = isActive ? APP.t('lotto_in_use') : APP.t('lotto_switch');
+    tag.style.color = isActive ? 'var(--gold)' : '#9aa8f5';
+    tag.style.borderColor = isActive ? 'var(--gold-dim)' : '#4a52a8';
+    item.classList.toggle('active', isActive);
+  });
+};
+
+function toggleLottoMenu(){
+  var m = document.getElementById('lottoMenu');
+  if (m) m.classList.toggle('show');
+}
+document.addEventListener('click', function(e){
+  var btn = document.getElementById('lottoBtn');
+  var menu = document.getElementById('lottoMenu');
+  if (menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) menu.classList.remove('show');
+});
 
 APP.selectGame = function(code){
   APP.state.gameCode = code;
@@ -195,8 +231,9 @@ APP.gameLiveStats = function(gameCode){
   var drawDate = GLOBAL.getNextDrawDate(gameCode);
   var entries = APP.loadEntries().filter(function(e){ return e.gameCode === gameCode && e.drawDate === drawDate; });
   var pointsTotal = entries.length * g.pricePerGame;
-  var deadline = new Date(drawDate + 'T00:00:00').getTime(); // 추첨일 0시를 마감으로 단순화
-  return { drawDate: drawDate, count: entries.length, pointsTotal: pointsTotal, deadlineMs: deadline };
+  var deadline = GLOBAL.getRealDeadlineMs(gameCode); // 실제 복권사 판매마감 시각(타임존 환산)
+  var jackpot = GLOBAL.JACKPOT_SNAPSHOT[gameCode];
+  return { drawDate: drawDate, count: entries.length, pointsTotal: pointsTotal, deadlineMs: deadline, jackpot: jackpot };
 };
 
 APP.formatCountdown = function(ms){
