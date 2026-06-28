@@ -1017,7 +1017,7 @@ MLL.generateDataReportPDF = async function(opts) {
   var loadingEl = document.createElement('div');
   loadingEl.id = 'mll-pdf-loading-overlay';
   loadingEl.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;z-index:99999;';
-  loadingEl.textContent = 'PDF 생성 중입니다... 잠시만 기다려주세요.';
+  loadingEl.textContent = '번호조합이 많을 경우 시간이 다소 걸리는 점 양해 바랍니다... PDF생성중....';
   document.body.appendChild(loadingEl);
 
   try {
