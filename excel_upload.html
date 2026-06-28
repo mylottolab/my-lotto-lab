@@ -1278,8 +1278,12 @@ function refreshTable(){
       var borderL=isSession?'border-left:3px solid #1a7ad4;':'';
       var rowStyle=borderL+'background:'+rowBg+';';
 
-      return '<tr style="'+rowStyle+'">'
-        +'<td><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">'+entry.round+'회</span></td>'
+      var isSlipChecked = window.MLL_SLIP_CHECKED && window.MLL_SLIP_CHECKED[entry.id];
+      var slipCheckHtml = '<input type="checkbox" '+(isSlipChecked?'checked':'')+' onchange="toggleSlipCheck(\''+entry.id+'\', this.checked)">';
+
+      return '<tr id="slip_row_'+entry.id+'" style="'+rowStyle+'">'
+        +'<td style="text-align:center;">'+slipCheckHtml+'</td>'
+        +'<td><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;white-space:nowrap;display:inline-block;">'+entry.round+'회</span></td>'
         +'<td style="padding:3px 4px;"><div style="display:flex;gap:1px;align-items:center;flex-wrap:nowrap;">'+balls+'</div></td>'
         +'<td style="font-size:9px;color:#888;text-align:left;padding:3px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(entry.memo||'')+'</td>'
         +'<td>'+typeHTML+'</td>'
