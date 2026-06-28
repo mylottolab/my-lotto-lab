@@ -59,7 +59,9 @@ button{font-family:inherit;cursor:pointer;}
 .game-tab:hover{transform:translateY(-1px);}
 .game-tab.active{border-color:var(--tab-accent);box-shadow:0 0 0 1px var(--tab-accent);}
 .game-tab .dot{width:10px;height:10px;border-radius:50%;background:var(--tab-accent);display:inline-block;margin-right:7px;}
-.game-tab .gname{font-size:15px;font-weight:700;}
+.game-tab .gname{font-size:15px;font-weight:700;display:flex;align-items:center;gap:7px;}
+.help-btn{width:18px;height:18px;border-radius:50%;border:1px solid var(--border);background:var(--surface-2);color:var(--text-faint);font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1;}
+.help-btn:hover{border-color:var(--tab-accent,var(--gold));color:var(--text);}
 .game-tab .gsub{font-size:11px;color:var(--text-faint);margin-top:3px;}
 
 /* 게임 정보 카드 */
@@ -80,6 +82,15 @@ button{font-family:inherit;cursor:pointer;}
 .ls-val{font-size:30px;font-weight:800;color:var(--game-accent);}
 .ls-val.cd{font-variant-numeric:tabular-nums;}
 .ls-unit{font-size:13px;font-weight:600;color:var(--text-dim);margin-left:6px;}
+.ls-sub{font-size:11.5px;color:var(--text-dim);margin-top:5px;}
+.ls-asof{font-size:10px;color:var(--text-faint);margin-top:8px;}
+.live-stat-wide{flex:1.6;}
+.live-stat-wide .ls-val{font-size:24px;}
+.history-row{cursor:pointer;}
+.history-row:hover{background:var(--surface-2);}
+.result-section{margin-bottom:16px;}
+.result-balls{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;}
+.result-ball{width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;}
 @media (max-width:680px){
   .live-bar{flex-direction:column;}
   .ls-val{font-size:24px;}
@@ -213,6 +224,22 @@ table.data-table tbody tr:hover{background:var(--surface-2);}
       <button class="btn btn-gold" style="flex:2;" onclick="APP.confirmRegister()" id="t_confirmBtn">확인하고 등록</button>
     </div>
   </div>
+</div>
+
+<!-- 복권별 간단 설명 팝업 -->
+<div class="modal-overlay" id="helpModal" onclick="if(event.target===this)APP.closeHelp()">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+      <h3 id="helpTitle">?</h3>
+      <button onclick="APP.closeHelp()" style="background:none;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;">✕</button>
+    </div>
+    <p id="helpBody" style="line-height:1.7;"></p>
+  </div>
+</div>
+
+<!-- 추첨결과 한장 요약 팝업 -->
+<div class="modal-overlay" id="resultModal" onclick="if(event.target===this)APP.closeResultPopup()">
+  <div class="modal-box" id="resultModalBox"></div>
 </div>
 
 <script src="engine.js"></script>

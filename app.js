@@ -40,10 +40,22 @@ APP.STR = {
   info_grades: { kr: '등급 수', en: 'Prize Tiers' },
   info_odds: { kr: '잭폿 확률', en: 'Jackpot Odds' },
   info_next: { kr: '다음 추첨', en: 'Next Draw' },
-  gtab_live_unit: { kr: '건', en: '' },
-  live_reg_count: { kr: '이번 추첨 등록현황', en: 'Entries This Draw' },
-  live_reg_amount: { kr: '이번 추첨 등록금액', en: 'Amount This Draw' },
-  live_deadline: { kr: '구매마감까지', en: 'Closes In' },
+  live_deadline: { kr: '판매마감까지', en: 'Sales Close In' },
+  live_real_jackpot: { kr: '실제 잭폿 금액', en: 'Real Jackpot Amount' },
+  live_cash_value: { kr: '현금가치', en: 'Cash Value' },
+  live_as_of: { kr: '기준', en: 'as of' },
+  live_local: { kr: '현지시각', en: 'Local Time' },
+  live_kst: { kr: '한국시각', en: 'Korea Time (KST)' },
+  live_reopen: { kr: '판매재개', en: 'Sales Resume' },
+  live_approx: { kr: '근사값', en: 'approx.' },
+  krw_equiv: { kr: '한화 상당', en: 'KRW equiv.' },
+  help_title_suffix: { kr: '이란?', en: ': What is it?' },
+  help_close: { kr: '닫기', en: 'Close' },
+  draw_result_title: { kr: '추첨결과', en: 'Draw Result' },
+  draw_result_main: { kr: '당첨번호', en: 'Winning Numbers' },
+  draw_result_sub: { kr: '보조번호', en: 'Bonus Numbers' },
+  draw_result_graded: { kr: '채점 완료', en: 'entries graded' },
+  draw_history_title: { kr: '추첨결과 히스토리', en: 'Draw Result History' },
   method_manual: { kr: '수동', en: 'Manual' },
   method_manual_d: { kr: '직접 선택', en: 'Pick yourself' },
   method_auto: { kr: '자동', en: 'Auto' },
@@ -87,7 +99,6 @@ APP.STR = {
   admin_save_result: { kr: '추첨결과 저장 및 자동채점', en: 'Save Result & Auto-Grade' },
   admin_already: { kr: '이미 입력된 결과가 있습니다. 덮어쓸까요?', en: 'A result already exists for this date. Overwrite?' },
   admin_graded: { kr: '건의 등록을 채점했습니다.', en: ' entries graded.' },
-  admin_no_entries: { kr: '이 추첨일에 등록된 건이 없습니다.', en: 'No entries found for this draw date.' },
   admin_history: { kr: '입력된 추첨결과', en: 'Entered Draw Results' },
 };
 
@@ -227,13 +238,10 @@ APP.selectGame = function(code){
 };
 
 APP.gameLiveStats = function(gameCode){
-  var g = GLOBAL.GAMES[gameCode];
-  var drawDate = GLOBAL.getNextDrawDate(gameCode);
-  var entries = APP.loadEntries().filter(function(e){ return e.gameCode === gameCode && e.drawDate === drawDate; });
-  var pointsTotal = entries.length * g.pricePerGame;
-  var deadline = GLOBAL.getRealDeadlineMs(gameCode); // 실제 복권사 판매마감 시각(타임존 환산)
+  var deadline = GLOBAL.getRealDeadlineMs(gameCode);
+  var reopen = GLOBAL.getRealReopenMs(gameCode);
   var jackpot = GLOBAL.JACKPOT_SNAPSHOT[gameCode];
-  return { drawDate: drawDate, count: entries.length, pointsTotal: pointsTotal, deadlineMs: deadline, jackpot: jackpot };
+  return { deadlineMs: deadline, reopenMs: reopen, jackpot: jackpot };
 };
 
 APP.formatCountdown = function(ms){
@@ -247,15 +255,17 @@ APP.formatCountdown = function(ms){
 };
 
 APP.renderGameTabs = function(){
+  var lang = APP.state.lang;
   var html = GLOBAL.gameList().map(function(g){
     var active = g.code === APP.state.gameCode;
-    var name = APP.state.lang === 'en' ? g.nameEn : g.nameKr;
-    var drawLabel = APP.state.lang === 'en' ? g.drawDaysLabelEn : g.drawDaysLabelKr;
+    var name = lang === 'en' ? g.nameEn : g.nameKr;
+    var drawLabel = lang === 'en' ? g.drawDaysLabelEn : g.drawDaysLabelKr;
     var live = APP.gameLiveStats(g.code);
+    var jp = live.jackpot;
     return '<div class="game-tab' + (active ? ' active' : '') + '" style="--tab-accent:' + g.accent + ';" onclick="APP.selectGame(\'' + g.code + '\')">' +
-      '<div class="gname"><span class="dot"></span>' + name + '</div>' +
+      '<div class="gname"><span class="dot"></span>' + name + '<button class="help-btn" onclick="event.stopPropagation();APP.openHelp(\'' + g.code + '\')" title="?">?</button></div>' +
       '<div class="gsub">' + g.mainPickCount + '/' + g.mainPoolSize + ' + ' + g.subPickCount + '/' + g.subPoolSize + ' · ' + drawLabel + '</div>' +
-      '<div class="gtab-live"><span class="gtl-dot"></span><span class="font-num gtab-live-count" data-live-count="' + g.code + '">' + live.count.toLocaleString() + '</span>' + APP.t('gtab_live_unit') + ' · <span class="font-num" data-live-cd="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</span></div>' +
+      '<div class="gtab-live"><span class="gtl-dot"></span><span class="font-num gtab-jackpot">' + jp.amountLabel + '</span> · <span class="font-num" data-live-cd="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</span></div>' +
     '</div>';
   }).join('');
   document.getElementById('gameTabs').innerHTML = html;
@@ -270,6 +280,7 @@ APP.renderInfoCard = function(){
   var nextDraw = GLOBAL.getNextDrawDate(g.code);
   var matrixStr = g.mainPickCount + '/' + g.mainPoolSize + ' + ' + g.subPickCount + '/' + g.subPoolSize + ' (' + subLabel + ')';
   var live = APP.gameLiveStats(g.code);
+  var jp = live.jackpot;
 
   document.getElementById('infoCard').innerHTML =
     '<div class="info-item"><div class="k">' + APP.t('info_matrix') + '</div><div class="v accent">' + matrixStr + '</div></div>' +
@@ -278,22 +289,32 @@ APP.renderInfoCard = function(){
     '<div class="info-item"><div class="k">' + APP.t('info_odds') + '</div><div class="v">' + g.jackpotOdds + '</div></div>' +
     '<div class="info-item"><div class="k">' + APP.t('info_next') + '</div><div class="v accent">' + nextDraw + '</div></div>';
 
+  var deadlineBi = GLOBAL.formatDeadlineBilingual(live.deadlineMs, g.cutoffTz, lang);
+  var reopenBi = GLOBAL.formatDeadlineBilingual(live.reopenMs, g.cutoffTz, lang);
+  var krwAmount = GLOBAL.fmtKrw(jp.amountValue, jp.currency);
+  var cashLine = jp.cashLabel ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': ' + jp.cashLabel + ' (' + GLOBAL.fmtKrw(jp.cashValue, jp.currency) + ' ' + APP.t('krw_equiv') + ')</div>') : '';
+
   document.getElementById('liveBar').innerHTML =
-    '<div class="live-stat">' +
-      '<div class="ls-label">' + APP.t('live_reg_count') + '</div>' +
-      '<div class="ls-val font-num" data-live-count="' + g.code + '">' + live.count.toLocaleString() + '<span class="ls-unit">' + APP.t('gtab_live_unit') + '</span></div>' +
+    '<div class="live-stat live-stat-wide">' +
+      '<div class="ls-label"><span class="ls-dot"></span>' + APP.t('live_real_jackpot') + ' (' + (lang==='en'?g.nameEn:g.nameKr) + ')</div>' +
+      '<div class="ls-val font-num">' + jp.amountLabel + '<span class="ls-unit">(' + krwAmount + ' ' + APP.t('krw_equiv') + ')</span></div>' +
+      cashLine +
+      '<div class="ls-asof">' + APP.t('live_as_of') + ': ' + jp.asOf + ' · FX ' + APP.t('live_as_of') + ' ' + GLOBAL.FX_SNAPSHOT.asOf + '</div>' +
     '</div>' +
     '<div class="live-stat">' +
-      '<div class="ls-label">' + APP.t('live_reg_amount') + '</div>' +
-      '<div class="ls-val font-num" data-live-amount="' + g.code + '">' + live.pointsTotal.toLocaleString() + '<span class="ls-unit">P</span></div>' +
-    '</div>' +
-    '<div class="live-stat">' +
-      '<div class="ls-label"><span class="ls-dot"></span>' + APP.t('live_deadline') + '</div>' +
+      '<div class="ls-label">' + APP.t('live_deadline') + '</div>' +
       '<div class="ls-val cd font-num" data-live-cd-big="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</div>' +
+      '<div class="ls-sub">' + APP.t('live_local') + ': ' + deadlineBi.local + '</div>' +
+      '<div class="ls-sub">' + APP.t('live_kst') + ': ' + deadlineBi.kst + '</div>' +
+    '</div>' +
+    '<div class="live-stat">' +
+      '<div class="ls-label">' + APP.t('live_reopen') + ' (' + APP.t('live_approx') + ')</div>' +
+      '<div class="ls-sub">' + APP.t('live_local') + ': ' + reopenBi.local + '</div>' +
+      '<div class="ls-sub">' + APP.t('live_kst') + ': ' + reopenBi.kst + '</div>' +
     '</div>';
 };
 
-// ── 실시간 카운트다운/등록현황 1초마다 갱신 (전체 리렌더 없이 텍스트만 갱신해 깜빡임 방지) ──
+// ── 실시간 카운트다운 1초마다 갱신 (전체 리렌더 없이 텍스트만 갱신해 깜빡임 방지) ──
 APP.startLiveTicker = function(){
   if (APP._liveTickerStarted) return;
   APP._liveTickerStarted = true;
@@ -301,14 +322,9 @@ APP.startLiveTicker = function(){
     GLOBAL.gameList().forEach(function(g){
       var live = APP.gameLiveStats(g.code);
       var cdStr = APP.formatCountdown(live.deadlineMs - Date.now());
-
       document.querySelectorAll('[data-live-cd="' + g.code + '"]').forEach(function(el){ el.textContent = cdStr; });
-      document.querySelectorAll('[data-live-count="' + g.code + '"]').forEach(function(el){ el.textContent = live.count.toLocaleString(); });
-
       var bigCd = document.querySelector('[data-live-cd-big="' + g.code + '"]');
       if (bigCd) bigCd.textContent = cdStr;
-      var bigAmt = document.querySelector('[data-live-amount="' + g.code + '"]');
-      if (bigAmt) bigAmt.innerHTML = live.pointsTotal.toLocaleString() + '<span class="ls-unit">P</span>';
     });
   }, 1000);
 };
@@ -486,6 +502,17 @@ APP.openConfirm = function(){
 };
 APP.closeConfirm = function(){ document.getElementById('confirmModal').classList.remove('show'); };
 
+// ── 복권별 간단 설명 팝업 ──
+APP.openHelp = function(gameCode){
+  var g = GLOBAL.GAMES[gameCode];
+  var lang = APP.state.lang;
+  var name = lang === 'en' ? g.nameEn : g.nameKr;
+  document.getElementById('helpTitle').textContent = name + APP.t('help_title_suffix');
+  document.getElementById('helpBody').textContent = lang === 'en' ? g.helpEn : g.helpKr;
+  document.getElementById('helpModal').classList.add('show');
+};
+APP.closeHelp = function(){ document.getElementById('helpModal').classList.remove('show'); };
+
 APP.confirmRegister = function(){
   var g = GLOBAL.GAMES[APP.state.gameCode];
   var s = APP.state;
@@ -643,7 +670,7 @@ APP.adminHtml = function(){
   var historyRows = Object.keys(draws).filter(function(k){ return k.indexOf(g.code+'_')===0; })
     .sort().reverse().slice(0,10).map(function(k){
       var d = draws[k];
-      return '<tr><td>' + d.drawDate + '</td><td class="font-num">' + d.mainNumbers.join(', ') + '</td><td class="font-num">' + d.subNumbers.join(', ') + '</td></tr>';
+      return '<tr class="history-row" onclick="APP.openResultPopup(\'' + g.code + '\',\'' + d.drawDate + '\')"><td>' + d.drawDate + '</td><td class="font-num">' + d.mainNumbers.join(', ') + '</td><td class="font-num">' + d.subNumbers.join(', ') + '</td></tr>';
     }).join('');
 
   return '<div class="card">' +
@@ -702,8 +729,44 @@ APP.adminSaveResult = function(){
   });
   APP.saveEntries(entries);
 
-  if (gradedCount === 0) alert(APP.t('admin_no_entries'));
-  else alert(gradedCount + APP.t('admin_graded'));
-
   APP.renderSectionBody();
+  APP.openResultPopup(g.code, drawDate, gradedCount); // 저장 즉시 한 장짜리 요약 팝업으로 표시 (history는 mll_global_draws에 이미 영구 저장됨)
 };
+
+// ── 추첨결과 한 장 요약 팝업 (저장 직후 자동으로 뜨거나, 히스토리 행 클릭으로 다시 열림) ──
+APP.openResultPopup = function(gameCode, drawDate, gradedCountOverride){
+  var g = GLOBAL.GAMES[gameCode];
+  var lang = APP.state.lang;
+  var draws = APP.loadDraws();
+  var d = draws[APP.drawKey(gameCode, drawDate)];
+  if (!d) return;
+
+  var gradedCount = gradedCountOverride;
+  if (gradedCount === undefined) {
+    gradedCount = APP.loadEntries().filter(function(e){ return e.gameCode===gameCode && e.drawDate===drawDate && e.graded; }).length;
+  }
+
+  function ballHtml(n, accent){ return '<span class="result-ball" style="background:' + accent + ';">' + n + '</span>'; }
+  var mainBalls = d.mainNumbers.map(function(n){ return ballHtml(n, '#444b6e'); }).join('');
+  var subBalls = d.subNumbers.map(function(n){ return ballHtml(n, g.accent); }).join('');
+  var savedAt = new Date(d.enteredAt).toLocaleString(lang==='en'?'en-US':'ko-KR');
+
+  document.getElementById('resultModalBox').innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">' +
+      '<h3>' + (lang==='en'?g.nameEn:g.nameKr) + ' \u2014 ' + APP.t('draw_result_title') + '</h3>' +
+      '<button onclick="APP.closeResultPopup()" style="background:none;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;">✕</button>' +
+    '</div>' +
+    '<p style="font-size:12px;color:var(--text-dim);margin:0 0 16px;">' + drawDate + '</p>' +
+    '<div class="result-section">' +
+      '<div class="ls-label">' + APP.t('draw_result_main') + '</div>' +
+      '<div class="result-balls">' + mainBalls + '</div>' +
+    '</div>' +
+    '<div class="result-section">' +
+      '<div class="ls-label">' + (lang==='en'?g.subLabelEn:g.subLabelKr) + '</div>' +
+      '<div class="result-balls">' + subBalls + '</div>' +
+    '</div>' +
+    '<div class="ls-asof" style="margin-top:14px;">' + gradedCount + ' ' + APP.t('draw_result_graded') + ' \u00b7 ' + savedAt + '</div>';
+
+  document.getElementById('resultModal').classList.add('show');
+};
+APP.closeResultPopup = function(){ document.getElementById('resultModal').classList.remove('show'); };
