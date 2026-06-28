@@ -1114,7 +1114,22 @@ RACE.buildHistoryBefore = function(allResults, beforeRound){
 // ── 초기화: 전략목록이 없으면 시드로 채움 ──
 RACE.ensureStrategies = function(){
   var existing = RACE.loadStrategies();
-  if (existing && existing.length === 100) return existing;
+  if (existing && existing.length === 100) {
+    // 예전 버전에서 저장된 데이터에 신규 필드(예: isFixedCombo)가 없으면, 시드 기본값으로 보충한다.
+    // (사용자가 직접 수정한 기존 조건들은 그대로 유지하고, "빠진 필드만" 채움 — 마이그레이션)
+    var seedByNo = {};
+    MLL.RACE_STRATEGY_SEED.forEach(function(s){ seedByNo[s.no] = s; });
+    var migrated = false;
+    existing.forEach(function(s){
+      var seedDefault = seedByNo[s.no];
+      if (seedDefault && s.isRandom && s.isFixedCombo === undefined) {
+        s.isFixedCombo = seedDefault.isFixedCombo;
+        migrated = true;
+      }
+    });
+    if (migrated) RACE.saveStrategies(existing);
+    return existing;
+  }
   var seed = MLL.RACE_STRATEGY_SEED.map(function(s){ return Object.assign({}, s); });
   RACE.saveStrategies(seed);
   return seed;
