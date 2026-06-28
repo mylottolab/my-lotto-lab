@@ -136,6 +136,7 @@ body{
 .hcard-countdown .cd-dot{width:6px;height:6px;border-radius:50%;background:var(--card-accent,var(--gold));animation:cdPulse 1s infinite;}
 @keyframes cdPulse{0%,100%{opacity:1;}50%{opacity:.25;}}
 .hcard-stat .num.rolling{animation:numRoll .5s ease-out;}
+.flip-fade{transition:opacity .3s ease;}
 @keyframes numRoll{
   0%{transform:translateY(6px) scale(.9);opacity:.3;}
   60%{transform:translateY(-2px) scale(1.08);opacity:1;}
@@ -406,27 +407,46 @@ function formatWinnerShops(raw){
     mockRoundEl.textContent = saleRound.toLocaleString();
   }
 
-  // ── 내 모의등록 건수: 0에서 실제 값까지 롤링 애니메이션으로 카운트업 ──
+  // ── 모의등록 건수: 총등록 ↔ 내 등록을 계속 반전(toggle) 표시 ──
   var statMockCountEl = document.getElementById('statMockCount');
   if (statMockCountEl && saleRound != null) {
     var mockEntries = loadJSON('mll_mock_entries', []);
-    var myMockCount = mockEntries.filter(function(e){ return Number(e.round) === Number(saleRound); }).length;
-    if (myMockCount > 0) {
-      var rollSpan = document.createElement('span');
-      rollSpan.className = 'num font-num rolling';
-      rollSpan.style.fontSize = '13px';
-      statMockCountEl.innerHTML = '· 내 등록 ';
-      statMockCountEl.appendChild(rollSpan);
-      statMockCountEl.appendChild(document.createTextNode('건'));
+    var roundEntries = mockEntries.filter(function(e){ return Number(e.round) === Number(saleRound); });
+    var totalMockCount = roundEntries.length;
+    var myNick = null;
+    try { myNick = JSON.parse(localStorage.getItem('mll_mock_nickname')||'null'); } catch(e){}
+    var myMockCount = myNick ? roundEntries.filter(function(e){ return e.nickname === myNick.nickname; }).length : 0;
+
+    if (totalMockCount > 0) {
+      statMockCountEl.innerHTML = '· <span class="flip-fade" id="statMockCountLabel">총등록</span> <span class="num font-num rolling flip-fade" id="statMockCountNum" style="font-size:13px;">0</span>건';
+      var numEl = document.getElementById('statMockCountNum');
+      var labelEl = document.getElementById('statMockCountLabel');
+
       var startTs = performance.now();
       var DURATION = 700;
       (function animateCount(){
         var t = Math.min(1, (performance.now()-startTs)/DURATION);
         var eased = 1 - Math.pow(1-t, 3);
-        rollSpan.textContent = Math.round(eased * myMockCount).toLocaleString();
+        numEl.textContent = Math.round(eased * totalMockCount).toLocaleString();
         if (t < 1) requestAnimationFrame(animateCount);
-        else rollSpan.textContent = myMockCount.toLocaleString();
+        else numEl.textContent = totalMockCount.toLocaleString();
       })();
+
+      // 닉네임이 있을 때만 "총등록"/"내 등록"을 계속 반전 표시 (없으면 총등록만 고정 표시)
+      if (myNick) {
+        var showingTotal = true;
+        setInterval(function(){
+          labelEl.style.opacity = '0';
+          numEl.style.opacity = '0';
+          setTimeout(function(){
+            showingTotal = !showingTotal;
+            labelEl.textContent = showingTotal ? '총등록' : '내 등록';
+            numEl.textContent = (showingTotal ? totalMockCount : myMockCount).toLocaleString();
+            labelEl.style.opacity = '1';
+            numEl.style.opacity = '1';
+          }, 300);
+        }, 2600);
+      }
     }
   }
 

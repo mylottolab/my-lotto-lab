@@ -51,7 +51,7 @@ a{color:inherit;}
 .countdown-card{max-width:1180px;margin:16px auto 0;padding:0 24px;}
 .cd-inner{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
 .cd-label{font-size:11.5px;color:var(--text-dim);}
-.cd-time{font-size:18px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums;}
+.cd-time{font-size:32px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;}
 
 .tabbar{max-width:1180px;margin:22px auto 0;padding:0 24px;display:flex;gap:6px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap;}
 .tab-btn{background:none;border:none;color:var(--text-dim);font-size:12.5px;font-weight:600;padding:11px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:6px;white-space:nowrap;}
@@ -117,16 +117,16 @@ table.live-reg-table{width:100%;border-collapse:collapse;}
 .sb{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;flex-shrink:0;}
 .sb.faded{opacity:.4;}
 
-.ticker-wrap{display:flex;align-items:center;justify-content:center;gap:16px;min-width:0;}
-.ticker-balls{display:flex;align-items:center;gap:6px;min-height:26px;overflow:hidden;}
-.ticker-balls .tb-ball{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;flex-shrink:0;animation:tbIn .4s ease-out;}
-.ticker-balls .tb-empty{font-size:11px;color:var(--text-faint);}
+.ticker-wrap{display:flex;align-items:center;justify-content:center;gap:22px;min-width:0;}
+.ticker-balls{display:flex;align-items:center;gap:9px;min-height:42px;overflow:hidden;}
+.ticker-balls .tb-ball{width:42px;height:42px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0;animation:tbIn .4s ease-out;}
+.ticker-balls .tb-empty{font-size:13px;color:var(--text-faint);}
 @keyframes tbIn{
   0%{opacity:0;transform:translateY(8px) scale(.7);}
   100%{opacity:1;transform:translateY(0) scale(1);}
 }
 .ticker-counter{display:flex;flex-direction:column;align-items:center;gap:1px;}
-.ticker-count{font-size:18px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums;}
+.ticker-count{font-size:34px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;}
 .ticker-count.rolling{animation:tcRoll .5s ease-out;}
 @keyframes tcRoll{
   0%{transform:translateY(6px) scale(.9);opacity:.3;}
