@@ -144,6 +144,37 @@ body{
 }
 
 .hcard-arrow{position:absolute;bottom:18px;right:20px;width:26px;height:26px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-dim);transition:border-color .18s,color .18s,transform .18s;}
+
+/* ── 장르 구분선: 한국 로또 영역과 해외 복권 영역 사이 ── */
+.genre-divider{display:flex;align-items:center;gap:16px;margin:36px 0 22px;}
+.gd-line{flex:1;height:1px;background:linear-gradient(90deg, transparent, var(--border-soft) 20%, var(--border-soft) 80%, transparent);}
+.gd-label{font-size:11.5px;color:var(--text-faint);white-space:nowrap;letter-spacing:.04em;}
+
+/* ── 글로브 카드: 의도적으로 한국로또 카드들과 다른 톤(짙은 우주색 그라디언트 + 궤도 모티프) ── */
+.globe-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;
+  background:radial-gradient(circle at 85% 20%, rgba(91,110,232,.22), transparent 55%),
+             radial-gradient(circle at 15% 90%, rgba(240,180,0,.13), transparent 50%),
+             linear-gradient(135deg, #0d1130 0%, #161235 100%);
+  border:1px solid #2a2f5c;transition:transform .2s, border-color .2s;}
+.globe-card:hover{transform:translateY(-3px);border-color:#4a52a8;}
+.globe-card:focus-visible{outline:2px solid #5b6ee8;outline-offset:2px;}
+.globe-glow{position:absolute;top:-60%;right:-10%;width:280px;height:280px;border-radius:50%;background:#5b6ee8;opacity:.10;filter:blur(60px);pointer-events:none;}
+.globe-orbit{position:absolute;right:18px;top:50%;width:130px;height:130px;margin-top:-65px;border:1px solid rgba(255,255,255,.07);border-radius:50%;pointer-events:none;}
+.globe-orbit::before{content:'';position:absolute;inset:18px;border:1px solid rgba(255,255,255,.05);border-radius:50%;}
+.globe-content{position:relative;display:flex;align-items:center;gap:20px;z-index:1;}
+.globe-icon{font-size:34px;flex-shrink:0;filter:drop-shadow(0 0 14px rgba(91,110,232,.5));}
+.globe-text{flex:1;min-width:0;}
+.globe-tag{font-size:10px;font-weight:700;letter-spacing:.08em;color:#9aa8f5;margin-bottom:6px;}
+.globe-title{font-size:19px;font-weight:700;color:#fff;}
+.globe-desc{font-size:12px;color:#aab0d6;margin-top:6px;line-height:1.6;max-width:640px;}
+.globe-games{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.gg-pill{font-size:10.5px;font-weight:700;padding:4px 11px;border-radius:20px;background:rgba(255,255,255,.08);color:var(--c);border:1px solid currentColor;}
+.globe-arrow{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0;transition:transform .2s;}
+.globe-card:hover .globe-arrow{transform:translateX(4px);}
+@media (max-width:680px){
+  .globe-content{flex-direction:column;align-items:flex-start;}
+  .globe-arrow{display:none;}
+}
 .hcard:hover .hcard-arrow{border-color:var(--card-accent,var(--gold-dim));color:var(--card-accent,var(--gold));transform:translateX(2px);}
 
 /* 카테고리별 액센트 */
@@ -320,6 +351,31 @@ body{
       <div class="hcard-arrow">→</div>
     </div>
 
+  </div>
+
+  <div class="genre-divider">
+    <span class="gd-line"></span>
+    <span class="gd-label">🌍 다른 세계로 건너가기</span>
+    <span class="gd-line"></span>
+  </div>
+
+  <div class="globe-card" onclick="location.href='global_lotto.html'" tabindex="0" role="button">
+    <div class="globe-glow"></div>
+    <div class="globe-orbit"></div>
+    <div class="globe-content">
+      <div class="globe-icon">🌍</div>
+      <div class="globe-text">
+        <div class="globe-tag">NEW · GLOBAL</div>
+        <div class="globe-title">해외 발행 복권 3종</div>
+        <div class="globe-desc">Powerball · Mega Millions · EuroMillions — 한국 로또와는 완전히 다른 매트릭스와 등급체계를 가진 세계의 복권들을, 같은 포인트로 가상 등록해보고 진짜 당첨확률을 체감해보세요.</div>
+        <div class="globe-games">
+          <span class="gg-pill" style="--c:#e0383d;">Powerball</span>
+          <span class="gg-pill" style="--c:#1a6fd4;">Mega Millions</span>
+          <span class="gg-pill" style="--c:#f0b400;">EuroMillions</span>
+        </div>
+      </div>
+      <div class="globe-arrow">→</div>
+    </div>
   </div>
 </div>
 

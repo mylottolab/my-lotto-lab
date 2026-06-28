@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - Global Lottery</title>
+<style>
+:root{
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f;
+  --accent:#e8732f; --accent-bg:rgba(232,115,47,.13);
+  --indigo:#5b6ee8; --indigo-dim:#2a3270;
+  --green:#3fb37f; --red:#d4537e;
+  --game-accent:#e0b341;
+}
+*{box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;margin:0;}
+.font-num{font-variant-numeric:tabular-nums;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;}
+
+.topbar{border-bottom:1px solid var(--border-soft);position:sticky;top:0;background:var(--bg);z-index:50;}
+.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:11px;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;}
+.brand-name{font-size:15px;font-weight:700;}
+.brand-sub{font-size:10.5px;color:var(--text-faint);}
+.topbar-right{display:flex;align-items:center;gap:14px;}
+.lang-toggle{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.lang-toggle button{background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;}
+.lang-toggle button.active{background:var(--gold);color:#1a1305;}
+.points-badge{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:6px 14px;}
+.points-badge .lbl{font-size:11px;color:var(--text-dim);}
+.points-badge .val{font-size:14px;font-weight:700;color:var(--gold);}
+
+.wrap{max-width:1180px;margin:0 auto;padding:24px;}
+
+/* 게임 선택 탭 */
+.game-tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.game-tab{flex:1;min-width:180px;background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:16px 18px;cursor:pointer;transition:border-color .15s, transform .1s;position:relative;overflow:hidden;}
+.game-tab:hover{transform:translateY(-1px);}
+.game-tab.active{border-color:var(--tab-accent);box-shadow:0 0 0 1px var(--tab-accent);}
+.game-tab .dot{width:10px;height:10px;border-radius:50%;background:var(--tab-accent);display:inline-block;margin-right:7px;}
+.game-tab .gname{font-size:15px;font-weight:700;}
+.game-tab .gsub{font-size:11px;color:var(--text-faint);margin-top:3px;}
+
+/* 게임 정보 카드 */
+.info-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;gap:28px;flex-wrap:wrap;}
+.info-item .k{font-size:10.5px;color:var(--text-faint);margin-bottom:3px;}
+.info-item .v{font-size:14.5px;font-weight:700;color:var(--text);}
+.info-item .v.accent{color:var(--game-accent);}
+
+/* 섹션 탭 */
+.section-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border-soft);margin-bottom:20px;}
+.section-tab{padding:11px 18px;font-size:13.5px;font-weight:600;color:var(--text-faint);border-bottom:2px solid transparent;}
+.section-tab.active{color:var(--text);border-bottom-color:var(--game-accent);}
+.section-tab:hover{color:var(--text-dim);}
+
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:22px;margin-bottom:18px;}
+.card h3{margin:0 0 14px;font-size:15px;font-weight:700;}
+
+/* 입력방식 선택 */
+.method-row{display:flex;gap:10px;margin-bottom:18px;}
+.method-card{flex:1;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:12px;padding:13px 10px;text-align:center;transition:border-color .15s,background .15s;}
+.method-card.on{border-color:var(--game-accent);background:rgba(224,179,65,.08);}
+.method-card .mname{font-size:13px;font-weight:700;}
+.method-card .mdesc{font-size:10.5px;color:var(--text-faint);margin-top:2px;}
+
+.grid-label{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.grid-label .glabel{font-size:13px;font-weight:700;}
+.grid-label .gcount{font-size:11.5px;color:var(--text-dim);}
+.num-grid{display:grid;gap:7px;margin-bottom:20px;}
+.nb{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;cursor:pointer;border:none;transition:transform .1s;}
+.nb:hover{transform:scale(1.08);}
+.nb.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px #fff;}
+
+.action-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.cnt-in{width:60px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:7px;text-align:center;padding:7px 4px;font-size:13px;font-weight:600;outline:none;}
+.btn{border-radius:9px;padding:10px 18px;font-size:13px;font-weight:700;border:1px solid var(--border);background:var(--surface-2);color:var(--text);}
+.btn-auto{background:var(--surface-2);color:var(--text);}
+.btn-outline{background:transparent;}
+.btn-gold{background:var(--game-accent);color:#1a1305;border:none;}
+.btn-gold:disabled{opacity:.4;cursor:not-allowed;}
+.btn:hover{filter:brightness(1.08);}
+
+.sel-summary{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12.5px;color:var(--text-dim);min-height:34px;margin-bottom:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.sel-summary .sb{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+
+table.data-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+table.data-table thead th{background:var(--surface-2);color:var(--text-dim);font-size:10.5px;font-weight:600;padding:9px 10px;text-align:center;white-space:nowrap;}
+table.data-table tbody td{padding:9px 10px;text-align:center;border-bottom:1px solid var(--border-soft);}
+table.data-table tbody tr:hover{background:var(--surface-2);}
+
+.grade-tag{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-block;}
+.grade-tag.win{background:rgba(224,179,65,.16);color:var(--gold);}
+.grade-tag.lose{background:var(--surface-2);color:var(--text-faint);}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+.stat-box{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:12px;padding:16px 18px;}
+.stat-box .slabel{font-size:11px;color:var(--text-faint);margin-bottom:6px;}
+.stat-box .sval{font-size:22px;font-weight:800;color:var(--game-accent);}
+.stat-box .ssub{font-size:11px;color:var(--text-dim);margin-top:4px;}
+
+.compare-row{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+.compare-row .clabel{width:140px;font-size:12.5px;font-weight:600;flex-shrink:0;}
+.compare-bar-wrap{flex:1;background:var(--surface-2);border-radius:8px;height:26px;position:relative;overflow:hidden;}
+.compare-bar{height:100%;border-radius:8px;display:flex;align-items:center;padding-left:10px;font-size:11px;font-weight:700;color:#1a1305;white-space:nowrap;transition:width .4s ease;}
+
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-faint);font-size:13px;}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:420px;width:90%;padding:26px;}
+.modal-box h3{margin:0 0 12px;font-size:16px;}
+.modal-box p{font-size:13px;color:var(--text-dim);line-height:1.6;margin:0 0 18px;}
+
+.admin-lock{display:flex;flex-direction:column;align-items:center;gap:12px;padding:30px;color:var(--text-faint);}
+.admin-lock input{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 14px;font-size:13px;text-align:center;}
+
+@media (max-width:680px){
+  .game-tabs{flex-direction:column;}
+  .info-card{gap:16px;}
+  .num-grid{grid-template-columns:repeat(7, 1fr) !important;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark">🌍</div>
+      <div>
+        <div class="brand-name" id="t_brandName">My Lotto Lab — Global</div>
+        <div class="brand-sub" id="t_brandSub">해외 발행 복권 가상등록 테스트베드</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="lang-toggle">
+        <button id="langKrBtn" class="active" onclick="APP.setLang('kr')">KR</button>
+        <button id="langEnBtn" onclick="APP.setLang('en')">EN</button>
+      </div>
+      <div class="points-badge">
+        <span class="lbl" id="t_pointsLabel">포인트</span>
+        <span class="val font-num" id="pointsBalance">0</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="game-tabs" id="gameTabs"></div>
+  <div class="info-card" id="infoCard"></div>
+
+  <div class="section-tabs" id="sectionTabs"></div>
+  <div id="sectionBody"></div>
+</div>
+
+<!-- 등록 확인(포인트 차감 안내) 모달 -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <h3 id="confirmTitle">등록 확인</h3>
+    <p id="confirmBody"></p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="APP.closeConfirm()" id="t_cancelBtn">취소</button>
+      <button class="btn btn-gold" style="flex:2;" onclick="APP.confirmRegister()" id="t_confirmBtn">확인하고 등록</button>
+    </div>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
