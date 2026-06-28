@@ -601,9 +601,9 @@ MLL.getComboHistoryStat = async function(nums){
   });
 
   perRound.sort(function(a,b){ return b.round - a.round; });
-  var hitRounds = perRound.filter(function(r){ return r.grade >= 1 && r.grade <= 5; });
   var GRADE_LABEL_FULL = ['낙첨','1등','2등','3등','4등','5등'];
-  var recentHits = hitRounds.slice(0,3).map(function(r){ return GRADE_LABEL_FULL[r.grade]; });
+  // "최근/최근-1/최근-2" = 당첨 여부와 무관하게 시간순으로 가장 최근 3개 회차의 결과
+  var recentHits = perRound.slice(0,3).map(function(r){ return GRADE_LABEL_FULL[r.grade]; });
   while (recentHits.length < 3) recentHits.push('-');
 
   return {
@@ -1355,8 +1355,8 @@ MOCKUI.renderComboStat = async function(nums, statBar){
       '<span>'+stat.grade1+'</span><span>'+stat.grade2+'</span><span>'+stat.grade3+'</span><span>'+stat.grade4+'</span><span>'+stat.grade5+'</span>' +
       '<span>'+(stat.totalPrize>0?stat.totalPrize.toLocaleString():'0')+'</span>' +
       '<span style="color:var(--text);font-weight:400;">'+stat.recent+'</span>' +
-      '<span style="color:var(--text-faint);font-weight:400;">'+stat.recent1+'</span>' +
-      '<span style="color:var(--text-faint);font-weight:400;">'+stat.recent2+'</span>' +
+      '<span style="color:var(--text);font-weight:400;">'+stat.recent1+'</span>' +
+      '<span style="color:var(--text);font-weight:400;">'+stat.recent2+'</span>' +
     '</div>';
 };
 
