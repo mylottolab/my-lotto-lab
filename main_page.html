@@ -171,6 +171,24 @@ body{
 .gg-pill{font-size:10.5px;font-weight:700;padding:4px 11px;border-radius:20px;background:rgba(255,255,255,.08);color:var(--c);border:1px solid currentColor;}
 .globe-arrow{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0;transition:transform .2s;}
 .globe-card:hover .globe-arrow{transform:translateX(4px);}
+.stadium-card:hover .globe-arrow{transform:translateX(4px);}
+
+/* ── 토토·프로토 배너: 잔디 그라디언트 + 라인 모티프로 globe-card와 의도적으로 다른 톤 ── */
+.stadium-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;margin-top:16px;
+  background:radial-gradient(circle at 88% 15%, rgba(63,179,127,.22), transparent 55%),
+             radial-gradient(circle at 10% 95%, rgba(232,162,58,.13), transparent 50%),
+             linear-gradient(135deg, #0c1f17 0%, #122a1c 100%);
+  border:1px solid #224a32;transition:transform .2s, border-color .2s;}
+.stadium-card:hover{transform:translateY(-3px);border-color:#3fb37f;}
+.stadium-card:focus-visible{outline:2px solid #3fb37f;outline-offset:2px;}
+.stadium-glow{position:absolute;top:-60%;right:-10%;width:280px;height:280px;border-radius:50%;background:#3fb37f;opacity:.10;filter:blur(60px);pointer-events:none;}
+.stadium-lines{position:absolute;right:14px;top:50%;width:140px;height:90px;margin-top:-45px;border:1px solid rgba(255,255,255,.08);border-radius:6px;pointer-events:none;}
+.stadium-lines::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.08);}
+.stadium-lines::after{content:'';position:absolute;left:50%;top:50%;width:34px;height:34px;margin-left:-17px;margin-top:-17px;border:1px solid rgba(255,255,255,.08);border-radius:50%;}
+.stadium-tag{color:#7fdba6 !important;}
+@media (max-width:680px){
+  .stadium-lines{display:none;}
+}
 @media (max-width:680px){
   .globe-content{flex-direction:column;align-items:flex-start;}
   .globe-arrow{display:none;}
@@ -214,6 +232,7 @@ body{
           <div class="lotto-item" onclick="location.href='global_lotto.html?game=POWERBALL'"><span><span class="flag-ic flag-us"></span> 파워볼</span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
           <div class="lotto-item" onclick="location.href='global_lotto.html?game=MEGAMILLIONS'"><span><span class="flag-ic flag-us"></span> 메가밀리언스</span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
           <div class="lotto-item" onclick="location.href='global_lotto.html?game=EUROMILLIONS'"><span><span class="flag-ic flag-eu"></span> 유로밀리언스</span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
+          <div class="lotto-item" onclick="location.href='toto_proto.html'"><span><span class="flag-ic" style="background:none;font-size:13px;display:flex;align-items:center;justify-content:center;">⚽</span> 토토·프로토</span><span class="soon" style="color:#3fb37f;border-color:#1e7b4d;">SPORTS</span></div>
         </div>
       </div>
     </div>
@@ -372,6 +391,31 @@ body{
           <span class="gg-pill" style="--c:#e0383d;" onclick="event.stopPropagation();location.href='global_lotto.html?game=POWERBALL'">Powerball</span>
           <span class="gg-pill" style="--c:#1a6fd4;" onclick="event.stopPropagation();location.href='global_lotto.html?game=MEGAMILLIONS'">Mega Millions</span>
           <span class="gg-pill" style="--c:#f0b400;" onclick="event.stopPropagation();location.href='global_lotto.html?game=EUROMILLIONS'">EuroMillions</span>
+        </div>
+      </div>
+      <div class="globe-arrow">→</div>
+    </div>
+  </div>
+
+  <div class="genre-divider">
+    <span class="gd-line"></span>
+    <span class="gd-label">⚽ 토토·프로토 세계로 건너가기</span>
+    <span class="gd-line"></span>
+  </div>
+
+  <div class="stadium-card" onclick="location.href='toto_proto.html'" tabindex="0" role="button">
+    <div class="stadium-glow"></div>
+    <div class="stadium-lines"></div>
+    <div class="globe-content">
+      <div class="globe-icon">⚽</div>
+      <div class="globe-text">
+        <div class="globe-tag stadium-tag">NEW · SPORTS</div>
+        <div class="globe-title">토토 · 프로토 시뮬레이터</div>
+        <div class="globe-desc">실제 시장 규모는 어마어마하지만, 막상 큰돈 들이지 않고는 경험하기 어려운 베팅. 같은 포인트로 소액(가상)부터 찍어보고, 결과를 보며 나만의 로직과 승률을 다듬어보는 연습장입니다.</div>
+        <div class="globe-games">
+          <span class="gg-pill" style="--c:#3fb37f;" onclick="event.stopPropagation();location.href='toto_proto.html?tab=toto'">토토(승무패)</span>
+          <span class="gg-pill" style="--c:#e8a23a;" onclick="event.stopPropagation();location.href='toto_proto.html?tab=toto&game=BASKETBALL'">토토(승5패)</span>
+          <span class="gg-pill" style="--c:#5b9bd5;" onclick="event.stopPropagation();location.href='toto_proto.html?tab=proto'">프로토 승부식</span>
         </div>
       </div>
       <div class="globe-arrow">→</div>
