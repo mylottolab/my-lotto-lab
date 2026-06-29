@@ -697,7 +697,7 @@ APP.protoRegisterHtml = function(){
           '<span style="font-size:11px;">'+o+'</span><span class="font-num" style="font-size:10px;color:var(--text-dim);">'+odd.toFixed(2)+'</span>' +
         '</button>';
       }).join('');
-      return '<div style="margin-bottom:8px;"><div style="font-size:10px;color:var(--text-faint);margin-bottom:4px;">'+bt.nameKr+'</div><div style="display:flex;gap:5px;flex-wrap:wrap;">'+outcomesHtml+'</div></div>';
+      return '<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:4px;">'+bt.nameKr+'</div><div style="display:flex;gap:5px;flex-wrap:wrap;">'+outcomesHtml+'</div></div>';
     }).join('');
 
     return '<div class="card" style="margin-bottom:10px;padding:16px 18px;">' +
