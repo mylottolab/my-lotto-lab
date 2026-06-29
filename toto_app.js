@@ -144,8 +144,43 @@ APP.DEFAULT_MATCHES = {
     { no:13, home:'(미정)', away:'(미정)' },
     { no:14, home:'(미정)', away:'(미정)' },
   ],
-  BASEBALL: Array.from({length:14}, function(_,i){ return { no:i+1, home:'(미정)', away:'(미정)' }; }),
-  BASKETBALL: Array.from({length:14}, function(_,i){ return { no:i+1, home:'(미정)', away:'(미정)' }; }),
+  // KBO 10개 구단 실제 팀명 기준. 1번은 실제 확인된 경기(2026.06.27 잠실, 두산 8:1 KIA 승)를 그대로 반영,
+  // 나머지는 같은 주 실제 매치업 패턴(주말 3연전 + 화요일 새 시리즈)을 본떠 구성한 예시 — 관리자가 실제 일정으로 교체 가능.
+  BASEBALL: [
+    { no:1,  home:'두산 베어스',   away:'KIA 타이거즈' },   // 2026.06.27(토) 잠실 — 실제 결과: 두산 8:1 KIA
+    { no:2,  home:'LG 트윈스',     away:'롯데 자이언츠' },
+    { no:3,  home:'SSG 랜더스',    away:'삼성 라이온즈' },
+    { no:4,  home:'NC 다이노스',   away:'키움 히어로즈' },
+    { no:5,  home:'kt wiz',        away:'한화 이글스' },
+    { no:6,  home:'두산 베어스',   away:'KIA 타이거즈' },   // 2026.06.28(일) 잠실 — 주말 3연전 2차전
+    { no:7,  home:'LG 트윈스',     away:'롯데 자이언츠' },
+    { no:8,  home:'SSG 랜더스',    away:'삼성 라이온즈' },
+    { no:9,  home:'NC 다이노스',   away:'키움 히어로즈' },
+    { no:10, home:'kt wiz',        away:'한화 이글스' },
+    { no:11, home:'KIA 타이거즈',  away:'한화 이글스' },    // 2026.06.30(화) 광주 — 새 시리즈 시작
+    { no:12, home:'두산 베어스',   away:'LG 트윈스' },
+    { no:13, home:'삼성 라이온즈', away:'kt wiz' },
+    { no:14, home:'키움 히어로즈', away:'SSG 랜더스' },
+  ],
+  // ⚠️ KBL은 2025-2026 정규시즌이 2026.04.08에 종료되고 플레이오프(파이널)까지 이미 끝나 현재 비시즌이다.
+  // 따라서 지금 시점에는 실제로 승5패 신규 회차가 열리기 어렵다 — 다음 시즌(2026년 10월경 개막 예정) 전까지는
+  // 직전 시즌 10개 구단명으로 "예시"만 채워두고, 관리자가 실제 개막 후 일정으로 교체해야 한다.
+  BASKETBALL: [
+    { no:1,  home:'부산 KCC 이지스',     away:'서울 SK 나이츠' },
+    { no:2,  home:'창원 LG 세이커스',    away:'고양 소노 스카이거너스' },
+    { no:3,  home:'서울 삼성 썬더스',    away:'울산 현대모비스 피버스' },
+    { no:4,  home:'원주 DB 프로미',      away:'대구 한국가스공사 페가수스' },
+    { no:5,  home:'수원 KT 소닉붐',      away:'안양 정관장 레드부스터스' },
+    { no:6,  home:'부산 KCC 이지스',     away:'창원 LG 세이커스' },
+    { no:7,  home:'서울 SK 나이츠',      away:'서울 삼성 썬더스' },
+    { no:8,  home:'고양 소노 스카이거너스', away:'원주 DB 프로미' },
+    { no:9,  home:'울산 현대모비스 피버스', away:'수원 KT 소닉붐' },
+    { no:10, home:'대구 한국가스공사 페가수스', away:'안양 정관장 레드부스터스' },
+    { no:11, home:'창원 LG 세이커스',    away:'서울 SK 나이츠' },
+    { no:12, home:'부산 KCC 이지스',     away:'고양 소노 스카이거너스' },
+    { no:13, home:'서울 삼성 썬더스',    away:'원주 DB 프로미' },
+    { no:14, home:'울산 현대모비스 피버스', away:'대구 한국가스공사 페가수스' },
+  ],
 };
 
 APP.loadMatches = function(sport, round){
@@ -232,11 +267,13 @@ APP.renderToto = function(){
     '<div class="info-item"><div class="k">종목</div><div class="v accent">' + game.sportKr + ' (' + game.nameKr + ')</div></div>' +
     '<div class="info-item"><div class="k">대상경기</div><div class="v">' + game.matchCount + '경기</div></div>' +
     '<div class="info-item"><div class="k">등급구조</div><div class="v">14적중=1등 / 13=2등 / 12=3등 / 11=4등</div></div>' +
-    '<div class="info-item"><div class="k">현재 회차</div><div class="v accent">제' + round + '회</div></div>';
+    '<div class="info-item"><div class="k">현재 회차</div><div class="v accent">제' + round + '회</div></div>' +
+    (s.sport === 'BASKETBALL' ? '<div class="info-item"><div class="k">⚠️ 시즌 상태</div><div class="v" style="color:var(--red);">KBL 비시즌 (10/3 개막 예정)</div></div>' : '');
 
   document.getElementById('mainTabBody').innerHTML =
     '<div class="sport-tabs">' + sportTabsHtml + '</div>' +
     '<div class="info-card">' + infoHtml + '</div>' +
+    (s.sport === 'BASKETBALL' ? '<div class="card" style="border-color:var(--red);background:rgba(212,83,126,.06);"><p style="margin:0;font-size:12.5px;color:var(--text-dim);">📌 2025-26 KBL 정규시즌(~4/8)과 플레이오프가 모두 종료되어 현재는 비시즌입니다. 아래 경기는 직전 시즌 10개 구단 기준 예시이며, 다음 시즌(2026년 10월경 개막 예정) 개막 후 관리자가 실제 일정으로 교체해야 합니다.</p></div>' : '') +
     '<div class="section-tabs">' + sectionTabsHtml + '</div>' +
     '<div id="totoSectionBody"></div>';
 
