@@ -24,15 +24,15 @@ GLOBAL.GAMES = {
     helpKr: '미국 45개 주에서 발행되는 대표 복권이에요. 1~69 중 5개의 본번호와, 완전히 별도의 풀인 1~26 중 파워볼 1개를 맞춰요. 본번호와 파워볼은 서로 다른 공이라 같은 숫자를 양쪽에 동시에 써도 돼요. 6개를 모두 맞추면 잭폿! 파워볼 번호 하나만 맞아도 작은 상금이 있어요. 매주 월·수·토요일 추첨해요.',
     helpEn: 'America\'s flagship multi-state lottery, sold in 45 states. Pick 5 main numbers (1-69) plus 1 Powerball from a completely separate pool (1-26) — so the same number can appear in both. Match all 6 to win the jackpot; matching just the Powerball alone still wins a small prize. Drawn every Monday, Wednesday and Saturday.',
     grades: [
-      { grade: 1, main: 5, sub: 1, labelKr: '1등 (잭폿)', labelEn: 'Jackpot', prizeLabel: '잭폿(변동)' },
-      { grade: 2, main: 5, sub: 0, labelKr: '2등', labelEn: '2nd Prize', prizeLabel: '$1,000,000' },
-      { grade: 3, main: 4, sub: 1, labelKr: '3등', labelEn: '3rd Prize', prizeLabel: '$50,000' },
-      { grade: 4, main: 4, sub: 0, labelKr: '4등', labelEn: '4th Prize', prizeLabel: '$100' },
-      { grade: 5, main: 3, sub: 1, labelKr: '5등', labelEn: '5th Prize', prizeLabel: '$100' },
-      { grade: 6, main: 3, sub: 0, labelKr: '6등', labelEn: '6th Prize', prizeLabel: '$7' },
-      { grade: 7, main: 2, sub: 1, labelKr: '7등', labelEn: '7th Prize', prizeLabel: '$7' },
-      { grade: 8, main: 1, sub: 1, labelKr: '8등', labelEn: '8th Prize', prizeLabel: '$4' },
-      { grade: 9, main: 0, sub: 1, labelKr: '9등', labelEn: '9th Prize', prizeLabel: '$4' }
+      { grade: 1, main: 5, sub: 1, labelKr: '1등 (잭폿)', labelEn: 'Jackpot', prizeLabelKr: '잭폿(변동)', prizeLabelEn: 'Jackpot (varies)' },
+      { grade: 2, main: 5, sub: 0, labelKr: '2등', labelEn: '2nd Prize', prizeLabelKr: '$1,000,000', prizeLabelEn: '$1,000,000' },
+      { grade: 3, main: 4, sub: 1, labelKr: '3등', labelEn: '3rd Prize', prizeLabelKr: '$50,000', prizeLabelEn: '$50,000' },
+      { grade: 4, main: 4, sub: 0, labelKr: '4등', labelEn: '4th Prize', prizeLabelKr: '$100', prizeLabelEn: '$100' },
+      { grade: 5, main: 3, sub: 1, labelKr: '5등', labelEn: '5th Prize', prizeLabelKr: '$100', prizeLabelEn: '$100' },
+      { grade: 6, main: 3, sub: 0, labelKr: '6등', labelEn: '6th Prize', prizeLabelKr: '$7', prizeLabelEn: '$7' },
+      { grade: 7, main: 2, sub: 1, labelKr: '7등', labelEn: '7th Prize', prizeLabelKr: '$7', prizeLabelEn: '$7' },
+      { grade: 8, main: 1, sub: 1, labelKr: '8등', labelEn: '8th Prize', prizeLabelKr: '$4', prizeLabelEn: '$4' },
+      { grade: 9, main: 0, sub: 1, labelKr: '9등', labelEn: '9th Prize', prizeLabelKr: '$4', prizeLabelEn: '$4' }
     ]
   },
   MEGAMILLIONS: {
@@ -51,15 +51,15 @@ GLOBAL.GAMES = {
     helpKr: '파워볼과 함께 미국을 대표하는 복권이에요. 1~70 중 5개의 본번호와, 별도 풀인 1~24 중 메가볼 1개를 맞춰요. 구조는 파워볼과 거의 같지만 숫자 범위가 조금 더 넓어요. 2025년 개편으로 모든 비잭폿 상금에 2~10배 배율이 기본 적용돼요. 매주 화·금요일 추첨해요.',
     helpEn: 'Along with Powerball, this is one of America\'s two biggest lotteries. Pick 5 main numbers (1-70) plus 1 Mega Ball from a separate pool (1-24). Structurally similar to Powerball but with a slightly wider main number range. Since the 2025 redesign, every ticket includes a built-in 2x-10x multiplier on non-jackpot prizes. Drawn every Tuesday and Friday.',
     grades: [
-      { grade: 1, main: 5, sub: 1, labelKr: '1등 (잭폿)', labelEn: 'Jackpot', prizeLabel: '잭폿(변동)' },
-      { grade: 2, main: 5, sub: 0, labelKr: '2등', labelEn: '2nd Prize', prizeLabel: '$1,000,000' },
-      { grade: 3, main: 4, sub: 1, labelKr: '3등', labelEn: '3rd Prize', prizeLabel: '$10,000' },
-      { grade: 4, main: 4, sub: 0, labelKr: '4등', labelEn: '4th Prize', prizeLabel: '$500' },
-      { grade: 5, main: 3, sub: 1, labelKr: '5등', labelEn: '5th Prize', prizeLabel: '$200' },
-      { grade: 6, main: 3, sub: 0, labelKr: '6등', labelEn: '6th Prize', prizeLabel: '$10' },
-      { grade: 7, main: 2, sub: 1, labelKr: '7등', labelEn: '7th Prize', prizeLabel: '$10' },
-      { grade: 8, main: 1, sub: 1, labelKr: '8등', labelEn: '8th Prize', prizeLabel: '$7' },
-      { grade: 9, main: 0, sub: 1, labelKr: '9등', labelEn: '9th Prize', prizeLabel: '$5' }
+      { grade: 1, main: 5, sub: 1, labelKr: '1등 (잭폿)', labelEn: 'Jackpot', prizeLabelKr: '잭폿(변동)', prizeLabelEn: 'Jackpot (varies)' },
+      { grade: 2, main: 5, sub: 0, labelKr: '2등', labelEn: '2nd Prize', prizeLabelKr: '$1,000,000', prizeLabelEn: '$1,000,000' },
+      { grade: 3, main: 4, sub: 1, labelKr: '3등', labelEn: '3rd Prize', prizeLabelKr: '$10,000', prizeLabelEn: '$10,000' },
+      { grade: 4, main: 4, sub: 0, labelKr: '4등', labelEn: '4th Prize', prizeLabelKr: '$500', prizeLabelEn: '$500' },
+      { grade: 5, main: 3, sub: 1, labelKr: '5등', labelEn: '5th Prize', prizeLabelKr: '$200', prizeLabelEn: '$200' },
+      { grade: 6, main: 3, sub: 0, labelKr: '6등', labelEn: '6th Prize', prizeLabelKr: '$10', prizeLabelEn: '$10' },
+      { grade: 7, main: 2, sub: 1, labelKr: '7등', labelEn: '7th Prize', prizeLabelKr: '$10', prizeLabelEn: '$10' },
+      { grade: 8, main: 1, sub: 1, labelKr: '8등', labelEn: '8th Prize', prizeLabelKr: '$7', prizeLabelEn: '$7' },
+      { grade: 9, main: 0, sub: 1, labelKr: '9등', labelEn: '9th Prize', prizeLabelKr: '$5', prizeLabelEn: '$5' }
     ]
   },
   EUROMILLIONS: {
@@ -78,19 +78,19 @@ GLOBAL.GAMES = {
     helpKr: '유럽 9개국(영국·프랑스·스페인 등)이 공동 운영하는 복권이에요. 1~50 중 5개의 본번호와, 별도 풀인 1~12 중 럭키스타 2개(!)를 맞춰요 — 보조번호가 1개가 아니라 2개라는 게 미국 복권들과 가장 다른 점이에요. 등급도 13단계로 세분화돼 있어서, 본번호 2개만 맞아도 당첨금이 나와요. 매주 화·금요일 프랑스 파리에서 추첨해요.',
     helpEn: 'Jointly run by 9 European countries (UK, France, Spain, and more). Pick 5 main numbers (1-50) plus 2 Lucky Stars (!) from a separate pool (1-12) — needing two bonus numbers instead of one is the key difference from the US lotteries. Prize tiers are split into 13 levels, so even matching just 2 main numbers can win something. Drawn every Tuesday and Friday in Paris.',
     grades: [
-      { grade: 1,  main: 5, sub: 2, labelKr: '1등 (잭폿)', labelEn: 'Jackpot', prizeLabel: '상금풀의 약 42~50%' },
-      { grade: 2,  main: 5, sub: 1, labelKr: '2등', labelEn: '2nd Prize', prizeLabel: '상금풀의 3.95%' },
-      { grade: 3,  main: 5, sub: 0, labelKr: '3등', labelEn: '3rd Prize', prizeLabel: '상금풀의 0.92%' },
-      { grade: 4,  main: 4, sub: 2, labelKr: '4등', labelEn: '4th Prize', prizeLabel: '상금풀의 0.45%' },
-      { grade: 5,  main: 4, sub: 1, labelKr: '5등', labelEn: '5th Prize', prizeLabel: '상금풀의 0.48%' },
-      { grade: 6,  main: 3, sub: 2, labelKr: '6등', labelEn: '6th Prize', prizeLabel: '상금풀의 0.38%' },
-      { grade: 7,  main: 4, sub: 0, labelKr: '7등', labelEn: '7th Prize', prizeLabel: '상금풀의 0.67%' },
-      { grade: 8,  main: 2, sub: 2, labelKr: '8등', labelEn: '8th Prize', prizeLabel: '상금풀의 1.75%' },
-      { grade: 9,  main: 3, sub: 1, labelKr: '9등', labelEn: '9th Prize', prizeLabel: '상금풀의 1.85%' },
-      { grade: 10, main: 3, sub: 0, labelKr: '10등', labelEn: '10th Prize', prizeLabel: '상금풀의 3.50%' },
-      { grade: 11, main: 1, sub: 2, labelKr: '11등', labelEn: '11th Prize', prizeLabel: '상금풀의 4.95%' },
-      { grade: 12, main: 2, sub: 1, labelKr: '12등', labelEn: '12th Prize', prizeLabel: '상금풀의 14.85%' },
-      { grade: 13, main: 2, sub: 0, labelKr: '13등', labelEn: '13th Prize', prizeLabel: '상금풀의 18.25%' }
+      { grade: 1,  main: 5, sub: 2, labelKr: '1등 (잭폿)', labelEn: 'Jackpot', prizeLabelKr: '상금풀의 약 42~50%', prizeLabelEn: 'approx. 42-50% of prize pool' },
+      { grade: 2,  main: 5, sub: 1, labelKr: '2등', labelEn: '2nd Prize', prizeLabelKr: '상금풀의 3.95%', prizeLabelEn: '3.95% of prize pool' },
+      { grade: 3,  main: 5, sub: 0, labelKr: '3등', labelEn: '3rd Prize', prizeLabelKr: '상금풀의 0.92%', prizeLabelEn: '0.92% of prize pool' },
+      { grade: 4,  main: 4, sub: 2, labelKr: '4등', labelEn: '4th Prize', prizeLabelKr: '상금풀의 0.45%', prizeLabelEn: '0.45% of prize pool' },
+      { grade: 5,  main: 4, sub: 1, labelKr: '5등', labelEn: '5th Prize', prizeLabelKr: '상금풀의 0.48%', prizeLabelEn: '0.48% of prize pool' },
+      { grade: 6,  main: 3, sub: 2, labelKr: '6등', labelEn: '6th Prize', prizeLabelKr: '상금풀의 0.38%', prizeLabelEn: '0.38% of prize pool' },
+      { grade: 7,  main: 4, sub: 0, labelKr: '7등', labelEn: '7th Prize', prizeLabelKr: '상금풀의 0.67%', prizeLabelEn: '0.67% of prize pool' },
+      { grade: 8,  main: 2, sub: 2, labelKr: '8등', labelEn: '8th Prize', prizeLabelKr: '상금풀의 1.75%', prizeLabelEn: '1.75% of prize pool' },
+      { grade: 9,  main: 3, sub: 1, labelKr: '9등', labelEn: '9th Prize', prizeLabelKr: '상금풀의 1.85%', prizeLabelEn: '1.85% of prize pool' },
+      { grade: 10, main: 3, sub: 0, labelKr: '10등', labelEn: '10th Prize', prizeLabelKr: '상금풀의 3.50%', prizeLabelEn: '3.50% of prize pool' },
+      { grade: 11, main: 1, sub: 2, labelKr: '11등', labelEn: '11th Prize', prizeLabelKr: '상금풀의 4.95%', prizeLabelEn: '4.95% of prize pool' },
+      { grade: 12, main: 2, sub: 1, labelKr: '12등', labelEn: '12th Prize', prizeLabelKr: '상금풀의 14.85%', prizeLabelEn: '14.85% of prize pool' },
+      { grade: 13, main: 2, sub: 0, labelKr: '13등', labelEn: '13th Prize', prizeLabelKr: '상금풀의 18.25%', prizeLabelEn: '18.25% of prize pool' }
     ]
   }
 };

@@ -578,7 +578,8 @@ APP.openHelp = function(gameCode){
   var rows = g.grades.map(function(gr){
     var label = lang === 'en' ? gr.labelEn : gr.labelKr;
     var matchStr = gr.sub > 0 ? (gr.main + '+' + gr.sub) : (gr.main + '+0');
-    return '<tr><td>' + label + '</td><td class="font-num">' + matchStr + '</td><td class="font-num">' + gr.prizeLabel + '</td></tr>';
+    var prizeText = lang === 'en' ? gr.prizeLabelEn : gr.prizeLabelKr;
+    return '<tr><td>' + label + '</td><td class="font-num">' + matchStr + '</td><td class="font-num">' + prizeText + '</td></tr>';
   }).join('');
 
   var noteKey = (g.subPoolType === 'DUAL') ? 'help_prize_note_pari' : 'help_prize_note_fixed';
