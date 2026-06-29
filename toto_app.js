@@ -193,13 +193,38 @@ APP.loadMatches = function(sport, round){
 // =====================================================
 // 렌더링
 // =====================================================
+APP.UI_STATE_KEY = 'mll_toto_ui_state';
+APP.saveUiState = function(){
+  try {
+    localStorage.setItem(APP.UI_STATE_KEY, JSON.stringify({
+      mainTab: APP.state.mainTab,
+      sport: APP.state.sport,
+      section: APP.state.section
+    }));
+  } catch(e){}
+};
+APP.loadUiState = function(){
+  try { return JSON.parse(localStorage.getItem(APP.UI_STATE_KEY) || 'null'); } catch(e){ return null; }
+};
+
 APP.init = function(){
   APP.ensureSeedData();
+
+  // 1) 새로고침 시에는 마지막으로 보고 있던 탭/종목/섹션을 그대로 복원
+  var saved = APP.loadUiState();
+  if (saved) {
+    if (saved.mainTab === 'TOTO' || saved.mainTab === 'PROTO') APP.state.mainTab = saved.mainTab;
+    if (TOTO.RANK_GAMES[saved.sport]) APP.state.sport = saved.sport;
+    if (saved.section) APP.state.section = saved.section;
+  }
+
+  // 2) main_page.html 등에서 ?tab=...&game=... 으로 명시적으로 들어온 경우는 그 값을 우선한다
   var params = new URLSearchParams(window.location.search);
   var tab = (params.get('tab') || '').toUpperCase();
   if (tab === 'TOTO' || tab === 'PROTO') APP.state.mainTab = tab;
   var game = (params.get('game') || '').toUpperCase();
   if (TOTO.RANK_GAMES[game]) APP.state.sport = game;
+
   APP.renderAll();
 };
 
@@ -207,6 +232,7 @@ APP.renderAll = function(){
   document.getElementById('pointsBalance').textContent = APP.getPoints().balance.toLocaleString();
   APP.renderMainTabs();
   APP.renderMainTabBody();
+  APP.saveUiState();
 };
 
 APP.setMainTab = function(tab){
@@ -241,6 +267,7 @@ APP.selectSport = function(sport){
   APP.state.sport = sport;
   APP.state.picks = {};
   APP.renderToto();
+  APP.saveUiState();
 };
 
 APP.renderToto = function(){
@@ -283,6 +310,7 @@ APP.renderToto = function(){
 APP.setSection = function(sec){
   APP.state.section = sec;
   if (APP.state.mainTab === 'TOTO') APP.renderToto();
+  APP.saveUiState();
 };
 
 APP.renderTotoSection = function(){
@@ -672,6 +700,7 @@ APP.renderProtoComingSoon = function(){
 APP.setProtoSection = function(sec){
   APP.state.section = sec;
   APP.renderProtoSection();
+  APP.saveUiState();
 };
 
 APP.renderProtoSection = function(){
