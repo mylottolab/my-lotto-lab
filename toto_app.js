@@ -137,6 +137,16 @@ APP.t = function(key){
   return row[APP.state.lang] || row.kr;
 };
 
+// 매치 데이터의 home/away를 현재 언어에 맞게 반환 (homeEn/awayEn이 없으면 한글 그대로 — 예: KBO/KBL 국내 구단명)
+APP.homeOf = function(m, lang){
+  lang = lang || APP.state.lang;
+  return (lang === 'en' && m.homeEn) ? m.homeEn : m.home;
+};
+APP.awayOf = function(m, lang){
+  lang = lang || APP.state.lang;
+  return (lang === 'en' && m.awayEn) ? m.awayEn : m.away;
+};
+
 // ── 포인트 (해외복권과 동일 로직 재사용) ──
 APP.getPoints = function(){
   try {
@@ -239,21 +249,21 @@ APP.CURRENT_ROUND = { SOCCER: 36, BASEBALL: 35, BASKETBALL: 27 };
 APP.DEFAULT_MATCHES = {
   SOCCER: [
     // 1~8번: 2026 월드컵 조별리그 실제 대상경기로 확인됨
-    { no:1, home:'퀴라소', away:'코트디부아르' },
-    { no:2, home:'에콰도르', away:'독일' },
-    { no:3, home:'일본', away:'스웨덴' },
-    { no:4, home:'튀니지', away:'네덜란드' },
-    { no:5, home:'튀르키예', away:'미국' },
-    { no:6, home:'노르웨이', away:'프랑스' },
-    { no:7, home:'우루과이', away:'스페인' },
-    { no:8, home:'파나마', away:'잉글랜드' },
+    { no:1, home:'퀴라소', away:'코트디부아르', homeEn:'Curaçao', awayEn:'Ivory Coast' },
+    { no:2, home:'에콰도르', away:'독일', homeEn:'Ecuador', awayEn:'Germany' },
+    { no:3, home:'일본', away:'스웨덴', homeEn:'Japan', awayEn:'Sweden' },
+    { no:4, home:'튀니지', away:'네덜란드', homeEn:'Tunisia', awayEn:'Netherlands' },
+    { no:5, home:'튀르키예', away:'미국', homeEn:'Turkey', awayEn:'United States' },
+    { no:6, home:'노르웨이', away:'프랑스', homeEn:'Norway', awayEn:'France' },
+    { no:7, home:'우루과이', away:'스페인', homeEn:'Uruguay', awayEn:'Spain' },
+    { no:8, home:'파나마', away:'잉글랜드', homeEn:'Panama', awayEn:'England' },
     // 9~14번: 관리자 입력 대기(예시로 표시)
-    { no:9, home:'(미정)', away:'(미정)' },
-    { no:10, home:'(미정)', away:'(미정)' },
-    { no:11, home:'(미정)', away:'(미정)' },
-    { no:12, home:'(미정)', away:'(미정)' },
-    { no:13, home:'(미정)', away:'(미정)' },
-    { no:14, home:'(미정)', away:'(미정)' },
+    { no:9, home:'(미정)', away:'(미정)', homeEn:'(TBD)', awayEn:'(TBD)' },
+    { no:10, home:'(미정)', away:'(미정)', homeEn:'(TBD)', awayEn:'(TBD)' },
+    { no:11, home:'(미정)', away:'(미정)', homeEn:'(TBD)', awayEn:'(TBD)' },
+    { no:12, home:'(미정)', away:'(미정)', homeEn:'(TBD)', awayEn:'(TBD)' },
+    { no:13, home:'(미정)', away:'(미정)', homeEn:'(TBD)', awayEn:'(TBD)' },
+    { no:14, home:'(미정)', away:'(미정)', homeEn:'(TBD)', awayEn:'(TBD)' },
   ],
   // KBO 10개 구단 실제 팀명 기준. 1번은 실제 확인된 경기(2026.06.27 잠실, 두산 8:1 KIA 승)를 그대로 반영,
   // 나머지는 같은 주 실제 매치업 패턴(주말 3연전 + 화요일 새 시리즈)을 본떠 구성한 예시 — 관리자가 실제 일정으로 교체 가능.
@@ -488,7 +498,7 @@ APP.totoRegisterHtml = function(){
     }).join('');
     return '<div class="match-row">' +
       '<div class="mr-no">' + m.no + '</div>' +
-      '<div class="mr-teams">' + m.home + '<span class="vs">vs</span>' + m.away + '</div>' +
+      '<div class="mr-teams">' + APP.homeOf(m, lang) + '<span class="vs">vs</span>' + APP.awayOf(m, lang) + '</div>' +
       btnsHtml +
     '</div>';
   }).join('');
@@ -935,7 +945,7 @@ APP.protoRegisterHtml = function(){
     }).join('');
 
     return '<div class="card" style="margin-bottom:10px;padding:16px 18px;">' +
-      '<div style="font-size:13px;font-weight:700;margin-bottom:10px;">'+m.home+' <span class="vs" style="color:var(--text-faint);font-weight:400;font-size:11px;">vs</span> '+m.away+'</div>' +
+      '<div style="font-size:13px;font-weight:700;margin-bottom:10px;">'+APP.homeOf(m, lang)+' <span class="vs" style="color:var(--text-faint);font-weight:400;font-size:11px;">vs</span> '+APP.awayOf(m, lang)+'</div>' +
       typesHtml +
     '</div>';
   }).join('');
@@ -948,7 +958,7 @@ APP.protoRegisterHtml = function(){
     var oIdx = bt.outcomes.indexOf(s.outcome);
     var oDisplay = (lang === 'en' && bt.outcomesEn && oIdx>=0) ? bt.outcomesEn[oIdx] : s.outcome;
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:11.5px;">' +
-      '<span>'+m.home+' vs '+m.away+' · '+btName+' · <b style="color:var(--blue);">'+oDisplay+'</b></span>' +
+      '<span>'+APP.homeOf(m, lang)+' vs '+APP.awayOf(m, lang)+' · '+btName+' · <b style="color:var(--blue);">'+oDisplay+'</b></span>' +
       '<span class="font-num">'+s.odds.toFixed(2)+' <button onclick="APP.removeProtoSelection('+i+')" style="background:none;border:none;color:var(--text-faint);cursor:pointer;margin-left:6px;">✕</button></span>' +
     '</div>';
   }).join('') : '<div style="color:var(--text-faint);font-size:12px;padding:10px 0;">' + APP.t('proto_pick_prompt') + '</div>';
@@ -1019,7 +1029,7 @@ APP.openProtoConfirm = function(){
     var btName = lang === 'en' ? bt.nameEn : bt.nameKr;
     var oIdx = bt.outcomes.indexOf(s.outcome);
     var oDisplay = (lang === 'en' && bt.outcomesEn && oIdx>=0) ? bt.outcomesEn[oIdx] : s.outcome;
-    return m.home+' vs '+m.away+' '+btName+':'+oDisplay;
+    return APP.homeOf(m, lang)+' vs '+APP.awayOf(m, lang)+' '+btName+':'+oDisplay;
   }).join('\n');
 
   document.getElementById('confirmTitle').textContent = APP.t('proto_confirm_title');
@@ -1102,14 +1112,14 @@ APP.protoRoundKey = function(round){ return 'P' + round; };
 
 // 시드: 월드컵 조별리그 8경기 + 임의의 합리적인 배당률(실제 배당률 아님, 예시) — 관리자가 실제 값으로 교체 가능
 APP.PROTO_DEFAULT_MATCHES = [
-  { matchId:1, home:'퀴라소', away:'코트디부아르', odds:{ GENERAL:{승:4.20,무:3.10,패:1.75}, UNDEROVER:{U:1.85,O:1.95}, SUM:{홀:1.90,짝:1.90}, DOUBLE:{승무:1.65,무패:1.20,승패:1.05} } },
-  { matchId:2, home:'에콰도르', away:'독일', odds:{ GENERAL:{승:3.40,무:3.05,패:2.05}, UNDEROVER:{U:1.95,O:1.85}, SUM:{홀:1.90,짝:1.90} } },
-  { matchId:3, home:'일본', away:'스웨덴', odds:{ GENERAL:{승:2.30,무:3.00,패:3.10}, HANDICAP:{승:2.55,무:3.10,패:2.65}, UNDEROVER:{U:2.00,O:1.80} } },
-  { matchId:4, home:'튀니지', away:'네덜란드', odds:{ GENERAL:{승:5.50,무:3.40,패:1.55}, UNDEROVER:{U:1.80,O:2.00}, DOUBLE:{승무:2.30,무패:1.10,승패:1.05} } },
-  { matchId:5, home:'튀르키예', away:'미국', odds:{ GENERAL:{승:2.45,무:3.05,패:2.85}, UNDEROVER:{U:1.95,O:1.85}, SUM:{홀:1.88,짝:1.92} } },
-  { matchId:6, home:'노르웨이', away:'프랑스', odds:{ GENERAL:{승:3.60,무:3.20,패:1.95}, HANDICAP:{승:2.60,무:3.15,패:2.55} } },
-  { matchId:7, home:'우루과이', away:'스페인', odds:{ GENERAL:{승:2.90,무:2.95,패:2.40}, UNDEROVER:{U:1.90,O:1.90}, DOUBLE:{승무:1.50,무패:1.35,승패:1.10} } },
-  { matchId:8, home:'파나마', away:'잉글랜드', odds:{ GENERAL:{승:6.50,무:3.80,패:1.45}, UNDEROVER:{U:1.85,O:1.95} } },
+  { matchId:1, home:'퀴라소', away:'코트디부아르', homeEn:'Curaçao', awayEn:'Ivory Coast', odds:{ GENERAL:{승:4.20,무:3.10,패:1.75}, UNDEROVER:{U:1.85,O:1.95}, SUM:{홀:1.90,짝:1.90}, DOUBLE:{승무:1.65,무패:1.20,승패:1.05} } },
+  { matchId:2, home:'에콰도르', away:'독일', homeEn:'Ecuador', awayEn:'Germany', odds:{ GENERAL:{승:3.40,무:3.05,패:2.05}, UNDEROVER:{U:1.95,O:1.85}, SUM:{홀:1.90,짝:1.90} } },
+  { matchId:3, home:'일본', away:'스웨덴', homeEn:'Japan', awayEn:'Sweden', odds:{ GENERAL:{승:2.30,무:3.00,패:3.10}, HANDICAP:{승:2.55,무:3.10,패:2.65}, UNDEROVER:{U:2.00,O:1.80} } },
+  { matchId:4, home:'튀니지', away:'네덜란드', homeEn:'Tunisia', awayEn:'Netherlands', odds:{ GENERAL:{승:5.50,무:3.40,패:1.55}, UNDEROVER:{U:1.80,O:2.00}, DOUBLE:{승무:2.30,무패:1.10,승패:1.05} } },
+  { matchId:5, home:'튀르키예', away:'미국', homeEn:'Turkey', awayEn:'United States', odds:{ GENERAL:{승:2.45,무:3.05,패:2.85}, UNDEROVER:{U:1.95,O:1.85}, SUM:{홀:1.88,짝:1.92} } },
+  { matchId:6, home:'노르웨이', away:'프랑스', homeEn:'Norway', awayEn:'France', odds:{ GENERAL:{승:3.60,무:3.20,패:1.95}, HANDICAP:{승:2.60,무:3.15,패:2.55} } },
+  { matchId:7, home:'우루과이', away:'스페인', homeEn:'Uruguay', awayEn:'Spain', odds:{ GENERAL:{승:2.90,무:2.95,패:2.40}, UNDEROVER:{U:1.90,O:1.90}, DOUBLE:{승무:1.50,무패:1.35,승패:1.10} } },
+  { matchId:8, home:'파나마', away:'잉글랜드', homeEn:'Panama', awayEn:'England', odds:{ GENERAL:{승:6.50,무:3.80,패:1.45}, UNDEROVER:{U:1.85,O:1.95} } },
 ];
 
 APP.loadProtoMatches = function(round){
@@ -1133,7 +1143,7 @@ APP.protoMyEntriesHtml = function(){
       var btName = lang === 'en' ? bt.nameEn : bt.nameKr;
       var oIdx = bt.outcomes.indexOf(s.outcome);
       var oDisplay = (lang === 'en' && bt.outcomesEn && oIdx>=0) ? bt.outcomesEn[oIdx] : s.outcome;
-      return m.home+'/'+btName+'/'+oDisplay;
+      return APP.homeOf(m, lang)+'/'+btName+'/'+oDisplay;
     }).join(', ');
     var statusHtml = !e.graded ? '<span class="grade-tag lose">' + APP.t('pending') + '</span>' :
       (e.won ? '<span class="grade-tag win">' + APP.t('th_won') + '</span>' : '<span class="grade-tag lose">' + APP.t('th_not_won') + '</span>');

@@ -329,6 +329,21 @@ button{font-family:inherit;cursor:pointer;}
 .form-row label{font-size:12px;color:var(--text-dim);font-weight:600;min-width:80px;}
 .inp{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:8px 12px;font-size:12.5px;outline:none;}
 
+.summary-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:18px 20px;margin-bottom:20px;}
+.summary-row{display:flex;gap:10px;flex-wrap:wrap;}
+.summary-stat{flex:1;min-width:108px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:11px;padding:12px 14px;cursor:pointer;transition:border-color .15s,transform .15s;}
+.summary-stat:hover{border-color:var(--accent);transform:translateY(-1px);}
+.summary-stat.disabled{cursor:default;}
+.summary-stat.disabled:hover{border-color:var(--border-soft);transform:none;}
+.summary-stat .ss-num{font-size:21px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;}
+.summary-stat .ss-label{font-size:10.5px;color:var(--text-faint);margin-top:5px;font-weight:600;}
+.summary-divider{width:1px;background:var(--border-soft);margin:2px 4px;flex-shrink:0;}
+.summary-types{display:flex;gap:14px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border-soft);flex-wrap:wrap;}
+.summary-type-pill{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-dim);}
+.summary-type-pill .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.summary-type-pill b{color:var(--text);font-variant-numeric:tabular-nums;}
+.summary-empty{font-size:11.5px;color:var(--text-faint);margin-top:14px;padding-top:14px;border-top:1px solid var(--border-soft);}
+
 .room-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border-soft);margin-bottom:18px;}
 .room-tab{padding:10px 16px;font-size:13px;font-weight:600;color:var(--text-faint);border-bottom:2px solid transparent;cursor:pointer;}
 .room-tab.active{color:var(--text);border-bottom-color:var(--accent);}
@@ -383,14 +398,33 @@ button{font-family:inherit;cursor:pointer;}
 <div class="wrap">
   <div class="page-head">
     <div>
-      <div class="page-title">⚔️ Battles</div>
-      <div class="page-sub">같은 회차에 번호를 미리 제출하고, 추첨 결과로 승부를 가립니다. 신청시간 매주 일요일 0시 ~ 토요일 오후 8시.</div>
+      <div class="page-title" id="pageTitleArea">⚔️ Battles</div>
+      <div class="page-sub" id="pageSubArea">같은 회차에 번호를 미리 제출하고, 추첨 결과로 승부를 가립니다. 신청시간 매주 일요일 0시 ~ 토요일 오후 8시.</div>
     </div>
-    <button class="btn btn-gold" onclick="BUI.openCreateModal()">+ 방 만들기</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline" id="adminEntryBtn" onclick="BUI.openAdminView()">🔒 관리자</button>
+      <button class="btn btn-gold" onclick="BUI.openCreateModal()">+ 방 만들기</button>
+    </div>
   </div>
 
-  <div class="room-tabs" id="roomTabs"></div>
-  <div id="roomListBody"></div>
+  <!-- ===== 1단계: 종류 선택 화면 ===== -->
+  <div id="viewTypeSelect">
+    <div class="summary-card" id="battleSummary"></div>
+    <div class="type-grid" id="typeSelectGrid" style="margin-top:4px;"></div>
+  </div>
+
+  <!-- ===== 2단계: 방 목록 화면 ===== -->
+  <div id="viewRoomList" style="display:none;">
+    <button class="btn btn-outline" style="margin-bottom:16px;" onclick="BUI.backToTypeSelect()">← 대결종류 선택으로</button>
+    <div class="room-tabs" id="roomTabs"></div>
+    <div id="roomListBody"></div>
+  </div>
+
+  <!-- ===== 관리자 화면 ===== -->
+  <div id="viewAdmin" style="display:none;">
+    <button class="btn btn-outline" style="margin-bottom:16px;" onclick="BUI.backToTypeSelect()">← 대결종류 선택으로</button>
+    <div id="adminBody"></div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="createModal" onclick="if(event.target===this)BUI.closeCreate()">
@@ -411,7 +445,7 @@ button{font-family:inherit;cursor:pointer;}
 // BUI - 화면 컨트롤러
 // =====================================================
 var BUI = {};
-BUI.state = { roomTab: 'waiting', createType: '1v1', selectedBalls: [], currentRoomId: null, joinAsNickname: null };
+BUI.state = { view: 'typeSelect', filterType: null, roomTab: 'waiting', createType: '1v1', selectedBalls: [], currentRoomId: null, joinAsNickname: null };
 BUI.MY_NICK_KEY = 'mll_battle_my_nick';
 
 BUI.getMyNick = function(){
@@ -421,8 +455,73 @@ BUI.getMyNick = function(){
 };
 
 BUI.init = function(){
-  BUI.renderTabs();
-  BUI.renderRoomList();
+  BUI.showTypeSelectView();
+};
+
+BUI.renderSummary = function(){
+  var el = document.getElementById('battleSummary');
+  if (!el) return;
+  var rooms = BATTLE.load();
+
+  if (!rooms.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:24px 20px;">아직 만들어진 배틀 방이 없습니다. 아래에서 대결 종류를 골라 첫 방을 만들어보세요!</div>';
+    BUI.updateAdminBadge(0);
+    return;
+  }
+
+  var statKeys = [
+    { key:'waiting', label:'대기중' },
+    { key:'pending_numbers', label:'번호제출중' },
+    { key:'active', label:'추첨대기' },
+    { key:'stage_running', label:'단계 추첨대기' },
+    { key:'completed', label:'완료' },
+  ];
+  var counts = {};
+  statKeys.forEach(function(s){ counts[s.key] = 0; });
+  var totalParticipants = 0;
+  var typeCounts = { '1v1':0, 'team':0, 'ffa':0, 'tournament':0 };
+
+  rooms.forEach(function(r){
+    if (counts[r.status] != null) counts[r.status]++;
+    totalParticipants += r.participants.length;
+    if (typeCounts[r.type] != null) typeCounts[r.type]++;
+  });
+
+  var statsHtml = statKeys.map(function(s){
+    return '<div class="summary-stat disabled">' +
+      '<div class="ss-num">' + counts[s.key] + '</div>' +
+      '<div class="ss-label">' + s.label + '</div>' +
+    '</div>';
+  }).join('');
+
+  statsHtml += '<div class="summary-divider"></div>' +
+    '<div class="summary-stat disabled">' +
+      '<div class="ss-num" style="color:var(--gold);">' + rooms.length + '</div>' +
+      '<div class="ss-label">전체 방</div>' +
+    '</div>' +
+    '<div class="summary-stat disabled">' +
+      '<div class="ss-num" style="color:var(--gold);">' + totalParticipants + '</div>' +
+      '<div class="ss-label">참가자 누적</div>' +
+    '</div>';
+
+  var typesHtml = Object.keys(typeCounts).map(function(key){
+    var t = BATTLE.TYPES[key];
+    var color = BUI.typeColor(key);
+    return '<div class="summary-type-pill" style="cursor:pointer;" onclick="BUI.openTypeRoomList(\'' + key + '\')" title="' + t.nameKr + ' 방 목록 보기">' +
+      '<span class="dot" style="background:' + color + ';"></span>' + t.nameKr + ' <b>' + typeCounts[key] + '</b></div>';
+  }).join('');
+
+  el.innerHTML = '<div class="summary-row">' + statsHtml + '</div>' +
+    '<div class="summary-types">' + typesHtml + '</div>';
+
+  var gradeableCount = rooms.filter(function(r){ return r.status === 'active' || r.status === 'stage_running'; }).length;
+  BUI.updateAdminBadge(gradeableCount);
+};
+
+BUI.updateAdminBadge = function(count){
+  var btn = document.getElementById('adminEntryBtn');
+  if (!btn) return;
+  btn.innerHTML = '🔒 관리자' + (count > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;margin-left:4px;">' + count + '</span>' : '');
 };
 
 BUI.renderTabs = function(){
@@ -432,7 +531,6 @@ BUI.renderTabs = function(){
     { key:'active', label:'추첨대기' },
     { key:'stage_running', label:'단계 추첨대기' },
     { key:'completed', label:'완료' },
-    { key:'admin', label:'관리자' },
   ];
   document.getElementById('roomTabs').innerHTML = tabs.map(function(t){
     return '<div class="room-tab' + (BUI.state.roomTab===t.key?' active':'') + '" onclick="BUI.setRoomTab(\'' + t.key + '\')">' + t.label + '</div>';
@@ -446,11 +544,78 @@ BUI.setRoomTab = function(key){
 
 BUI.typeColor = function(type){ return { '1v1':'#5b9bd5', 'team':'#3fb37f', 'ffa':'#e8732f', 'tournament':'#e0b341' }[type]; };
 
-BUI.renderRoomList = function(){
-  var body = document.getElementById('roomListBody');
-  if (BUI.state.roomTab === 'admin') { body.innerHTML = BUI.adminHtml(); return; }
+// ── 화면 전환 (1단계: 종류선택 / 2단계: 방목록 / 관리자) ──
+BUI.showView = function(view){
+  BUI.state.view = view;
+  document.getElementById('viewTypeSelect').style.display = (view==='typeSelect') ? '' : 'none';
+  document.getElementById('viewRoomList').style.display = (view==='roomList') ? '' : 'none';
+  document.getElementById('viewAdmin').style.display = (view==='admin') ? '' : 'none';
+};
 
-  var rooms = BATTLE.load().filter(function(r){ return r.status === BUI.state.roomTab; });
+BUI.showTypeSelectView = function(){
+  BUI.state.filterType = null;
+  document.getElementById('pageTitleArea').textContent = '⚔️ Battles';
+  document.getElementById('pageSubArea').textContent = '같은 회차에 번호를 미리 제출하고, 추첨 결과로 승부를 가립니다. 신청시간 매주 일요일 0시 ~ 토요일 오후 8시.';
+  BUI.renderSummary();
+  BUI.renderTypeSelectGrid();
+  BUI.showView('typeSelect');
+};
+
+BUI.openTypeRoomList = function(typeKey){
+  BUI.state.filterType = typeKey;
+  BUI.state.roomTab = 'waiting';
+  var t = BATTLE.TYPES[typeKey];
+  var icons = { '1v1':'⚔️', 'team':'🛡️', 'ffa':'🌀', 'tournament':'🏆' };
+  document.getElementById('pageTitleArea').textContent = icons[typeKey] + ' ' + t.nameKr;
+  var descs = {
+    '1v1': '1:1 정면대결 — 둘 중 결과가 좋은 쪽이 승리합니다.',
+    'team': '두 팀으로 나뉘어, 팀 내 최고성적자끼리 비교합니다.',
+    'ffa': '여러 명이 한꺼번에 참가하고, 1위가 승리합니다.',
+    'tournament': '시스템이 운영하는 토너먼트입니다. 매 단계 추첨 후 하위 성적자가 탈락합니다.',
+  };
+  document.getElementById('pageSubArea').textContent = descs[typeKey];
+  BUI.renderTabs();
+  BUI.renderRoomList();
+  BUI.showView('roomList');
+};
+
+BUI.backToTypeSelect = function(){
+  BUI.showTypeSelectView();
+};
+
+BUI.openAdminView = function(){
+  BUI.adminLoggedIn = BUI.adminLoggedIn || MLL.checkAdmin();
+  document.getElementById('adminBody').innerHTML = BUI.adminHtml();
+  BUI.showView('admin');
+};
+
+BUI.renderTypeSelectGrid = function(){
+  var rooms = BATTLE.load();
+  var icons = { '1v1':'⚔️', 'team':'🛡️', 'ffa':'🌀', 'tournament':'🏆' };
+  var descs = {
+    '1v1': '1:1 정면대결 — 둘 중 결과가 좋은 쪽이 승리',
+    'team': '두 팀으로 나뉘어, 팀 내 최고성적자끼리 비교',
+    'ffa': '여러 명이 한꺼번에, 1위가 승리',
+    'tournament': '매 단계 추첨 후 하위 성적자가 탈락하는 시스템 운영 토너먼트',
+  };
+  document.getElementById('typeSelectGrid').innerHTML = Object.keys(BATTLE.TYPES).map(function(key){
+    var t = BATTLE.TYPES[key];
+    var count = rooms.filter(function(r){ return r.type === key; }).length;
+    var openCount = rooms.filter(function(r){ return r.type === key && r.status === 'waiting'; }).length;
+    return '<div class="type-card" onclick="BUI.openTypeRoomList(\'' + key + '\')">' +
+      '<div class="ti">' + icons[key] + '</div>' +
+      '<div class="tn">' + t.nameKr + '</div>' +
+      '<div class="td">' + descs[key] + '</div>' +
+      '<div style="margin-top:10px;font-size:11px;color:var(--text-faint);">방 ' + count + '개' + (openCount>0 ? ' · <span style="color:var(--accent);font-weight:700;">참가가능 ' + openCount + '개</span>' : '') + '</div>' +
+    '</div>';
+  }).join('');
+};
+
+BUI.renderRoomList = function(){
+  BUI.renderSummary();
+  var body = document.getElementById('roomListBody');
+
+  var rooms = BATTLE.load().filter(function(r){ return r.status === BUI.state.roomTab && r.type === BUI.state.filterType; });
   if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">해당 상태의 방이 없습니다.</div></div>'; return; }
 
   body.innerHTML = '<div class="room-list">' + rooms.map(function(r){
@@ -474,7 +639,7 @@ BUI.statusLabel = function(s){
 
 // ── 방 만들기 ──
 BUI.openCreateModal = function(){
-  BUI.state.createType = '1v1';
+  BUI.state.createType = BUI.state.filterType || '1v1';
   BUI.renderCreateTypeGrid();
   BUI.renderCreateForm();
   document.getElementById('createModal').classList.add('show');
@@ -542,6 +707,7 @@ BUI.submitCreate = function(){
 
   var room = BATTLE.createRoom(opts);
   BUI.closeCreate();
+  BUI.openTypeRoomList(type);
   BUI.setRoomTab('waiting');
   alert('✅ 방이 생성되었습니다! 참가자를 모아보세요.');
   BUI.openRoom(room.id);
@@ -826,12 +992,12 @@ BUI.adminLogin = function(){
   var pw = document.getElementById('adminPwInput').value;
   if (!MLL.tryAdminLogin(pw)) { alert('비밀번호가 올바르지 않습니다.'); return; }
   BUI.adminLoggedIn = true;
-  BUI.renderRoomList();
+  document.getElementById('adminBody').innerHTML = BUI.adminHtml();
 };
 BUI.adminLogout = function(){
   MLL.logoutAdmin();
   BUI.adminLoggedIn = false;
-  BUI.renderRoomList();
+  document.getElementById('adminBody').innerHTML = BUI.adminHtml();
 };
 
 BUI.adminGradeRoom = function(roomId){
@@ -844,7 +1010,8 @@ BUI.adminGradeRoom = function(roomId){
   var result = BATTLE.gradeAndFinish(roomId, nums, bonus);
   if (!result.ok) { alert('⚠️ ' + result.msg); return; }
   alert('✅ 채점이 완료되었습니다!');
-  BUI.renderRoomList();
+  document.getElementById('adminBody').innerHTML = BUI.adminHtml();
+  BUI.renderSummary();
 };
 
 document.addEventListener('DOMContentLoaded', BUI.init);
