@@ -224,7 +224,7 @@ APP.renderMainTabs = function(){
       '<div class="mt-desc">14경기 승/무/패를 전부 맞히면 1등! 맞춘 개수로 등수가 갈려요 — 축구·야구·농구</div>' +
     '</div>' +
     '<div class="main-tab' + (s.mainTab==='PROTO'?' active':'') + '" style="--tab-accent:#5b9bd5;" onclick="APP.setMainTab(\'PROTO\')">' +
-      '<span class="mt-icon">📊</span><span class="mt-title">프로토 (고정배당)</span>' +
+      '<span class="mt-icon">📊</span><span class="mt-title">프로토 (고정배당)</span><button class="help-btn" onclick="event.stopPropagation();APP.openProtoHelp()">?</button>' +
       '<div class="mt-desc">경기마다 정해진 배당률로, 원하는 경기만 골라 조합 구매 — 실제 스포츠북과 같은 방식</div>' +
     '</div>';
 };
@@ -374,10 +374,16 @@ APP.openRankConfirm = function(){
     '베팅금액: ' + betAmount.toLocaleString() + '원\n' +
     '이 등록으로 ' + betAmount.toLocaleString() + 'P가 차감됩니다.';
   document.getElementById('confirmModal').classList.add('show');
+  APP.confirmMode = 'rank';
 };
 APP.closeConfirm = function(){ document.getElementById('confirmModal').classList.remove('show'); };
 
 APP.confirmRegister = function(){
+  if (APP.confirmMode === 'proto') return APP.confirmProtoRegister();
+  return APP.confirmRankRegister();
+};
+
+APP.confirmRankRegister = function(){
   var s = APP.state;
   var game = TOTO.RANK_GAMES[s.sport];
   var round = APP.CURRENT_ROUND[s.sport];
@@ -534,12 +540,16 @@ APP.adminLogin = function(){
   if (pw !== APP.ADMIN_PW) { alert('비밀번호가 올바르지 않습니다.'); return; }
   APP.adminLoggedIn = true;
   sessionStorage.setItem(APP.STORAGE.ADMIN_SESSION, '1');
-  APP.renderTotoSection();
+  APP.renderCurrentSection();
 };
 APP.adminLogout = function(){
   APP.adminLoggedIn = false;
   sessionStorage.removeItem(APP.STORAGE.ADMIN_SESSION);
-  APP.renderTotoSection();
+  APP.renderCurrentSection();
+};
+APP.renderCurrentSection = function(){
+  if (APP.state.mainTab === 'PROTO') APP.renderProtoSection();
+  else APP.renderTotoSection();
 };
 
 APP.adminSaveMatches = function(){
@@ -637,12 +647,170 @@ APP.openResultPopup = function(sport, round, gradedCountOverride){
 };
 APP.closeResultPopup = function(){ document.getElementById('resultModal').classList.remove('show'); };
 
-// ── 프로토 (다음 단계에서 구현) ──
+// ── 프로토(고정배당) ──
 APP.renderProtoComingSoon = function(){
+  var round = APP.PROTO_CURRENT_ROUND;
+  var sectionTabsHtml = ['register','my','stats','admin'].map(function(sec){
+    var labels = { register:'경기 선택', my:'내 등록현황', stats:'통계', admin:'관리자' };
+    return '<div class="section-tab' + (APP.state.section===sec?' active':'') + '" onclick="APP.setProtoSection(\'' + sec + '\')">' + labels[sec] + '</div>';
+  }).join('');
+
+  document.documentElement.style.setProperty('--game-accent', '#5b9bd5');
   document.getElementById('mainTabBody').innerHTML =
-    '<div class="card"><div class="empty-state">⚙️ 프로토(고정배당) 승부식은 다음 업데이트에서 만나요.<br>경기별 배당률 선택, 조합 구매 기능을 준비하고 있어요.</div></div>';
+    '<div class="info-card">' +
+      '<div class="info-item"><div class="k">방식</div><div class="v accent">고정배당 승부식</div></div>' +
+      '<div class="info-item"><div class="k">조합경기수</div><div class="v">2~10경기</div></div>' +
+      '<div class="info-item"><div class="k">베팅금액</div><div class="v">100원~100,000원/회차</div></div>' +
+      '<div class="info-item"><div class="k">현재 회차</div><div class="v accent">제' + round + '회</div></div>' +
+    '</div>' +
+    '<div class="section-tabs">' + sectionTabsHtml + '</div>' +
+    '<div id="protoSectionBody"></div>';
+
+  APP.renderProtoSection();
 };
 
+APP.setProtoSection = function(sec){
+  APP.state.section = sec;
+  APP.renderProtoSection();
+};
+
+APP.renderProtoSection = function(){
+  var body = document.getElementById('protoSectionBody');
+  if (APP.state.section === 'register') { body.innerHTML = APP.protoRegisterHtml(); APP.bindProtoRegisterEvents(); }
+  else if (APP.state.section === 'my') body.innerHTML = APP.protoMyEntriesHtml();
+  else if (APP.state.section === 'stats') body.innerHTML = APP.protoStatsHtml();
+  else if (APP.state.section === 'admin') body.innerHTML = APP.protoAdminHtml();
+};
+
+APP.protoRegisterHtml = function(){
+  var round = APP.PROTO_CURRENT_ROUND;
+  var matches = APP.loadProtoMatches(round);
+  var sel = APP.proto.selections;
+
+  var matchesHtml = matches.map(function(m){
+    var typesHtml = Object.keys(m.odds).map(function(betType){
+      var bt = TOTO.PROTO_BET_TYPES[betType];
+      var outcomesHtml = bt.outcomes.filter(function(o){ return m.odds[betType][o] !== undefined; }).map(function(o){
+        var odd = m.odds[betType][o];
+        var isOn = sel.some(function(s){ return s.matchId===m.matchId && s.betType===betType && s.outcome===o; });
+        return '<button class="pick-btn proto-pick' + (isOn?' on':'') + '" data-match="'+m.matchId+'" data-bettype="'+betType+'" data-outcome="'+o+'" data-odds="'+odd+'" style="display:flex;flex-direction:column;gap:2px;padding:7px 4px;">' +
+          '<span style="font-size:11px;">'+o+'</span><span class="font-num" style="font-size:10px;color:var(--text-dim);">'+odd.toFixed(2)+'</span>' +
+        '</button>';
+      }).join('');
+      return '<div style="margin-bottom:8px;"><div style="font-size:10px;color:var(--text-faint);margin-bottom:4px;">'+bt.nameKr+'</div><div style="display:flex;gap:5px;flex-wrap:wrap;">'+outcomesHtml+'</div></div>';
+    }).join('');
+
+    return '<div class="card" style="margin-bottom:10px;padding:16px 18px;">' +
+      '<div style="font-size:13px;font-weight:700;margin-bottom:10px;">'+m.home+' <span class="vs" style="color:var(--text-faint);font-weight:400;font-size:11px;">vs</span> '+m.away+'</div>' +
+      typesHtml +
+    '</div>';
+  }).join('');
+
+  var combinedOdds = sel.length ? TOTO.calcProtoCombinedOdds(sel) : 0;
+  var selHtml = sel.length ? sel.map(function(s, i){
+    var m = matches.find(function(x){ return x.matchId===s.matchId; });
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:11.5px;">' +
+      '<span>'+m.home+' vs '+m.away+' · '+TOTO.PROTO_BET_TYPES[s.betType].nameKr+' · <b style="color:var(--blue);">'+s.outcome+'</b></span>' +
+      '<span class="font-num">'+s.odds.toFixed(2)+' <button onclick="APP.removeProtoSelection('+i+')" style="background:none;border:none;color:var(--text-faint);cursor:pointer;margin-left:6px;">✕</button></span>' +
+    '</div>';
+  }).join('') : '<div style="color:var(--text-faint);font-size:12px;padding:10px 0;">경기를 선택해 조합을 만들어보세요 (2경기 이상)</div>';
+
+  var canRegister = sel.length >= TOTO.PROTO_MIN_MATCHES;
+
+  return '<div style="display:grid;grid-template-columns:1.6fr 1fr;gap:18px;align-items:start;">' +
+    '<div>' + matchesHtml + '</div>' +
+    '<div class="card" style="position:sticky;top:80px;">' +
+      '<h3>내 조합 (' + sel.length + '경기)</h3>' +
+      selHtml +
+      '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border-soft);">' +
+        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px;"><span>조합 배당률</span><b class="font-num" style="color:var(--blue);font-size:16px;">'+combinedOdds.toFixed(2)+'</b></div>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
+          '<span style="font-size:12px;color:var(--text-dim);">베팅금액</span>' +
+          '<input type="number" class="cnt-in" id="protoStake" value="'+APP.proto.stake+'" min="100" max="100000" step="100" style="width:100px;">' +
+        '</div>' +
+        '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;">예상 적중금: <b class="font-num" style="color:var(--green);">'+(Math.floor(APP.proto.stake*combinedOdds)).toLocaleString()+'원</b></div>' +
+        '<button class="btn" style="width:100%;background:var(--blue);color:#fff;border:none;" ' + (canRegister?'':'disabled') + ' onclick="APP.openProtoConfirm()">조합 등록하기</button>' +
+        '<button class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="APP.proto.selections=[];APP.renderProtoSection();">↺ 조합 초기화</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+};
+
+APP.bindProtoRegisterEvents = function(){
+  document.querySelectorAll('.proto-pick').forEach(function(btn){
+    btn.onclick = function(){
+      var matchId = parseInt(this.dataset.match);
+      var betType = this.dataset.bettype;
+      var outcome = this.dataset.outcome;
+      var odds = parseFloat(this.dataset.odds);
+      var sel = APP.proto.selections;
+      var idx = sel.findIndex(function(s){ return s.matchId===matchId && s.betType===betType; });
+      if (idx >= 0 && sel[idx].outcome === outcome) {
+        sel.splice(idx, 1); // 같은 걸 다시 누르면 해제
+      } else if (idx >= 0) {
+        sel[idx] = { matchId:matchId, betType:betType, outcome:outcome, odds:odds }; // 같은 경기·유형의 다른 결과로 교체
+      } else {
+        sel.push({ matchId:matchId, betType:betType, outcome:outcome, odds:odds });
+      }
+      APP.renderProtoSection();
+    };
+  });
+  var stakeInput = document.getElementById('protoStake');
+  if (stakeInput) stakeInput.oninput = function(){ APP.proto.stake = parseInt(this.value)||0; APP.renderProtoSection(); };
+};
+
+APP.removeProtoSelection = function(idx){
+  APP.proto.selections.splice(idx, 1);
+  APP.renderProtoSection();
+};
+
+APP.openProtoConfirm = function(){
+  var sel = APP.proto.selections;
+  var stake = Math.max(TOTO.PROTO_MIN_BET, Math.min(TOTO.PROTO_MAX_BET, parseInt(document.getElementById('protoStake').value) || APP.proto.stake));
+  APP.proto.stake = stake;
+
+  var pt = APP.getPoints();
+  if (pt.balance < stake) { alert('포인트가 부족합니다.'); return; }
+
+  var matches = APP.loadProtoMatches(APP.PROTO_CURRENT_ROUND);
+  var combinedOdds = TOTO.calcProtoCombinedOdds(sel);
+  var summary = sel.map(function(s){
+    var m = matches.find(function(x){ return x.matchId===s.matchId; });
+    return m.home+'vs'+m.away+' '+TOTO.PROTO_BET_TYPES[s.betType].nameKr+':'+s.outcome;
+  }).join('\n');
+
+  document.getElementById('confirmTitle').textContent = '프로토 조합 등록 확인';
+  document.getElementById('confirmBody').textContent =
+    summary + '\n\n' +
+    '조합 배당률: ' + combinedOdds.toFixed(2) + '\n' +
+    '베팅금액: ' + stake.toLocaleString() + '원\n' +
+    '적중 시 예상 적중금: ' + Math.floor(stake*combinedOdds).toLocaleString() + '원\n\n' +
+    '이 등록으로 ' + stake.toLocaleString() + 'P가 차감됩니다.';
+  document.getElementById('confirmModal').classList.add('show');
+  APP.confirmMode = 'proto';
+};
+
+APP.confirmProtoRegister = function(){
+  var sel = APP.proto.selections;
+  var stake = APP.proto.stake;
+  var combinedOdds = TOTO.calcProtoCombinedOdds(sel);
+
+  var ok = APP.deductPoints(stake, '프로토 제' + APP.PROTO_CURRENT_ROUND + '회 조합 등록');
+  if (!ok) { alert('포인트가 부족합니다.'); APP.closeConfirm(); return; }
+
+  APP.addProtoEntry({
+    round: APP.PROTO_CURRENT_ROUND,
+    selections: sel.slice(),
+    stake: stake,
+    combinedOdds: combinedOdds,
+    registeredAt: Date.now()
+  });
+
+  APP.closeConfirm();
+  APP.proto.selections = [];
+  alert('등록되었습니다!');
+  APP.renderAll();
+};
 // ── 종목별 간단 설명 팝업 ──
 APP.openHelp = function(sportCode){
   var game = TOTO.RANK_GAMES[sportCode];
@@ -651,3 +819,230 @@ APP.openHelp = function(sportCode){
   document.getElementById('helpModal').classList.add('show');
 };
 APP.closeHelp = function(){ document.getElementById('helpModal').classList.remove('show'); };
+
+// =====================================================
+// 프로토 (고정배당 승부식)
+// =====================================================
+APP.proto = {
+  selections: [],    // [{ matchId, betType, outcome, odds, label }]
+  stake: 5000,
+};
+
+APP.loadProtoEntries = function(){
+  try { return JSON.parse(localStorage.getItem(APP.STORAGE.PROTO_ENTRIES) || '[]'); } catch(e){ return []; }
+};
+APP.saveProtoEntries = function(list){ localStorage.setItem(APP.STORAGE.PROTO_ENTRIES, JSON.stringify(list)); };
+APP.addProtoEntry = function(entry){
+  var list = APP.loadProtoEntries();
+  entry.id = 'p_' + Date.now() + '_' + Math.floor(Math.random()*100000);
+  entry.graded = false;
+  entry.won = null;
+  entry.payout = 0;
+  list.push(entry);
+  APP.saveProtoEntries(list);
+  return entry;
+};
+
+APP.loadProtoRounds = function(){
+  try { return JSON.parse(localStorage.getItem(APP.STORAGE.PROTO_ROUNDS) || '{}'); } catch(e){ return {}; }
+};
+APP.saveProtoRounds = function(obj){ localStorage.setItem(APP.STORAGE.PROTO_ROUNDS, JSON.stringify(obj)); };
+APP.PROTO_CURRENT_ROUND = 12;
+APP.protoRoundKey = function(round){ return 'P' + round; };
+
+// 시드: 월드컵 조별리그 8경기 + 임의의 합리적인 배당률(실제 배당률 아님, 예시) — 관리자가 실제 값으로 교체 가능
+APP.PROTO_DEFAULT_MATCHES = [
+  { matchId:1, home:'퀴라소', away:'코트디부아르', odds:{ GENERAL:{승:4.20,무:3.10,패:1.75}, UNDEROVER:{U:1.85,O:1.95}, SUM:{홀:1.90,짝:1.90}, DOUBLE:{승무:1.65,무패:1.20,승패:1.05} } },
+  { matchId:2, home:'에콰도르', away:'독일', odds:{ GENERAL:{승:3.40,무:3.05,패:2.05}, UNDEROVER:{U:1.95,O:1.85}, SUM:{홀:1.90,짝:1.90} } },
+  { matchId:3, home:'일본', away:'스웨덴', odds:{ GENERAL:{승:2.30,무:3.00,패:3.10}, HANDICAP:{승:2.55,무:3.10,패:2.65}, UNDEROVER:{U:2.00,O:1.80} } },
+  { matchId:4, home:'튀니지', away:'네덜란드', odds:{ GENERAL:{승:5.50,무:3.40,패:1.55}, UNDEROVER:{U:1.80,O:2.00}, DOUBLE:{승무:2.30,무패:1.10,승패:1.05} } },
+  { matchId:5, home:'튀르키예', away:'미국', odds:{ GENERAL:{승:2.45,무:3.05,패:2.85}, UNDEROVER:{U:1.95,O:1.85}, SUM:{홀:1.88,짝:1.92} } },
+  { matchId:6, home:'노르웨이', away:'프랑스', odds:{ GENERAL:{승:3.60,무:3.20,패:1.95}, HANDICAP:{승:2.60,무:3.15,패:2.55} } },
+  { matchId:7, home:'우루과이', away:'스페인', odds:{ GENERAL:{승:2.90,무:2.95,패:2.40}, UNDEROVER:{U:1.90,O:1.90}, DOUBLE:{승무:1.50,무패:1.35,승패:1.10} } },
+  { matchId:8, home:'파나마', away:'잉글랜드', odds:{ GENERAL:{승:6.50,무:3.80,패:1.45}, UNDEROVER:{U:1.85,O:1.95} } },
+];
+
+APP.loadProtoMatches = function(round){
+  var rounds = APP.loadProtoRounds();
+  var k = APP.protoRoundKey(round);
+  if (rounds[k] && rounds[k].matches) return rounds[k].matches;
+  return APP.PROTO_DEFAULT_MATCHES;
+};
+
+// ── 프로토 내 등록현황 ──
+APP.protoMyEntriesHtml = function(){
+  var entries = APP.loadProtoEntries().sort(function(a,b){ return b.registeredAt - a.registeredAt; });
+  if (!entries.length) return '<div class="card"><div class="empty-state">등록한 조합이 없습니다.</div></div>';
+
+  var matches = APP.loadProtoMatches(APP.PROTO_CURRENT_ROUND);
+  var rows = entries.map(function(e){
+    var selStr = e.selections.map(function(s){
+      var m = matches.find(function(x){ return x.matchId===s.matchId; }) || { home:'?', away:'?' };
+      return m.home+'/'+TOTO.PROTO_BET_TYPES[s.betType].nameKr+'/'+s.outcome;
+    }).join(', ');
+    var statusHtml = !e.graded ? '<span class="grade-tag lose">추첨 대기</span>' :
+      (e.won ? '<span class="grade-tag win">적중</span>' : '<span class="grade-tag lose">미적중</span>');
+    var d = new Date(e.registeredAt);
+    var regStr = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    return '<tr>' +
+      '<td class="font-num">제'+e.round+'회</td>' +
+      '<td style="text-align:left;font-size:11px;">'+selStr+'</td>' +
+      '<td class="font-num">'+e.combinedOdds.toFixed(2)+'</td>' +
+      '<td class="font-num">'+e.stake.toLocaleString()+'원</td>' +
+      '<td>'+statusHtml+'</td>' +
+      '<td class="font-num">'+(e.payout?e.payout.toLocaleString()+'원':'-')+'</td>' +
+      '<td class="font-num">'+regStr+'</td>' +
+    '</tr>';
+  }).join('');
+
+  return '<div class="card"><table class="data-table"><thead><tr>' +
+    '<th>회차</th><th>조합내역</th><th>배당률</th><th>베팅금액</th><th>결과</th><th>적중금</th><th>등록일</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+};
+
+// ── 프로토 통계 ──
+APP.protoStatsHtml = function(){
+  var entries = APP.loadProtoEntries();
+  var total = entries.length;
+  var won = entries.filter(function(e){ return e.graded && e.won; }).length;
+  var stakeSum = entries.reduce(function(s,e){ return s+e.stake; }, 0);
+  var payoutSum = entries.reduce(function(s,e){ return s+(e.payout||0); }, 0);
+  var rate = total ? (won/total*100) : 0;
+
+  return '<div class="card"><h3>프로토 누적 통계</h3><div class="stat-grid">' +
+    '<div class="stat-box"><div class="slabel">총 등록조합</div><div class="sval">'+total+'건</div></div>' +
+    '<div class="stat-box"><div class="slabel">적중</div><div class="sval">'+won+'건 ('+rate.toFixed(1)+'%)</div></div>' +
+    '<div class="stat-box"><div class="slabel">총 베팅금액</div><div class="sval font-num" style="font-size:16px;">'+stakeSum.toLocaleString()+'원</div></div>' +
+    '<div class="stat-box"><div class="slabel">총 적중금</div><div class="sval font-num" style="font-size:16px;">'+payoutSum.toLocaleString()+'원</div></div>' +
+  '</div></div>';
+};
+
+// ── 프로토 관리자 ──
+APP.protoAdminHtml = function(){
+  if (!APP.adminLoggedIn) {
+    var saved = sessionStorage.getItem(APP.STORAGE.ADMIN_SESSION);
+    if (saved === '1') APP.adminLoggedIn = true;
+  }
+  if (!APP.adminLoggedIn) {
+    return '<div class="card"><div class="admin-lock">' +
+      '<div>관리자 비밀번호</div>' +
+      '<input type="password" id="adminPwInput" onkeydown="if(event.key===\'Enter\')APP.adminLogin();">' +
+      '<button class="btn btn-accent" onclick="APP.adminLogin()">입장</button>' +
+    '</div></div>';
+  }
+
+  var round = APP.PROTO_CURRENT_ROUND;
+  var matches = APP.loadProtoMatches(round);
+  var betTypeKeys = Object.keys(TOTO.PROTO_BET_TYPES);
+
+  var matchInputsHtml = matches.map(function(m){
+    var oddsInputs = betTypeKeys.map(function(btKey){
+      var bt = TOTO.PROTO_BET_TYPES[btKey];
+      var outcomeInputs = bt.outcomes.map(function(o){
+        var cur = (m.odds[btKey] && m.odds[btKey][o] !== undefined) ? m.odds[btKey][o] : '';
+        return '<input class="cnt-in proto-odds-input" data-match="'+m.matchId+'" data-bettype="'+btKey+'" data-outcome="'+o+'" value="'+cur+'" placeholder="'+o+'" style="width:62px;">';
+      }).join('');
+      return '<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;"><span style="font-size:10.5px;color:var(--text-faint);width:62px;">'+bt.nameKr+'</span>'+outcomeInputs+'</div>';
+    }).join('');
+    var resultInputs = betTypeKeys.map(function(btKey){
+      var bt = TOTO.PROTO_BET_TYPES[btKey];
+      return '<select class="cnt-in proto-result-input" data-match="'+m.matchId+'" data-bettype="'+btKey+'" style="width:90px;">' +
+        '<option value="">'+bt.nameKr+':미입력</option>' +
+        bt.outcomes.map(function(o){ return '<option value="'+o+'">'+bt.nameKr+':'+o+'</option>'; }).join('') +
+      '</select>';
+    }).join(' ');
+
+    return '<div class="card" style="margin-bottom:10px;">' +
+      '<div style="display:flex;gap:8px;margin-bottom:8px;">' +
+        '<input class="cnt-in admin-proto-home" data-match="'+m.matchId+'" value="'+m.home+'" style="flex:1;">' +
+        '<input class="cnt-in admin-proto-away" data-match="'+m.matchId+'" value="'+m.away+'" style="flex:1;">' +
+      '</div>' +
+      '<div style="font-size:10.5px;color:var(--text-faint);margin-bottom:4px;">배당률 입력</div>' +
+      oddsInputs +
+      '<div style="font-size:10.5px;color:var(--text-faint);margin:8px 0 4px;">실제 결과 입력</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + resultInputs + '</div>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">' +
+    '<div style="font-size:12.5px;color:var(--text-dim);">🔓 관리자로 로그인됨</div>' +
+    '<button class="btn btn-outline" onclick="APP.adminLogout()">로그아웃</button>' +
+  '</div>' +
+  '<div class="card"><h3>프로토 제' + round + '회 — 경기·배당률·결과 입력</h3>' +
+    '<p style="font-size:11px;color:var(--text-faint);margin-bottom:14px;">⚠️ 실시간 배당률 자동연동은 아직 없습니다. 베트맨(betman.co.kr) 등에서 실제 배당률을 확인해 직접 입력해주세요.</p>' +
+  '</div>' +
+  matchInputsHtml +
+  '<button class="btn btn-accent" onclick="APP.adminSaveProtoMatches()">배당률 저장</button> ' +
+  '<button class="btn btn-accent" onclick="APP.adminSaveProtoResults()">결과 저장 + 자동채점</button>';
+};
+
+APP.adminSaveProtoMatches = function(){
+  var round = APP.PROTO_CURRENT_ROUND;
+  var matches = APP.loadProtoMatches(round).map(function(m){ return Object.assign({}, m, { odds: {} }); });
+
+  document.querySelectorAll('.admin-proto-home').forEach(function(el){
+    var m = matches.find(function(x){ return x.matchId===parseInt(el.dataset.match); });
+    if (m) m.home = el.value;
+  });
+  document.querySelectorAll('.admin-proto-away').forEach(function(el){
+    var m = matches.find(function(x){ return x.matchId===parseInt(el.dataset.match); });
+    if (m) m.away = el.value;
+  });
+  document.querySelectorAll('.proto-odds-input').forEach(function(el){
+    var matchId = parseInt(el.dataset.match), betType = el.dataset.bettype, outcome = el.dataset.outcome;
+    var val = parseFloat(el.value);
+    if (!val) return;
+    var m = matches.find(function(x){ return x.matchId===matchId; });
+    if (!m) return;
+    m.odds[betType] = m.odds[betType] || {};
+    m.odds[betType][outcome] = val;
+  });
+
+  var rounds = APP.loadProtoRounds();
+  var k = APP.protoRoundKey(round);
+  rounds[k] = rounds[k] || { round: round };
+  rounds[k].matches = matches;
+  APP.saveProtoRounds(rounds);
+  alert('배당률을 저장했습니다.');
+  APP.renderProtoSection();
+};
+
+APP.adminSaveProtoResults = function(){
+  var round = APP.PROTO_CURRENT_ROUND;
+  var actualResults = {}; // { matchId: { betType: outcome } }
+  document.querySelectorAll('.proto-result-input').forEach(function(el){
+    if (!el.value) return;
+    var matchId = parseInt(el.dataset.match), betType = el.dataset.bettype;
+    actualResults[matchId] = actualResults[matchId] || {};
+    actualResults[matchId][betType] = el.value;
+  });
+
+  var rounds = APP.loadProtoRounds();
+  var k = APP.protoRoundKey(round);
+  rounds[k] = rounds[k] || { round: round, matches: APP.loadProtoMatches(round) };
+  rounds[k].actualResults = actualResults;
+  rounds[k].announcedAt = new Date().toISOString().slice(0,10);
+  APP.saveProtoRounds(rounds);
+
+  var entries = APP.loadProtoEntries();
+  var gradedCount = 0;
+  entries.forEach(function(e){
+    if (e.round !== round) return;
+    var g = TOTO.gradeProtoTicket(e.selections, actualResults);
+    e.graded = true;
+    e.won = g.won;
+    e.payout = TOTO.calcProtoPayout(e.stake, e.combinedOdds, g.won);
+    gradedCount++;
+  });
+  APP.saveProtoEntries(entries);
+
+  alert(gradedCount + '건 채점 완료!');
+  APP.renderProtoSection();
+};
+
+APP.openProtoHelp = function(){
+  document.getElementById('helpTitle').textContent = '프로토(고정배당 승부식)란?';
+  document.getElementById('helpBody').textContent =
+    '경기마다 정해진 배당률로 베팅하는, 실제 스포츠북과 가장 비슷한 방식이에요. 토토(등수제)와 가장 다른 점은 "내가 원하는 경기만 골라서" 2~10경기를 조합할 수 있고, 배당률이 구매 시점에 이미 확정된다는 점이에요(나중에 재계산되지 않아요). 조합한 경기들의 배당률을 모두 곱한 값이 최종 배당률이 되고, 선택한 경기를 전부 맞혀야 적중이에요. 유형은 5가지: 일반(승무패), 핸디캡(전력차 보정), 언더오버(득점합 기준), SUM(득점합 홀짝), 더블찬스(두 가지 결과 중 하나) — 경기마다 제공되는 유형이 다를 수 있어요.';
+  document.getElementById('helpModal').classList.add('show');
+};
