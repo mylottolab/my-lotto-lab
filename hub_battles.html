@@ -86,12 +86,16 @@ BATTLE.createRoom = function(opts){
     round: opts.round,
     maxParticipants: opts.maxParticipants || type.size,
     teamCount: opts.teamCount || type.teamCount || null,
-    status: 'waiting', // waiting -> pending_numbers -> active -> completed
+    status: 'waiting', // waiting -> pending_numbers -> (stage_running, 토너먼트만 반복) -> active -> completed
     createdAt: Date.now(),
     participants: [],
     result: null,
     winnerIds: [],
-    bracketLog: null,
+    bracketLog: [], // 토너먼트: 단계별 진행 기록. 그 외 타입은 항상 빈 배열
+    // ── 토너먼트 전용 진행상태 ──
+    stage: 1,                 // 현재 몇 단계인지
+    stageRound: opts.round,   // 현재 단계가 어느 회차 추첨을 기다리는지
+    aliveIds: [],             // 현재 단계까지 생존한 참가자 id 목록 (정원이 차면 채워짐)
   };
   rooms.unshift(room);
   BATTLE.save(rooms);
@@ -123,7 +127,10 @@ BATTLE.joinRoom = function(roomId, nickname, side){
   var typeInfo = BATTLE.TYPES[room.type];
   var full = typeInfo.variableSize ? (room.participants.length >= 2 && room.participants.length >= room.maxParticipants)
                                     : (room.participants.length >= room.maxParticipants);
-  if (full) room.status = 'pending_numbers';
+  if (full) {
+    room.status = 'pending_numbers';
+    if (room.type === 'tournament') room.aliveIds = room.participants.map(function(p){ return p.id; });
+  }
 
   BATTLE.save(rooms);
   return { ok:true, room:room };
@@ -151,11 +158,28 @@ BATTLE.submitPicks = function(roomId, participantId, picks){
   p.picks = picks.slice().sort(function(a,b){return a-b;});
   p.submittedAt = Date.now();
 
-  var allSubmitted = room.participants.every(function(x){ return !!x.picks; });
-  if (allSubmitted) room.status = 'active';
+  if (room.type === 'tournament') {
+    var aliveSet = room.aliveIds;
+    var aliveParticipants = room.participants.filter(function(x){ return aliveSet.indexOf(x.id) >= 0; });
+    var allAliveSubmitted = aliveParticipants.every(function(x){ return !!x.picks; });
+    if (allAliveSubmitted) room.status = 'stage_running';
+  } else {
+    var allSubmitted = room.participants.every(function(x){ return !!x.picks; });
+    if (allSubmitted) room.status = 'active';
+  }
 
   BATTLE.save(rooms);
   return { ok:true, room:room };
+};
+
+// 생존자가 "같은 번호로 다음 단계 계속하기"를 선택했을 때 - 이전 picks를 그대로 복사해 제출 처리
+BATTLE.keepSamePicks = function(roomId, participantId){
+  var rooms = BATTLE.load();
+  var room = rooms.find(function(r){ return r.id === roomId; });
+  if (!room) return { ok:false };
+  var p = room.participants.find(function(x){ return x.id === participantId; });
+  if (!p || !p.lastPicks) return { ok:false, msg:'이전에 사용한 번호가 없습니다.' };
+  return BATTLE.submitPicks(roomId, participantId, p.lastPicks);
 };
 
 // 두 참가자를 비교해서 더 나은 쪽을 반환 (-1: a승, 1: b승, 0: 무승부)
@@ -170,6 +194,7 @@ BATTLE.gradeAndFinish = function(roomId, winNums, bonus){
   var rooms = BATTLE.load();
   var room = rooms.find(function(r){ return r.id === roomId; });
   if (!room) return { ok:false, msg:'방을 찾을 수 없습니다.' };
+  if (room.type === 'tournament') return BATTLE.advanceTournamentStage(roomId, winNums, bonus);
   if (room.status !== 'active') return { ok:false, msg:'아직 모든 참가자가 번호를 제출하지 않았거나, 이미 종료된 방입니다.' };
 
   room.participants.forEach(function(p){
@@ -196,28 +221,6 @@ BATTLE.gradeAndFinish = function(roomId, winNums, bonus){
     var winningTeam = parseInt(teamOrder[0]);
     room.winningSide = winningTeam;
     room.winnerIds = room.participants.filter(function(p){ return p.side === winningTeam; }).map(function(p){ return p.id; });
-
-  } else if (room.type === 'tournament') {
-    var bracketLog = [];
-    var current = room.participants.slice(); // 등록 순서 = 최초 시드
-    var stageNo = 1;
-    while (current.length > 1) {
-      var nextStage = [];
-      var stageMatches = [];
-      for (var i=0; i<current.length; i+=2) {
-        if (i+1 >= current.length) { nextStage.push(current[i]); continue; } // 부전승
-        var p1 = current[i], p2 = current[i+1];
-        var cmp = BATTLE.compareParticipants(p1, p2);
-        var winner = cmp <= 0 ? p1 : p2; // 0(무승부)이면 먼저 등록한 p1이 진출(시드 우선)
-        stageMatches.push({ p1Id:p1.id, p2Id:p2.id, winnerId:winner.id });
-        nextStage.push(winner);
-      }
-      bracketLog.push({ stage: stageNo, matches: stageMatches });
-      current = nextStage;
-      stageNo++;
-    }
-    room.bracketLog = bracketLog;
-    room.winnerIds = current.length ? [current[0].id] : [];
   }
 
   room.status = 'completed';
@@ -229,6 +232,52 @@ BATTLE.gradeAndFinish = function(roomId, winNums, bonus){
 BATTLE.deleteRoom = function(roomId){
   var rooms = BATTLE.load().filter(function(r){ return r.id !== roomId; });
   BATTLE.save(rooms);
+};
+
+// 토너먼트 단계 진행: 이 단계(stage)의 실제 추첨결과가 나오면 생존자 중 절반이 탈락하고,
+// 남은 인원이 1명이 될 때까지 다음 단계(다음 회차)로 계속 진행한다.
+// 즉 "3단계 토너먼트"라면 실제로 3번의 서로 다른 회차 추첨결과를 거쳐야 우승자가 나온다.
+BATTLE.advanceTournamentStage = function(roomId, winNums, bonus){
+  var rooms = BATTLE.load();
+  var room = rooms.find(function(r){ return r.id === roomId; });
+  if (!room) return { ok:false, msg:'방을 찾을 수 없습니다.' };
+  if (room.status !== 'stage_running') return { ok:false, msg:'아직 이 단계의 생존자 전원이 번호를 제출하지 않았거나, 진행 단계가 아닙니다.' };
+
+  var alive = room.participants.filter(function(p){ return room.aliveIds.indexOf(p.id) >= 0; });
+  alive.forEach(function(p){
+    p.grade = MLL.raceGrade(p.picks, winNums, bonus);
+    p.matchCount = MLL.matchCount(p.picks, winNums);
+    p.lastPicks = p.picks; // "다음 단계도 같은 번호 쓰기" 옵션을 위해 보관
+  });
+  room.result = { nums: winNums, bonus: bonus }; // 가장 최근 단계의 결과(화면 표시용)
+
+  var stageMatches = [];
+  var survivors = [];
+  for (var i=0; i<alive.length; i+=2) {
+    if (i+1 >= alive.length) { survivors.push(alive[i]); continue; } // 부전승(인원이 홀수일 때)
+    var p1 = alive[i], p2 = alive[i+1];
+    var cmp = BATTLE.compareParticipants(p1, p2);
+    var winner = cmp <= 0 ? p1 : p2; // 0(무승부)이면 먼저 등록한 p1이 진출(시드 우선)
+    stageMatches.push({ p1Id:p1.id, p2Id:p2.id, winnerId:winner.id, round: room.stageRound });
+    survivors.push(winner);
+  }
+  room.bracketLog.push({ stage: room.stage, round: room.stageRound, matches: stageMatches });
+
+  if (survivors.length <= 1) {
+    room.winnerIds = survivors.length ? [survivors[0].id] : [];
+    room.status = 'completed';
+    room.completedAt = Date.now();
+  } else {
+    // 다음 단계로 진행: 생존자만 남기고, 번호는 일단 비워서 "유지/재등록"을 다시 선택하게 한다
+    room.aliveIds = survivors.map(function(p){ return p.id; });
+    survivors.forEach(function(p){ p.picks = null; p.submittedAt = null; });
+    room.stage += 1;
+    room.stageRound += 1;
+    room.status = 'pending_numbers';
+  }
+
+  BATTLE.save(rooms);
+  return { ok:true, room:room };
 };
 </script>
 
@@ -295,6 +344,7 @@ button{font-family:inherit;cursor:pointer;}
 .status-waiting{background:rgba(91,156,213,.15);color:var(--blue);}
 .status-pending_numbers{background:rgba(224,179,65,.15);color:var(--gold);}
 .status-active{background:rgba(63,179,127,.15);color:var(--green);}
+.status-stage_running{background:rgba(232,115,47,.15);color:var(--accent);}
 .status-completed{background:var(--surface-2);color:var(--text-faint);}
 
 .empty-state{text-align:center;padding:50px 20px;color:var(--text-faint);font-size:13px;}
@@ -303,6 +353,9 @@ button{font-family:inherit;cursor:pointer;}
 .modal-overlay.show{display:flex;}
 .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;padding:26px;}
 .modal-box h3{margin-bottom:14px;font-size:16px;}
+.modal-box{position:relative;}
+.modal-close-x{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:5;}
+.modal-close-x:hover{background:var(--red);color:#fff;border-color:var(--red);}
 
 .ball-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;margin-bottom:14px;}
 .ball-btn{aspect-ratio:1;border-radius:50%;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;}
@@ -342,6 +395,7 @@ button{font-family:inherit;cursor:pointer;}
 
 <div class="modal-overlay" id="createModal" onclick="if(event.target===this)BUI.closeCreate()">
   <div class="modal-box">
+    <button class="modal-close-x" onclick="BUI.closeCreate()" title="닫기">✕</button>
     <h3>새 배틀 만들기</h3>
     <div class="type-grid" id="createTypeGrid"></div>
     <div id="createFormBody"></div>
@@ -376,6 +430,7 @@ BUI.renderTabs = function(){
     { key:'waiting', label:'대기중' },
     { key:'pending_numbers', label:'번호제출중' },
     { key:'active', label:'추첨대기' },
+    { key:'stage_running', label:'단계 추첨대기' },
     { key:'completed', label:'완료' },
     { key:'admin', label:'관리자' },
   ];
@@ -401,19 +456,20 @@ BUI.renderRoomList = function(){
   body.innerHTML = '<div class="room-list">' + rooms.map(function(r){
     var typeInfo = BATTLE.TYPES[r.type];
     var color = BUI.typeColor(r.type);
+    var stageInfo = (r.type === 'tournament') ? (' · ' + r.stage + '단계') : '';
     return '<div class="room-card" onclick="BUI.openRoom(\'' + r.id + '\')">' +
       '<div class="rc-top">' +
-        '<span class="rc-type" style="background:' + color + '22;color:' + color + ';">' + typeInfo.nameKr + '</span>' +
+        '<span class="rc-type" style="background:' + color + '22;color:' + color + ';">' + typeInfo.nameKr + stageInfo + '</span>' +
         '<span class="status-tag status-' + r.status + '">' + BUI.statusLabel(r.status) + '</span>' +
       '</div>' +
       '<div class="rc-name">' + r.name + '</div>' +
-      '<div class="rc-meta">제' + r.round + '회 · 참가자 ' + r.participants.length + '/' + r.maxParticipants + '명</div>' +
+      '<div class="rc-meta">제' + (r.type==='tournament'?r.stageRound:r.round) + '회 · 참가자 ' + r.participants.length + '/' + r.maxParticipants + '명</div>' +
     '</div>';
   }).join('') + '</div>';
 };
 
 BUI.statusLabel = function(s){
-  return { waiting:'대기중', pending_numbers:'번호제출중', active:'추첨대기', completed:'완료' }[s] || s;
+  return { waiting:'대기중', pending_numbers:'번호제출중', active:'추첨대기', stage_running:'단계 추첨대기', completed:'완료' }[s] || s;
 };
 
 // ── 방 만들기 ──
@@ -430,7 +486,7 @@ BUI.renderCreateTypeGrid = function(){
     '1v1': '1:1 정면대결 — 둘 중 결과가 좋은 쪽이 승리',
     'team': '두 팀으로 나뉘어, 팀 내 최고성적자끼리 비교',
     'ffa': '여러 명이 한꺼번에, 1위가 승리',
-    'tournament': '대결을 거쳐 최종 우승자를 가리는 토너먼트',
+    'tournament': '시스템이 운영하는 토너먼트입니다. 매 단계 추첨 후 하위 성적자가 탈락하며, 생존자는 번호를 그대로 쓰거나 새로 등록할 수 있어요. (예: 8명 토너먼트는 실제 추첨 3번을 거쳐야 우승자가 나와요)',
   };
   document.getElementById('createTypeGrid').innerHTML = Object.keys(BATTLE.TYPES).map(function(key){
     var t = BATTLE.TYPES[key];
@@ -511,11 +567,11 @@ BUI.renderRoomModal = function(){
   var myParticipant = room.participants.find(function(p){ return p.nickname === myNick; });
 
   var header =
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">' +
-      '<h3>' + room.name + '</h3>' +
-      '<button onclick="BUI.closeRoom()" style="background:none;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;">✕</button>' +
+    '<button class="modal-close-x" onclick="BUI.closeRoom()" title="닫기">✕</button>' +
+    '<div style="margin-bottom:6px;padding-right:36px;">' +
+      '<h3 style="margin-bottom:0;">' + room.name + '</h3>' +
     '</div>' +
-    '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:16px;">' + typeInfo.nameKr + ' · 제' + room.round + '회 · <span class="status-tag status-' + room.status + '">' + BUI.statusLabel(room.status) + '</span></div>';
+    '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:16px;">' + typeInfo.nameKr + ' · 제' + (room.type==='tournament'?room.stageRound:room.round) + '회' + (room.type==='tournament'?(' · '+room.stage+'단계'):'') + ' · <span class="status-tag status-' + room.status + '">' + BUI.statusLabel(room.status) + '</span></div>';
 
   var bodyHtml = '';
   if (room.status === 'waiting') {
@@ -524,12 +580,16 @@ BUI.renderRoomModal = function(){
     bodyHtml = BUI.roomPendingHtml(room, myParticipant);
   } else if (room.status === 'active') {
     bodyHtml = BUI.roomActiveHtml(room);
+  } else if (room.status === 'stage_running') {
+    bodyHtml = BUI.roomStageRunningHtml(room);
   } else if (room.status === 'completed') {
     bodyHtml = BUI.roomCompletedHtml(room);
   }
 
   box.innerHTML = header + bodyHtml;
-  if (room.status === 'pending_numbers' && myParticipant && !myParticipant.picks) {
+  var stillNeedsBallGrid = room.status === 'pending_numbers' && myParticipant && !myParticipant.picks &&
+    (room.type !== 'tournament' || room.aliveIds.indexOf(myParticipant.id) >= 0);
+  if (stillNeedsBallGrid && document.getElementById('pendingBallGrid')) {
     BUI.renderBallGrid('pendingBallGrid');
   }
 };
@@ -585,23 +645,59 @@ BUI.doCloseRegistration = function(){
 };
 
 BUI.roomPendingHtml = function(room, myParticipant){
-  var participantsHtml = room.participants.map(function(p){
+  var isTournament = room.type === 'tournament';
+  var displayParticipants = isTournament ? room.participants.filter(function(p){ return room.aliveIds.indexOf(p.id) >= 0; }) : room.participants;
+
+  var noticeHtml = '';
+  if (isTournament) {
+    noticeHtml = '<div class="card" style="background:rgba(224,179,65,.06);border-color:var(--gold-dim);font-size:11.5px;color:var(--text-dim);line-height:1.7;">' +
+      '🏆 ' + room.stage + '단계 (제' + room.stageRound + '회 추첨 기준) — 시스템이 운영하는 토너먼트입니다. 매 단계 추첨 후 하위 성적자가 탈락하며, 생존자는 번호를 그대로 쓰거나 새로 등록할 수 있어요.' +
+      (room.stage > 1 ? '<br>현재 ' + displayParticipants.length + '명이 생존해 있습니다.' : '') +
+    '</div>';
+  }
+
+  var participantsHtml = displayParticipants.map(function(p){
     var sideLabel = (room.type === 'team') ? (' · ' + (p.side===0?'팀A':'팀B')) : '';
     return '<div class="participant-row"><span>' + p.nickname + sideLabel + '</span><span style="color:' + (p.picks?'var(--green)':'var(--text-faint)') + ';">' + (p.picks?'제출완료':'대기중') + '</span></div>';
   }).join('');
 
   var submitHtml = '';
-  if (myParticipant && !myParticipant.picks) {
+  if (myParticipant && !myParticipant.picks && (!isTournament || room.aliveIds.indexOf(myParticipant.id)>=0)) {
+    var keepBtnHtml = (isTournament && myParticipant.lastPicks)
+      ? '<button class="btn btn-outline" style="width:100%;margin-bottom:8px;" onclick="BUI.doKeepSamePicks()">↺ 이전 번호 그대로 쓰기 (' + myParticipant.lastPicks.join(', ') + ')</button>'
+      : '';
     submitHtml = '<div class="card"><h3>내 번호 선택 (' + BUI.state.selectedBalls.length + '/6)</h3>' +
+      keepBtnHtml +
       '<div class="ball-grid" id="pendingBallGrid"></div>' +
       '<button class="btn btn-outline" style="width:100%;margin-bottom:8px;" onclick="BUI.autoFillBalls()">✦ 자동 채우기</button>' +
       '<button class="btn btn-gold" style="width:100%;" id="submitPicksBtn" disabled onclick="BUI.doSubmitPicks()">번호 제출하기</button>' +
     '</div>';
   } else if (myParticipant && myParticipant.picks) {
     submitHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ 제출 완료: ' + myParticipant.picks.join(', ') + '<br>다른 참가자의 제출을 기다리는 중입니다.</div></div>';
+  } else if (isTournament && myParticipant && room.aliveIds.indexOf(myParticipant.id) < 0) {
+    submitHtml = '<div class="card"><div style="font-size:12px;color:var(--text-faint);text-align:center;">이전 단계에서 탈락하셨습니다. 결과는 "완료" 탭에서 확인하실 수 있어요.</div></div>';
   }
 
-  return '<div class="card"><h3>참가자 (' + room.participants.length + '명)</h3>' + participantsHtml + '</div>' + submitHtml;
+  return noticeHtml + '<div class="card"><h3>' + (isTournament?'생존자':'참가자') + ' (' + displayParticipants.length + '명)</h3>' + participantsHtml + '</div>' + submitHtml;
+};
+
+BUI.doKeepSamePicks = function(){
+  var room = BATTLE.getRoom(BUI.state.currentRoomId);
+  var myParticipant = room.participants.find(function(p){ return p.nickname === BUI.getMyNick(); });
+  if (!myParticipant) return;
+  var result = BATTLE.keepSamePicks(room.id, myParticipant.id);
+  if (!result.ok) { alert('⚠️ ' + (result.msg||'처리할 수 없습니다.')); return; }
+  BUI.renderRoomModal();
+};
+
+BUI.roomStageRunningHtml = function(room){
+  var alive = room.participants.filter(function(p){ return room.aliveIds.indexOf(p.id) >= 0; });
+  return '<div class="card" style="background:rgba(232,115,47,.06);border-color:var(--accent);font-size:11.5px;color:var(--text-dim);line-height:1.7;">' +
+      '⏳ ' + room.stage + '단계 — 생존자 ' + alive.length + '명 전원이 번호를 제출했습니다. 제' + room.stageRound + '회 추첨 결과가 나오면 자동으로 다음 단계가 진행됩니다.' +
+    '</div>' +
+    '<div class="card"><h3>이번 단계 제출 번호</h3>' + alive.map(function(p){
+      return '<div class="participant-row"><span>' + p.nickname + '</span><span class="font-num">' + p.picks.join(', ') + '</span></div>';
+    }).join('') + '</div>';
 };
 
 BUI.renderBallGrid = function(containerId){
@@ -656,15 +752,18 @@ BUI.roomActiveHtml = function(room){
 };
 
 BUI.roomCompletedHtml = function(room){
+  var isTournament = room.type === 'tournament';
   var r = room.result;
-  var resultHtml = '<div class="card"><h3>추첨 결과</h3><div class="font-num" style="font-size:14px;">' + r.nums.join(', ') + ' <span style="color:var(--text-faint);">+ ' + r.bonus + '</span></div></div>';
+  var resultHtml = isTournament
+    ? '' // 토너먼트는 단계마다 추첨회차가 달라서, 아래 "대결 진행표"에 단계별로 회차+결과를 같이 보여준다
+    : '<div class="card"><h3>추첨 결과</h3><div class="font-num" style="font-size:14px;">' + r.nums.join(', ') + ' <span style="color:var(--text-faint);">+ ' + r.bonus + '</span></div></div>';
 
   var rankedHtml;
-  if (room.type === 'tournament') {
+  if (isTournament) {
     var winner = room.participants.find(function(p){ return room.winnerIds.indexOf(p.id) >= 0; });
-    rankedHtml = '<div class="card"><h3>🏆 최종 우승</h3><div class="participant-row winner"><span>' + winner.nickname + '</span><span class="font-num">' + winner.matchCount + '개 일치 · ' + (winner.grade>0?winner.grade+'등':'낙첨') + '</span></div></div>' +
-      '<div class="card"><h3>대결 진행표</h3>' + room.bracketLog.map(function(stage){
-        return '<div style="font-size:11px;color:var(--text-faint);margin:8px 0 4px;">Stage ' + stage.stage + '</div>' +
+    rankedHtml = '<div class="card"><h3>🏆 최종 우승 (' + room.bracketLog.length + '단계 진행)</h3><div class="participant-row winner"><span>' + winner.nickname + '</span><span class="font-num">마지막 단계 ' + winner.matchCount + '개 일치 · ' + (winner.grade>0?winner.grade+'등':'낙첨') + '</span></div></div>' +
+      '<div class="card"><h3>단계별 진행표</h3>' + room.bracketLog.map(function(stage){
+        return '<div style="font-size:11px;color:var(--text-faint);margin:10px 0 4px;">' + stage.stage + '단계 · 제' + stage.round + '회 추첨 기준</div>' +
           stage.matches.map(function(m){
             var p1 = room.participants.find(function(p){return p.id===m.p1Id;});
             var p2 = room.participants.find(function(p){return p.id===m.p2Id;});
@@ -703,17 +802,19 @@ BUI.adminHtml = function(){
     '</div></div>';
   }
 
-  var activeRooms = BATTLE.load().filter(function(r){ return r.status === 'active'; });
-  if (!activeRooms.length) {
+  var gradeable = BATTLE.load().filter(function(r){ return r.status === 'active' || r.status === 'stage_running'; });
+  if (!gradeable.length) {
     return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:12.5px;color:var(--text-dim);">🔓 관리자로 로그인됨</div><button class="btn btn-outline" onclick="BUI.adminLogout()">로그아웃</button></div>' +
       '<div class="card"><div class="empty-state">추첨 대기 중인(채점 가능한) 방이 없습니다.</div></div>';
   }
 
   return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:12.5px;color:var(--text-dim);">🔓 관리자로 로그인됨</div><button class="btn btn-outline" onclick="BUI.adminLogout()">로그아웃</button></div>' +
-    activeRooms.map(function(r){
+    gradeable.map(function(r){
       var typeInfo = BATTLE.TYPES[r.type];
+      var targetRound = r.type === 'tournament' ? r.stageRound : r.round;
+      var stageLabel = r.type === 'tournament' ? (', ' + r.stage + '단계') : '';
       return '<div class="card">' +
-        '<h3>' + r.name + ' (' + typeInfo.nameKr + ', 제' + r.round + '회, 참가자 ' + r.participants.length + '명)</h3>' +
+        '<h3>' + r.name + ' (' + typeInfo.nameKr + stageLabel + ', 제' + targetRound + '회, 참가자 ' + r.participants.length + '명)</h3>' +
         '<div class="form-row"><label>당첨번호 6개</label><input type="text" class="inp" id="adminNums_' + r.id + '" placeholder="예: 1,7,13,22,31,40" style="flex:1;"></div>' +
         '<div class="form-row"><label>보너스번호</label><input type="number" class="inp" id="adminBonus_' + r.id + '" min="1" max="45" style="width:80px;"></div>' +
         '<button class="btn btn-gold" onclick="BUI.adminGradeRoom(\'' + r.id + '\')">결과 입력 + 자동채점</button>' +
@@ -747,6 +848,11 @@ BUI.adminGradeRoom = function(roomId){
 };
 
 document.addEventListener('DOMContentLoaded', BUI.init);
+document.addEventListener('keydown', function(e){
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('roomModal').classList.contains('show')) BUI.closeRoom();
+  else if (document.getElementById('createModal').classList.contains('show')) BUI.closeCreate();
+});
 </script>
 </body>
 </html>
