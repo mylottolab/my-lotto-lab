@@ -139,25 +139,29 @@ table.data-table tbody tr:hover{background:var(--surface-2);}
     <div class="brand">
       <div class="brand-mark">⚽</div>
       <div>
-        <div class="brand-name">My Lotto Lab — 토토·프로토</div>
-        <div class="brand-sub">소액으로 연습하는 스포츠 베팅 시뮬레이터</div>
+        <div class="brand-name" id="brandName">My Lotto Lab — 토토·프로토</div>
+        <div class="brand-sub" id="brandSub">소액으로 연습하는 스포츠 베팅 시뮬레이터</div>
       </div>
     </div>
     <div class="topbar-right">
       <div class="lotto-wrap">
         <button class="lotto-switch" id="lottoBtn" onclick="toggleLottoMenu()">
-          <span style="font-size:13px;">⚽</span> 토토·프로토 ▾
+          <span style="font-size:13px;">⚽</span> <span id="lottoBtnLabel">토토·프로토</span> ▾
         </button>
         <div class="lotto-menu" id="lottoMenu">
-          <div class="lotto-item" onclick="location.href='main_page.html'"><span><span class="flag-ic flag-kr"></span> 한국 로또</span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">메인</span></div>
-          <div class="lotto-item" onclick="location.href='global_lotto.html?game=POWERBALL'"><span><span class="flag-ic flag-us"></span> 파워볼</span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
-          <div class="lotto-item" onclick="location.href='global_lotto.html?game=MEGAMILLIONS'"><span><span class="flag-ic flag-us"></span> 메가밀리언스</span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
-          <div class="lotto-item" onclick="location.href='global_lotto.html?game=EUROMILLIONS'"><span><span class="flag-ic flag-eu"></span> 유로밀리언스</span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
-          <div class="lotto-item active" onclick="toggleLottoMenu()"><span>⚽ 토토·프로토</span><span class="soon" style="color:var(--green);border-color:var(--green-dim);">이용중</span></div>
+          <div class="lotto-item" onclick="location.href='main_page.html'"><span><span class="flag-ic flag-kr"></span> <span data-lotto-name-kr="한국 로또" data-lotto-name-en="Korea Lotto">한국 로또</span></span><span class="soon" id="lottoTag_KRLOTTO" style="color:#9aa8f5;border-color:#4a52a8;">메인</span></div>
+          <div class="lotto-item" onclick="location.href='global_lotto.html?game=POWERBALL'"><span><span class="flag-ic flag-us"></span> <span data-lotto-name-kr="파워볼" data-lotto-name-en="Powerball">파워볼</span></span><span class="soon" id="lottoTag_PB" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
+          <div class="lotto-item" onclick="location.href='global_lotto.html?game=MEGAMILLIONS'"><span><span class="flag-ic flag-us"></span> <span data-lotto-name-kr="메가밀리언스" data-lotto-name-en="Mega Millions">메가밀리언스</span></span><span class="soon" id="lottoTag_MM" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
+          <div class="lotto-item" onclick="location.href='global_lotto.html?game=EUROMILLIONS'"><span><span class="flag-ic flag-eu"></span> <span data-lotto-name-kr="유로밀리언스" data-lotto-name-en="EuroMillions">유로밀리언스</span></span><span class="soon" id="lottoTag_EM" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
+          <div class="lotto-item active" onclick="toggleLottoMenu()"><span>⚽ <span data-lotto-name-kr="토토·프로토" data-lotto-name-en="Toto·Proto">토토·프로토</span></span><span class="soon" id="lottoTag_TOTO" style="color:var(--green);border-color:var(--green-dim);">이용중</span></div>
         </div>
       </div>
+      <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button id="langKrBtn" onclick="APP.setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
+        <button id="langEnBtn" onclick="APP.setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
+      </div>
       <div class="points-badge">
-        <span class="lbl">포인트</span>
+        <span class="lbl" id="pointsLabel">포인트</span>
         <span class="val font-num" id="pointsBalance">0</span>
       </div>
     </div>
@@ -175,8 +179,8 @@ table.data-table tbody tr:hover{background:var(--surface-2);}
     <h3 id="confirmTitle">등록 확인</h3>
     <p id="confirmBody" style="white-space:pre-line;"></p>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-outline" style="flex:1;" onclick="APP.closeConfirm()">취소</button>
-      <button class="btn btn-accent" style="flex:2;" onclick="APP.confirmRegister()">확인하고 등록</button>
+      <button class="btn btn-outline" style="flex:1;" id="confirmCancelBtn" onclick="APP.closeConfirm()">취소</button>
+      <button class="btn btn-accent" style="flex:2;" id="confirmOkBtn" onclick="APP.confirmRegister()">확인하고 등록</button>
     </div>
   </div>
 </div>
@@ -197,7 +201,7 @@ table.data-table tbody tr:hover{background:var(--surface-2);}
   </div>
 </div>
 
-<script src="toto_engine.js?v=20260629a"></script>
-<script src="toto_app.js?v=20260629a"></script>
+<script src="toto_engine.js?v=20260629b"></script>
+<script src="toto_app.js?v=20260629b"></script>
 </body>
 </html>

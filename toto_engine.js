@@ -13,7 +13,8 @@ TOTO.RANK_GAMES = {
   SOCCER: {
     code: 'SOCCER', nameKr: '승무패', nameEn: 'Win-Draw-Lose', sportKr: '축구', sportEn: 'Soccer',
     helpKr: '한국 스포츠토토의 대표 종목이에요. 지정된 축구 14경기 전부의 승/무/패를 예측해요. 14개를 다 맞히면 1등! 13개면 2등, 12개면 3등, 11개면 4등이에요(10개 이하는 낙첨). 등수가 갈리는 "맞힌 개수"가 핵심이라, 한 경기만 삐끗해도 등수가 뚝 떨어져요. 당첨금은 그 회차에 실제 발표된 금액 그대로 적용돼요(우리 사이트 참여자 수로 다시 계산하지 않아요) — 1등이 안 나오면 다음 회차로 이월됩니다.',
-    matchCount: 14, outcomes: ['승', '무', '패'], drawAllowed: true,
+    helpEn: 'Korea\'s flagship sports lottery game. Predict Win/Draw/Lose for all 14 designated soccer matches. Get all 14 right for 1st place! 13 right = 2nd, 12 = 3rd, 11 = 4th (10 or fewer = no prize). Since rank depends entirely on "how many you got right," missing even one match can drop you several places. Prize amounts use the actual officially announced figures for that round (not recalculated based on our own site\'s participants) — if no one hits 1st place, the prize carries over to the next round.',
+    matchCount: 14, outcomes: ['승', '무', '패'], outcomesEn: ['Win', 'Draw', 'Lose'], drawAllowed: true,
     accent: '#1a7ad4',
     grades: [
       { grade: 1, correctMin: 14, labelKr: '1등', pctOfPool: 0.25 },
@@ -25,7 +26,8 @@ TOTO.RANK_GAMES = {
   BASEBALL: {
     code: 'BASEBALL', nameKr: '승1패', nameEn: 'Win-1-Lose', sportKr: '야구', sportEn: 'Baseball',
     helpKr: '야구는 무승부가 드물기 때문에, "무" 대신 특정 조건(예: 정해진 점수차 이내 등)을 "①"로 표시해 승무패와 똑같은 3지선다 구조로 맞춰놨어요. 채점 방식은 승무패와 동일 — 14경기 중 14개 적중=1등, 13개=2등, 12개=3등, 11개=4등이에요. 야구는 변수가 많아서(선발투수, 불펜, 그날 타격감 등) 끝까지 예측이 까다로운 종목으로 꼽혀요.',
-    matchCount: 14, outcomes: ['승', '①', '패'], drawAllowed: true, // ①: 무승부에 준하는 특정조건(예: 일정 점수차 이내) - 실제는 경기별로 다를 수 있어 단순화
+    helpEn: 'Since draws are rare in baseball, a special condition (e.g. within a certain run margin) is marked "①" instead of "Draw," keeping the same 3-way structure as Win-Draw-Lose. Scoring works the same way — 14/14 correct = 1st, 13 = 2nd, 12 = 3rd, 11 = 4th. Baseball has many variables (starting pitcher, bullpen, that day\'s hitting form), making it one of the trickier sports to predict all the way through.',
+    matchCount: 14, outcomes: ['승', '①', '패'], outcomesEn: ['Win', '①', 'Lose'], drawAllowed: true, // ①: 무승부에 준하는 특정조건(예: 일정 점수차 이내) - 실제는 경기별로 다를 수 있어 단순화
     accent: '#d4537e',
     grades: [
       { grade: 1, correctMin: 14, labelKr: '1등', pctOfPool: 0.25 },
@@ -37,7 +39,8 @@ TOTO.RANK_GAMES = {
   BASKETBALL: {
     code: 'BASKETBALL', nameKr: '승5패', nameEn: 'Win-5-Lose', sportKr: '농구', sportEn: 'Basketball',
     helpKr: '농구는 점수 차가 크게 나기 쉬워서, "무" 대신 "5점차 이내"를 ⑤로 표시해 승무패와 같은 3지선다 구조로 만들었어요. 채점은 동일하게 14경기 중 14개 적중=1등, 13개=2등, 12개=3등, 11개=4등. 농구는 추세(연승·연패)와 최근 평균득점 흐름을 많이 참고하는 종목이에요.',
-    matchCount: 14, outcomes: ['승', '⑤', '패'], drawAllowed: true, // ⑤: 5점차 이내
+    helpEn: 'Basketball scores often swing widely, so "within a 5-point margin" is marked ⑤ instead of "Draw," again keeping a 3-way structure like Win-Draw-Lose. Scoring is identical: 14/14 = 1st, 13 = 2nd, 12 = 3rd, 11 = 4th. Basketball predictions tend to rely heavily on recent streaks and scoring trends.',
+    matchCount: 14, outcomes: ['승', '⑤', '패'], outcomesEn: ['Win', '⑤', 'Lose'], drawAllowed: true, // ⑤: 5점차 이내
     accent: '#e8a23a',
     grades: [
       { grade: 1, correctMin: 14, labelKr: '1등', pctOfPool: 0.25 },
@@ -98,11 +101,11 @@ TOTO.formatEstimatedPayoutText = function(grade, amount, lang){
 
 // ── 프로토 승부식(고정배당) 유형 정의 ──
 TOTO.PROTO_BET_TYPES = {
-  GENERAL:   { code: 'GENERAL',   nameKr: '일반',     desc: '홈팀 승/무/패 예상', outcomes: ['승','무','패'] },
-  HANDICAP:  { code: 'HANDICAP',  nameKr: '핸디캡',   desc: '핸디캡 반영 승/무/패 예상', outcomes: ['승','무','패'] },
-  UNDEROVER: { code: 'UNDEROVER', nameKr: '언더오버', desc: '양팀 득점합 기준값 대비 U/O', outcomes: ['U','O'] },
-  SUM:       { code: 'SUM',       nameKr: 'SUM',      desc: '양팀 득점합 홀/짝', outcomes: ['홀','짝'] },
-  DOUBLE:    { code: 'DOUBLE',    nameKr: '더블찬스', desc: '승무/무패/승패 중 하나', outcomes: ['승무','무패','승패'] },
+  GENERAL:   { code: 'GENERAL',   nameKr: '일반',     nameEn: 'General',      desc: '홈팀 승/무/패 예상', descEn: 'Predict home team Win/Draw/Lose', outcomes: ['승','무','패'], outcomesEn: ['Win','Draw','Lose'] },
+  HANDICAP:  { code: 'HANDICAP',  nameKr: '핸디캡',   nameEn: 'Handicap',     desc: '핸디캡 반영 승/무/패 예상', descEn: 'Win/Draw/Lose adjusted for a handicap', outcomes: ['승','무','패'], outcomesEn: ['Win','Draw','Lose'] },
+  UNDEROVER: { code: 'UNDEROVER', nameKr: '언더오버', nameEn: 'Under/Over',   desc: '양팀 득점합 기준값 대비 U/O', descEn: 'Under/Over the combined score line', outcomes: ['U','O'], outcomesEn: ['U','O'] },
+  SUM:       { code: 'SUM',       nameKr: 'SUM',      nameEn: 'Sum (Odd/Even)', desc: '양팀 득점합 홀/짝', descEn: 'Odd/Even of the combined score', outcomes: ['홀','짝'], outcomesEn: ['Odd','Even'] },
+  DOUBLE:    { code: 'DOUBLE',    nameKr: '더블찬스', nameEn: 'Double Chance', desc: '승무/무패/승패 중 하나', descEn: 'One of Win-or-Draw / Draw-or-Lose / Win-or-Lose', outcomes: ['승무','무패','승패'], outcomesEn: ['Win/Draw','Draw/Lose','Win/Lose'] },
 };
 
 TOTO.PROTO_MIN_BET = 100;       // 최소 100원

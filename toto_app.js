@@ -24,6 +24,117 @@ APP.state = {
   section: 'register',      // register | my | stats | admin
   picks: {},                // { matchIdx: '승'|'무'|'패' }
   betAmount: 5000,
+  lang: 'kr',
+};
+
+// ── 다국어 사전 ──
+APP.STR = {
+  brandName: { kr: 'My Lotto Lab — 토토·프로토', en: 'My Lotto Lab — Toto·Proto' },
+  brandSub: { kr: '소액으로 연습하는 스포츠 베팅 시뮬레이터', en: 'A low-stakes practice simulator for sports betting' },
+  pointsLabel: { kr: '포인트', en: 'Points' },
+  tab_toto_title: { kr: '토토 (등수제)', en: 'Toto (Rank-based)' },
+  tab_toto_desc: { kr: '14경기 승/무/패를 전부 맞히면 1등! 맞춘 개수로 등수가 갈려요 — 축구·야구·농구', en: 'Get all 14 Win/Draw/Lose picks right for 1st place! Rank depends on how many you got right — soccer, baseball, basketball' },
+  tab_proto_title: { kr: '프로토 (고정배당)', en: 'Proto (Fixed Odds)' },
+  tab_proto_desc: { kr: '경기마다 정해진 배당률로, 원하는 경기만 골라 조합 구매 — 실제 스포츠북과 같은 방식', en: 'Fixed odds per match — pick any combination you like, just like a real sportsbook' },
+  sec_register: { kr: '번호 등록', en: 'Register' },
+  sec_my: { kr: '내 등록현황', en: 'My Entries' },
+  sec_stats: { kr: '통계', en: 'Statistics' },
+  sec_admin: { kr: '관리자', en: 'Admin' },
+  sec_proto_register: { kr: '경기 선택', en: 'Pick Matches' },
+  info_sport: { kr: '종목', en: 'Sport' },
+  info_matches: { kr: '대상경기', en: 'Matches' },
+  matches_suffix: { kr: '경기', en: ' matches' },
+  matches_predict_all: { kr: '경기 전부 예측', en: ' matches, predict all' },
+  grade_structure_text: { kr: '14적중=1등 / 13=2등 / 12=3등 / 11=4등', en: '14 correct=1st / 13=2nd / 12=3rd / 11=4th' },
+  info_grade: { kr: '등급구조', en: 'Prize Tiers' },
+  info_round: { kr: '현재 회차', en: 'Current Round' },
+  info_season: { kr: '⚠️ 시즌 상태', en: '⚠️ Season Status' },
+  kbl_offseason: { kr: 'KBL 비시즌 (10/3 개막 예정)', en: 'KBL off-season (next season starts ~Oct 3)' },
+  kbl_notice: { kr: '📌 2025-26 KBL 정규시즌(~4/8)과 플레이오프가 모두 종료되어 현재는 비시즌입니다. 아래 경기는 직전 시즌 10개 구단 기준 예시이며, 다음 시즌(2026년 10월경 개막 예정) 개막 후 관리자가 실제 일정으로 교체해야 합니다.', en: '📌 The 2025-26 KBL regular season (ended ~4/8) and playoffs are both over, so the league is currently in its off-season. The matches below are illustrative, using last season\'s 10 teams — the admin should replace them with real fixtures once the next season starts (around October 2026).' },
+  bet_amount: { kr: '베팅금액', en: 'Bet Amount' },
+  won_suffix: { kr: '원', en: ' KRW' },
+  entries_suffix: { kr: '건', en: '' },
+  btn_reset: { kr: '↺ 초기화', en: '↺ Reset' },
+  btn_register_combo: { kr: '이 조합 등록하기', en: 'Register This Entry' },
+  btn_cancel: { kr: '취소', en: 'Cancel' },
+  btn_confirm_register: { kr: '확인하고 등록', en: 'Confirm & Register' },
+  matches_count_label: { kr: '회 대상경기', en: ' Designated Matches' },
+  confirm_title_rank: { kr: '등록 확인', en: 'Confirm Entry' },
+  insufficient_points: { kr: '포인트가 부족합니다.', en: 'Not enough points.' },
+  register_success: { kr: '등록되었습니다!', en: 'Registered!' },
+  th_round: { kr: '회차', en: 'Round' },
+  th_picks: { kr: '선택(1~14)', en: 'Picks (1-14)' },
+  th_bet: { kr: '베팅금액', en: 'Bet Amount' },
+  th_result: { kr: '결과', en: 'Result' },
+  th_est_payout: { kr: '예상 배당금', en: 'Estimated Payout' },
+  th_registered: { kr: '등록일', en: 'Registered' },
+  no_entries: { kr: '등록한 조합이 없습니다.', en: 'No entries yet.' },
+  pending: { kr: '추첨 대기', en: 'Pending' },
+  no_prize: { kr: '낙첨', en: 'No prize' },
+  stat_title_rank: { kr: '종목별 누적 통계', en: 'Cumulative Stats by Sport' },
+  stat_win: { kr: '당첨', en: 'Won' },
+  stat_rate: { kr: '당첨율', en: 'win rate' },
+  stat_bet: { kr: '베팅', en: 'Bet' },
+  stat_payout_sum: { kr: '예상배당 합계', en: 'Total est. payout' },
+  admin_pw_label: { kr: '관리자 비밀번호', en: 'Admin Password' },
+  admin_login: { kr: '입장', en: 'Enter' },
+  admin_wrong_pw: { kr: '비밀번호가 올바르지 않습니다.', en: 'Incorrect password.' },
+  admin_logged_in: { kr: '🔓 관리자로 로그인됨', en: '🔓 Logged in as Admin' },
+  admin_logout: { kr: '로그아웃', en: 'Log Out' },
+  admin_target_matches: { kr: '— 대상경기·결과 입력', en: ' — Enter Matches & Results' },
+  admin_payout_label: { kr: '등급별 당첨금(1인당, 실제 발표 그대로 입력)', en: 'Per-person prize by grade (enter the actual officially announced amount)' },
+  admin_save_matches: { kr: '대상경기 저장', en: 'Save Matches' },
+  admin_matches_saved: { kr: '대상경기를 저장했습니다.', en: 'Matches saved.' },
+  admin_incomplete_confirm: { kr: '일부 경기 결과가 비어있습니다. 그래도 저장할까요? (미입력 경기는 항상 불일치로 처리됩니다)', en: 'Some match results are empty. Save anyway? (Unfilled matches are always treated as a mismatch.)' },
+  admin_save_result: { kr: '결과 저장 + 자동채점', en: 'Save Result + Auto-Grade' },
+  admin_round_history: { kr: '회차 히스토리', en: 'Round History' },
+  admin_no_result: { kr: '결과 미입력', en: 'No result yet' },
+  home_team: { kr: '홈팀', en: 'Home' },
+  away_team: { kr: '원정팀', en: 'Away' },
+  admin_announced_date: { kr: '발표일', en: 'Announced' },
+  result_announce_title: { kr: '결과발표', en: 'Result Announcement' },
+  result_official_note: { kr: '· 공식 발표 당첨금(그대로 적용)', en: ' · Official announced prize (applied as-is)' },
+  result_carryover: { kr: '낙첨(이월)', en: 'No winner (carried over)' },
+  graded_count_suffix: { kr: '건 채점 완료 · ', en: ' entries graded · ' },
+  help_title_suffix: { kr: '이란?', en: ': What is it?' },
+  proto_round_label: { kr: '현재 회차', en: 'Current Round' },
+  proto_method: { kr: '방식', en: 'Format' },
+  proto_method_val: { kr: '고정배당 승부식', en: 'Fixed-odds match betting' },
+  proto_match_count: { kr: '조합경기수', en: 'Matches per Combo' },
+  proto_match_count_val: { kr: '2~10경기', en: '2-10 matches' },
+  proto_bet_range: { kr: '100원~100,000원/회차', en: '100~100,000 KRW / round' },
+  proto_my_combo: { kr: '내 조합', en: 'My Combo' },
+  proto_pick_prompt: { kr: '경기를 선택해 조합을 만들어보세요 (2경기 이상)', en: 'Pick matches to build a combo (2 or more)' },
+  proto_combined_odds: { kr: '조합 배당률', en: 'Combined Odds' },
+  proto_est_win: { kr: '예상 적중금:', en: 'Est. payout if it hits:' },
+  proto_register_btn: { kr: '조합 등록하기', en: 'Register Combo' },
+  proto_reset_btn: { kr: '↺ 조합 초기화', en: '↺ Reset Combo' },
+  proto_confirm_title: { kr: '프로토 조합 등록 확인', en: 'Confirm Proto Combo Entry' },
+  proto_pick_first: { kr: '업로드할 이미지(2:1 비율)를 먼저 선택해주세요.', en: 'Please select at least 2 matches first.' },
+  th_combo: { kr: '조합내역', en: 'Combo Details' },
+  th_odds: { kr: '배당률', en: 'Odds' },
+  th_won: { kr: '적중', en: 'Hit' },
+  th_not_won: { kr: '미적중', en: 'Miss' },
+  th_payout: { kr: '적중금', en: 'Payout' },
+  proto_stat_total: { kr: '프로토 누적 통계', en: 'Cumulative Proto Stats' },
+  proto_stat_total_combos: { kr: '총 등록조합', en: 'Total Combos' },
+  proto_stat_hit: { kr: '적중', en: 'Hit' },
+  proto_stat_total_bet: { kr: '총 베팅금액', en: 'Total Bet' },
+  proto_stat_total_payout: { kr: '총 적중금', en: 'Total Payout' },
+  proto_admin_odds_notice: { kr: '⚠️ 실시간 배당률 자동연동은 아직 없습니다. 베트맨(betman.co.kr) 등에서 실제 배당률을 확인해 직접 입력해주세요.', en: '⚠️ There is no live odds feed yet. Please check real odds on Betman (betman.co.kr) and enter them manually.' },
+  proto_admin_odds_input: { kr: '배당률 입력', en: 'Enter Odds' },
+  proto_admin_result_input: { kr: '실제 결과 입력', en: 'Enter Actual Result' },
+  proto_admin_save_odds: { kr: '배당률 저장', en: 'Save Odds' },
+  proto_admin_save_result: { kr: '결과 저장 + 자동채점', en: 'Save Result + Auto-Grade' },
+  proto_saved_odds: { kr: '배당률을 저장했습니다.', en: 'Odds saved.' },
+  proto_graded_alert_suffix: { kr: '건 채점 완료!', en: ' entries graded!' },
+  proto_help_title: { kr: '프로토(고정배당 승부식)란?', en: 'What is Proto (Fixed-Odds Betting)?' },
+  proto_help_body: { kr: '경기마다 정해진 배당률로 베팅하는, 실제 스포츠북과 가장 비슷한 방식이에요. 토토(등수제)와 가장 다른 점은 "내가 원하는 경기만 골라서" 2~10경기를 조합할 수 있고, 배당률이 구매 시점에 이미 확정된다는 점이에요(나중에 재계산되지 않아요). 조합한 경기들의 배당률을 모두 곱한 값이 최종 배당률이 되고, 선택한 경기를 전부 맞혀야 적중이에요. 유형은 5가지: 일반(승무패), 핸디캡(전력차 보정), 언더오버(득점합 기준), SUM(득점합 홀짝), 더블찬스(두 가지 결과 중 하나) — 경기마다 제공되는 유형이 다를 수 있어요.', en: 'Bet at fixed odds set per match — the closest format to a real sportsbook. The biggest difference from Toto (rank-based) is that you can freely pick any 2-10 matches to combine, and the odds are locked in at the moment you place the bet (never recalculated later). The final odds are simply all your picks\' odds multiplied together, and every pick in the combo must hit to win. There are 5 bet types: General (Win/Draw/Lose), Handicap (adjusted for strength difference), Under/Over (based on total score), Sum (odd/even total score), and Double Chance (one of two outcomes) — not every match offers every type.' },
+};
+APP.t = function(key){
+  var row = APP.STR[key];
+  if (!row) return key;
+  return row[APP.state.lang] || row.kr;
 };
 
 // ── 포인트 (해외복권과 동일 로직 재사용) ──
@@ -199,7 +310,8 @@ APP.saveUiState = function(){
     localStorage.setItem(APP.UI_STATE_KEY, JSON.stringify({
       mainTab: APP.state.mainTab,
       sport: APP.state.sport,
-      section: APP.state.section
+      section: APP.state.section,
+      lang: APP.state.lang
     }));
   } catch(e){}
 };
@@ -207,16 +319,30 @@ APP.loadUiState = function(){
   try { return JSON.parse(localStorage.getItem(APP.UI_STATE_KEY) || 'null'); } catch(e){ return null; }
 };
 
+APP.setLang = function(lang){
+  APP.state.lang = lang;
+  document.getElementById('langKrBtn').style.background = lang==='kr' ? 'var(--gold)' : 'var(--surface)';
+  document.getElementById('langKrBtn').style.color = lang==='kr' ? '#1a1305' : 'var(--text-dim)';
+  document.getElementById('langEnBtn').style.background = lang==='en' ? 'var(--gold)' : 'var(--surface)';
+  document.getElementById('langEnBtn').style.color = lang==='en' ? '#1a1305' : 'var(--text-dim)';
+  APP.renderAll();
+};
+
 APP.init = function(){
   APP.ensureSeedData();
 
-  // 1) 새로고침 시에는 마지막으로 보고 있던 탭/종목/섹션을 그대로 복원
+  // 1) 새로고침 시에는 마지막으로 보고 있던 탭/종목/섹션/언어를 그대로 복원
   var saved = APP.loadUiState();
   if (saved) {
     if (saved.mainTab === 'TOTO' || saved.mainTab === 'PROTO') APP.state.mainTab = saved.mainTab;
     if (TOTO.RANK_GAMES[saved.sport]) APP.state.sport = saved.sport;
     if (saved.section) APP.state.section = saved.section;
+    if (saved.lang === 'kr' || saved.lang === 'en') APP.state.lang = saved.lang;
   }
+  document.getElementById('langKrBtn').style.background = APP.state.lang==='kr' ? 'var(--gold)' : 'var(--surface)';
+  document.getElementById('langKrBtn').style.color = APP.state.lang==='kr' ? '#1a1305' : 'var(--text-dim)';
+  document.getElementById('langEnBtn').style.background = APP.state.lang==='en' ? 'var(--gold)' : 'var(--surface)';
+  document.getElementById('langEnBtn').style.color = APP.state.lang==='en' ? '#1a1305' : 'var(--text-dim)';
 
   // 2) main_page.html 등에서 ?tab=...&game=... 으로 명시적으로 들어온 경우는 그 값을 우선한다
   var params = new URLSearchParams(window.location.search);
@@ -229,10 +355,27 @@ APP.init = function(){
 };
 
 APP.renderAll = function(){
+  document.getElementById('brandName').textContent = APP.t('brandName');
+  document.getElementById('brandSub').textContent = APP.t('brandSub');
+  document.getElementById('pointsLabel').textContent = APP.t('pointsLabel');
   document.getElementById('pointsBalance').textContent = APP.getPoints().balance.toLocaleString();
+  APP.renderLottoDropdown();
   APP.renderMainTabs();
   APP.renderMainTabBody();
   APP.saveUiState();
+};
+
+APP.renderLottoDropdown = function(){
+  var lang = APP.state.lang;
+  document.getElementById('lottoBtnLabel').textContent = lang === 'en' ? 'Toto·Proto' : '토토·프로토';
+  document.querySelectorAll('#lottoMenu [data-lotto-name-kr]').forEach(function(el){
+    el.textContent = lang === 'en' ? el.dataset.lottoNameEn : el.dataset.lottoNameKr;
+  });
+  document.getElementById('lottoTag_KRLOTTO').textContent = lang === 'en' ? 'MAIN' : '메인';
+  document.getElementById('lottoTag_PB').textContent = lang === 'en' ? 'GLOBAL' : 'GLOBAL';
+  document.getElementById('lottoTag_MM').textContent = lang === 'en' ? 'GLOBAL' : 'GLOBAL';
+  document.getElementById('lottoTag_EM').textContent = lang === 'en' ? 'GLOBAL' : 'GLOBAL';
+  document.getElementById('lottoTag_TOTO').textContent = lang === 'en' ? 'ACTIVE' : '이용중';
 };
 
 APP.setMainTab = function(tab){
@@ -246,12 +389,12 @@ APP.renderMainTabs = function(){
   var s = APP.state;
   document.getElementById('mainTabs').innerHTML =
     '<div class="main-tab' + (s.mainTab==='TOTO'?' active':'') + '" style="--tab-accent:#3fb37f;" onclick="APP.setMainTab(\'TOTO\')">' +
-      '<span class="mt-icon">🏆</span><span class="mt-title">토토 (등수제)</span>' +
-      '<div class="mt-desc">14경기 승/무/패를 전부 맞히면 1등! 맞춘 개수로 등수가 갈려요 — 축구·야구·농구</div>' +
+      '<span class="mt-icon">🏆</span><span class="mt-title">' + APP.t('tab_toto_title') + '</span>' +
+      '<div class="mt-desc">' + APP.t('tab_toto_desc') + '</div>' +
     '</div>' +
     '<div class="main-tab' + (s.mainTab==='PROTO'?' active':'') + '" style="--tab-accent:#5b9bd5;" onclick="APP.setMainTab(\'PROTO\')">' +
-      '<span class="mt-icon">📊</span><span class="mt-title">프로토 (고정배당)</span><button class="help-btn" onclick="event.stopPropagation();APP.openProtoHelp()">?</button>' +
-      '<div class="mt-desc">경기마다 정해진 배당률로, 원하는 경기만 골라 조합 구매 — 실제 스포츠북과 같은 방식</div>' +
+      '<span class="mt-icon">📊</span><span class="mt-title">' + APP.t('tab_proto_title') + '</span><button class="help-btn" onclick="event.stopPropagation();APP.openProtoHelp()">?</button>' +
+      '<div class="mt-desc">' + APP.t('tab_proto_desc') + '</div>' +
     '</div>';
 };
 
@@ -272,12 +415,15 @@ APP.selectSport = function(sport){
 
 APP.renderToto = function(){
   var s = APP.state;
+  var lang = s.lang;
   var games = TOTO.rankGameList();
   var sportTabsHtml = games.map(function(g){
     var active = g.code === s.sport;
+    var name = lang === 'en' ? g.nameEn : g.nameKr;
+    var sportName = lang === 'en' ? g.sportEn : g.sportKr;
     return '<div class="sport-tab' + (active?' active':'') + '" style="--game-accent:' + g.accent + ';" onclick="APP.selectSport(\'' + g.code + '\')">' +
-      '<div class="st-name"><span class="st-dot" style="background:' + g.accent + ';"></span>' + g.nameKr + '<button class="help-btn" onclick="event.stopPropagation();APP.openHelp(\'' + g.code + '\')">?</button></div>' +
-      '<div class="st-sub">' + g.sportKr + ' · ' + g.matchCount + '경기 전부 예측</div>' +
+      '<div class="st-name"><span class="st-dot" style="background:' + g.accent + ';"></span>' + name + '<button class="help-btn" onclick="event.stopPropagation();APP.openHelp(\'' + g.code + '\')">?</button></div>' +
+      '<div class="st-sub">' + sportName + ' · ' + g.matchCount + APP.t('matches_predict_all') + '</div>' +
     '</div>';
   }).join('');
 
@@ -286,21 +432,25 @@ APP.renderToto = function(){
   var round = APP.CURRENT_ROUND[s.sport];
 
   var sectionTabsHtml = ['register','my','stats','admin'].map(function(sec){
-    var labels = { register:'번호 등록', my:'내 등록현황', stats:'통계', admin:'관리자' };
+    var labels = { register:APP.t('sec_register'), my:APP.t('sec_my'), stats:APP.t('sec_stats'), admin:APP.t('sec_admin') };
     return '<div class="section-tab' + (s.section===sec?' active':'') + '" onclick="APP.setSection(\'' + sec + '\')">' + labels[sec] + '</div>';
   }).join('');
 
+  var sportName = lang === 'en' ? game.sportEn : game.sportKr;
+  var gameName = lang === 'en' ? game.nameEn : game.nameKr;
+  var roundLabel = lang === 'en' ? ('Round ' + round) : ('제' + round + '회');
+
   var infoHtml =
-    '<div class="info-item"><div class="k">종목</div><div class="v accent">' + game.sportKr + ' (' + game.nameKr + ')</div></div>' +
-    '<div class="info-item"><div class="k">대상경기</div><div class="v">' + game.matchCount + '경기</div></div>' +
-    '<div class="info-item"><div class="k">등급구조</div><div class="v">14적중=1등 / 13=2등 / 12=3등 / 11=4등</div></div>' +
-    '<div class="info-item"><div class="k">현재 회차</div><div class="v accent">제' + round + '회</div></div>' +
-    (s.sport === 'BASKETBALL' ? '<div class="info-item"><div class="k">⚠️ 시즌 상태</div><div class="v" style="color:var(--red);">KBL 비시즌 (10/3 개막 예정)</div></div>' : '');
+    '<div class="info-item"><div class="k">' + APP.t('info_sport') + '</div><div class="v accent">' + sportName + ' (' + gameName + ')</div></div>' +
+    '<div class="info-item"><div class="k">' + APP.t('info_matches') + '</div><div class="v">' + game.matchCount + APP.t('matches_suffix') + '</div></div>' +
+    '<div class="info-item"><div class="k">' + APP.t('info_grade') + '</div><div class="v">' + APP.t('grade_structure_text') + '</div></div>' +
+    '<div class="info-item"><div class="k">' + APP.t('info_round') + '</div><div class="v accent">' + roundLabel + '</div></div>' +
+    (s.sport === 'BASKETBALL' ? '<div class="info-item"><div class="k">' + APP.t('info_season') + '</div><div class="v" style="color:var(--red);">' + APP.t('kbl_offseason') + '</div></div>' : '');
 
   document.getElementById('mainTabBody').innerHTML =
     '<div class="sport-tabs">' + sportTabsHtml + '</div>' +
     '<div class="info-card">' + infoHtml + '</div>' +
-    (s.sport === 'BASKETBALL' ? '<div class="card" style="border-color:var(--red);background:rgba(212,83,126,.06);"><p style="margin:0;font-size:12.5px;color:var(--text-dim);">📌 2025-26 KBL 정규시즌(~4/8)과 플레이오프가 모두 종료되어 현재는 비시즌입니다. 아래 경기는 직전 시즌 10개 구단 기준 예시이며, 다음 시즌(2026년 10월경 개막 예정) 개막 후 관리자가 실제 일정으로 교체해야 합니다.</p></div>' : '') +
+    (s.sport === 'BASKETBALL' ? '<div class="card" style="border-color:var(--red);background:rgba(212,83,126,.06);"><p style="margin:0;font-size:12.5px;color:var(--text-dim);">' + APP.t('kbl_notice') + '</p></div>' : '') +
     '<div class="section-tabs">' + sectionTabsHtml + '</div>' +
     '<div id="totoSectionBody"></div>';
 
@@ -323,16 +473,18 @@ APP.renderTotoSection = function(){
 
 APP.totoRegisterHtml = function(){
   var s = APP.state;
+  var lang = s.lang;
   var game = TOTO.RANK_GAMES[s.sport];
   var round = APP.CURRENT_ROUND[s.sport];
   var matches = APP.loadMatches(s.sport, round);
-  var outcomes = game.outcomes; // ['승','무','패'] 등
+  var outcomes = game.outcomes; // ['승','무','패'] 등 (내부 저장/채점용 — 항상 이 값 그대로 사용)
+  var outcomesDisplay = lang === 'en' ? game.outcomesEn : game.outcomes; // 화면 표시용
 
   var rowsHtml = matches.map(function(m){
     var picked = s.picks[m.no];
-    var btnsHtml = outcomes.map(function(o){
+    var btnsHtml = outcomes.map(function(o, i){
       var on = (picked === o);
-      return '<button class="pick-btn' + (on?' on':'') + '" data-no="' + m.no + '" data-outcome="' + o + '">' + o + '</button>';
+      return '<button class="pick-btn' + (on?' on':'') + '" data-no="' + m.no + '" data-outcome="' + o + '">' + outcomesDisplay[i] + '</button>';
     }).join('');
     return '<div class="match-row">' +
       '<div class="mr-no">' + m.no + '</div>' +
@@ -343,20 +495,23 @@ APP.totoRegisterHtml = function(){
 
   var pickedCount = Object.keys(s.picks).length;
   var canRegister = (pickedCount === game.matchCount);
+  var sportName = lang === 'en' ? game.sportEn : game.sportKr;
+  var gameName = lang === 'en' ? game.nameEn : game.nameKr;
+  var roundLabel = lang === 'en' ? ('Round ' + round) : ('제' + round + '회');
 
   return '<div class="card">' +
-    '<h3>' + game.sportKr + ' ' + game.nameKr + ' — 제' + round + '회 대상경기 (' + pickedCount + '/' + game.matchCount + ')</h3>' +
+    '<h3>' + sportName + ' ' + gameName + ' — ' + roundLabel + APP.t('matches_count_label') + ' (' + pickedCount + '/' + game.matchCount + ')</h3>' +
     '<div class="match-grid">' + rowsHtml + '</div>' +
     '<div class="action-row" style="margin-bottom:14px;">' +
-      '<span style="font-size:12.5px;color:var(--text-dim);font-weight:600;">베팅금액</span>' +
+      '<span style="font-size:12.5px;color:var(--text-dim);font-weight:600;">' + APP.t('bet_amount') + '</span>' +
       (APP.RANK_BET_PRESETS.map(function(v){
-        return '<button class="btn btn-outline bet-preset" data-amt="' + v + '">' + v.toLocaleString() + '원</button>';
+        return '<button class="btn btn-outline bet-preset" data-amt="' + v + '">' + v.toLocaleString() + APP.t('won_suffix') + '</button>';
       }).join('')) +
       '<input type="number" class="cnt-in" id="rankBetAmount" value="' + s.betAmount + '" min="1000" step="1000" style="width:110px;">' +
     '</div>' +
     '<div class="action-row">' +
-      '<button class="btn btn-outline" id="rankResetBtn">↺ 초기화</button>' +
-      '<button class="btn btn-accent" id="rankRegisterBtn" style="margin-left:auto;" ' + (canRegister?'':'disabled') + '>이 조합 등록하기</button>' +
+      '<button class="btn btn-outline" id="rankResetBtn">' + APP.t('btn_reset') + '</button>' +
+      '<button class="btn btn-accent" id="rankRegisterBtn" style="margin-left:auto;" ' + (canRegister?'':'disabled') + '>' + APP.t('btn_register_combo') + '</button>' +
     '</div>' +
   '</div>';
 };
@@ -384,23 +539,37 @@ APP.bindTotoRegisterEvents = function(){
 
 APP.openRankConfirm = function(){
   var s = APP.state;
+  var lang = s.lang;
   var game = TOTO.RANK_GAMES[s.sport];
   var round = APP.CURRENT_ROUND[s.sport];
   var betAmount = Math.max(1000, parseInt(document.getElementById('rankBetAmount').value) || s.betAmount);
   APP.state.betAmount = betAmount;
 
   var pt = APP.getPoints();
-  if (pt.balance < betAmount) { alert('포인트가 부족합니다.'); return; }
+  if (pt.balance < betAmount) { alert(APP.t('insufficient_points')); return; }
 
   var matches = APP.loadMatches(s.sport, round);
-  var summary = matches.map(function(m){ return m.no + '.' + (s.picks[m.no]||'?'); }).join('  ');
+  var outcomesDisplay = lang === 'en' ? game.outcomesEn : game.outcomes;
+  var summary = matches.map(function(m){
+    var pickIdx = game.outcomes.indexOf(s.picks[m.no]);
+    var label = pickIdx >= 0 ? outcomesDisplay[pickIdx] : '?';
+    return m.no + '.' + label;
+  }).join('  ');
 
-  document.getElementById('confirmTitle').textContent = '등록 확인';
+  var sportName = lang === 'en' ? game.sportEn : game.sportKr;
+  var gameName = lang === 'en' ? game.nameEn : game.nameKr;
+  var roundLabel = lang === 'en' ? ('Round ' + round) : ('제' + round + '회');
+
+  document.getElementById('confirmTitle').textContent = APP.t('confirm_title_rank');
   document.getElementById('confirmBody').textContent =
-    game.sportKr + ' ' + game.nameKr + ' — 제' + round + '회\n' +
+    sportName + ' ' + gameName + ' — ' + roundLabel + '\n' +
     summary + '\n\n' +
-    '베팅금액: ' + betAmount.toLocaleString() + '원\n' +
-    '이 등록으로 ' + betAmount.toLocaleString() + 'P가 차감됩니다.';
+    APP.t('bet_amount') + ': ' + betAmount.toLocaleString() + APP.t('won_suffix') + '\n' +
+    (lang === 'en'
+      ? 'This entry will deduct ' + betAmount.toLocaleString() + ' points.'
+      : '이 등록으로 ' + betAmount.toLocaleString() + 'P가 차감됩니다.');
+  document.getElementById('confirmCancelBtn').textContent = APP.t('btn_cancel');
+  document.getElementById('confirmOkBtn').textContent = APP.t('btn_confirm_register');
   document.getElementById('confirmModal').classList.add('show');
   APP.confirmMode = 'rank';
 };
@@ -419,7 +588,7 @@ APP.confirmRankRegister = function(){
   for (var i = 1; i <= game.matchCount; i++) picksArr.push(s.picks[i]);
 
   var ok = APP.deductPoints(s.betAmount, game.nameKr + ' ' + round + '회 등록');
-  if (!ok) { alert('포인트가 부족합니다.'); APP.closeConfirm(); return; }
+  if (!ok) { alert(APP.t('insufficient_points')); APP.closeConfirm(); return; }
 
   APP.addRankEntry({
     gameCode: s.sport,
@@ -431,42 +600,55 @@ APP.confirmRankRegister = function(){
 
   APP.closeConfirm();
   APP.state.picks = {};
-  alert('등록되었습니다!');
+  alert(APP.t('register_success'));
   APP.renderAll();
 };
 
 // ── 내 등록현황 ──
 APP.totoMyEntriesHtml = function(){
   var s = APP.state;
+  var lang = s.lang;
+  var game = TOTO.RANK_GAMES[s.sport];
+  var outcomesDisplay = lang === 'en' ? game.outcomesEn : game.outcomes;
   var entries = APP.loadRankEntries().filter(function(e){ return e.gameCode === s.sport; })
     .sort(function(a,b){ return b.registeredAt - a.registeredAt; });
 
-  if (!entries.length) return '<div class="card"><div class="empty-state">등록한 조합이 없습니다.</div></div>';
+  if (!entries.length) return '<div class="card"><div class="empty-state">' + APP.t('no_entries') + '</div></div>';
 
   var rows = entries.map(function(e){
     var gradeHtml;
-    if (!e.graded) gradeHtml = '<span class="grade-tag lose">추첨 대기</span>';
-    else if (e.grade > 0) gradeHtml = '<span class="grade-tag win">' + e.grade + '등 (' + e.correctCount + '/14)</span>';
-    else gradeHtml = '<span class="grade-tag lose">낙첨 (' + e.correctCount + '/14)</span>';
+    if (!e.graded) gradeHtml = '<span class="grade-tag lose">' + APP.t('pending') + '</span>';
+    else if (e.grade > 0) gradeHtml = '<span class="grade-tag win">' + APP.gradeOrdinal(e.grade, lang) + ' (' + e.correctCount + '/14)</span>';
+    else gradeHtml = '<span class="grade-tag lose">' + APP.t('no_prize') + ' (' + e.correctCount + '/14)</span>';
     var d = new Date(e.registeredAt);
     var regStr = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    var picksDisplay = e.picks.map(function(p){ var idx = game.outcomes.indexOf(p); return idx>=0 ? outcomesDisplay[idx] : p; }).join(' ');
+    var roundLabel = lang === 'en' ? ('#' + e.round) : ('제' + e.round + '회');
     return '<tr>' +
-      '<td class="font-num">제' + e.round + '회</td>' +
-      '<td class="font-num">' + e.picks.join(' ') + '</td>' +
-      '<td class="font-num">' + e.betAmount.toLocaleString() + '원</td>' +
+      '<td class="font-num">' + roundLabel + '</td>' +
+      '<td class="font-num">' + picksDisplay + '</td>' +
+      '<td class="font-num">' + e.betAmount.toLocaleString() + APP.t('won_suffix') + '</td>' +
       '<td>' + gradeHtml + '</td>' +
-      '<td class="font-num">' + (e.estimatedPayout ? e.estimatedPayout.toLocaleString()+'원' : '-') + '</td>' +
+      '<td class="font-num">' + (e.estimatedPayout ? e.estimatedPayout.toLocaleString()+APP.t('won_suffix') : '-') + '</td>' +
       '<td class="font-num">' + regStr + '</td>' +
     '</tr>';
   }).join('');
 
   return '<div class="card"><table class="data-table"><thead><tr>' +
-    '<th>회차</th><th>선택(1~14)</th><th>베팅금액</th><th>결과</th><th>예상 배당금</th><th>등록일</th>' +
+    '<th>' + APP.t('th_round') + '</th><th>' + APP.t('th_picks') + '</th><th>' + APP.t('th_bet') + '</th><th>' + APP.t('th_result') + '</th><th>' + APP.t('th_est_payout') + '</th><th>' + APP.t('th_registered') + '</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+};
+
+// 등급 숫자를 "1등"/"1st" 형태로
+APP.gradeOrdinal = function(grade, lang){
+  if (lang !== 'en') return grade + '등';
+  var suffix = (grade===1) ? 'st' : (grade===2) ? 'nd' : (grade===3) ? 'rd' : 'th';
+  return grade + suffix;
 };
 
 // ── 통계 ──
 APP.totoStatsHtml = function(){
+  var lang = APP.state.lang;
   var entries = APP.loadRankEntries();
   var bySport = {};
   TOTO.rankGameList().forEach(function(g){ bySport[g.code] = { total:0, win:0, betSum:0, payoutSum:0 }; });
@@ -481,14 +663,17 @@ APP.totoStatsHtml = function(){
   var boxes = TOTO.rankGameList().map(function(g){
     var b = bySport[g.code];
     var rate = b.total ? (b.win/b.total*100) : 0;
+    var sportName = lang === 'en' ? g.sportEn : g.sportKr;
+    var gameName = lang === 'en' ? g.nameEn : g.nameKr;
+    var entriesSuffix = APP.t('entries_suffix');
     return '<div class="stat-box" style="border-color:' + g.accent + '33;">' +
-      '<div class="slabel">' + g.sportKr + '(' + g.nameKr + ')</div>' +
-      '<div class="sval" style="color:' + g.accent + ';">' + b.total + '건</div>' +
-      '<div style="font-size:11px;color:var(--text-dim);margin-top:6px;">당첨 ' + b.win + '건 · 당첨율 ' + rate.toFixed(1) + '%<br>베팅 ' + b.betSum.toLocaleString() + '원 · 예상배당 합계 ' + b.payoutSum.toLocaleString() + '원</div>' +
+      '<div class="slabel">' + sportName + '(' + gameName + ')</div>' +
+      '<div class="sval" style="color:' + g.accent + ';">' + b.total + entriesSuffix + '</div>' +
+      '<div style="font-size:11px;color:var(--text-dim);margin-top:6px;">' + APP.t('stat_win') + ' ' + b.win + entriesSuffix + ' · ' + APP.t('stat_rate') + ' ' + rate.toFixed(1) + '%<br>' + APP.t('stat_bet') + ' ' + b.betSum.toLocaleString() + APP.t('won_suffix') + ' · ' + APP.t('stat_payout_sum') + ' ' + b.payoutSum.toLocaleString() + APP.t('won_suffix') + '</div>' +
     '</div>';
   }).join('');
 
-  return '<div class="card"><h3>종목별 누적 통계</h3><div class="stat-grid">' + boxes + '</div></div>';
+  return '<div class="card"><h3>' + APP.t('stat_title_rank') + '</h3><div class="stat-grid">' + boxes + '</div></div>';
 };
 
 // ── 관리자: 대상경기 입력 + 결과입력(자동채점) ──
@@ -501,27 +686,29 @@ APP.totoAdminHtml = function(){
   }
   if (!APP.adminLoggedIn) {
     return '<div class="card"><div class="admin-lock">' +
-      '<div>관리자 비밀번호</div>' +
+      '<div>' + APP.t('admin_pw_label') + '</div>' +
       '<input type="password" id="adminPwInput" onkeydown="if(event.key===\'Enter\')APP.adminLogin();">' +
-      '<button class="btn btn-accent" onclick="APP.adminLogin()">입장</button>' +
+      '<button class="btn btn-accent" onclick="APP.adminLogin()">' + APP.t('admin_login') + '</button>' +
     '</div></div>';
   }
 
   var s = APP.state;
+  var lang = s.lang;
   var game = TOTO.RANK_GAMES[s.sport];
   var round = APP.CURRENT_ROUND[s.sport];
   var matches = APP.loadMatches(s.sport, round);
+  var outcomesDisplay = lang === 'en' ? game.outcomesEn : game.outcomes;
 
   var matchInputsHtml = matches.map(function(m){
     return '<div class="match-row" style="grid-template-columns:36px 1fr 1fr;">' +
       '<div class="mr-no">' + m.no + '</div>' +
       '<div style="display:flex;gap:6px;">' +
-        '<input class="cnt-in admin-home" data-no="'+m.no+'" value="'+m.home+'" style="flex:1;" placeholder="홈팀">' +
-        '<input class="cnt-in admin-away" data-no="'+m.no+'" value="'+m.away+'" style="flex:1;" placeholder="원정팀">' +
+        '<input class="cnt-in admin-home" data-no="'+m.no+'" value="'+m.home+'" style="flex:1;" placeholder="'+APP.t('home_team')+'">' +
+        '<input class="cnt-in admin-away" data-no="'+m.no+'" value="'+m.away+'" style="flex:1;" placeholder="'+APP.t('away_team')+'">' +
       '</div>' +
       '<select class="cnt-in admin-result" data-no="'+m.no+'">' +
-        '<option value="">결과 미입력</option>' +
-        game.outcomes.map(function(o){ return '<option value="'+o+'">'+o+'</option>'; }).join('') +
+        '<option value="">' + APP.t('admin_no_result') + '</option>' +
+        game.outcomes.map(function(o, i){ return '<option value="'+o+'">'+outcomesDisplay[i]+'</option>'; }).join('') +
       '</select>' +
     '</div>';
   }).join('');
@@ -531,41 +718,47 @@ APP.totoAdminHtml = function(){
     .sort().reverse().slice(0,10).map(function(k){
       var d = draws[k];
       var gp = d.gradePayouts || {};
+      var roundLabel = lang === 'en' ? ('#'+d.round) : ('제'+d.round+'회');
+      var firstPrizeLabel = lang === 'en' ? '1st' : '1등';
+      var secondPrizeLabel = lang === 'en' ? '2nd' : '2등';
       return '<tr class="history-row" onclick="APP.openResultPopup(\''+s.sport+'\','+d.round+')" style="cursor:pointer;">' +
-        '<td class="font-num">제'+d.round+'회</td>' +
-        '<td class="font-num">1등 '+(gp[1]?gp[1].toLocaleString()+'원':'낙첨')+'</td>' +
-        '<td class="font-num">2등 '+(gp[2]||0).toLocaleString()+'원</td>' +
+        '<td class="font-num">'+roundLabel+'</td>' +
+        '<td class="font-num">'+firstPrizeLabel+' '+(gp[1]?gp[1].toLocaleString()+APP.t('won_suffix'):APP.t('result_carryover'))+'</td>' +
+        '<td class="font-num">'+secondPrizeLabel+' '+(gp[2]||0).toLocaleString()+APP.t('won_suffix')+'</td>' +
         '<td>'+(d.announcedAt||'-')+'</td>' +
       '</tr>';
     }).join('');
 
+  var sportName = lang === 'en' ? game.sportEn : game.sportKr;
+  var roundLabel2 = lang === 'en' ? ('Round '+round) : ('제'+round+'회');
+
   return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">' +
-    '<div style="font-size:12.5px;color:var(--text-dim);">🔓 관리자로 로그인됨</div>' +
-    '<button class="btn btn-outline" onclick="APP.adminLogout()">로그아웃</button>' +
+    '<div style="font-size:12.5px;color:var(--text-dim);">' + APP.t('admin_logged_in') + '</div>' +
+    '<button class="btn btn-outline" onclick="APP.adminLogout()">' + APP.t('admin_logout') + '</button>' +
   '</div>' +
   '<div class="card">' +
-    '<h3>' + game.sportKr + ' 제' + round + '회 — 대상경기·결과 입력</h3>' +
+    '<h3>' + sportName + ' ' + roundLabel2 + APP.t('admin_target_matches') + '</h3>' +
     '<div class="match-grid">' + matchInputsHtml + '</div>' +
     '<div class="action-row" style="margin-bottom:10px;">' +
-      '<span style="font-size:12px;color:var(--text-dim);">등급별 당첨금(1인당, 실제 발표 그대로 입력)</span>' +
+      '<span style="font-size:12px;color:var(--text-dim);">' + APP.t('admin_payout_label') + '</span>' +
     '</div>' +
     '<div class="action-row" style="margin-bottom:16px;">' +
-      '<span style="font-size:11.5px;">1등</span><input class="cnt-in admin-payout" data-grade="1" style="width:130px;" placeholder="원">' +
-      '<span style="font-size:11.5px;">2등</span><input class="cnt-in admin-payout" data-grade="2" style="width:130px;" placeholder="원">' +
-      '<span style="font-size:11.5px;">3등</span><input class="cnt-in admin-payout" data-grade="3" style="width:130px;" placeholder="원">' +
-      '<span style="font-size:11.5px;">4등</span><input class="cnt-in admin-payout" data-grade="4" style="width:130px;" placeholder="원">' +
+      '<span style="font-size:11.5px;">' + APP.gradeOrdinal(1,lang) + '</span><input class="cnt-in admin-payout" data-grade="1" style="width:130px;" placeholder="'+APP.t('won_suffix')+'">' +
+      '<span style="font-size:11.5px;">' + APP.gradeOrdinal(2,lang) + '</span><input class="cnt-in admin-payout" data-grade="2" style="width:130px;" placeholder="'+APP.t('won_suffix')+'">' +
+      '<span style="font-size:11.5px;">' + APP.gradeOrdinal(3,lang) + '</span><input class="cnt-in admin-payout" data-grade="3" style="width:130px;" placeholder="'+APP.t('won_suffix')+'">' +
+      '<span style="font-size:11.5px;">' + APP.gradeOrdinal(4,lang) + '</span><input class="cnt-in admin-payout" data-grade="4" style="width:130px;" placeholder="'+APP.t('won_suffix')+'">' +
     '</div>' +
-    '<button class="btn btn-accent" onclick="APP.adminSaveMatches()">대상경기 저장</button> ' +
-    '<button class="btn btn-accent" onclick="APP.adminSaveResult()">결과 저장 + 자동채점</button>' +
+    '<button class="btn btn-accent" onclick="APP.adminSaveMatches()">' + APP.t('admin_save_matches') + '</button> ' +
+    '<button class="btn btn-accent" onclick="APP.adminSaveResult()">' + APP.t('admin_save_result') + '</button>' +
   '</div>' +
-  '<div class="card"><h3>회차 히스토리</h3>' +
-    (historyRows ? '<table class="data-table"><thead><tr><th>회차</th><th>1등</th><th>2등</th><th>발표일</th></tr></thead><tbody>'+historyRows+'</tbody></table>' : '<div class="empty-state">-</div>') +
+  '<div class="card"><h3>' + APP.t('admin_round_history') + '</h3>' +
+    (historyRows ? '<table class="data-table"><thead><tr><th>' + APP.t('th_round') + '</th><th>' + APP.gradeOrdinal(1,lang) + '</th><th>' + APP.gradeOrdinal(2,lang) + '</th><th>' + APP.t('admin_announced_date') + '</th></tr></thead><tbody>'+historyRows+'</tbody></table>' : '<div class="empty-state">-</div>') +
   '</div>';
 };
 
 APP.adminLogin = function(){
   var pw = document.getElementById('adminPwInput').value;
-  if (pw !== APP.ADMIN_PW) { alert('비밀번호가 올바르지 않습니다.'); return; }
+  if (pw !== APP.ADMIN_PW) { alert(APP.t('admin_wrong_pw')); return; }
   APP.adminLoggedIn = true;
   sessionStorage.setItem(APP.STORAGE.ADMIN_SESSION, '1');
   APP.renderCurrentSection();
@@ -594,7 +787,7 @@ APP.adminSaveMatches = function(){
   rounds[k] = rounds[k] || { gameCode: s.sport, round: round };
   rounds[k].matches = matches;
   APP.saveRankRounds(rounds);
-  alert('대상경기를 저장했습니다.');
+  alert(APP.t('admin_matches_saved'));
   APP.renderTotoSection();
 };
 
@@ -610,7 +803,7 @@ APP.adminSaveResult = function(){
     if (!v) incomplete = true;
     results[parseInt(el.dataset.no)-1] = v || null;
   });
-  if (incomplete) { if (!confirm('일부 경기 결과가 비어있습니다. 그래도 저장할까요? (미입력 경기는 항상 불일치로 처리됩니다)')) return; }
+  if (incomplete) { if (!confirm(APP.t('admin_incomplete_confirm'))) return; }
 
   var gradePayouts = {};
   document.querySelectorAll('.admin-payout').forEach(function(el){
@@ -645,6 +838,7 @@ APP.adminSaveResult = function(){
 
 // ── 회차결과 한장 요약 팝업 ──
 APP.openResultPopup = function(sport, round, gradedCountOverride){
+  var lang = APP.state.lang;
   var game = TOTO.RANK_GAMES[sport];
   var rounds = APP.loadRankRounds();
   var d = rounds[APP.rankRoundKey(sport, round)];
@@ -657,19 +851,23 @@ APP.openResultPopup = function(sport, round, gradedCountOverride){
 
   var gp = d.gradePayouts || {};
   var gradeRows = [1,2,3,4].map(function(g){
-    var label = (g===1 && (!gp[1] || gp[1]===0)) ? '낙첨(이월)' : (gp[g]||0).toLocaleString()+'원';
-    return '<div class="match-row" style="grid-template-columns:1fr 1fr;"><div>'+g+'등</div><div class="font-num">'+label+'</div></div>';
+    var label = (g===1 && (!gp[1] || gp[1]===0)) ? APP.t('result_carryover') : (gp[g]||0).toLocaleString()+APP.t('won_suffix');
+    return '<div class="match-row" style="grid-template-columns:1fr 1fr;"><div>'+APP.gradeOrdinal(g,lang)+'</div><div class="font-num">'+label+'</div></div>';
   }).join('');
+
+  var sportName = lang === 'en' ? game.sportEn : game.sportKr;
+  var gameName = lang === 'en' ? game.nameEn : game.nameKr;
+  var roundLabel = lang === 'en' ? ('Round '+round) : ('제'+round+'회');
 
   document.getElementById('resultModalBox').innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">' +
-      '<h3>' + game.sportKr + ' ' + game.nameKr + ' — 결과발표</h3>' +
+      '<h3>' + sportName + ' ' + gameName + ' — ' + APP.t('result_announce_title') + '</h3>' +
       '<button onclick="APP.closeResultPopup()" style="background:none;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;">✕</button>' +
     '</div>' +
-    '<p style="font-size:12px;color:var(--text-dim);margin:0 0 16px;">제' + round + '회 · 공식 발표 당첨금(그대로 적용)</p>' +
+    '<p style="font-size:12px;color:var(--text-dim);margin:0 0 16px;">' + roundLabel + APP.t('result_official_note') + '</p>' +
     '<div class="match-grid">' + gradeRows + '</div>' +
     (d.note ? '<div style="font-size:11.5px;color:var(--text-dim);margin-top:10px;">📌 ' + d.note + '</div>' : '') +
-    '<div style="font-size:10px;color:var(--text-faint);margin-top:14px;">' + gradedCount + '건 채점 완료 · ' + (d.announcedAt||'') + '</div>';
+    '<div style="font-size:10px;color:var(--text-faint);margin-top:14px;">' + gradedCount + APP.t('graded_count_suffix') + (d.announcedAt||'') + '</div>';
 
   document.getElementById('resultModal').classList.add('show');
 };
@@ -677,19 +875,22 @@ APP.closeResultPopup = function(){ document.getElementById('resultModal').classL
 
 // ── 프로토(고정배당) ──
 APP.renderProtoComingSoon = function(){
+  var lang = APP.state.lang;
   var round = APP.PROTO_CURRENT_ROUND;
   var sectionTabsHtml = ['register','my','stats','admin'].map(function(sec){
-    var labels = { register:'경기 선택', my:'내 등록현황', stats:'통계', admin:'관리자' };
+    var labels = { register:APP.t('sec_proto_register'), my:APP.t('sec_my'), stats:APP.t('sec_stats'), admin:APP.t('sec_admin') };
     return '<div class="section-tab' + (APP.state.section===sec?' active':'') + '" onclick="APP.setProtoSection(\'' + sec + '\')">' + labels[sec] + '</div>';
   }).join('');
+
+  var roundLabel = lang === 'en' ? ('Round ' + round) : ('제' + round + '회');
 
   document.documentElement.style.setProperty('--game-accent', '#5b9bd5');
   document.getElementById('mainTabBody').innerHTML =
     '<div class="info-card">' +
-      '<div class="info-item"><div class="k">방식</div><div class="v accent">고정배당 승부식</div></div>' +
-      '<div class="info-item"><div class="k">조합경기수</div><div class="v">2~10경기</div></div>' +
-      '<div class="info-item"><div class="k">베팅금액</div><div class="v">100원~100,000원/회차</div></div>' +
-      '<div class="info-item"><div class="k">현재 회차</div><div class="v accent">제' + round + '회</div></div>' +
+      '<div class="info-item"><div class="k">' + APP.t('proto_method') + '</div><div class="v accent">' + APP.t('proto_method_val') + '</div></div>' +
+      '<div class="info-item"><div class="k">' + APP.t('proto_match_count') + '</div><div class="v">' + APP.t('proto_match_count_val') + '</div></div>' +
+      '<div class="info-item"><div class="k">' + APP.t('bet_amount') + '</div><div class="v">' + APP.t('proto_bet_range') + '</div></div>' +
+      '<div class="info-item"><div class="k">' + APP.t('proto_round_label') + '</div><div class="v accent">' + roundLabel + '</div></div>' +
     '</div>' +
     '<div class="section-tabs">' + sectionTabsHtml + '</div>' +
     '<div id="protoSectionBody"></div>';
@@ -712,6 +913,7 @@ APP.renderProtoSection = function(){
 };
 
 APP.protoRegisterHtml = function(){
+  var lang = APP.state.lang;
   var round = APP.PROTO_CURRENT_ROUND;
   var matches = APP.loadProtoMatches(round);
   var sel = APP.proto.selections;
@@ -719,14 +921,17 @@ APP.protoRegisterHtml = function(){
   var matchesHtml = matches.map(function(m){
     var typesHtml = Object.keys(m.odds).map(function(betType){
       var bt = TOTO.PROTO_BET_TYPES[betType];
-      var outcomesHtml = bt.outcomes.filter(function(o){ return m.odds[betType][o] !== undefined; }).map(function(o){
+      var btName = lang === 'en' ? bt.nameEn : bt.nameKr;
+      var outcomesHtml = bt.outcomes.map(function(o, oi){ return { o:o, oi:oi }; }).filter(function(x){ return m.odds[betType][x.o] !== undefined; }).map(function(x){
+        var o = x.o;
         var odd = m.odds[betType][o];
         var isOn = sel.some(function(s){ return s.matchId===m.matchId && s.betType===betType && s.outcome===o; });
+        var oDisplay = (lang === 'en' && bt.outcomesEn) ? bt.outcomesEn[x.oi] : o;
         return '<button class="pick-btn proto-pick' + (isOn?' on':'') + '" data-match="'+m.matchId+'" data-bettype="'+betType+'" data-outcome="'+o+'" data-odds="'+odd+'" style="display:flex;flex-direction:column;gap:2px;padding:7px 4px;">' +
-          '<span style="font-size:11px;">'+o+'</span><span class="font-num" style="font-size:10px;color:var(--text-dim);">'+odd.toFixed(2)+'</span>' +
+          '<span style="font-size:11px;">'+oDisplay+'</span><span class="font-num" style="font-size:10px;color:var(--text-dim);">'+odd.toFixed(2)+'</span>' +
         '</button>';
       }).join('');
-      return '<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:4px;">'+bt.nameKr+'</div><div style="display:flex;gap:5px;flex-wrap:wrap;">'+outcomesHtml+'</div></div>';
+      return '<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:4px;">'+btName+'</div><div style="display:flex;gap:5px;flex-wrap:wrap;">'+outcomesHtml+'</div></div>';
     }).join('');
 
     return '<div class="card" style="margin-bottom:10px;padding:16px 18px;">' +
@@ -738,28 +943,32 @@ APP.protoRegisterHtml = function(){
   var combinedOdds = sel.length ? TOTO.calcProtoCombinedOdds(sel) : 0;
   var selHtml = sel.length ? sel.map(function(s, i){
     var m = matches.find(function(x){ return x.matchId===s.matchId; });
+    var bt = TOTO.PROTO_BET_TYPES[s.betType];
+    var btName = lang === 'en' ? bt.nameEn : bt.nameKr;
+    var oIdx = bt.outcomes.indexOf(s.outcome);
+    var oDisplay = (lang === 'en' && bt.outcomesEn && oIdx>=0) ? bt.outcomesEn[oIdx] : s.outcome;
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:11.5px;">' +
-      '<span>'+m.home+' vs '+m.away+' · '+TOTO.PROTO_BET_TYPES[s.betType].nameKr+' · <b style="color:var(--blue);">'+s.outcome+'</b></span>' +
+      '<span>'+m.home+' vs '+m.away+' · '+btName+' · <b style="color:var(--blue);">'+oDisplay+'</b></span>' +
       '<span class="font-num">'+s.odds.toFixed(2)+' <button onclick="APP.removeProtoSelection('+i+')" style="background:none;border:none;color:var(--text-faint);cursor:pointer;margin-left:6px;">✕</button></span>' +
     '</div>';
-  }).join('') : '<div style="color:var(--text-faint);font-size:12px;padding:10px 0;">경기를 선택해 조합을 만들어보세요 (2경기 이상)</div>';
+  }).join('') : '<div style="color:var(--text-faint);font-size:12px;padding:10px 0;">' + APP.t('proto_pick_prompt') + '</div>';
 
   var canRegister = sel.length >= TOTO.PROTO_MIN_MATCHES;
 
   return '<div style="display:grid;grid-template-columns:1.6fr 1fr;gap:18px;align-items:start;">' +
     '<div>' + matchesHtml + '</div>' +
     '<div class="card" style="position:sticky;top:80px;">' +
-      '<h3>내 조합 (' + sel.length + '경기)</h3>' +
+      '<h3>' + APP.t('proto_my_combo') + ' (' + sel.length + APP.t('matches_suffix') + ')</h3>' +
       selHtml +
       '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border-soft);">' +
-        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px;"><span>조합 배당률</span><b class="font-num" style="color:var(--blue);font-size:16px;">'+combinedOdds.toFixed(2)+'</b></div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:10px;"><span>' + APP.t('proto_combined_odds') + '</span><b class="font-num" style="color:var(--blue);font-size:16px;">'+combinedOdds.toFixed(2)+'</b></div>' +
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
-          '<span style="font-size:12px;color:var(--text-dim);">베팅금액</span>' +
+          '<span style="font-size:12px;color:var(--text-dim);">' + APP.t('bet_amount') + '</span>' +
           '<input type="number" class="cnt-in" id="protoStake" value="'+APP.proto.stake+'" min="100" max="100000" step="100" style="width:100px;">' +
         '</div>' +
-        '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;">예상 적중금: <b class="font-num" style="color:var(--green);">'+(Math.floor(APP.proto.stake*combinedOdds)).toLocaleString()+'원</b></div>' +
-        '<button class="btn" style="width:100%;background:var(--blue);color:#fff;border:none;" ' + (canRegister?'':'disabled') + ' onclick="APP.openProtoConfirm()">조합 등록하기</button>' +
-        '<button class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="APP.proto.selections=[];APP.renderProtoSection();">↺ 조합 초기화</button>' +
+        '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;">' + APP.t('proto_est_win') + ' <b class="font-num" style="color:var(--green);">'+(Math.floor(APP.proto.stake*combinedOdds)).toLocaleString()+APP.t('won_suffix')+'</b></div>' +
+        '<button class="btn" style="width:100%;background:var(--blue);color:#fff;border:none;" ' + (canRegister?'':'disabled') + ' onclick="APP.openProtoConfirm()">' + APP.t('proto_register_btn') + '</button>' +
+        '<button class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="APP.proto.selections=[];APP.renderProtoSection();">' + APP.t('proto_reset_btn') + '</button>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -794,27 +1003,36 @@ APP.removeProtoSelection = function(idx){
 };
 
 APP.openProtoConfirm = function(){
+  var lang = APP.state.lang;
   var sel = APP.proto.selections;
   var stake = Math.max(TOTO.PROTO_MIN_BET, Math.min(TOTO.PROTO_MAX_BET, parseInt(document.getElementById('protoStake').value) || APP.proto.stake));
   APP.proto.stake = stake;
 
   var pt = APP.getPoints();
-  if (pt.balance < stake) { alert('포인트가 부족합니다.'); return; }
+  if (pt.balance < stake) { alert(APP.t('insufficient_points')); return; }
 
   var matches = APP.loadProtoMatches(APP.PROTO_CURRENT_ROUND);
   var combinedOdds = TOTO.calcProtoCombinedOdds(sel);
   var summary = sel.map(function(s){
     var m = matches.find(function(x){ return x.matchId===s.matchId; });
-    return m.home+'vs'+m.away+' '+TOTO.PROTO_BET_TYPES[s.betType].nameKr+':'+s.outcome;
+    var bt = TOTO.PROTO_BET_TYPES[s.betType];
+    var btName = lang === 'en' ? bt.nameEn : bt.nameKr;
+    var oIdx = bt.outcomes.indexOf(s.outcome);
+    var oDisplay = (lang === 'en' && bt.outcomesEn && oIdx>=0) ? bt.outcomesEn[oIdx] : s.outcome;
+    return m.home+' vs '+m.away+' '+btName+':'+oDisplay;
   }).join('\n');
 
-  document.getElementById('confirmTitle').textContent = '프로토 조합 등록 확인';
+  document.getElementById('confirmTitle').textContent = APP.t('proto_confirm_title');
   document.getElementById('confirmBody').textContent =
     summary + '\n\n' +
-    '조합 배당률: ' + combinedOdds.toFixed(2) + '\n' +
-    '베팅금액: ' + stake.toLocaleString() + '원\n' +
-    '적중 시 예상 적중금: ' + Math.floor(stake*combinedOdds).toLocaleString() + '원\n\n' +
-    '이 등록으로 ' + stake.toLocaleString() + 'P가 차감됩니다.';
+    APP.t('proto_combined_odds') + ': ' + combinedOdds.toFixed(2) + '\n' +
+    APP.t('bet_amount') + ': ' + stake.toLocaleString() + APP.t('won_suffix') + '\n' +
+    APP.t('proto_est_win') + ' ' + Math.floor(stake*combinedOdds).toLocaleString() + APP.t('won_suffix') + '\n\n' +
+    (lang === 'en'
+      ? 'This entry will deduct ' + stake.toLocaleString() + ' points.'
+      : '이 등록으로 ' + stake.toLocaleString() + 'P가 차감됩니다.');
+  document.getElementById('confirmCancelBtn').textContent = APP.t('btn_cancel');
+  document.getElementById('confirmOkBtn').textContent = APP.t('btn_confirm_register');
   document.getElementById('confirmModal').classList.add('show');
   APP.confirmMode = 'proto';
 };
@@ -825,7 +1043,7 @@ APP.confirmProtoRegister = function(){
   var combinedOdds = TOTO.calcProtoCombinedOdds(sel);
 
   var ok = APP.deductPoints(stake, '프로토 제' + APP.PROTO_CURRENT_ROUND + '회 조합 등록');
-  if (!ok) { alert('포인트가 부족합니다.'); APP.closeConfirm(); return; }
+  if (!ok) { alert(APP.t('insufficient_points')); APP.closeConfirm(); return; }
 
   APP.addProtoEntry({
     round: APP.PROTO_CURRENT_ROUND,
@@ -837,14 +1055,17 @@ APP.confirmProtoRegister = function(){
 
   APP.closeConfirm();
   APP.proto.selections = [];
-  alert('등록되었습니다!');
+  alert(APP.t('register_success'));
   APP.renderAll();
 };
 // ── 종목별 간단 설명 팝업 ──
 APP.openHelp = function(sportCode){
+  var lang = APP.state.lang;
   var game = TOTO.RANK_GAMES[sportCode];
-  document.getElementById('helpTitle').textContent = game.sportKr + ' ' + game.nameKr + '이란?';
-  document.getElementById('helpBody').textContent = game.helpKr;
+  var sportName = lang === 'en' ? game.sportEn : game.sportKr;
+  var gameName = lang === 'en' ? game.nameEn : game.nameKr;
+  document.getElementById('helpTitle').textContent = sportName + ' ' + gameName + APP.t('help_title_suffix');
+  document.getElementById('helpBody').textContent = lang === 'en' ? game.helpEn : game.helpKr;
   document.getElementById('helpModal').classList.add('show');
 };
 APP.closeHelp = function(){ document.getElementById('helpModal').classList.remove('show'); };
@@ -900,32 +1121,38 @@ APP.loadProtoMatches = function(round){
 
 // ── 프로토 내 등록현황 ──
 APP.protoMyEntriesHtml = function(){
+  var lang = APP.state.lang;
   var entries = APP.loadProtoEntries().sort(function(a,b){ return b.registeredAt - a.registeredAt; });
-  if (!entries.length) return '<div class="card"><div class="empty-state">등록한 조합이 없습니다.</div></div>';
+  if (!entries.length) return '<div class="card"><div class="empty-state">' + APP.t('no_entries') + '</div></div>';
 
   var matches = APP.loadProtoMatches(APP.PROTO_CURRENT_ROUND);
   var rows = entries.map(function(e){
     var selStr = e.selections.map(function(s){
       var m = matches.find(function(x){ return x.matchId===s.matchId; }) || { home:'?', away:'?' };
-      return m.home+'/'+TOTO.PROTO_BET_TYPES[s.betType].nameKr+'/'+s.outcome;
+      var bt = TOTO.PROTO_BET_TYPES[s.betType];
+      var btName = lang === 'en' ? bt.nameEn : bt.nameKr;
+      var oIdx = bt.outcomes.indexOf(s.outcome);
+      var oDisplay = (lang === 'en' && bt.outcomesEn && oIdx>=0) ? bt.outcomesEn[oIdx] : s.outcome;
+      return m.home+'/'+btName+'/'+oDisplay;
     }).join(', ');
-    var statusHtml = !e.graded ? '<span class="grade-tag lose">추첨 대기</span>' :
-      (e.won ? '<span class="grade-tag win">적중</span>' : '<span class="grade-tag lose">미적중</span>');
+    var statusHtml = !e.graded ? '<span class="grade-tag lose">' + APP.t('pending') + '</span>' :
+      (e.won ? '<span class="grade-tag win">' + APP.t('th_won') + '</span>' : '<span class="grade-tag lose">' + APP.t('th_not_won') + '</span>');
     var d = new Date(e.registeredAt);
     var regStr = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    var roundLabel = lang === 'en' ? ('#'+e.round) : ('제'+e.round+'회');
     return '<tr>' +
-      '<td class="font-num">제'+e.round+'회</td>' +
+      '<td class="font-num">'+roundLabel+'</td>' +
       '<td style="text-align:left;font-size:11px;">'+selStr+'</td>' +
       '<td class="font-num">'+e.combinedOdds.toFixed(2)+'</td>' +
-      '<td class="font-num">'+e.stake.toLocaleString()+'원</td>' +
+      '<td class="font-num">'+e.stake.toLocaleString()+APP.t('won_suffix')+'</td>' +
       '<td>'+statusHtml+'</td>' +
-      '<td class="font-num">'+(e.payout?e.payout.toLocaleString()+'원':'-')+'</td>' +
+      '<td class="font-num">'+(e.payout?e.payout.toLocaleString()+APP.t('won_suffix'):'-')+'</td>' +
       '<td class="font-num">'+regStr+'</td>' +
     '</tr>';
   }).join('');
 
   return '<div class="card"><table class="data-table"><thead><tr>' +
-    '<th>회차</th><th>조합내역</th><th>배당률</th><th>베팅금액</th><th>결과</th><th>적중금</th><th>등록일</th>' +
+    '<th>' + APP.t('th_round') + '</th><th>' + APP.t('th_combo') + '</th><th>' + APP.t('th_odds') + '</th><th>' + APP.t('th_bet') + '</th><th>' + APP.t('th_result') + '</th><th>' + APP.t('th_payout') + '</th><th>' + APP.t('th_registered') + '</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 };
 
@@ -937,12 +1164,13 @@ APP.protoStatsHtml = function(){
   var stakeSum = entries.reduce(function(s,e){ return s+e.stake; }, 0);
   var payoutSum = entries.reduce(function(s,e){ return s+(e.payout||0); }, 0);
   var rate = total ? (won/total*100) : 0;
+  var suf = APP.t('entries_suffix');
 
-  return '<div class="card"><h3>프로토 누적 통계</h3><div class="stat-grid">' +
-    '<div class="stat-box"><div class="slabel">총 등록조합</div><div class="sval">'+total+'건</div></div>' +
-    '<div class="stat-box"><div class="slabel">적중</div><div class="sval">'+won+'건 ('+rate.toFixed(1)+'%)</div></div>' +
-    '<div class="stat-box"><div class="slabel">총 베팅금액</div><div class="sval font-num" style="font-size:16px;">'+stakeSum.toLocaleString()+'원</div></div>' +
-    '<div class="stat-box"><div class="slabel">총 적중금</div><div class="sval font-num" style="font-size:16px;">'+payoutSum.toLocaleString()+'원</div></div>' +
+  return '<div class="card"><h3>' + APP.t('proto_stat_total') + '</h3><div class="stat-grid">' +
+    '<div class="stat-box"><div class="slabel">' + APP.t('proto_stat_total_combos') + '</div><div class="sval">'+total+suf+'</div></div>' +
+    '<div class="stat-box"><div class="slabel">' + APP.t('proto_stat_hit') + '</div><div class="sval">'+won+suf+' ('+rate.toFixed(1)+'%)</div></div>' +
+    '<div class="stat-box"><div class="slabel">' + APP.t('proto_stat_total_bet') + '</div><div class="sval font-num" style="font-size:16px;">'+stakeSum.toLocaleString()+APP.t('won_suffix')+'</div></div>' +
+    '<div class="stat-box"><div class="slabel">' + APP.t('proto_stat_total_payout') + '</div><div class="sval font-num" style="font-size:16px;">'+payoutSum.toLocaleString()+APP.t('won_suffix')+'</div></div>' +
   '</div></div>';
 };
 
@@ -954,12 +1182,13 @@ APP.protoAdminHtml = function(){
   }
   if (!APP.adminLoggedIn) {
     return '<div class="card"><div class="admin-lock">' +
-      '<div>관리자 비밀번호</div>' +
+      '<div>' + APP.t('admin_pw_label') + '</div>' +
       '<input type="password" id="adminPwInput" onkeydown="if(event.key===\'Enter\')APP.adminLogin();">' +
-      '<button class="btn btn-accent" onclick="APP.adminLogin()">입장</button>' +
+      '<button class="btn btn-accent" onclick="APP.adminLogin()">' + APP.t('admin_login') + '</button>' +
     '</div></div>';
   }
 
+  var lang = APP.state.lang;
   var round = APP.PROTO_CURRENT_ROUND;
   var matches = APP.loadProtoMatches(round);
   var betTypeKeys = Object.keys(TOTO.PROTO_BET_TYPES);
@@ -967,17 +1196,20 @@ APP.protoAdminHtml = function(){
   var matchInputsHtml = matches.map(function(m){
     var oddsInputs = betTypeKeys.map(function(btKey){
       var bt = TOTO.PROTO_BET_TYPES[btKey];
-      var outcomeInputs = bt.outcomes.map(function(o){
+      var btName = lang === 'en' ? bt.nameEn : bt.nameKr;
+      var outcomeInputs = bt.outcomes.map(function(o, oi){
         var cur = (m.odds[btKey] && m.odds[btKey][o] !== undefined) ? m.odds[btKey][o] : '';
-        return '<input class="cnt-in proto-odds-input" data-match="'+m.matchId+'" data-bettype="'+btKey+'" data-outcome="'+o+'" value="'+cur+'" placeholder="'+o+'" style="width:62px;">';
+        var oDisplay = (lang === 'en' && bt.outcomesEn) ? bt.outcomesEn[oi] : o;
+        return '<input class="cnt-in proto-odds-input" data-match="'+m.matchId+'" data-bettype="'+btKey+'" data-outcome="'+o+'" value="'+cur+'" placeholder="'+oDisplay+'" style="width:62px;">';
       }).join('');
-      return '<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;"><span style="font-size:10.5px;color:var(--text-faint);width:62px;">'+bt.nameKr+'</span>'+outcomeInputs+'</div>';
+      return '<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;"><span style="font-size:10.5px;color:var(--text-faint);width:62px;">'+btName+'</span>'+outcomeInputs+'</div>';
     }).join('');
     var resultInputs = betTypeKeys.map(function(btKey){
       var bt = TOTO.PROTO_BET_TYPES[btKey];
+      var btName = lang === 'en' ? bt.nameEn : bt.nameKr;
       return '<select class="cnt-in proto-result-input" data-match="'+m.matchId+'" data-bettype="'+btKey+'" style="width:90px;">' +
-        '<option value="">'+bt.nameKr+':미입력</option>' +
-        bt.outcomes.map(function(o){ return '<option value="'+o+'">'+bt.nameKr+':'+o+'</option>'; }).join('') +
+        '<option value="">'+btName+':'+APP.t('admin_no_result')+'</option>' +
+        bt.outcomes.map(function(o, oi){ var oDisplay = (lang === 'en' && bt.outcomesEn) ? bt.outcomesEn[oi] : o; return '<option value="'+o+'">'+btName+':'+oDisplay+'</option>'; }).join('') +
       '</select>';
     }).join(' ');
 
@@ -986,23 +1218,25 @@ APP.protoAdminHtml = function(){
         '<input class="cnt-in admin-proto-home" data-match="'+m.matchId+'" value="'+m.home+'" style="flex:1;">' +
         '<input class="cnt-in admin-proto-away" data-match="'+m.matchId+'" value="'+m.away+'" style="flex:1;">' +
       '</div>' +
-      '<div style="font-size:10.5px;color:var(--text-faint);margin-bottom:4px;">배당률 입력</div>' +
+      '<div style="font-size:10.5px;color:var(--text-faint);margin-bottom:4px;">' + APP.t('proto_admin_odds_input') + '</div>' +
       oddsInputs +
-      '<div style="font-size:10.5px;color:var(--text-faint);margin:8px 0 4px;">실제 결과 입력</div>' +
+      '<div style="font-size:10.5px;color:var(--text-faint);margin:8px 0 4px;">' + APP.t('proto_admin_result_input') + '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + resultInputs + '</div>' +
     '</div>';
   }).join('');
 
+  var roundLabel = lang === 'en' ? ('Round '+round) : ('제'+round+'회');
+
   return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">' +
-    '<div style="font-size:12.5px;color:var(--text-dim);">🔓 관리자로 로그인됨</div>' +
-    '<button class="btn btn-outline" onclick="APP.adminLogout()">로그아웃</button>' +
+    '<div style="font-size:12.5px;color:var(--text-dim);">' + APP.t('admin_logged_in') + '</div>' +
+    '<button class="btn btn-outline" onclick="APP.adminLogout()">' + APP.t('admin_logout') + '</button>' +
   '</div>' +
-  '<div class="card"><h3>프로토 제' + round + '회 — 경기·배당률·결과 입력</h3>' +
-    '<p style="font-size:11px;color:var(--text-faint);margin-bottom:14px;">⚠️ 실시간 배당률 자동연동은 아직 없습니다. 베트맨(betman.co.kr) 등에서 실제 배당률을 확인해 직접 입력해주세요.</p>' +
+  '<div class="card"><h3>' + APP.t('tab_proto_title') + ' ' + roundLabel + APP.t('admin_target_matches') + '</h3>' +
+    '<p style="font-size:11px;color:var(--text-faint);margin-bottom:14px;">' + APP.t('proto_admin_odds_notice') + '</p>' +
   '</div>' +
   matchInputsHtml +
-  '<button class="btn btn-accent" onclick="APP.adminSaveProtoMatches()">배당률 저장</button> ' +
-  '<button class="btn btn-accent" onclick="APP.adminSaveProtoResults()">결과 저장 + 자동채점</button>';
+  '<button class="btn btn-accent" onclick="APP.adminSaveProtoMatches()">' + APP.t('proto_admin_save_odds') + '</button> ' +
+  '<button class="btn btn-accent" onclick="APP.adminSaveProtoResults()">' + APP.t('proto_admin_save_result') + '</button>';
 };
 
 APP.adminSaveProtoMatches = function(){
@@ -1032,7 +1266,7 @@ APP.adminSaveProtoMatches = function(){
   rounds[k] = rounds[k] || { round: round };
   rounds[k].matches = matches;
   APP.saveProtoRounds(rounds);
-  alert('배당률을 저장했습니다.');
+  alert(APP.t('proto_saved_odds'));
   APP.renderProtoSection();
 };
 
@@ -1065,13 +1299,13 @@ APP.adminSaveProtoResults = function(){
   });
   APP.saveProtoEntries(entries);
 
-  alert(gradedCount + '건 채점 완료!');
+  alert(gradedCount + APP.t('proto_graded_alert_suffix'));
   APP.renderProtoSection();
 };
 
 APP.openProtoHelp = function(){
-  document.getElementById('helpTitle').textContent = '프로토(고정배당 승부식)란?';
-  document.getElementById('helpBody').textContent =
-    '경기마다 정해진 배당률로 베팅하는, 실제 스포츠북과 가장 비슷한 방식이에요. 토토(등수제)와 가장 다른 점은 "내가 원하는 경기만 골라서" 2~10경기를 조합할 수 있고, 배당률이 구매 시점에 이미 확정된다는 점이에요(나중에 재계산되지 않아요). 조합한 경기들의 배당률을 모두 곱한 값이 최종 배당률이 되고, 선택한 경기를 전부 맞혀야 적중이에요. 유형은 5가지: 일반(승무패), 핸디캡(전력차 보정), 언더오버(득점합 기준), SUM(득점합 홀짝), 더블찬스(두 가지 결과 중 하나) — 경기마다 제공되는 유형이 다를 수 있어요.';
+  var lang = APP.state.lang;
+  document.getElementById('helpTitle').textContent = APP.t('proto_help_title');
+  document.getElementById('helpBody').textContent = APP.t('proto_help_body');
   document.getElementById('helpModal').classList.add('show');
 };
