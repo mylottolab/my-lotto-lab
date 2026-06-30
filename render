@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: my-lotto-lab-api
+    env: node
+    region: singapore   # Supabase DB와 같은 리전 — 빠른 응답
+    buildCommand: cd server && npm install
+    startCommand: cd server && node index.js
+    envVars:
+      - key: SUPABASE_URL
+        sync: false      # Render 대시보드에서 직접 입력
+      - key: SUPABASE_SERVICE_KEY
+        sync: false      # Render 대시보드에서 직접 입력
