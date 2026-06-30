@@ -1,0 +1,15 @@
+# 절대 GitHub에 올리면 안 되는 파일들
+.env
+server/.env
+
+# Node
+node_modules/
+server/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 로그
+*.log
+npm-debug.log*
