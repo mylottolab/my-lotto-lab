@@ -94,13 +94,52 @@ MLL.racePrize = function(grade, result) {
   return 0;
 };
 
+// ── 이용포인트 (전체 사이트 공용 지갑 — toto_app.js/global_lotto.html과 동일 키를 공유) ──
+MLL.POINTS_KEY = 'mll_global_points';
+MLL.LEDGER_KEY = 'mll_global_points_ledger';
+MLL.STARTING_POINTS = 1000;
+MLL.getPoints = function(){
+  try {
+    var v = JSON.parse(localStorage.getItem(MLL.POINTS_KEY) || 'null');
+    if (v && typeof v.balance === 'number') return v;
+  } catch(e){}
+  var fresh = { balance: MLL.STARTING_POINTS };
+  localStorage.setItem(MLL.POINTS_KEY, JSON.stringify(fresh));
+  return fresh;
+};
+MLL.loadLedger = function(){
+  try { return JSON.parse(localStorage.getItem(MLL.LEDGER_KEY) || '[]'); } catch(e){ return []; }
+};
+MLL.saveLedgerEntry = function(entry){
+  var ledger = MLL.loadLedger();
+  ledger.push(entry);
+  localStorage.setItem(MLL.LEDGER_KEY, JSON.stringify(ledger));
+};
+// 차감: 잔액 부족 시 false 반환(아무 변화 없음). 성공 시 true.
+MLL.deductPoints = function(amount, memo){
+  var pt = MLL.getPoints();
+  if (pt.balance < amount) return false;
+  pt.balance -= amount;
+  localStorage.setItem(MLL.POINTS_KEY, JSON.stringify(pt));
+  MLL.saveLedgerEntry({ type:'BATTLE_DEDUCT', amount:-amount, balanceAfter:pt.balance, memo:memo, at:Date.now() });
+  return true;
+};
+// 적립: 보상 지급용. 항상 성공.
+MLL.addPoints = function(amount, memo){
+  if (amount <= 0) return;
+  var pt = MLL.getPoints();
+  pt.balance += amount;
+  localStorage.setItem(MLL.POINTS_KEY, JSON.stringify(pt));
+  MLL.saveLedgerEntry({ type:'BATTLE_REWARD', amount:amount, balanceAfter:pt.balance, memo:memo, at:Date.now() });
+};
+
 // =====================================================
 // BATTLE 엔진
 // =====================================================
 var BATTLE = {};
 BATTLE.STORAGE_KEY = 'mll_battle_rooms';
 
-// ── 과금 설정 (관리자가 언제든 변경 가능하도록 분리 — 코드 하드코딩 금지) ──
+// ── 참가비 설정 (관리자가 언제든 변경 가능하도록 분리 — 코드 하드코딩 금지) ──
 BATTLE.PRICING_KEY = 'mll_battle_pricing';
 BATTLE.DEFAULT_PRICING = {
   '1v1': 100,
@@ -122,6 +161,32 @@ BATTLE.savePricing = function(pricing){
 BATTLE.getPrice = function(typeKey){
   return BATTLE.loadPricing()[typeKey] || 0;
 };
+
+// ── 우승 보상 설정 (금전이 아닌 이용포인트 고정 지급, 관리자가 언제든 변경 가능) ──
+// 1:1/팀전/무제한: 승자(동점이면 전원 각자 전액) 또는 이긴 팀 전원 각자 동일 지급.
+// 토너먼트: 최종 우승자 1인에게만 지급.
+BATTLE.REWARDS_KEY = 'mll_battle_rewards';
+BATTLE.DEFAULT_REWARDS = {
+  '1v1': 150,
+  'team': 150,
+  'ffa': 200,
+  'tournament3': 1000,
+  'tournament5': 2000,
+  'tournament10': 5000,
+};
+BATTLE.loadRewards = function(){
+  try {
+    var saved = JSON.parse(localStorage.getItem(BATTLE.REWARDS_KEY) || '{}');
+    return Object.assign({}, BATTLE.DEFAULT_REWARDS, saved);
+  } catch(e) { return Object.assign({}, BATTLE.DEFAULT_REWARDS); }
+};
+BATTLE.saveRewards = function(rewards){
+  localStorage.setItem(BATTLE.REWARDS_KEY, JSON.stringify(rewards));
+};
+BATTLE.getReward = function(typeKey){
+  return BATTLE.loadRewards()[typeKey] || 0;
+};
+
 
 // ── 배틀 타입 정의 ──
 // 토너먼트: 3/5/10단계. 각 단계마다 하위 N%가 당첨금 합계 순위 기준으로 탈락.
@@ -186,6 +251,13 @@ BATTLE.joinRoom = function(roomId, nickname, side){
   if (room.participants.some(function(p){ return p.nickname === nickname; })) return { ok:false, msg:'이미 참가한 닉네임입니다.' };
   if (room.participants.length >= room.maxParticipants) return { ok:false, msg:'정원이 가득 찼습니다.' };
 
+  var typeInfo = BATTLE.TYPES[room.type];
+  var price = BATTLE.getPrice(room.type);
+  if (price > 0) {
+    var deducted = MLL.deductPoints(price, typeInfo.nameKr + ' "' + room.name + '" 참가비');
+    if (!deducted) return { ok:false, msg:'포인트가 부족합니다. (참가비 ' + price.toLocaleString() + 'P 필요)' };
+  }
+
   room.participants.push({
     id: 'p_' + Date.now() + '_' + Math.floor(Math.random()*100000),
     nickname: nickname,
@@ -227,6 +299,7 @@ BATTLE.closeRegistration = function(roomId){
   return { ok:true };
 };
 
+// 토너먼트 전용: 단계마다 1세트(6개 숫자)만 제출
 BATTLE.submitPicks = function(roomId, participantId, picks){
   var rooms = BATTLE.load();
   var room = rooms.find(function(r){ return r.id === roomId; });
@@ -238,22 +311,38 @@ BATTLE.submitPicks = function(roomId, participantId, picks){
   p.picks = picks.slice().sort(function(a,b){return a-b;});
   p.submittedAt = Date.now();
 
-  var typeInfo = BATTLE.TYPES[room.type];
-  if (typeInfo.isTournament) {
-    var aliveSet = room.aliveIds;
-    var aliveParticipants = room.participants.filter(function(x){ return aliveSet.indexOf(x.id) >= 0; });
-    var allAliveSubmitted = aliveParticipants.every(function(x){ return !!x.picks; });
-    if (allAliveSubmitted) room.status = 'stage_running';
-  } else {
-    var allSubmitted = room.participants.every(function(x){ return !!x.picks; });
-    if (allSubmitted) room.status = 'active';
-  }
+  var aliveSet = room.aliveIds;
+  var aliveParticipants = room.participants.filter(function(x){ return aliveSet.indexOf(x.id) >= 0; });
+  var allAliveSubmitted = aliveParticipants.every(function(x){ return !!x.picks; });
+  if (allAliveSubmitted) room.status = 'stage_running';
 
   BATTLE.save(rooms);
   return { ok:true, room:room };
 };
 
-// 생존자가 "같은 번호로 다음 단계 계속하기"를 선택했을 때 - 이전 picks를 그대로 복사해 제출 처리
+// 1:1/팀전/무제한 전용: 참가자 1명이 번호조합 1~100개를 한 번에 제출. 참가비는 조합 개수와 무관하게 인당 1회 고정.
+BATTLE.MAX_COMBOS_PER_PARTICIPANT = 100;
+BATTLE.submitPicksList = function(roomId, participantId, combosArr){
+  var rooms = BATTLE.load();
+  var room = rooms.find(function(r){ return r.id === roomId; });
+  if (!room) return { ok:false, msg:'방을 찾을 수 없습니다.' };
+  var p = room.participants.find(function(x){ return x.id === participantId; });
+  if (!p) return { ok:false, msg:'참가자를 찾을 수 없습니다.' };
+  if (p.picksList && p.picksList.length) return { ok:false, msg:'이미 번호를 제출했습니다.' };
+  if (!combosArr || !combosArr.length) return { ok:false, msg:'번호조합을 1개 이상 등록해주세요.' };
+  if (combosArr.length > BATTLE.MAX_COMBOS_PER_PARTICIPANT) return { ok:false, msg:'번호조합은 최대 ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '개까지만 등록할 수 있습니다.' };
+
+  p.picksList = combosArr.map(function(c){ return c.slice().sort(function(a,b){return a-b;}); });
+  p.submittedAt = Date.now();
+
+  var allSubmitted = room.participants.every(function(x){ return !!(x.picksList && x.picksList.length); });
+  if (allSubmitted) room.status = 'active';
+
+  BATTLE.save(rooms);
+  return { ok:true, room:room };
+};
+
+// 생존자가 "같은 번호로 다음 단계 계속하기"를 선택했을 때 - 이전 picks를 그대로 복사해 제출 처리 (토너먼트 전용)
 BATTLE.keepSamePicks = function(roomId, participantId){
   var rooms = BATTLE.load();
   var room = rooms.find(function(r){ return r.id === roomId; });
@@ -263,13 +352,32 @@ BATTLE.keepSamePicks = function(roomId, participantId){
   return BATTLE.submitPicks(roomId, participantId, p.lastPicks);
 };
 
-// 두 참가자를 비교해서 더 나은 쪽을 반환 (-1: a승, 1: b승, 0: 무승부) — 1v1/team/ffa 전용(등수 기준)
+// 1:1/팀전/무제한 전용 채점: picksList 전체를 채점해 당첨금 합계·등록건수를 구한다.
+// 비교 규칙: ①당첨금 합계가 큰 쪽 승 ②합계 동률이면 등록건수가 적은 쪽 승(효율 우대)
+//            ③합계·건수까지 완전 동일하면 무승부(0 반환)
+BATTLE.gradeParticipantCombos = function(p, winNums, bonus, resultForPrize){
+  var totalPrize = 0, winCount = 0, bestGrade = 0;
+  p.picksList.forEach(function(nums){
+    var g = MLL.raceGrade(nums, winNums, bonus);
+    if (g > 0) {
+      winCount++;
+      if (!bestGrade || g < bestGrade) bestGrade = g;
+      totalPrize += MLL.racePrize(g, resultForPrize);
+    }
+  });
+  p.totalPrize = totalPrize;
+  p.winCount = winCount;
+  p.bestGrade = bestGrade;
+  p.comboCount = p.picksList.length;
+};
+
+// 두 참가자를 비교 (-1: a승, 1: b승, 0: 완전동점/무승부) — 1v1/team/ffa 전용(당첨금 합계 기준)
 BATTLE.compareParticipants = function(a, b){
-  var ra = MLL.gradeRank(a.grade), rb = MLL.gradeRank(b.grade);
-  if (ra !== rb) return ra < rb ? -1 : 1;
-  if (a.matchCount !== b.matchCount) return a.matchCount > b.matchCount ? -1 : 1;
+  if (a.totalPrize !== b.totalPrize) return a.totalPrize > b.totalPrize ? -1 : 1;
+  if (a.comboCount !== b.comboCount) return a.comboCount < b.comboCount ? -1 : 1; // 적은 건수가 우대
   return 0;
 };
+
 
 BATTLE.gradeAndFinish = function(roomId, winNums, bonus){
   var rooms = BATTLE.load();
@@ -278,30 +386,79 @@ BATTLE.gradeAndFinish = function(roomId, winNums, bonus){
   if (BATTLE.TYPES[room.type].isTournament) return BATTLE.advanceTournamentStage(roomId, winNums, bonus);
   if (room.status !== 'active') return { ok:false, msg:'아직 모든 참가자가 번호를 제출하지 않았거나, 이미 종료된 방입니다.' };
 
+  // 이 회차의 실제 1~3등 당첨금은 mll_results에서 그대로 가져온다(관리자가 별도 입력하지 않음)
+  var allResults = MLL.loadResults();
+  var roundResult = allResults[room.round] || {};
+  var resultForPrize = { nums:winNums, bonus:bonus, prize1:roundResult.prize1, prize2:roundResult.prize2, prize3:roundResult.prize3 };
+
   room.participants.forEach(function(p){
-    p.grade = MLL.raceGrade(p.picks, winNums, bonus);
-    p.matchCount = MLL.matchCount(p.picks, winNums);
+    BATTLE.gradeParticipantCombos(p, winNums, bonus, resultForPrize);
   });
   room.result = { nums: winNums, bonus: bonus };
+
+  var price = BATTLE.getPrice(room.type);
+  var reward = BATTLE.getReward(room.type);
+  var myNick = BUI.getMyNick();
 
   if (room.type === '1v1' || room.type === 'ffa') {
     var sorted = room.participants.slice().sort(BATTLE.compareParticipants);
     var best = sorted[0];
-    var winners = sorted.filter(function(p){ return BATTLE.compareParticipants(p, best) === 0; });
-    room.winnerIds = winners.map(function(p){ return p.id; });
+    // "완전동점(합계+건수 동일)"인 사람들만 best와 진짜 동점 — compareParticipants가 0을 반환하는 경우
+    var trueTies = sorted.filter(function(p){ return BATTLE.compareParticipants(p, best) === 0; });
+
+    if (trueTies.length > 1) {
+      // 무승부: 우승자 없음. 모든 참가자에게 참가비 절반 환불.
+      room.winnerIds = [];
+      room.isDraw = true;
+      room.participants.forEach(function(p){
+        if (price > 0 && p.nickname === myNick) MLL.addPoints(Math.floor(price/2), '"' + room.name + '" 무승부 참가비 절반 환불');
+      });
+    } else {
+      room.winnerIds = [best.id];
+      room.isDraw = false;
+      if (reward > 0 && best.nickname === myNick) MLL.addPoints(reward, '"' + room.name + '" 우승 보상');
+    }
 
   } else if (room.type === 'team') {
     var teamCount = room.teamCount || 2;
-    var teamBest = {};
+    var teamTotals = {}; // { teamIdx: { totalPrize, comboCount } }
     for (var t=0; t<teamCount; t++) {
       var members = room.participants.filter(function(p){ return p.side === t; });
-      members.sort(BATTLE.compareParticipants);
-      teamBest[t] = members[0]; // 팀 내 최고성적자가 팀 대표 성적
+      teamTotals[t] = {
+        totalPrize: members.reduce(function(s,p){ return s + (p.totalPrize||0); }, 0),
+        comboCount: members.reduce(function(s,p){ return s + (p.comboCount||0); }, 0),
+      };
     }
-    var teamOrder = Object.keys(teamBest).sort(function(t1,t2){ return BATTLE.compareParticipants(teamBest[t1], teamBest[t2]); });
-    var winningTeam = parseInt(teamOrder[0]);
-    room.winningSide = winningTeam;
-    room.winnerIds = room.participants.filter(function(p){ return p.side === winningTeam; }).map(function(p){ return p.id; });
+    var compareTeams = function(t1, t2){
+      var a = teamTotals[t1], b = teamTotals[t2];
+      if (a.totalPrize !== b.totalPrize) return a.totalPrize > b.totalPrize ? -1 : 1;
+      if (a.comboCount !== b.comboCount) return a.comboCount < b.comboCount ? -1 : 1; // 팀 전체 등록건수 적은 쪽 우대
+      return 0;
+    };
+    var teamOrder = Object.keys(teamTotals).sort(compareTeams);
+    var tieTeams = teamOrder.filter(function(t){ return compareTeams(t, teamOrder[0]) === 0; });
+
+    if (tieTeams.length > 1) {
+      // 팀 간 완전동점: 무승부. 전원 참가비 절반 환불.
+      room.winnerIds = [];
+      room.winningSide = null;
+      room.isDraw = true;
+      room.participants.forEach(function(p){
+        if (price > 0 && p.nickname === myNick) MLL.addPoints(Math.floor(price/2), '"' + room.name + '" 무승부 참가비 절반 환불');
+      });
+    } else {
+      var winningTeam = parseInt(teamOrder[0]);
+      room.winningSide = winningTeam;
+      room.isDraw = false;
+      var winningMembers = room.participants.filter(function(p){ return p.side === winningTeam; });
+      room.winnerIds = winningMembers.map(function(p){ return p.id; });
+      // 이긴 팀 전원에게 각자 동일 보상
+      if (reward > 0) {
+        winningMembers.forEach(function(p){
+          if (p.nickname === myNick) MLL.addPoints(reward, '"' + room.name + '" 우승팀 보상');
+        });
+      }
+    }
   }
 
   room.status = 'completed';
@@ -355,6 +512,12 @@ BATTLE.advanceTournamentStage = function(roomId, winNums, bonus){
     room.status = 'completed';
     room.completedAt = Date.now();
     room.stageLog.push({ stage: room.stage, round: room.stageRound, isFinal: true, standings: ranked.map(function(p){ return {id:p.id, nickname:p.nickname, totalPrize:p.totalPrize}; }) });
+
+    var reward = BATTLE.getReward(room.type);
+    if (reward > 0 && ranked.length) {
+      var champion = ranked[0];
+      if (champion.nickname === BUI.getMyNick()) MLL.addPoints(reward, '"' + room.name + '" 토너먼트 우승 보상');
+    }
   } else {
     // 이번 단계 탈락 비율 적용 (eliminateRates는 1단계부터 순서대로: eliminateRates[stage-1])
     var rate = room.eliminateRates[room.stage - 1] || 0;
@@ -501,7 +664,7 @@ button{font-family:inherit;cursor:pointer;}
   <div class="page-head">
     <div>
       <div class="page-title" id="pageTitleArea">⚔️ Battles</div>
-      <div class="page-sub" id="pageSubArea">같은 회차에 번호를 미리 제출하고, 추첨 결과로 승부를 가립니다. 신청시간 매주 일요일 0시 ~ 토요일 오후 8시.</div>
+      <div class="page-sub" id="pageSubArea">같은 회차에 번호를 미리 제출하고, 추첨 결과로 승부를 가립니다.</div>
     </div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-outline" id="adminEntryBtn" onclick="BUI.openAdminView()">🔒 관리자</button>
@@ -548,7 +711,7 @@ button{font-family:inherit;cursor:pointer;}
 // BUI - 화면 컨트롤러
 // =====================================================
 var BUI = {};
-BUI.state = { view: 'typeSelect', filterType: null, roomTab: 'waiting', createType: '1v1', selectedBalls: [], currentRoomId: null, joinAsNickname: null };
+BUI.state = { view: 'typeSelect', filterType: null, roomTab: 'waiting', createType: '1v1', selectedBalls: [], multiCombos: [], currentRoomId: null, joinAsNickname: null };
 BUI.MY_NICK_KEY = 'mll_battle_my_nick';
 
 BUI.getMyNick = function(){
@@ -719,7 +882,7 @@ BUI.renderTypeSelectGrid = function(){
     var t = BATTLE.TYPES[key];
     var count = rooms.filter(function(r){ return r.type === key; }).length;
     var openCount = rooms.filter(function(r){ return r.type === key && r.status === 'waiting'; }).length;
-    var priceTag = t.isTournament ? ('<span style="color:var(--gold);">참가비 ' + BATTLE.getPrice(key).toLocaleString() + 'P</span> · ') : '';
+    var priceTag = '<span style="color:var(--gold);">참가비 ' + BATTLE.getPrice(key).toLocaleString() + 'P</span> · <span style="color:var(--green);">보상 ' + BATTLE.getReward(key).toLocaleString() + 'P</span> · ';
     return '<div class="type-card" onclick="BUI.openTypeRoomList(\'' + key + '\')">' +
       '<div class="ti">' + BUI.typeIcons[key] + '</div>' +
       '<div class="tn">' + t.nameKr + '</div>' +
@@ -794,17 +957,22 @@ BUI.selectCreateType = function(key){
 BUI.renderCreateForm = function(){
   var type = BATTLE.TYPES[BUI.state.createType];
   var info = MLL.getLottoInfo();
+  var price = BATTLE.getPrice(BUI.state.createType);
+  var reward = BATTLE.getReward(BUI.state.createType);
+
   var sizeOptionsHtml = '';
   if (BUI.state.createType === 'team') {
     sizeOptionsHtml = '<div class="form-row"><label>팀 수</label><input type="number" class="inp" id="cfTeamCount" value="2" min="2" max="10" style="width:80px;"> <span style="font-size:11px;color:var(--text-faint);">팀당 인원 제한 없음 — 모집 후 방장이 마감</span></div>';
   } else if (BUI.state.createType === 'ffa') {
     sizeOptionsHtml = '<div class="form-row"><label style="color:var(--text-faint);">인원</label><span style="font-size:12px;color:var(--text-dim);">제한 없음 — 모집 후 방장이 마감</span></div>';
   } else if (type.isTournament) {
-    var price = BATTLE.getPrice(BUI.state.createType);
-    sizeOptionsHtml =
-      '<div class="form-row"><label style="color:var(--text-faint);">인원</label><span style="font-size:12px;color:var(--text-dim);">제한 없음 — 모집 후 방장이 마감</span></div>' +
-      '<div class="form-row"><label style="color:var(--text-faint);">참가비</label><span style="font-size:12px;color:var(--gold);font-weight:700;">' + price.toLocaleString() + 'P (최초 1회만)</span></div>';
+    sizeOptionsHtml = '<div class="form-row"><label style="color:var(--text-faint);">인원</label><span style="font-size:12px;color:var(--text-dim);">제한 없음 — 모집 후 방장이 마감</span></div>';
   }
+
+  var priceUnitLabel = type.isTournament ? ' (참가 시 최초 1회만)' : ' (참가 1인당)';
+  var priceRewardHtml = '<div class="form-row"><label style="color:var(--text-faint);">참가비/보상</label>' +
+    '<span style="font-size:12px;color:var(--gold);font-weight:700;">참가비 ' + price.toLocaleString() + 'P' + priceUnitLabel + '</span>' +
+    '<span style="font-size:12px;color:var(--green);font-weight:700;margin-left:8px;">우승 보상 ' + reward.toLocaleString() + 'P</span></div>';
 
   var roundFieldHtml;
   if (info.isPending) {
@@ -819,9 +987,11 @@ BUI.renderCreateForm = function(){
   document.getElementById('createFormBody').innerHTML =
     '<div class="form-row"><label>방 이름</label><input type="text" class="inp" id="cfName" placeholder="' + type.nameKr + ' 방" style="flex:1;"' + (info.isPending?' disabled':'') + '></div>' +
     roundFieldHtml +
+    priceRewardHtml +
     sizeOptionsHtml +
     '<button class="btn btn-gold" style="width:100%;margin-top:10px;" onclick="BUI.submitCreate()"' + (info.isPending?' disabled':'') + '>' + (info.isPending ? '결과 집계 완료 후 이용 가능' : '방 만들기') + '</button>';
 };
+
 
 BUI.submitCreate = function(){
   var info = MLL.getLottoInfo();
@@ -850,6 +1020,8 @@ BUI.submitCreate = function(){
 // ── 방 상세 ──
 BUI.openRoom = function(roomId){
   BUI.state.currentRoomId = roomId;
+  BUI.state.selectedBalls = [];
+  BUI.state.multiCombos = [];
   BUI.renderRoomModal();
   document.getElementById('roomModal').classList.add('show');
 };
@@ -887,10 +1059,19 @@ BUI.renderRoomModal = function(){
   }
 
   box.innerHTML = header + bodyHtml;
-  var stillNeedsBallGrid = room.status === 'pending_numbers' && myParticipant && !myParticipant.picks &&
-    (!typeInfo.isTournament || room.aliveIds.indexOf(myParticipant.id) >= 0);
-  if (stillNeedsBallGrid && document.getElementById('pendingBallGrid')) {
-    BUI.renderBallGrid('pendingBallGrid');
+  if (room.status === 'pending_numbers' && myParticipant) {
+    if (typeInfo.isTournament) {
+      var stillNeedsBallGrid = !myParticipant.picks && room.aliveIds.indexOf(myParticipant.id) >= 0;
+      if (stillNeedsBallGrid && document.getElementById('pendingBallGrid')) {
+        BUI.renderBallGrid('pendingBallGrid');
+      }
+    } else {
+      var notSubmittedYet = !(myParticipant.picksList && myParticipant.picksList.length);
+      if (notSubmittedYet && document.getElementById('multiBallGrid')) {
+        BUI.renderMultiBallGrid();
+        BUI.renderMultiComboList();
+      }
+    }
   }
 };
 
@@ -947,26 +1128,30 @@ BUI.doCloseRegistration = function(){
 
 BUI.roomPendingHtml = function(room, myParticipant){
   var isTournament = BATTLE.TYPES[room.type].isTournament;
-  var displayParticipants = isTournament ? room.participants.filter(function(p){ return room.aliveIds.indexOf(p.id) >= 0; }) : room.participants;
 
-  var noticeHtml = '';
   if (isTournament) {
-    var isFinalStage = room.stage >= room.totalStages;
-    noticeHtml = '<div class="card" style="background:rgba(224,179,65,.06);border-color:var(--gold-dim);font-size:11.5px;color:var(--text-dim);line-height:1.7;">' +
-      '🏆 ' + room.stage + '/' + room.totalStages + '단계 (제' + room.stageRound + '회 추첨 기준)' + (isFinalStage ? ' — 결승! 누적 당첨금 합계 1위가 우승합니다.' : ' — 이번 단계 추첨 후 하위 성적자가 탈락합니다.') +
-      (room.stage > 1 ? '<br>현재 ' + displayParticipants.length + '명이 생존해 있습니다. (각 단계 당첨금은 계속 누적됩니다)' : '') +
-    '</div>';
+    return BUI.roomPendingTournamentHtml(room, myParticipant);
   }
+  return BUI.roomPendingMultiHtml(room, myParticipant);
+};
+
+// 토너먼트 전용 (기존 방식 유지: 단계마다 1세트만 제출)
+BUI.roomPendingTournamentHtml = function(room, myParticipant){
+  var displayParticipants = room.participants.filter(function(p){ return room.aliveIds.indexOf(p.id) >= 0; });
+  var isFinalStage = room.stage >= room.totalStages;
+  var noticeHtml = '<div class="card" style="background:rgba(224,179,65,.06);border-color:var(--gold-dim);font-size:11.5px;color:var(--text-dim);line-height:1.7;">' +
+    '🏆 ' + room.stage + '/' + room.totalStages + '단계 (제' + room.stageRound + '회 추첨 기준)' + (isFinalStage ? ' — 결승! 누적 당첨금 합계 1위가 우승합니다.' : ' — 이번 단계 추첨 후 하위 성적자가 탈락합니다.') +
+    (room.stage > 1 ? '<br>현재 ' + displayParticipants.length + '명이 생존해 있습니다. (각 단계 당첨금은 계속 누적됩니다)' : '') +
+  '</div>';
 
   var participantsHtml = displayParticipants.map(function(p){
-    var sideLabel = (room.type === 'team') ? (' · 팀' + (p.side+1)) : '';
-    var prizeLabel = isTournament ? (' · 누적 ' + (p.totalPrize||0).toLocaleString() + '원') : '';
-    return '<div class="participant-row"><span>' + p.nickname + sideLabel + prizeLabel + '</span><span style="color:' + (p.picks?'var(--green)':'var(--text-faint)') + ';">' + (p.picks?'제출완료':'대기중') + '</span></div>';
+    var prizeLabel = ' · 누적 ' + (p.totalPrize||0).toLocaleString() + '원';
+    return '<div class="participant-row"><span>' + p.nickname + prizeLabel + '</span><span style="color:' + (p.picks?'var(--green)':'var(--text-faint)') + ';">' + (p.picks?'제출완료':'대기중') + '</span></div>';
   }).join('');
 
   var submitHtml = '';
-  if (myParticipant && !myParticipant.picks && (!isTournament || room.aliveIds.indexOf(myParticipant.id)>=0)) {
-    var keepBtnHtml = (isTournament && myParticipant.lastPicks)
+  if (myParticipant && !myParticipant.picks && room.aliveIds.indexOf(myParticipant.id)>=0) {
+    var keepBtnHtml = myParticipant.lastPicks
       ? '<button class="btn btn-outline" style="width:100%;margin-bottom:8px;" onclick="BUI.doKeepSamePicks()">↺ 이전 번호 그대로 쓰기 (' + myParticipant.lastPicks.join(', ') + ')</button>'
       : '';
     submitHtml = '<div class="card"><h3>내 번호 선택 (' + BUI.state.selectedBalls.length + '/6)</h3>' +
@@ -977,11 +1162,39 @@ BUI.roomPendingHtml = function(room, myParticipant){
     '</div>';
   } else if (myParticipant && myParticipant.picks) {
     submitHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ 제출 완료: ' + myParticipant.picks.join(', ') + '<br>다른 참가자의 제출을 기다리는 중입니다.</div></div>';
-  } else if (isTournament && myParticipant && room.aliveIds.indexOf(myParticipant.id) < 0) {
+  } else if (myParticipant && room.aliveIds.indexOf(myParticipant.id) < 0) {
     submitHtml = '<div class="card"><div style="font-size:12px;color:var(--text-faint);text-align:center;">이전 단계에서 탈락하셨습니다. 결과는 "완료" 탭에서 확인하실 수 있어요.</div></div>';
   }
 
-  return noticeHtml + '<div class="card"><h3>' + (isTournament?'생존자':'참가자') + ' (' + displayParticipants.length + '명)</h3>' + participantsHtml + '</div>' + submitHtml;
+  return noticeHtml + '<div class="card"><h3>생존자 (' + displayParticipants.length + '명)</h3>' + participantsHtml + '</div>' + submitHtml;
+};
+
+// 1:1/팀전/무제한 전용: 참가자 1명이 번호조합 1~100개를 한 번에 등록, 당첨금 합계로 승부
+BUI.roomPendingMultiHtml = function(room, myParticipant){
+  var participantsHtml = room.participants.map(function(p){
+    var sideLabel = (room.type === 'team') ? (' · 팀' + (p.side+1)) : '';
+    var submitted = !!(p.picksList && p.picksList.length);
+    var comboLabel = submitted ? (' · ' + p.picksList.length + '개 조합') : '';
+    return '<div class="participant-row"><span>' + p.nickname + sideLabel + comboLabel + '</span><span style="color:' + (submitted?'var(--green)':'var(--text-faint)') + ';">' + (submitted?'제출완료':'대기중') + '</span></div>';
+  }).join('');
+
+  var submitHtml = '';
+  var iSubmitted = !!(myParticipant && myParticipant.picksList && myParticipant.picksList.length);
+  if (myParticipant && !iSubmitted) {
+    submitHtml = '<div class="card">' +
+      '<h3>내 번호조합 등록 (최대 ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '개)</h3>' +
+      '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">여러 개의 번호조합을 등록할 수 있어요. 추첨 후 각 조합의 당첨금을 모두 더한 <b style="color:var(--gold);">합계</b>로 승부를 가립니다. (참가비는 조합 개수와 무관하게 1회만 부과됩니다)</p>' +
+      '<div class="form-row"><label>자동 생성 개수</label><input type="number" class="inp" id="multiGenCount" value="10" min="1" max="' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '" style="width:80px;"> <button class="btn btn-outline" onclick="BUI.addAutoCombos()">+ 자동 추가</button></div>' +
+      '<div class="form-row"><label>직접 선택</label><span style="font-size:11px;color:var(--text-faint);">아래 공에서 6개를 고르면 조합이 1개씩 추가됩니다</span></div>' +
+      '<div class="ball-grid" id="multiBallGrid"></div>' +
+      '<div id="multiComboList" style="margin-top:12px;"></div>' +
+      '<button class="btn btn-gold" style="width:100%;margin-top:10px;" id="submitMultiPicksBtn" disabled onclick="BUI.doSubmitMultiPicks()">조합 등록 완료하기</button>' +
+    '</div>';
+  } else if (iSubmitted) {
+    submitHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ ' + myParticipant.picksList.length + '개 조합 제출 완료<br>다른 참가자의 제출을 기다리는 중입니다.</div></div>';
+  }
+
+  return '<div class="card"><h3>참가자 (' + room.participants.length + '명)</h3>' + participantsHtml + '</div>' + submitHtml;
 };
 
 BUI.doKeepSamePicks = function(){
@@ -1046,11 +1259,81 @@ BUI.doSubmitPicks = function(){
   BUI.renderRoomModal();
 };
 
+// ── 1:1/팀전/무제한 전용: 다중 번호조합 등록 UI ──
+BUI.renderMultiBallGrid = function(){
+  var el = document.getElementById('multiBallGrid');
+  if (!el) return;
+  var html = '';
+  for (var n=1; n<=45; n++) {
+    var on = BUI.state.selectedBalls.indexOf(n) >= 0;
+    html += '<button class="ball-btn' + (on?' on':'') + '" onclick="BUI.toggleMultiBall(' + n + ')">' + n + '</button>';
+  }
+  el.innerHTML = html;
+};
+BUI.toggleMultiBall = function(n){
+  var sel = BUI.state.selectedBalls;
+  var idx = sel.indexOf(n);
+  if (idx >= 0) { sel.splice(idx, 1); }
+  else if (sel.length < 6) { sel.push(n); }
+  if (sel.length === 6) {
+    // 6개가 완성되면 조합 목록에 자동 추가하고 선택 초기화
+    BUI.addCombo(sel.slice().sort(function(a,b){return a-b;}));
+    BUI.state.selectedBalls = [];
+  }
+  BUI.renderMultiBallGrid();
+};
+BUI.addCombo = function(combo){
+  if (BUI.state.multiCombos.length >= BATTLE.MAX_COMBOS_PER_PARTICIPANT) {
+    alert('번호조합은 최대 ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '개까지만 등록할 수 있어요.');
+    return;
+  }
+  BUI.state.multiCombos.push(combo);
+  BUI.renderMultiComboList();
+};
+BUI.removeCombo = function(idx){
+  BUI.state.multiCombos.splice(idx, 1);
+  BUI.renderMultiComboList();
+};
+BUI.addAutoCombos = function(){
+  var countInput = document.getElementById('multiGenCount');
+  var count = Math.max(1, Math.min(BATTLE.MAX_COMBOS_PER_PARTICIPANT - BUI.state.multiCombos.length, parseInt(countInput.value)||1));
+  if (count <= 0) { alert('이미 최대 ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '개를 등록했어요.'); return; }
+  for (var i=0;i<count;i++){
+    var pool = []; for (var n=1;n<=45;n++) pool.push(n);
+    var picked = [];
+    while (picked.length < 6) { var idx = Math.floor(Math.random()*pool.length); picked.push(pool.splice(idx,1)[0]); }
+    BUI.state.multiCombos.push(picked.sort(function(a,b){return a-b;}));
+  }
+  BUI.renderMultiComboList();
+};
+BUI.renderMultiComboList = function(){
+  var el = document.getElementById('multiComboList');
+  if (!el) return;
+  var combos = BUI.state.multiCombos;
+  var listHtml = combos.map(function(c, i){
+    return '<div class="participant-row"><span class="font-num">' + (i+1) + '. ' + c.join(', ') + '</span><span style="color:var(--red);cursor:pointer;" onclick="BUI.removeCombo(' + i + ')">✕ 삭제</span></div>';
+  }).join('') || '<div style="font-size:11.5px;color:var(--text-faint);padding:8px 0;">아직 등록된 조합이 없습니다.</div>';
+  el.innerHTML = '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">등록된 조합: <b style="color:var(--gold);">' + combos.length + ' / ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '</b></div>' + listHtml;
+  var btn = document.getElementById('submitMultiPicksBtn');
+  if (btn) btn.disabled = combos.length === 0;
+};
+BUI.doSubmitMultiPicks = function(){
+  var room = BATTLE.getRoom(BUI.state.currentRoomId);
+  var myParticipant = room.participants.find(function(p){ return p.nickname === BUI.getMyNick(); });
+  if (!myParticipant) return;
+  if (!BUI.state.multiCombos.length) { alert('번호조합을 1개 이상 등록해주세요.'); return; }
+  var result = BATTLE.submitPicksList(room.id, myParticipant.id, BUI.state.multiCombos);
+  if (!result.ok) { alert('⚠️ ' + result.msg); return; }
+  BUI.state.multiCombos = [];
+  BUI.state.selectedBalls = [];
+  BUI.renderRoomModal();
+};
+
 BUI.roomActiveHtml = function(room){
   return '<div class="card"><div class="empty-state">⏳ 모든 참가자가 번호를 제출했습니다.<br>제' + room.round + '회 추첨 결과가 발표되면 자동으로 채점됩니다.</div></div>' +
-    '<div class="card"><h3>참가자별 제출 번호</h3>' + room.participants.map(function(p){
-      var sideLabel = (room.type === 'team') ? (' · ' + (p.side===0?'팀A':'팀B')) : '';
-      return '<div class="participant-row"><span>' + p.nickname + sideLabel + '</span><span class="font-num">' + p.picks.join(', ') + '</span></div>';
+    '<div class="card"><h3>참가자별 제출 조합 수</h3>' + room.participants.map(function(p){
+      var sideLabel = (room.type === 'team') ? (' · 팀' + (p.side+1)) : '';
+      return '<div class="participant-row"><span>' + p.nickname + sideLabel + '</span><span class="font-num">' + (p.picksList?p.picksList.length:0) + '개 조합</span></div>';
     }).join('') + '</div>';
 };
 
@@ -1074,19 +1357,28 @@ BUI.roomCompletedHtml = function(room){
             return '<div class="participant-row' + (isChampion?' winner':'') + '"><span>' + s.nickname + (eliminated?' (탈락)':'') + (isChampion?' 🏆':'') + '</span><span class="font-num" style="color:' + (eliminated?'var(--text-faint)':'var(--text)') + ';">누적 ' + s.totalPrize.toLocaleString() + '원</span></div>';
           }).join('');
       }).join('') + '</div>';
+  } else if (room.isDraw) {
+    var refundAmount = Math.floor(BATTLE.getPrice(room.type)/2);
+    rankedHtml = '<div class="card" style="background:rgba(91,156,213,.08);border-color:var(--blue);">' +
+      '<h3>🤝 무승부</h3><div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;">당첨금 합계와 등록건수까지 완전히 같아 우승자를 가릴 수 없었습니다.<br>참가자 전원에게 참가비의 절반(' + refundAmount.toLocaleString() + 'P)이 환불되었습니다.</div>' +
+    '</div>' +
+    '<div class="card"><h3>결과 순위</h3>' +
+      room.participants.slice().sort(BATTLE.compareParticipants).map(function(p){
+        return '<div class="participant-row"><span>' + p.nickname + (room.type==='team'?(' · 팀'+(p.side+1)):'') + '</span><span class="font-num">누적 ' + (p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개 조합</span></div>';
+      }).join('') + '</div>';
   } else if (room.type === 'team') {
     var teamLabel = '팀' + (room.winningSide + 1);
     rankedHtml = '<div class="card"><h3>🏆 승리팀: ' + teamLabel + '</h3>' +
       room.participants.slice().sort(function(a,b){return BATTLE.compareParticipants(a,b);}).map(function(p){
         var isWinner = room.winnerIds.indexOf(p.id) >= 0;
         var sideLabel = '팀' + (p.side+1);
-        return '<div class="participant-row' + (isWinner?' winner':'') + '"><span>' + p.nickname + ' · ' + sideLabel + '</span><span class="font-num">' + p.matchCount + '개 일치 · ' + (p.grade>0?p.grade+'등':'낙첨') + '</span></div>';
+        return '<div class="participant-row' + (isWinner?' winner':'') + '"><span>' + p.nickname + ' · ' + sideLabel + (isWinner?' 🏆':'') + '</span><span class="font-num">누적 ' + (p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개 조합</span></div>';
       }).join('') + '</div>';
   } else {
     rankedHtml = '<div class="card"><h3>🏆 결과 순위</h3>' +
       room.participants.slice().sort(function(a,b){return BATTLE.compareParticipants(a,b);}).map(function(p, idx){
         var isWinner = room.winnerIds.indexOf(p.id) >= 0;
-        return '<div class="participant-row' + (isWinner?' winner':'') + '"><span>' + (idx+1) + '위 · ' + p.nickname + (isWinner?' 🏆':'') + '</span><span class="font-num">' + p.matchCount + '개 일치 · ' + (p.grade>0?p.grade+'등':'낙첨') + '</span></div>';
+        return '<div class="participant-row' + (isWinner?' winner':'') + '"><span>' + (idx+1) + '위 · ' + p.nickname + (isWinner?' 🏆':'') + '</span><span class="font-num">누적 ' + (p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개 조합</span></div>';
       }).join('') + '</div>';
   }
 
@@ -1131,27 +1423,43 @@ BUI.adminHtml = function(){
 // 토너먼트 참가비(및 그 외 타입 참가비)를 언제든 조정할 수 있는 관리자 패널
 BUI.adminPricingPanelHtml = function(){
   var pricing = BATTLE.loadPricing();
-  var rows = Object.keys(BATTLE.TYPES).map(function(key){
+  var rewards = BATTLE.loadRewards();
+  var priceRows = Object.keys(BATTLE.TYPES).map(function(key){
     var t = BATTLE.TYPES[key];
     return '<div class="form-row"><label style="min-width:120px;">' + t.nameKr + '</label>' +
       '<input type="number" class="inp" id="priceInput_' + key + '" value="' + pricing[key] + '" min="0" step="10" style="width:100px;">' +
       '<span style="font-size:11px;color:var(--text-faint);">P' + (t.isTournament ? ' (최초 1회만)' : ' (참가 1회당)') + '</span></div>';
   }).join('');
+  var rewardRows = Object.keys(BATTLE.TYPES).map(function(key){
+    var t = BATTLE.TYPES[key];
+    return '<div class="form-row"><label style="min-width:120px;">' + t.nameKr + '</label>' +
+      '<input type="number" class="inp" id="rewardInput_' + key + '" value="' + rewards[key] + '" min="0" step="10" style="width:100px;">' +
+      '<span style="font-size:11px;color:var(--text-faint);">P</span></div>';
+  }).join('');
   return '<div class="card">' +
     '<h3>💰 종류별 참가비 설정</h3>' +
-    rows +
+    priceRows +
+    '<h3 style="margin-top:18px;">🏆 종류별 우승 보상 설정 (이용포인트 고정 지급)</h3>' +
+    '<div style="font-size:11px;color:var(--text-faint);margin-bottom:10px;line-height:1.6;">실제 로또 당첨금이 아닌, 여기서 설정한 고정 포인트가 승자에게 지급됩니다. 팀전은 이긴 팀 전원에게 각자 동일하게 지급됩니다.</div>' +
+    rewardRows +
     '<button class="btn btn-gold" style="margin-top:8px;" onclick="BUI.adminSavePricing()">저장</button>' +
     '<span id="pricingSaveMsg" style="font-size:11.5px;margin-left:10px;"></span>' +
   '</div>';
 };
 BUI.adminSavePricing = function(){
   var newPricing = {};
+  var newRewards = {};
   Object.keys(BATTLE.TYPES).forEach(function(key){
-    var el = document.getElementById('priceInput_' + key);
-    var val = parseInt(el.value);
-    newPricing[key] = isNaN(val) ? BATTLE.DEFAULT_PRICING[key] : val;
+    var priceEl = document.getElementById('priceInput_' + key);
+    var priceVal = parseInt(priceEl.value);
+    newPricing[key] = isNaN(priceVal) ? BATTLE.DEFAULT_PRICING[key] : priceVal;
+
+    var rewardEl = document.getElementById('rewardInput_' + key);
+    var rewardVal = parseInt(rewardEl.value);
+    newRewards[key] = isNaN(rewardVal) ? BATTLE.DEFAULT_REWARDS[key] : rewardVal;
   });
   BATTLE.savePricing(newPricing);
+  BATTLE.saveRewards(newRewards);
   var msg = document.getElementById('pricingSaveMsg');
   if (msg) { msg.style.color = 'var(--green)'; msg.textContent = '✅ 저장되었습니다.'; }
 };
