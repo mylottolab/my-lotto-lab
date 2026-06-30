@@ -230,17 +230,21 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
       <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <div class="brand-text">
         <div class="t1">My Lotto Lab</div>
-        <div class="t2">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+        <div class="t2" data-i18n-kr="가상 로또 등록 · 당첨 분석 · 통계 플랫폼" data-i18n-en="Virtual Lotto Entry · Win Analysis · Stats Platform">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:14px;">
       <div class="crumb">
-        <a onclick="location.href='main_page.html'">홈</a>
+        <a onclick="location.href='main_page.html'" data-i18n-kr="홈" data-i18n-en="Home">홈</a>
         <span class="sep">/</span>
-        <span class="cur">모의 실전 시뮬레이션</span>
+        <span class="cur" data-i18n-kr="모의 실전 시뮬레이션" data-i18n-en="Mock Live Simulation">모의 실전 시뮬레이션</span>
+      </div>
+      <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
+        <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
       </div>
       <div class="nick-badge" id="nickBadge" onclick="MOCKUI.openNicknameModal(true)">
-        <span class="dot"></span><span id="nickBadgeText">닉네임 설정</span>
+        <span class="dot"></span><span id="nickBadgeText" data-i18n-kr="닉네임 설정" data-i18n-en="Set Nickname">닉네임 설정</span>
       </div>
     </div>
   </div>
@@ -252,26 +256,27 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
     <span id="pageTitleText">제0회 (0000.00.00 추첨) 모의 실전 시뮬레이션</span>
     <span class="status-pill" id="statusPill"></span>
   </div>
-  <div class="page-sub">실제 돈이 들어가지 않는 <b>가상 체험</b>입니다. 1게임은 1,000원으로 가정해 구입비와 당첨금을 비교하고, 로또 당첨이 얼마나 어려운지 직접 경험해보세요.</div>
+  <div class="page-sub" data-i18n-html="true" data-i18n-kr="실제 돈이 들어가지 않는 <b>가상 체험</b>입니다. 1게임은 1,000원으로 가정해 구입비와 당첨금을 비교하고, 로또 당첨이 얼마나 어려운지 직접 경험해보세요." data-i18n-en="This is a <b>virtual experience</b> with no real money involved. Each game is assumed to cost 1,000 KRW, letting you compare purchase cost vs. winnings and experience firsthand just how hard it is to win the lottery.">실제 돈이 들어가지 않는 <b>가상 체험</b>입니다. 1게임은 1,000원으로 가정해 구입비와 당첨금을 비교하고, 로또 당첨이 얼마나 어려운지 직접 경험해보세요.</div>
 </div>
 
 <div class="warn-banner">
   <div class="warn-card">
     <span class="ico">⚠️</span>
-    <span><b style="color:#f0a3ab;">이 시뮬레이션의 목적은 "로또는 당첨되기 매우 어렵다"는 것을 체감하게 하는 데 있습니다.</b> 실제 로또 구매는 신중히 결정하시고, 절대 중독되지 않도록 적정 금액 내에서만 즐기시길 권장합니다. 도박 문제로 어려움을 겪고 있다면 한국도박문제예방치유원(1336)에 상담받아보세요.</span>
+    <span data-i18n-html="true" data-i18n-kr="<b style=&quot;color:#f0a3ab;&quot;>이 시뮬레이션의 목적은 &quot;로또는 당첨되기 매우 어렵다&quot;는 것을 체감하게 하는 데 있습니다.</b> 실제 로또 구매는 신중히 결정하시고, 절대 중독되지 않도록 적정 금액 내에서만 즐기시길 권장합니다. 도박 문제로 어려움을 겪고 있다면 한국도박문제예방치유원(1336)에 상담받아보세요." data-i18n-en="<b style=&quot;color:#f0a3ab;&quot;>The purpose of this simulation is to help you feel just how difficult it is to win the lottery.</b> Please make real lottery purchases carefully, and only spend an amount you're comfortable with to avoid addiction. If you're struggling with gambling problems, please consult the Korea Center on Gambling Problems (1336).">
+<b style="color:#f0a3ab;">이 시뮬레이션의 목적은 "로또는 당첨되기 매우 어렵다"는 것을 체감하게 하는 데 있습니다.</b> 실제 로또 구매는 신중히 결정하시고, 절대 중독되지 않도록 적정 금액 내에서만 즐기시길 권장합니다. 도박 문제로 어려움을 겪고 있다면 한국도박문제예방치유원(1336)에 상담받아보세요.</span>
   </div>
 </div>
 
 <div class="countdown-card">
   <div class="cd-inner">
     <div>
-      <div class="cd-label">접수기간</div>
-      <div style="font-size:12.5px;color:var(--text-dim);margin-top:2px;">매주 일요일 06:00 ~ 토요일 20:00</div>
+      <div class="cd-label" data-i18n-kr="접수기간" data-i18n-en="Entry Period">접수기간</div>
+      <div style="font-size:12.5px;color:var(--text-dim);margin-top:2px;" data-i18n-kr="매주 일요일 06:00 ~ 토요일 20:00" data-i18n-en="Every Sunday 06:00 ~ Saturday 20:00">매주 일요일 06:00 ~ 토요일 20:00</div>
     </div>
     <div class="ticker-wrap" id="tickerWrap" style="flex:1;">
       <div class="ticker-balls" id="tickerBalls"></div>
       <div class="ticker-counter">
-        <span class="cd-label">전체 등록조합</span>
+        <span class="cd-label" data-i18n-kr="전체 등록조합" data-i18n-en="Total Combos Registered">전체 등록조합</span>
         <span class="ticker-count font-num" id="tickerCount">0</span>
       </div>
     </div>
@@ -283,10 +288,10 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
 </div>
 
 <div class="tabbar" id="tabbar">
-  <button class="tab-btn active" data-tab="enter" onclick="MOCKUI.switchTab('enter')">✏️ 번호 등록</button>
-  <button class="tab-btn" data-tab="my" onclick="MOCKUI.switchTab('my')">📋 내 등록현황</button>
-  <button class="tab-btn" data-tab="stats" onclick="MOCKUI.switchTab('stats')">📊 내 수익통계</button>
-  <button class="tab-btn" data-tab="board" onclick="MOCKUI.switchTab('board')">🏆 전체 참여순위</button>
+  <button class="tab-btn active" data-tab="enter" onclick="MOCKUI.switchTab('enter')">✏️ <span data-i18n-kr="번호 등록" data-i18n-en="Register Numbers">번호 등록</span></button>
+  <button class="tab-btn" data-tab="my" onclick="MOCKUI.switchTab('my')">📋 <span data-i18n-kr="내 등록현황" data-i18n-en="My Entries">내 등록현황</span></button>
+  <button class="tab-btn" data-tab="stats" onclick="MOCKUI.switchTab('stats')">📊 <span data-i18n-kr="내 수익통계" data-i18n-en="My P&L Stats">내 수익통계</span></button>
+  <button class="tab-btn" data-tab="board" onclick="MOCKUI.switchTab('board')">🏆 <span data-i18n-kr="전체 참여순위" data-i18n-en="Overall Rankings">전체 참여순위</span></button>
 </div>
 
 <div class="tabpanel" id="tabpanel">
@@ -297,44 +302,44 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
     <div class="enter-left">
     <div class="method-grid">
       <div class="method-card active" data-method="manual" onclick="MOCKUI.switchMethod('manual')">
-        <div class="ico">🔢</div><div class="lbl">직접입력</div><div class="badge">추천</div>
+        <div class="ico">🔢</div><div class="lbl" data-i18n-kr="직접입력" data-i18n-en="Manual">직접입력</div><div class="badge" data-i18n-kr="추천" data-i18n-en="Recommended">추천</div>
       </div>
       <div class="method-card" data-method="voice" onclick="MOCKUI.switchMethod('voice')">
-        <div class="ico">🎤</div><div class="lbl">음성입력</div><div class="badge">추천</div>
+        <div class="ico">🎤</div><div class="lbl" data-i18n-kr="음성입력" data-i18n-en="Voice">음성입력</div><div class="badge" data-i18n-kr="추천" data-i18n-en="Recommended">추천</div>
       </div>
       <div class="method-card" data-method="text" onclick="MOCKUI.switchMethod('text')">
-        <div class="ico">💬</div><div class="lbl">문자입력</div>
+        <div class="ico">💬</div><div class="lbl" data-i18n-kr="문자입력" data-i18n-en="Text">문자입력</div>
       </div>
       <div class="method-card" data-method="excel" onclick="MOCKUI.switchMethod('excel')">
-        <div class="ico">📊</div><div class="lbl">엑셀입력</div>
+        <div class="ico">📊</div><div class="lbl" data-i18n-kr="엑셀입력" data-i18n-en="Excel">엑셀입력</div>
       </div>
       <div class="method-card" data-method="qrimg" onclick="MOCKUI.switchMethod('qrimg')">
-        <div class="ico">🖼</div><div class="lbl">이미지 스캔</div>
+        <div class="ico">🖼</div><div class="lbl" data-i18n-kr="이미지 스캔" data-i18n-en="Image Scan">이미지 스캔</div>
       </div>
       <div class="method-card" data-method="qrcam" onclick="MOCKUI.switchMethod('qrcam')">
-        <div class="ico">📷</div><div class="lbl">카메라 스캔</div>
+        <div class="ico">📷</div><div class="lbl" data-i18n-kr="카메라 스캔" data-i18n-en="Camera Scan">카메라 스캔</div>
       </div>
     </div>
 
     <!-- 방식1: 직접입력 -->
     <div class="method-panel active" id="method-manual">
       <div class="card">
-        <div class="section-title">🔢 직접입력 <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;">번호를 탭하거나, 아무것도 안 고르고 AUTO를 누르면 자동/반자동으로 채워져요</span></div>
+        <div class="section-title">🔢 <span data-i18n-kr="직접입력" data-i18n-en="Manual Entry">직접입력</span> <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;" data-i18n-kr="번호를 탭하거나, 아무것도 안 고르고 AUTO를 누르면 자동/반자동으로 채워져요" data-i18n-en="Tap numbers, or press AUTO without selecting any to fill them automatically/semi-automatically">번호를 탭하거나, 아무것도 안 고르고 AUTO를 누르면 자동/반자동으로 채워져요</span></div>
         <div class="sr">
-          <span style="font-size:13px;color:var(--text-dim);">선택된 번호 <span class="sc" id="ballCount">0</span>/6</span>
+          <span style="font-size:13px;color:var(--text-dim);"><span data-i18n-kr="선택된 번호" data-i18n-en="Numbers Selected">선택된 번호</span> <span class="sc" id="ballCount">0</span>/6</span>
         </div>
-        <div class="sd" id="ballSelectedDisplay"><span style="color:var(--text-faint);font-size:12.5px;">번호를 선택하세요</span></div>
+        <div class="sd" id="ballSelectedDisplay"><span style="color:var(--text-faint);font-size:12.5px;" data-i18n-kr="번호를 선택하세요" data-i18n-en="Select numbers">번호를 선택하세요</span></div>
         <div id="comboStatBar" style="display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:9px 12px;margin-bottom:12px;font-size:10.5px;"></div>
         <div class="ng" id="ballGrid"></div>
         <div class="br">
-          <button class="btn-rst" onclick="MOCKUI.ballReset()">⊗ 초기화</button>
+          <button class="btn-rst" onclick="MOCKUI.ballReset()">⊗ <span data-i18n-kr="초기화" data-i18n-en="Reset">초기화</span></button>
           <div class="cnt-box">
             <input type="number" class="cnt-in" id="ballAutoCount" value="1" min="1" max="10000">
-            <span style="font-size:13px;color:var(--text-dim);">개</span>
+            <span style="font-size:13px;color:var(--text-dim);" data-i18n-kr="개" data-i18n-en="games">개</span>
             <button class="btn-auto" onclick="MOCKUI.ballAutoGen()">✦ AUTO</button>
           </div>
         </div>
-        <button class="btn btn-save-ball" onclick="MOCKUI.ballSave()">⬇ 이 번호 저장</button>
+        <button class="btn btn-save-ball" onclick="MOCKUI.ballSave()">⬇ <span data-i18n-kr="이 번호 저장" data-i18n-en="Save This Number">이 번호 저장</span></button>
         <div class="result-box" id="manualResultBox"></div>
       </div>
     </div>
@@ -343,7 +348,7 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
     <div class="method-panel" id="method-voice">
       <div class="card">
         <div class="section-title" style="justify-content:space-between;">
-          <span>음성입력 <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;">마이크 버튼을 누르고 자연스럽게 말씀해보세요</span></span>
+          <span><span data-i18n-kr="음성입력" data-i18n-en="Voice Entry">음성입력</span> <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;" data-i18n-kr="마이크 버튼을 누르고 자연스럽게 말씀해보세요" data-i18n-en="Press the mic button and speak naturally">마이크 버튼을 누르고 자연스럽게 말씀해보세요</span></span>
           <span class="lang-toggle" id="voiceLangToggle">
             <button class="active" data-lang="ko" onclick="MOCKUI.setVoiceLang('ko')">한국어</button>
             <button data-lang="en" onclick="MOCKUI.setVoiceLang('en')">English</button>
@@ -352,10 +357,10 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
         <div class="chat-box" id="voiceChatBox"></div>
         <div class="chat-input-row">
           <button class="btn-mic" id="btnMic" onclick="MOCKUI.toggleMic()">🎤</button>
-          <input type="text" id="voiceTextInput" placeholder="마이크를 누르거나 직접 입력하세요" onkeydown="if(event.key==='Enter')MOCKUI.sendVoiceText();">
-          <button class="btn btn-gold" onclick="MOCKUI.sendVoiceText()">전송</button>
+          <input type="text" id="voiceTextInput" placeholder="마이크를 누르거나 직접 입력하세요" data-i18n-placeholder-kr="마이크를 누르거나 직접 입력하세요" data-i18n-placeholder-en="Press the mic or type directly" onkeydown="if(event.key==='Enter')MOCKUI.sendVoiceText();">
+          <button class="btn btn-gold" onclick="MOCKUI.sendVoiceText()" data-i18n-kr="전송" data-i18n-en="Send">전송</button>
         </div>
-        <div style="font-size:12.5px;color:var(--text-dim);margin-top:10px;" id="voiceHint">예) "1, 5, 10, 23, 35, 40 등록해줘" · "자동 5게임" · "오천원어치"</div>
+        <div style="font-size:12.5px;color:var(--text-dim);margin-top:10px;" id="voiceHint" data-i18n-kr='예) "1, 5, 10, 23, 35, 40 등록해줘" · "자동 5게임" · "오천원어치"' data-i18n-en='e.g. "Register 1, 5, 10, 23, 35, 40" · "5 random games" · "5000 won worth"'>예) "1, 5, 10, 23, 35, 40 등록해줘" · "자동 5게임" · "오천원어치"</div>
       </div>
     </div>
 
@@ -363,7 +368,7 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
     <div class="method-panel" id="method-text">
       <div class="card">
         <div class="section-title" style="justify-content:space-between;">
-          <span>💬 문자입력 <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;">자연어로 편하게 적어주세요</span></span>
+          <span>💬 <span data-i18n-kr="문자입력" data-i18n-en="Text Entry">문자입력</span> <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;" data-i18n-kr="자연어로 편하게 적어주세요" data-i18n-en="Write naturally in your own words">자연어로 편하게 적어주세요</span></span>
           <span class="lang-toggle" id="textLangToggle">
             <button class="active" data-lang="ko" onclick="MOCKUI.setTextLang('ko')">한국어</button>
             <button data-lang="en" onclick="MOCKUI.setTextLang('en')">English</button>
@@ -371,28 +376,28 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
         </div>
         <div class="chat-box" id="textChatBox"></div>
         <div class="chat-input-row">
-          <input type="text" id="textTextInput" placeholder="예: 자동 3게임, 1 5 10 23 35 40 등록해줘" onkeydown="if(event.key==='Enter')MOCKUI.sendTextOrder();">
-          <button class="btn btn-gold" onclick="MOCKUI.sendTextOrder()">전송</button>
+          <input type="text" id="textTextInput" placeholder="예: 자동 3게임, 1 5 10 23 35 40 등록해줘" data-i18n-placeholder-kr="예: 자동 3게임, 1 5 10 23 35 40 등록해줘" data-i18n-placeholder-en="e.g. 3 random games, register 1 5 10 23 35 40" onkeydown="if(event.key==='Enter')MOCKUI.sendTextOrder();">
+          <button class="btn btn-gold" onclick="MOCKUI.sendTextOrder()" data-i18n-kr="전송" data-i18n-en="Send">전송</button>
         </div>
-        <div style="font-size:12.5px;color:var(--text-dim);margin-top:10px;" id="textHint">예) "1, 5, 10, 23, 35, 40 등록해줘" · "자동 5게임" · "Register 1 5 10 23 35 40" · "5 random games"</div>
+        <div style="font-size:12.5px;color:var(--text-dim);margin-top:10px;" id="textHint" data-i18n-kr='예) "1, 5, 10, 23, 35, 40 등록해줘" · "자동 5게임" · "Register 1 5 10 23 35 40" · "5 random games"' data-i18n-en='e.g. "Register 1, 5, 10, 23, 35, 40" · "5 random games"'>예) "1, 5, 10, 23, 35, 40 등록해줘" · "자동 5게임" · "Register 1 5 10 23 35 40" · "5 random games"</div>
       </div>
     </div>
 
     <!-- 방식4: 엑셀입력 -->
     <div class="method-panel" id="method-excel">
       <div class="card">
-        <div class="section-title">📊 엑셀입력 <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;">템플릿을 받아 작성한 뒤 업로드하세요</span></div>
+        <div class="section-title">📊 <span data-i18n-kr="엑셀입력" data-i18n-en="Excel Entry">엑셀입력</span> <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;" data-i18n-kr="템플릿을 받아 작성한 뒤 업로드하세요" data-i18n-en="Download the template, fill it in, then upload">템플릿을 받아 작성한 뒤 업로드하세요</span></div>
         <div style="display:flex;gap:8px;margin-bottom:14px;">
-          <button class="btn btn-outline" onclick="MOCKUI.downloadExcelTemplate()">📥 빈 템플릿 받기</button>
+          <button class="btn btn-outline" onclick="MOCKUI.downloadExcelTemplate()">📥 <span data-i18n-kr="빈 템플릿 받기" data-i18n-en="Download Blank Template">빈 템플릿 받기</span></button>
         </div>
         <div class="upload-area" id="excelDropArea" onclick="document.getElementById('excelFileInput').click()"
              ondragover="MOCKUI.onDrag(event,true)" ondragleave="MOCKUI.onDrag(event,false)" ondrop="MOCKUI.onExcelDrop(event)">
           <div class="ico">📁</div>
-          <div style="font-size:12.5px;color:var(--text-dim);">클릭 또는 파일을 끌어다 놓으세요 (.xlsx, .csv)</div>
-          <div style="font-size:12.5px;color:var(--text-dim);margin-top:6px;" id="excelFileName">선택된 파일 없음</div>
+          <div style="font-size:12.5px;color:var(--text-dim);" data-i18n-kr="클릭 또는 파일을 끌어다 놓으세요 (.xlsx, .csv)" data-i18n-en="Click or drag a file here (.xlsx, .csv)">클릭 또는 파일을 끌어다 놓으세요 (.xlsx, .csv)</div>
+          <div style="font-size:12.5px;color:var(--text-dim);margin-top:6px;" id="excelFileName" data-i18n-kr="선택된 파일 없음" data-i18n-en="No file selected">선택된 파일 없음</div>
         </div>
         <input type="file" id="excelFileInput" accept=".xlsx,.csv" style="display:none;" onchange="MOCKUI.onExcelFileSelect(this)">
-        <div style="margin-top:12px;"><button class="btn btn-gold" onclick="MOCKUI.uploadExcelFile()">업로드 및 등록</button></div>
+        <div style="margin-top:12px;"><button class="btn btn-gold" onclick="MOCKUI.uploadExcelFile()" data-i18n-kr="업로드 및 등록" data-i18n-en="Upload & Register">업로드 및 등록</button></div>
         <div class="result-box" id="excelResultBox"></div>
       </div>
     </div>
@@ -400,31 +405,31 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
     <!-- 방식5: 이미지 스캔(QR 사진 업로드) -->
     <div class="method-panel" id="method-qrimg">
       <div class="card">
-        <div class="section-title">🖼 이미지 스캔 <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;">예전에 구매한 실물 로또용지의 QR을 사진으로 찍어 올려보세요</span></div>
+        <div class="section-title">🖼 <span data-i18n-kr="이미지 스캔" data-i18n-en="Image Scan">이미지 스캔</span> <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;" data-i18n-kr="예전에 구매한 실물 로또용지의 QR을 사진으로 찍어 올려보세요" data-i18n-en="Take a photo of a previously purchased physical lotto ticket's QR code and upload it">예전에 구매한 실물 로또용지의 QR을 사진으로 찍어 올려보세요</span></div>
         <div class="upload-area" id="qrImgDropArea" onclick="document.getElementById('qrImgFileInput').click()"
              ondragover="MOCKUI.onDrag(event,true)" ondragleave="MOCKUI.onDrag(event,false)" ondrop="MOCKUI.onQrImgDrop(event)">
           <div class="ico">🖼</div>
-          <div style="font-size:12.5px;color:var(--text-dim);">QR이 보이는 로또용지 사진을 올려주세요</div>
-          <div style="font-size:12.5px;color:var(--text-dim);margin-top:6px;" id="qrImgFileName">선택된 파일 없음</div>
+          <div style="font-size:12.5px;color:var(--text-dim);" data-i18n-kr="QR이 보이는 로또용지 사진을 올려주세요" data-i18n-en="Upload a photo of the lotto ticket showing the QR code">QR이 보이는 로또용지 사진을 올려주세요</div>
+          <div style="font-size:12.5px;color:var(--text-dim);margin-top:6px;" id="qrImgFileName" data-i18n-kr="선택된 파일 없음" data-i18n-en="No file selected">선택된 파일 없음</div>
         </div>
         <input type="file" id="qrImgFileInput" accept="image/*" multiple style="display:none;" onchange="MOCKUI.onQrImgSelect(this)">
         <div class="result-box" id="qrImgResultBox"></div>
-        <div style="font-size:12px;color:var(--text-dim);margin-top:10px;">※ 인식된 번호는 실제 추첨여부와 무관하게, 이번 모의 시뮬레이션 회차용으로만 등록됩니다.</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:10px;" data-i18n-kr="※ 인식된 번호는 실제 추첨여부와 무관하게, 이번 모의 시뮬레이션 회차용으로만 등록됩니다." data-i18n-en="※ Recognized numbers are registered only for this mock simulation round, regardless of any real draw.">※ 인식된 번호는 실제 추첨여부와 무관하게, 이번 모의 시뮬레이션 회차용으로만 등록됩니다.</div>
       </div>
     </div>
 
     <!-- 방식6: 카메라 스캔(실시간) -->
     <div class="method-panel" id="method-qrcam">
       <div class="card">
-        <div class="section-title">📷 카메라 스캔 <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;">카메라로 QR을 직접 비춰서 인식합니다</span></div>
+        <div class="section-title">📷 <span data-i18n-kr="카메라 스캔" data-i18n-en="Camera Scan">카메라 스캔</span> <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;" data-i18n-kr="카메라로 QR을 직접 비춰서 인식합니다" data-i18n-en="Point your camera at the QR code to scan it">카메라로 QR을 직접 비춰서 인식합니다</span></div>
         <div id="qrGuide" style="text-align:center;padding:20px;">
           <div style="font-size:30px;margin-bottom:10px;">📷</div>
-          <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">버튼을 눌러 카메라를 켜고 QR코드를 비춰주세요</div>
-          <button class="btn btn-gold" onclick="MOCKUI.startCamScan()">카메라 시작</button>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;" data-i18n-kr="버튼을 눌러 카메라를 켜고 QR코드를 비춰주세요" data-i18n-en="Press the button to turn on the camera and point it at the QR code">버튼을 눌러 카메라를 켜고 QR코드를 비춰주세요</div>
+          <button class="btn btn-gold" onclick="MOCKUI.startCamScan()" data-i18n-kr="카메라 시작" data-i18n-en="Start Camera">카메라 시작</button>
         </div>
         <div id="qr-reader" style="display:none;"></div>
         <div style="text-align:center;margin-top:10px;display:none;" id="qrCamStopWrap">
-          <button class="btn btn-outline" onclick="MOCKUI.stopCamScan()">카메라 중지</button>
+          <button class="btn btn-outline" onclick="MOCKUI.stopCamScan()" data-i18n-kr="카메라 중지" data-i18n-en="Stop Camera">카메라 중지</button>
         </div>
         <div class="result-box" id="qrCamResultBox"></div>
       </div>
@@ -434,10 +439,10 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
     <!-- 우측: 입력방식과 무관하게 항상 보이는 내 등록현황 실시간 패널 -->
     <div class="enter-right">
       <div class="card live-reg-card">
-        <div class="section-title" style="margin-bottom:10px;">📝 등록번호 <span style="font-size:13px;color:var(--gold);font-weight:600;" id="liveRegSummary"></span></div>
+        <div class="section-title" style="margin-bottom:10px;">📝 <span data-i18n-kr="등록번호" data-i18n-en="Registered Numbers">등록번호</span> <span style="font-size:13px;color:var(--gold);font-weight:600;" id="liveRegSummary"></span></div>
         <div class="live-reg-table-wrap">
           <table class="live-reg-table" id="liveRegTable">
-            <thead><tr><th>등록번호</th><th>구매형태</th></tr></thead>
+            <thead><tr><th data-i18n-kr="등록번호" data-i18n-en="Numbers">등록번호</th><th data-i18n-kr="구매형태" data-i18n-en="Purchase Type">구매형태</th></tr></thead>
             <tbody id="liveRegBody"></tbody>
           </table>
         </div>
@@ -450,8 +455,8 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
   <div class="tabpanel-section" id="panel-my">
     <div class="card">
       <div class="section-title" style="justify-content:space-between;">
-        <span>📋 내 등록현황 (<span id="myNickLabel">-</span>)</span>
-        <button class="btn btn-outline" style="background:rgba(47,191,163,.15);color:#2FBFA3;border-color:#1F7D6B;" onclick="MOCKUI.openMarkingForMyEntries()">🖨 마킹용지로 받기</button>
+        <span>📋 <span data-i18n-kr="내 등록현황" data-i18n-en="My Entries">내 등록현황</span> (<span id="myNickLabel">-</span>)</span>
+        <button class="btn btn-outline" style="background:rgba(47,191,163,.15);color:#2FBFA3;border-color:#1F7D6B;" onclick="MOCKUI.openMarkingForMyEntries()">🖨 <span data-i18n-kr="마킹용지로 받기" data-i18n-en="Get as Marking Sheet">마킹용지로 받기</span></button>
       </div>
       <div class="entry-table-wrap">
         <table class="entry-table" id="myEntryTable"></table>
@@ -463,7 +468,7 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
   <div class="tabpanel-section" id="panel-stats">
     <div class="stat-grid" id="statsGrid"></div>
     <div class="card">
-      <div class="section-title">등수별 적중 현황</div>
+      <div class="section-title" data-i18n-kr="등수별 적중 현황" data-i18n-en="Hits by Prize Tier">등수별 적중 현황</div>
       <div id="gradeBreakdown" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
     </div>
   </div>
@@ -471,12 +476,13 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
   <!-- 패널4: 전체 참여순위 -->
   <div class="tabpanel-section" id="panel-board">
     <div class="card">
-      <div class="section-title">🏆 전체 참여자 순위 <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;">누적 당첨금 기준</span></div>
+      <div class="section-title">🏆 <span data-i18n-kr="전체 참여자 순위" data-i18n-en="Overall Participant Rankings">전체 참여자 순위</span> <span style="font-size:12.5px;color:var(--text-dim);font-weight:400;" data-i18n-kr="누적 당첨금 기준" data-i18n-en="By cumulative winnings">누적 당첨금 기준</span></div>
       <div class="entry-table-wrap">
         <table class="entry-table" id="leaderboardTable"></table>
       </div>
     </div>
   </div>
+
 
 </div>
 
@@ -484,29 +490,29 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
 <div class="modal-overlay" id="nicknameModal">
   <div class="modal-box">
     <h3 id="nickModalTitle">🎲 닉네임을 정해주세요</h3>
-    <p>모의 실전 시뮬레이션에서 사용할 닉네임입니다.<br>한글/영문/숫자/밑줄 2~12자, 한 번 정하면 이 브라우저에서 계속 사용돼요.</p>
-    <input type="text" id="nickInput" placeholder="예: 행운의로또왕" maxlength="12" onkeydown="if(event.key==='Enter')MOCKUI.submitNickname();">
+    <p data-i18n-html="true" data-i18n-kr="모의 실전 시뮬레이션에서 사용할 닉네임입니다.<br>한글/영문/숫자/밑줄 2~12자, 한 번 정하면 이 브라우저에서 계속 사용돼요." data-i18n-en="This is the nickname you'll use in the Mock Live Simulation.<br>2-12 characters (Korean/English/numbers/underscore); once set, it stays with this browser.">모의 실전 시뮬레이션에서 사용할 닉네임입니다.<br>한글/영문/숫자/밑줄 2~12자, 한 번 정하면 이 브라우저에서 계속 사용돼요.</p>
+    <input type="text" id="nickInput" placeholder="예: 행운의로또왕" data-i18n-placeholder-kr="예: 행운의로또왕" data-i18n-placeholder-en="e.g. LuckyLottoKing" maxlength="12" onkeydown="if(event.key==='Enter')MOCKUI.submitNickname();">
     <div class="modal-err" id="nickErr"></div>
-    <button class="btn btn-gold" style="width:100%;" onclick="MOCKUI.submitNickname()">시작하기</button>
+    <button class="btn btn-gold" style="width:100%;" onclick="MOCKUI.submitNickname()" data-i18n-kr="시작하기" data-i18n-en="Get Started">시작하기</button>
   </div>
 </div>
 
 <!-- 자동생성 다건 취사선택 모달 -->
 <div class="modal-overlay" id="autoPickModal">
   <div class="modal-box" style="max-width:640px;">
-    <h3>✦ 자동생성 번호조합 — 취사선택</h3>
-    <p>아래 조합들의 역대 참고사항을 확인하고, 저장할 조합만 체크해주세요. 마음에 드는 조합이 없으면 "다시뽑기"로 새로 뽑을 수 있습니다.</p>
+    <h3>✦ <span data-i18n-kr="자동생성 번호조합 — 취사선택" data-i18n-en="Auto-Generated Combos — Pick & Choose">자동생성 번호조합 — 취사선택</span></h3>
+    <p data-i18n-kr='아래 조합들의 역대 참고사항을 확인하고, 저장할 조합만 체크해주세요. 마음에 드는 조합이 없으면 "다시뽑기"로 새로 뽑을 수 있습니다.' data-i18n-en='Check the historical reference info for the combos below, and tick only the ones you want to save. If none of them appeal to you, use "Re-roll" to draw new ones.'>아래 조합들의 역대 참고사항을 확인하고, 저장할 조합만 체크해주세요. 마음에 드는 조합이 없으면 "다시뽑기"로 새로 뽑을 수 있습니다.</p>
     <div id="autoPickList" style="max-height:50vh;overflow-y:auto;margin:12px 0;display:flex;flex-direction:column;gap:8px;"></div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
       <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-dim);cursor:pointer;">
-        <input type="checkbox" id="autoPickCheckAll" checked onclick="MOCKUI.toggleAllAutoPick(this.checked)"> 전체선택
+        <input type="checkbox" id="autoPickCheckAll" checked onclick="MOCKUI.toggleAllAutoPick(this.checked)"> <span data-i18n-kr="전체선택" data-i18n-en="Select All">전체선택</span>
       </label>
-      <button class="btn btn-outline" style="font-size:11px;padding:5px 10px;" onclick="MOCKUI.rerollAutoPick()">🔄 다시뽑기</button>
-      <span style="font-size:11.5px;color:var(--text-dim);margin-left:auto;">선택됨 <b id="autoPickCount" style="color:var(--gold);">0</b>개 · <span id="autoPickPrice"></span></span>
+      <button class="btn btn-outline" style="font-size:11px;padding:5px 10px;" onclick="MOCKUI.rerollAutoPick()">🔄 <span data-i18n-kr="다시뽑기" data-i18n-en="Re-roll">다시뽑기</span></button>
+      <span style="font-size:11.5px;color:var(--text-dim);margin-left:auto;"><span data-i18n-kr="선택됨" data-i18n-en="Selected">선택됨</span> <b id="autoPickCount" style="color:var(--gold);">0</b><span data-i18n-kr="개" data-i18n-en="">개</span> · <span id="autoPickPrice"></span></span>
     </div>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-outline" style="flex:1;" onclick="MOCKUI.closeAutoPickModal()">취소</button>
-      <button class="btn btn-gold" style="flex:2;" onclick="MOCKUI.confirmAutoPick()">선택한 조합 저장하기</button>
+      <button class="btn btn-outline" style="flex:1;" onclick="MOCKUI.closeAutoPickModal()" data-i18n-kr="취소" data-i18n-en="Cancel">취소</button>
+      <button class="btn btn-gold" style="flex:2;" onclick="MOCKUI.confirmAutoPick()" data-i18n-kr="선택한 조합 저장하기" data-i18n-en="Save Selected Combos">선택한 조합 저장하기</button>
     </div>
   </div>
 </div>
@@ -554,7 +560,12 @@ MLL.getLottoInfo = function() {
   return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound, status:status };
 };
 
-MLL.STATUS_LABEL = { open:'접수중', closing:'접수마감', waiting:'접수대기' };
+MLL.STATUS_LABEL_KR = { open:'접수중', closing:'접수마감', waiting:'접수대기' };
+MLL.STATUS_LABEL_EN = { open:'Open', closing:'Closed', waiting:'Pending' };
+MLL.getStatusLabel = function(status){
+  var lang = (typeof LANG !== 'undefined') ? LANG : 'kr';
+  return (lang === 'en' ? MLL.STATUS_LABEL_EN : MLL.STATUS_LABEL_KR)[status];
+};
 
 MLL.getDrawDate = function(round) {
   var d = new Date(MLL.ROUND1_TS + (round - 1) * MLL.WEEK_MS);
@@ -681,11 +692,11 @@ MOCK.NICK_PATTERN = /^[가-힣a-zA-Z0-9_]{2,12}$/;
 MOCK.registerNickname = function(nick){
   nick = (nick||'').trim();
   if (!MOCK.NICK_PATTERN.test(nick)) {
-    return { ok:false, reason:'닉네임은 한글/영문/숫자/밑줄 2~12자로 입력해주세요.' };
+    return { ok:false, reason:T('nick_err_pattern') };
   }
   var reg = MOCK.loadRegistry();
   if (reg[nick]) {
-    return { ok:false, reason:'이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.' };
+    return { ok:false, reason:T('nick_err_taken') };
   }
   reg[nick] = true;
   MOCK.saveRegistry(reg);
@@ -1054,8 +1065,89 @@ MLL.parseLottoQrUrl = function(url){
   } catch(e) { return null; }
 };
 
+// =====================================================
+// 다국어(i18n) - main_page.html과 동일한 'mll_lang' 키 공유
+// =====================================================
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+var STR = {
+  round_prefix: { kr: '제', en: 'Round ' },
+  round_suffix: { kr: '회', en: '' },
+  draw_suffix: { kr: ' 추첨)', en: ' draw)' },
+  page_title_main: { kr: ' 모의 실전 시뮬레이션', en: ' Mock Live Simulation' },
+  deadline_in: { kr: '접수마감까지', en: 'Time until entry closes' },
+  result_pending: { kr: '결과 반영 대기중', en: 'Waiting for result' },
+  switching_soon: { kr: '곧 다음회차로 전환', en: 'Switching to next round soon' },
+  reopen_in: { kr: '접수재개까지', en: 'Time until entry reopens' },
+  nick_modal_title_change: { kr: '🎲 닉네임 변경', en: '🎲 Change Nickname' },
+  nick_modal_title_new: { kr: '🎲 닉네임을 정해주세요', en: '🎲 Choose a Nickname' },
+  nick_err_pattern: { kr: '닉네임은 한글/영문/숫자/밑줄 2~12자로 입력해주세요.', en: 'Nickname must be 2-12 characters (Korean/English/numbers/underscore).' },
+  nick_err_taken: { kr: '이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.', en: 'This nickname is already taken. Please choose another.' },
+  grade_waiting: { kr: '추첨대기', en: 'Awaiting Draw' },
+  grade_lose: { kr: '낙첨', en: 'No Win' },
+  result_win: { kr: '당첨', en: 'Won' },
+  live_empty_no_nick: { kr: '닉네임을 설정하면<br>등록한 번호가 여기 쌓여요.', en: 'Once you set a nickname,<br>your registered numbers will appear here.' },
+  live_summary_total: { kr: '· 총 ', en: '· Total ' },
+  live_summary_unit: { kr: '개 (', en: ' games (' },
+  live_summary_won: { kr: '원)', en: ' KRW)' },
+  live_empty_no_entries: { kr: '아직 등록한 번호가 없어요.<br>왼쪽에서 번호를 등록해보세요.', en: "You haven't registered any numbers yet.<br>Register numbers on the left." },
+  set_nick_first: { kr: '닉네임을 먼저 설정해주세요.', en: 'Please set a nickname first.' },
+  no_entries_yet: { kr: '아직 등록한 번호가 없습니다.', en: 'No numbers registered yet.' },
+  th_round: { kr: '회차', en: 'Round' },
+  th_numbers: { kr: '번호', en: 'Numbers' },
+  th_type: { kr: '구분', en: 'Type' },
+  th_input_method: { kr: '입력방법', en: 'Input Method' },
+  th_result: { kr: '결과', en: 'Result' },
+  th_rank: { kr: '등수', en: 'Rank' },
+  th_prize: { kr: '당첨금', en: 'Prize' },
+  method_manual: { kr: '직접입력', en: 'Manual' },
+  method_voice_kr: { kr: '음성(한)', en: 'Voice (KR)' },
+  method_voice_en: { kr: '음성(영)', en: 'Voice (EN)' },
+  method_excel: { kr: '엑셀', en: 'Excel' },
+  method_qrscan: { kr: 'QR스캔', en: 'QR Scan' },
+  won_suffix: { kr: '원', en: ' KRW' },
+  stat_total_games: { kr: '총 등록 게임수', en: 'Total Games Registered' },
+  games_unit: { kr: '개', en: '' },
+  stat_virtual_cost: { kr: '가상 구입비', en: 'Virtual Purchase Cost' },
+  stat_virtual_prize: { kr: '가상 당첨금', en: 'Virtual Prize Winnings' },
+  stat_roi: { kr: '수익률(당첨금/구입비)', en: 'ROI (Prize / Cost)' },
+  cases_unit: { kr: '건', en: '' },
+  no_participants_yet: { kr: '아직 참여자가 없습니다.', en: 'No participants yet.' },
+  me_suffix: { kr: ' (나)', en: ' (Me)' },
+  th_rank2: { kr: '순위', en: 'Rank' },
+  th_nickname: { kr: '닉네임', en: 'Nickname' },
+  th_game_count: { kr: '게임수', en: 'Games' },
+  th_cost: { kr: '구입비', en: 'Cost' },
+  th_roi: { kr: '수익률', en: 'ROI' },
+};
+function T(key){ var row = STR[key]; if (!row) return key; return row[LANG] || row.kr; }
 
-
+function applyLang(){
+  document.title = (LANG === 'en') ? 'My Lotto Lab - Mock Live Simulation' : 'My Lotto Lab - 모의 실전 시뮬레이션';
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var text = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if (text === undefined) return;
+    if (el.dataset.i18nHtml === 'true') el.innerHTML = text;
+    else el.textContent = text;
+  });
+  document.querySelectorAll('[data-i18n-placeholder-kr]').forEach(function(el){
+    var text = (LANG === 'en') ? el.dataset.i18nPlaceholderEn : el.dataset.i18nPlaceholderKr;
+    if (text !== undefined) el.setAttribute('placeholder', text);
+  });
+  var krBtn = document.getElementById('langKrBtn'), enBtn = document.getElementById('langEnBtn');
+  if (krBtn) { krBtn.style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface)'; krBtn.style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)'; }
+  if (enBtn) { enBtn.style.background = LANG==='en' ? 'var(--gold)' : 'var(--surface)'; enBtn.style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)'; }
+}
+function setLang(lang){
+  LANG = lang;
+  localStorage.setItem('mll_lang', lang);
+  applyLang();
+  if (typeof MOCKUI === 'undefined') return;
+  if (MOCKUI.refreshHeader) MOCKUI.refreshHeader();
+  if (MOCKUI.renderMy) MOCKUI.renderMy();
+  if (MOCKUI.renderStats) MOCKUI.renderStats();
+  if (MOCKUI.renderLeaderboard) MOCKUI.renderLeaderboard();
+}
+document.addEventListener('DOMContentLoaded', applyLang);
 </script>
 <script>
 // =====================================================
@@ -1253,8 +1345,8 @@ MOCKUI.refreshHeader = function(){
   var info = MLL.getLottoInfo();
   var round = info.saleRound;
   var drawDate = MLL.getDrawDate(round);
-  var statusLabel = MLL.STATUS_LABEL[info.status];
-  document.getElementById('pageTitleText').textContent = '제'+round+'회 ('+drawDate+' 추첨) 모의 실전 시뮬레이션';
+  var statusLabel = MLL.getStatusLabel(info.status);
+  document.getElementById('pageTitleText').textContent = T('round_prefix')+round+T('round_suffix')+' ('+drawDate+T('draw_suffix')+T('page_title_main');
 
   var pill = document.getElementById('statusPill');
   pill.textContent = statusLabel;
@@ -1274,11 +1366,11 @@ MOCKUI.refreshCountdown = function(status){
     target.setDate(ko.getDate() + daysUntilSat);
     target.setHours(20,0,0,0);
     if (target <= ko) target.setDate(target.getDate()+7);
-    document.getElementById('cdLabel').textContent = '접수마감까지';
+    document.getElementById('cdLabel').textContent = T('deadline_in');
   } else if (status === 'closing') {
     // 추첨결과 발표 시각은 정확히 특정할 수 없으므로 카운트다운 대신 안내 문구로 대체
-    document.getElementById('cdLabel').textContent = '추첨결과 반영 대기중';
-    document.getElementById('cdTime').textContent = '곧 다음회차로 전환';
+    document.getElementById('cdLabel').textContent = T('result_pending');
+    document.getElementById('cdTime').textContent = T('switching_soon');
     return;
   } else {
     target = new Date(ko);
@@ -1287,7 +1379,7 @@ MOCKUI.refreshCountdown = function(status){
     else if (daysUntilSun === 0) daysUntilSun = 7;
     target.setDate(ko.getDate() + daysUntilSun);
     target.setHours(6,0,0,0);
-    document.getElementById('cdLabel').textContent = '접수재개까지';
+    document.getElementById('cdLabel').textContent = T('reopen_in');
   }
   var diff = Math.max(0, target.getTime() - ko.getTime());
   var h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
@@ -1322,7 +1414,7 @@ MOCKUI.checkNicknameOnLoad = function(){
 };
 
 MOCKUI.openNicknameModal = function(isChange){
-  document.getElementById('nickModalTitle').textContent = isChange ? '🎲 닉네임 변경' : '🎲 닉네임을 정해주세요';
+  document.getElementById('nickModalTitle').textContent = isChange ? T('nick_modal_title_change') : T('nick_modal_title_new');
   document.getElementById('nickInput').value = '';
   document.getElementById('nickErr').textContent = '';
   document.getElementById('nicknameModal').classList.add('show');
@@ -2039,23 +2131,36 @@ MOCKUI.stopCamScan = function(){
 // =====================================================
 // 내 등록현황 / 통계 / 리더보드
 // =====================================================
+// 등수 표기: 한글은 "1등", 영어는 "1st/2nd/3rd/4th/5th"
+MOCKUI.gradeOrdinal = function(grade){
+  if (LANG !== 'en') return grade + '등';
+  var suf = (grade===1) ? 'st' : (grade===2) ? 'nd' : (grade===3) ? 'rd' : 'th';
+  return grade + suf;
+};
+
+// 구매형태 표시 라벨: 내부 저장값(수동/자동/반자동)은 한글 그대로 유지하고, 화면 표시만 언어별로 변환
+MOCKUI.PURCHASE_TYPE_EN = { '수동':'Manual', '자동':'Auto', '반자동':'Semi-Auto' };
+MOCKUI.purchaseTypeLabel = function(type){
+  return (LANG === 'en') ? (MOCKUI.PURCHASE_TYPE_EN[type] || type) : type;
+};
+
 MOCKUI.gradeLabel = function(grade){
-  if (grade===null) return '<span class="grade-tag gwait">추첨대기</span>';
-  if (grade===0) return '<span class="grade-tag g0">낙첨</span>';
-  return '<span class="grade-tag g'+grade+'">'+grade+'등</span>';
+  if (grade===null) return '<span class="grade-tag gwait">'+T('grade_waiting')+'</span>';
+  if (grade===0) return '<span class="grade-tag g0">'+T('grade_lose')+'</span>';
+  return '<span class="grade-tag g'+grade+'">'+MOCKUI.gradeOrdinal(grade)+'</span>';
 };
 
 // "결과" 칸: 추첨대기 / 당첨 / 낙첨만 표시
 MOCKUI.resultLabel = function(grade){
-  if (grade===null) return '<span class="grade-tag gwait">추첨대기</span>';
-  if (grade===0) return '<span class="grade-tag g0">낙첨</span>';
-  return '<span class="grade-tag g'+grade+'">당첨</span>';
+  if (grade===null) return '<span class="grade-tag gwait">'+T('grade_waiting')+'</span>';
+  if (grade===0) return '<span class="grade-tag g0">'+T('grade_lose')+'</span>';
+  return '<span class="grade-tag g'+grade+'">'+T('result_win')+'</span>';
 };
 
 // "등수" 칸: 당첨일 때만 구체적 등수(1~5등), 그 외엔 빈칸
 MOCKUI.rankLabel = function(grade){
   if (grade===null || grade===0) return '<span style="color:var(--text-faint);">-</span>';
-  return '<span class="grade-tag g'+grade+'">'+grade+'등</span>';
+  return '<span class="grade-tag g'+grade+'">'+MOCKUI.gradeOrdinal(grade)+'</span>';
 };
 
 MOCKUI.renderLiveReg = function(){
@@ -2064,17 +2169,17 @@ MOCKUI.renderLiveReg = function(){
   if (!tbody) return; // 이 패널이 없는 화면일 수도 있으니 안전 체크
   var nickObj = MOCK.getNickname();
   if (!nickObj) {
-    tbody.innerHTML = '<tr><td colspan="2"><div class="live-empty">닉네임을 설정하면<br>등록한 번호가 여기 쌓여요.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="2"><div class="live-empty">'+T('live_empty_no_nick')+'</div></td></tr>';
     if (summary) summary.textContent = '';
     return;
   }
   var entries = MOCK.loadEntries().filter(function(e){ return e.nickname===nickObj.nickname; })
     .sort(function(a,b){ return b.createdAt-a.createdAt; });
 
-  if (summary) summary.textContent = '· 총 '+entries.length+'개 ('+(entries.length*MOCK.PRICE_PER_GAME).toLocaleString()+'원)';
+  if (summary) summary.textContent = T('live_summary_total')+entries.length+T('live_summary_unit')+(entries.length*MOCK.PRICE_PER_GAME).toLocaleString()+T('live_summary_won');
 
   if (!entries.length) {
-    tbody.innerHTML = '<tr><td colspan="2"><div class="live-empty">아직 등록한 번호가 없어요.<br>왼쪽에서 번호를 등록해보세요.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="2"><div class="live-empty">'+T('live_empty_no_entries')+'</div></td></tr>';
     return;
   }
 
@@ -2084,7 +2189,7 @@ MOCKUI.renderLiveReg = function(){
     }).join('') + '</div>';
     return '<tr>' +
       '<td>'+ballsHtml+'</td>' +
-      '<td><span class="live-type-tag t-'+e.type+'">'+e.type+'</span></td>' +
+      '<td><span class="live-type-tag t-'+e.type+'">'+MOCKUI.purchaseTypeLabel(e.type)+'</span></td>' +
       '</tr>';
   }).join('');
 };
@@ -2104,43 +2209,44 @@ MOCKUI.renderMy = function(){
   var nick = nickObj ? nickObj.nickname : null;
   document.getElementById('myNickLabel').textContent = nick || '-';
   if (!nick) {
-    document.getElementById('myEntryTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">닉네임을 먼저 설정해주세요.</td></tr></tbody>';
+    document.getElementById('myEntryTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">'+T('set_nick_first')+'</td></tr></tbody>';
     return;
   }
   var entries = MOCK.loadEntries().filter(function(e){ return e.nickname===nick; })
     .sort(function(a,b){ return b.createdAt-a.createdAt; });
 
   if (!entries.length) {
-    document.getElementById('myEntryTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">아직 등록한 번호가 없습니다.</td></tr></tbody>';
+    document.getElementById('myEntryTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">'+T('no_entries_yet')+'</td></tr></tbody>';
     return;
   }
 
   var rows = entries.map(function(e){
     var ballsHtml = e.nums.map(function(n){ return '<span class="ball" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';width:27px;height:27px;font-size:11px;">'+n+'</span>'; }).join(' ');
     return '<tr>' +
-      '<td>제'+e.round+'회</td>' +
+      '<td>'+T('round_prefix')+e.round+T('round_suffix')+'</td>' +
       '<td>'+ballsHtml+'</td>' +
-      '<td>'+e.type+'</td>' +
+      '<td>'+MOCKUI.purchaseTypeLabel(e.type)+'</td>' +
       '<td>'+MOCKUI.methodLabel(e.inputMethod)+'</td>' +
       '<td>'+MOCKUI.resultLabel(e.grade)+'</td>' +
       '<td>'+MOCKUI.rankLabel(e.grade)+'</td>' +
-      '<td class="font-num">'+(e.prizeMoney||0).toLocaleString()+'원</td>' +
+      '<td class="font-num">'+(e.prizeMoney||0).toLocaleString()+T('won_suffix')+'</td>' +
       '</tr>';
   }).join('');
 
   document.getElementById('myEntryTable').innerHTML =
-    '<thead><tr><th>회차</th><th>번호</th><th>구분</th><th>입력방법</th><th>결과</th><th>등수</th><th>당첨금</th></tr></thead>' +
+    '<thead><tr><th>'+T('th_round')+'</th><th>'+T('th_numbers')+'</th><th>'+T('th_type')+'</th><th>'+T('th_input_method')+'</th><th>'+T('th_result')+'</th><th>'+T('th_rank')+'</th><th>'+T('th_prize')+'</th></tr></thead>' +
     '<tbody>'+rows+'</tbody>';
 };
 
 MOCKUI.methodLabel = function(m){
-  return { manual:'직접입력', voice:'음성(한)', voice_en:'음성(영)', excel:'엑셀', qrscan:'QR스캔' }[m] || m;
+  var map = { manual:T('method_manual'), voice:T('method_voice_kr'), voice_en:T('method_voice_en'), excel:T('method_excel'), qrscan:T('method_qrscan') };
+  return map[m] || m;
 };
 
 MOCKUI.renderStats = function(){
   var nickObj = MOCK.getNickname();
   if (!nickObj) {
-    document.getElementById('statsGrid').innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--text-faint);text-align:center;">닉네임을 먼저 설정해주세요.</div>';
+    document.getElementById('statsGrid').innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--text-faint);text-align:center;">'+T('set_nick_first')+'</div>';
     document.getElementById('gradeBreakdown').innerHTML = '';
     return;
   }
@@ -2148,14 +2254,13 @@ MOCKUI.renderStats = function(){
   var roiColor = stats.roi >= 100 ? 'green' : (stats.totalGames>0 ? 'red' : '');
 
   document.getElementById('statsGrid').innerHTML =
-    MOCKUI.statBox('총 등록 게임수', stats.totalGames.toLocaleString()+'개', '') +
-    MOCKUI.statBox('가상 구입비', stats.totalCost.toLocaleString()+'원', 'gold') +
-    MOCKUI.statBox('가상 당첨금', stats.totalPrize.toLocaleString()+'원', 'green') +
-    MOCKUI.statBox('수익률(당첨금/구입비)', stats.roi.toFixed(1)+'%', roiColor);
+    MOCKUI.statBox(T('stat_total_games'), stats.totalGames.toLocaleString()+T('games_unit'), '') +
+    MOCKUI.statBox(T('stat_virtual_cost'), stats.totalCost.toLocaleString()+T('won_suffix'), 'gold') +
+    MOCKUI.statBox(T('stat_virtual_prize'), stats.totalPrize.toLocaleString()+T('won_suffix'), 'green') +
+    MOCKUI.statBox(T('stat_roi'), stats.roi.toFixed(1)+'%', roiColor);
 
-  var gradeNames = {1:'1등',2:'2등',3:'3등',4:'4등',5:'5등'};
   var html = [1,2,3,4,5].map(function(g){
-    return '<div class="stat-box" style="flex:1;min-width:90px;"><div class="label">'+gradeNames[g]+'</div><div class="val">'+(stats.gradeCounts[g]||0)+'건</div></div>';
+    return '<div class="stat-box" style="flex:1;min-width:90px;"><div class="label">'+MOCKUI.gradeOrdinal(g)+'</div><div class="val">'+(stats.gradeCounts[g]||0)+T('cases_unit')+'</div></div>';
   }).join('');
   document.getElementById('gradeBreakdown').innerHTML = html;
 };
@@ -2167,7 +2272,7 @@ MOCKUI.statBox = function(label, val, colorCls){
 MOCKUI.renderLeaderboard = function(){
   var list = MOCK.getLeaderboard();
   if (!list.length) {
-    document.getElementById('leaderboardTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">아직 참여자가 없습니다.</td></tr></tbody>';
+    document.getElementById('leaderboardTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">'+T('no_participants_yet')+'</td></tr></tbody>';
     return;
   }
   var myNickObj = MOCK.getNickname();
@@ -2176,15 +2281,15 @@ MOCKUI.renderLeaderboard = function(){
     var isMe = x.nickname === myNick;
     return '<tr style="'+(isMe?'background:rgba(224,179,65,.06);':'')+'">' +
       '<td>'+x.rank+'</td>' +
-      '<td style="text-align:left;font-weight:'+(isMe?'700':'400')+';">'+x.nickname+(isMe?' (나)':'')+'</td>' +
-      '<td class="font-num">'+x.games.toLocaleString()+'개</td>' +
-      '<td class="font-num">'+x.cost.toLocaleString()+'원</td>' +
-      '<td class="font-num" style="color:var(--gold);">'+x.prize.toLocaleString()+'원</td>' +
+      '<td style="text-align:left;font-weight:'+(isMe?'700':'400')+';">'+x.nickname+(isMe?T('me_suffix'):'')+'</td>' +
+      '<td class="font-num">'+x.games.toLocaleString()+T('games_unit')+'</td>' +
+      '<td class="font-num">'+x.cost.toLocaleString()+T('won_suffix')+'</td>' +
+      '<td class="font-num" style="color:var(--gold);">'+x.prize.toLocaleString()+T('won_suffix')+'</td>' +
       '<td class="font-num">'+x.roi.toFixed(1)+'%</td>' +
       '</tr>';
   }).join('');
   document.getElementById('leaderboardTable').innerHTML =
-    '<thead><tr><th>순위</th><th style="text-align:left;">닉네임</th><th>게임수</th><th>구입비</th><th>당첨금</th><th>수익률</th></tr></thead>' +
+    '<thead><tr><th>'+T('th_rank2')+'</th><th style="text-align:left;">'+T('th_nickname')+'</th><th>'+T('th_game_count')+'</th><th>'+T('th_cost')+'</th><th>'+T('th_prize')+'</th><th>'+T('th_roi')+'</th></tr></thead>' +
     '<tbody>'+rows+'</tbody>';
 };
 

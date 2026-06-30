@@ -522,7 +522,12 @@ MLL.applyResults = function(resultsObj) {
   return updated;
 };
 
-MLL.GRADE_LABEL = ['낙첨','1등','2등','3등','4등','5등'];
+MLL.GRADE_LABEL_KR = ['낙첨','1등','2등','3등','4등','5등'];
+MLL.GRADE_LABEL_EN = ['No Win','1st','2nd','3rd','4th','5th'];
+MLL.getGradeLabel = function(grade){
+  var lang = (typeof LANG !== 'undefined') ? LANG : 'kr';
+  return (lang === 'en' ? MLL.GRADE_LABEL_EN : MLL.GRADE_LABEL_KR)[grade];
+};
 MLL.GRADE_COLOR = ['#aaa','#e03131','#e67700','#1a7ad4','#2f9e44','#888'];
 
 // =====================================================
@@ -914,17 +919,23 @@ MLL.searchEntriesByCondition = function(entries, condition, history) {
       <div class="logo-icon">📊</div>
       <div class="logo-text">
         <div class="title">My Lotto Lab</div>
-        <div class="sub">결과 및 통계</div>
+        <div class="sub" data-i18n-kr="결과 및 통계" data-i18n-en="Results & Stats">결과 및 통계</div>
       </div>
     </div>
-    <div style="position:relative;">
-      <button onclick="toggleNav()" id="navBtn" style="display:flex;align-items:center;gap:5px;color:#ccc;font-size:11px;cursor:pointer;border:1px solid #555;padding:4px 10px;border-radius:5px;background:none;white-space:nowrap;">🧭 이동 ▾</button>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="lang-toggle" style="display:flex;border:1px solid #555;border-radius:8px;overflow:hidden;">
+        <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold,#e0b341);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
+        <button id="langEnBtn" onclick="setLang('en')" style="background:#1c1c2e;color:#ccc;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
+      </div>
+      <div style="position:relative;">
+      <button onclick="toggleNav()" id="navBtn" style="display:flex;align-items:center;gap:5px;color:#ccc;font-size:11px;cursor:pointer;border:1px solid #555;padding:4px 10px;border-radius:5px;background:none;white-space:nowrap;">🧭 <span data-i18n-kr="이동" data-i18n-en="Go to">이동</span> ▾</button>
       <div id="navMenu" style="display:none;position:absolute;right:0;top:36px;background:#1c1c2e;border:1px solid #2a2a40;border-radius:8px;overflow:hidden;min-width:200px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
-        <div onclick="location.href='main_page.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🏠 메인 페이지</div>
-        <div onclick="location.href='lotto_input_page_v4.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">✏️ 번호 등록</div>
-        <div onclick="location.href='strategy_manager.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🧠 전략 수립</div>
-        <div onclick="location.href='number_generator.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🎲 전략번호 생성</div>
-        <div onclick="location.href='strategy_compare.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">📊 전략 비교평가</div>
+        <div onclick="location.href='main_page.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🏠 <span data-i18n-kr="메인 페이지" data-i18n-en="Main Page">메인 페이지</span></div>
+        <div onclick="location.href='lotto_input_page_v4.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">✏️ <span data-i18n-kr="번호 등록" data-i18n-en="Register Numbers">번호 등록</span></div>
+        <div onclick="location.href='strategy_manager.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🧠 <span data-i18n-kr="전략 수립" data-i18n-en="Build Strategy">전략 수립</span></div>
+        <div onclick="location.href='number_generator.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;border-bottom:1px solid #2a2a40;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">🎲 <span data-i18n-kr="전략번호 생성" data-i18n-en="Generate Strategy Numbers">전략번호 생성</span></div>
+        <div onclick="location.href='strategy_compare.html'" style="padding:9px 14px;font-size:11px;color:#ccc;cursor:pointer;" onmouseover="this.style.background='#2a2a40'" onmouseout="this.style.background=''">📊 <span data-i18n-kr="전략 비교평가" data-i18n-en="Compare Strategies">전략 비교평가</span></div>
+      </div>
       </div>
     </div>
   </div>
@@ -933,13 +944,13 @@ MLL.searchEntriesByCondition = function(entries, condition, history) {
 <div class="rs-main">
   <!-- 좌측 고정 메뉴 -->
   <div class="rs-menu">
-    <button class="rs-menu-btn active" data-sec="byRound" onclick="RS.switchSection('byRound',this)">회차별<br>등록현황과 결과</button>
-    <button class="rs-menu-btn" data-sec="upcoming" onclick="RS.switchSection('upcoming',this)" id="rs-btn-upcoming">제<span id="rs-upcoming-round">-</span>회<br>추첨(예정)분<br>등록현황과 결과</button>
-    <button class="rs-menu-btn" data-sec="real" onclick="RS.switchSection('real',this)">실제구매분<br>등록현황과 결과</button>
-    <button class="rs-menu-btn" data-sec="virtual" onclick="RS.switchSection('virtual',this)">가상구매분<br>등록현황과 결과</button>
-    <button class="rs-menu-btn" data-sec="byCondition" onclick="RS.switchSection('byCondition',this)">조건별<br>등록현황과 결과</button>
-    <button class="rs-menu-btn" data-sec="habit" onclick="RS.switchSection('habit',this)">나의 구매 성향</button>
-    <button class="rs-menu-btn" data-sec="favorites" onclick="RS.switchSection('favorites',this)">관심번호/재구매<br>최애번호 저장소</button>
+    <button class="rs-menu-btn active" data-sec="byRound" onclick="RS.switchSection('byRound',this)"><span data-i18n-kr="회차별<br>등록현황과 결과" data-i18n-en="Entries & Results<br>by Round" data-i18n-html="true">회차별<br>등록현황과 결과</span></button>
+    <button class="rs-menu-btn" data-sec="upcoming" onclick="RS.switchSection('upcoming',this)" id="rs-btn-upcoming"><span data-i18n-kr="제" data-i18n-en="Round ">제</span><span id="rs-upcoming-round">-</span><span data-i18n-kr="회<br>추첨(예정)분<br>등록현황과 결과" data-i18n-en="<br>Entries & Results<br>(Upcoming Draw)" data-i18n-html="true">회<br>추첨(예정)분<br>등록현황과 결과</span></button>
+    <button class="rs-menu-btn" data-sec="real" onclick="RS.switchSection('real',this)"><span data-i18n-kr="실제구매분<br>등록현황과 결과" data-i18n-en="Entries & Results<br>(Real Purchases)" data-i18n-html="true">실제구매분<br>등록현황과 결과</span></button>
+    <button class="rs-menu-btn" data-sec="virtual" onclick="RS.switchSection('virtual',this)"><span data-i18n-kr="가상구매분<br>등록현황과 결과" data-i18n-en="Entries & Results<br>(Virtual Purchases)" data-i18n-html="true">가상구매분<br>등록현황과 결과</span></button>
+    <button class="rs-menu-btn" data-sec="byCondition" onclick="RS.switchSection('byCondition',this)"><span data-i18n-kr="조건별<br>등록현황과 결과" data-i18n-en="Entries & Results<br>by Condition" data-i18n-html="true">조건별<br>등록현황과 결과</span></button>
+    <button class="rs-menu-btn" data-sec="habit" onclick="RS.switchSection('habit',this)" data-i18n-kr="나의 구매 성향" data-i18n-en="My Purchase Tendencies">나의 구매 성향</button>
+    <button class="rs-menu-btn" data-sec="favorites" onclick="RS.switchSection('favorites',this)"><span data-i18n-kr="관심번호/재구매<br>최애번호 저장소" data-i18n-en="Favorite/Repeat<br>Numbers Storage" data-i18n-html="true">관심번호/재구매<br>최애번호 저장소</span></button>
   </div>
 
   <!-- 우측 동적 콘텐츠 -->
@@ -1008,6 +1019,153 @@ RS.refreshUpcomingLabel = function() {
     if (!e || e.key === MLL.RESULTS_KEY) RS.refreshUpcomingLabel();
   });
 })();
+
+// =====================================================
+// 다국어(i18n) - main_page.html과 동일한 'mll_lang' 키 공유
+// =====================================================
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+var STR = {
+  title_round_all: { kr: '🏆 한국 로또 당첨 결과 확인 [회차별]', en: '🏆 Korea Lotto Results [By Round]' },
+  title_round_real: { kr: '🏆 한국 로또 당첨 결과 확인 [실제구매분 · 회차별]', en: '🏆 Korea Lotto Results [Real Purchases · By Round]' },
+  title_round_virtual: { kr: '🏆 한국 로또 당첨 결과 확인 [가상구매분 · 회차별]', en: '🏆 Korea Lotto Results [Virtual Purchases · By Round]' },
+  title_round_upcoming: { kr: '🏆 한국 로또 당첨 결과 확인 [추첨예정분]', en: '🏆 Korea Lotto Results [Upcoming Draw]' },
+  target_round_label: { kr: '대상 회차', en: 'Target Round' },
+  round_prefix_space: { kr: '제 ', en: 'Round ' },
+  round_upcoming_suffix: { kr: '회 (이번 추첨예정)', en: ' (upcoming draw)' },
+  select_round_label: { kr: '확인할 회차 선택', en: 'Select Round' },
+  all_rounds_option: { kr: '⭐ 모든회차', en: '⭐ All Rounds' },
+  round_suffix: { kr: '회', en: '' },
+  btn_view_results: { kr: '🔍 결과 보기', en: '🔍 View Results' },
+  grade1_name: { kr: '1등', en: '1st' },
+  grade2_name: { kr: '2등', en: '2nd' },
+  grade3_name: { kr: '3등', en: '3rd' },
+  grade4_name: { kr: '4등', en: '4th' },
+  grade5_name: { kr: '5등', en: '5th' },
+  grade_lose_name: { kr: '낙첨', en: 'No Win' },
+  th_total_split: { kr: '총건수(가상구매/실구매)', en: 'Total (Virtual/Real)' },
+  th_count: { kr: '건수', en: 'Count' },
+  th_grade: { kr: '등수', en: 'Grade' },
+  th_pct: { kr: '비율', en: 'Pct' },
+  stat_head_real: { kr: '📶 내가 등록한 한국 로또 전체 통계 (실제구매분)', en: '📶 My Overall Korea Lotto Stats (Real Purchases)' },
+  stat_head_virtual: { kr: '📶 내가 등록한 한국 로또 전체 통계 (가상구매분)', en: '📶 My Overall Korea Lotto Stats (Virtual Purchases)' },
+  stat_head_upcoming: { kr: '📶 내가 등록한 한국 로또 전체 통계 (이번 추첨예정분)', en: '📶 My Overall Korea Lotto Stats (Upcoming Draw)' },
+  stat_head_all: { kr: '📶 내가 등록한 한국 로또 전체 통계', en: '📶 My Overall Korea Lotto Stats' },
+  pre_draw: { kr: '추첨전', en: 'Pre-Draw' },
+  real_purchase_count: { kr: '실구매건', en: 'Real Purchases' },
+  unconfirmed_after_draw: { kr: '추첨후미확인', en: 'Unconfirmed' },
+  virtual_purchase: { kr: '가상구매', en: 'Virtual' },
+  confirmed_after_draw: { kr: '추첨후확인건', en: 'Confirmed' },
+  confirmed_numbers: { kr: '결과 확인된 번호', en: 'Confirmed Numbers' },
+  overall_win_rate: { kr: '전체 당첨율', en: 'Overall Win Rate' },
+  total_win_count: { kr: '총 당첨건수', en: 'Total Wins' },
+  saved_numbers: { kr: '저장된 번호', en: 'Saved Numbers' },
+  unconfirmed_after_draw2: { kr: '추첨후 미확인', en: 'Unconfirmed' },
+  confirmed_after_draw2: { kr: '추첨후 확인건', en: 'Confirmed' },
+  total_win_count2: { kr: '총 당첨 건수', en: 'Total Wins' },
+  overall_win_rate2: { kr: '전체 당첨률', en: 'Overall Win Rate' },
+  unconfirmed_prompt: { kr: '미확인건 중 추첨일이 경과된 미확인건을 확인하시겠습니까? ', en: 'Would you like to check unconfirmed entries whose draw date has already passed? ' },
+  btn_check_now: { kr: '⚡ 확인', en: '⚡ Check' },
+  unconfirmed_same_round: { kr: '등록한 동일회차내<br>추첨결과 미확인건 ', en: 'Unconfirmed draw results<br>for entries in this round: ' },
+  btn_check_now_inline: { kr: '⚡ 지금확인', en: '⚡ Check Now' },
+  win_box_label: { kr: '회 당첨 번호', en: ' Winning Numbers' },
+  not_drawn_yet_upcoming: { kr: '회는 아직 추첨 전입니다. 추첨 후 결과가 반영되면 당첨번호가 표시됩니다.', en: " hasn't been drawn yet. The winning numbers will appear once the draw result is reflected." },
+  not_drawn_yet_other: { kr: '회는 아직 추첨 전이거나 결과가 등록되지 않았습니다.', en: " hasn't been drawn yet, or the result hasn't been registered." },
+  real_virtual_label: { kr: '실구매/가상: ', en: 'Real/Virtual: ' },
+  s4_confirmed_combos: { kr: '추첨결과 확인한 등록 조합수', en: 'Combos with Confirmed Results' },
+  s4_win_combos: { kr: '당첨 조합 수', en: 'Winning Combos' },
+  s4_win_rate: { kr: '당첨률', en: 'Win Rate' },
+  s4_total_prize: { kr: '총 당첨금 (원)', en: 'Total Prize (KRW)' },
+  detail_results: { kr: '상세 결과 (', en: 'Detailed Results (' },
+  cases_unit2: { kr: '건)', en: ')' },
+  col_round: { kr: '회차', en: 'Round' },
+  col_nums: { kr: '내 번호', en: 'My Numbers' },
+  col_match: { kr: '일치', en: 'Match' },
+  col_grade: { kr: '등수', en: 'Grade' },
+  col_prize: { kr: '당첨금', en: 'Prize' },
+  col_type: { kr: '구매형태', en: 'Type' },
+  col_memo: { kr: '메모', en: 'Memo' },
+  col_created: { kr: '등록일자', en: 'Registered' },
+  col_fav: { kr: '관심', en: 'Fav' },
+  no_entries: { kr: '등록된 번호가 없습니다.', en: 'No numbers registered.' },
+  unconfirmed_short: { kr: '미확인', en: 'Pending' },
+  grade_lose_short: { kr: '낙첨', en: 'No Win' },
+  won_suffix: { kr: '원', en: ' KRW' },
+  cond_table_title: { kr: '🔎 찾는 조건식 Table', en: '🔎 Search Condition Table' },
+  cond_section_number: { kr: '📊 번호 조건', en: '📊 Number Conditions' },
+  cond_odd_even: { kr: '홀짝비율', en: 'Odd:Even Ratio' },
+  cond_hint_oe: { kr: '홀:짝', en: 'Odd:Even' },
+  cond_any: { kr: '무관', en: 'Any' },
+  cond_consecutive: { kr: '연속제한', en: 'Consecutive Limit' },
+  cond_hint_consecutive: { kr: '최대 연속 개수', en: 'Max consecutive count' },
+  cond_ph_consecutive: { kr: '예) 2 (1,2,3 제외)', en: 'e.g. 2 (excludes 1,2,3)' },
+  cond_sum_min: { kr: '번호합 최소', en: 'Number Sum Min' },
+  cond_ph_sum_min: { kr: '예) 100', en: 'e.g. 100' },
+  cond_sum_max: { kr: '번호합 최대', en: 'Number Sum Max' },
+  cond_ph_sum_max: { kr: '예) 170', en: 'e.g. 170' },
+  cond_range_start: { kr: '시작번호', en: 'Range Start' },
+  cond_hint_range: { kr: '순환구간', en: 'Wraps around' },
+  cond_ph_range_start: { kr: '예) 1', en: 'e.g. 1' },
+  cond_range_end: { kr: '끝번호', en: 'Range End' },
+  cond_hint_range_end: { kr: '45다음 1로 순환', en: 'Wraps from 45 back to 1' },
+  cond_ph_range_end: { kr: '예) 40', en: 'e.g. 40' },
+  cond_include: { kr: '포함수', en: 'Must Include' },
+  cond_hint_include: { kr: '반드시 포함될 번호', en: 'Numbers that must be included' },
+  cond_ph_include: { kr: '예) 21,33 또는 1~10', en: 'e.g. 21,33 or 1-10' },
+  cond_exclude: { kr: '제외수', en: 'Must Exclude' },
+  cond_hint_exclude: { kr: '절대 포함 안 될 번호', en: 'Numbers that must not be included' },
+  cond_ph_exclude: { kr: '예) 3,7,11', en: 'e.g. 3,7,11' },
+  cond_section_freq: { kr: '📈 빈도 분석 조건', en: '📈 Frequency Analysis Conditions' },
+  cond_top_range: { kr: '상위빈도범위', en: 'Top Frequency Range' },
+  cond_hint_top_range: { kr: '최근 N개 중 상위 M개', en: 'Top M of the last N' },
+  cond_ph_top_range: { kr: '예) 20 (상위 20번호)', en: 'e.g. 20 (top 20 numbers)' },
+  cond_top_use: { kr: '상위번호사용', en: 'Top Numbers Used' },
+  cond_hint_top_use: { kr: '조합당 몇 개 포함', en: 'How many per combo' },
+  cond_ph_top_use: { kr: '예) 2', en: 'e.g. 2' },
+  cond_recent_rounds: { kr: '최근분석회차', en: 'Recent Rounds Analyzed' },
+  cond_hint_recent: { kr: '최근 N회 분석', en: 'Analyze the last N rounds' },
+  cond_ph_recent: { kr: '예) 100', en: 'e.g. 100' },
+  cond_last_week: { kr: '지난주기준', en: 'Last Week Basis' },
+  cond_hint_last_week: { kr: '지난주 당첨번호 기준 정렬', en: "Sort by last week's winning numbers" },
+  cond_least_overlap: { kr: '적은순 (겹침 적은 것 우선)', en: 'Fewest first (least overlap)' },
+  cond_most_overlap: { kr: '많은순 (겹침 많은 것 우선)', en: 'Most first (most overlap)' },
+  btn_search: { kr: '🔍 찾기 Click!', en: '🔍 Search!' },
+  cond_note_html: { kr: '여기서는 사용자가 생각하는 조건을 갖춘 번호조합이 내가 이미 등록한 이곳에 있나 찾아보는 곳입니다. 있을 경우 아래에 리스트로 나오게 됩니다.<br><br>만일 없을 경우 <b style="color:#5f3dc4;text-decoration:underline;cursor:pointer;" onclick="location.href=\'strategy_manager.html\'">"전략등록"</b>에서 원하는 조건으로 번호를 새로 생성해 보세요.', en: "This searches your already-registered numbers for combos matching the conditions you set. Matches, if any, will appear in a list below.<br><br>If there are no matches, try generating new numbers with your desired conditions in <b style=\"color:#5f3dc4;text-decoration:underline;cursor:pointer;\" onclick=\"location.href='strategy_manager.html'\">\"Register Strategy\"</b>." },
+  cond_result_title: { kr: '📋 조건을 만족하는 등록건 (', en: '📋 Matching Entries (' },
+};
+
+// 구매형태(자동/반자동/수동) 표시 라벨: 내부 데이터값은 한글 그대로 유지, 화면 표시만 변환
+RS.PURCHASE_TYPE_EN = { '자동':'Auto', '반자동':'Semi-Auto', '수동':'Manual' };
+RS.purchaseTypeLabel = function(type){
+  return (LANG === 'en') ? (RS.PURCHASE_TYPE_EN[type] || type) : type;
+};
+function T(key){ var row = STR[key]; if (!row) return key; return row[LANG] || row.kr; }
+
+function applyLang(){
+  document.title = (LANG === 'en') ? 'My Lotto Lab - Results & Stats' : 'My Lotto Lab - 결과 및 통계';
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var text = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if (text === undefined) return;
+    if (el.dataset.i18nHtml === 'true') el.innerHTML = text;
+    else el.textContent = text;
+  });
+  document.querySelectorAll('[data-i18n-placeholder-kr]').forEach(function(el){
+    var text = (LANG === 'en') ? el.dataset.i18nPlaceholderEn : el.dataset.i18nPlaceholderKr;
+    if (text !== undefined) el.setAttribute('placeholder', text);
+  });
+  var krBtn = document.getElementById('langKrBtn'), enBtn = document.getElementById('langEnBtn');
+  if (krBtn) { krBtn.style.background = LANG==='kr' ? '#e0b341' : '#1c1c2e'; krBtn.style.color = LANG==='kr' ? '#1a1305' : '#ccc'; }
+  if (enBtn) { enBtn.style.background = LANG==='en' ? '#e0b341' : '#1c1c2e'; enBtn.style.color = LANG==='en' ? '#1a1305' : '#ccc'; }
+}
+function setLang(lang){
+  LANG = lang;
+  localStorage.setItem('mll_lang', lang);
+  applyLang();
+  if (typeof RS !== 'undefined' && RS.switchSection) {
+    var activeBtn = document.querySelector('.rs-menu-btn.active');
+    RS.switchSection(RS.currentSection, activeBtn);
+  }
+}
+document.addEventListener('DOMContentLoaded', applyLang);
 </script>
 
 <script>
@@ -1082,8 +1240,8 @@ RS.computeGlobalStats = function(mode) {
 
 RS.renderGradeTable = function(gradeCounts, confirmedCount, gradeCountsReal, gradeCountsVirtual) {
   var labels = [
-    {g:1,icon:'🥇',name:'1등'}, {g:2,icon:'🥈',name:'2등'}, {g:3,icon:'🥉',name:'3등'},
-    {g:4,name:'4등'}, {g:5,name:'5등'}, {g:0,name:'낙첨'}
+    {g:1,icon:'🥇',name:T('grade1_name')}, {g:2,icon:'🥈',name:T('grade2_name')}, {g:3,icon:'🥉',name:T('grade3_name')},
+    {g:4,name:T('grade4_name')}, {g:5,name:T('grade5_name')}, {g:0,name:T('grade_lose_name')}
   ];
   var showSplit = !!(gradeCountsReal && gradeCountsVirtual);
   var rows = labels.map(function(l){
@@ -1097,17 +1255,17 @@ RS.renderGradeTable = function(gradeCounts, confirmedCount, gradeCountsReal, gra
       '<td style="text-align:right;font-weight:700;">'+cntCell+'</td>' +
       '<td style="text-align:right;color:#888;">'+pct.toFixed(2)+'%</td></tr>';
   }).join('');
-  var headCnt = showSplit ? '총건수(가상구매/실구매)' : '건수';
-  return '<table class="gradetable"><thead><tr><th>등수</th><th style="text-align:right;">'+headCnt+'</th><th style="text-align:right;">비율</th></tr></thead>' +
+  var headCnt = showSplit ? T('th_total_split') : T('th_count');
+  return '<table class="gradetable"><thead><tr><th>'+T('th_grade')+'</th><th style="text-align:right;">'+headCnt+'</th><th style="text-align:right;">'+T('th_pct')+'</th></tr></thead>' +
     '<tbody>'+rows+'</tbody></table>';
 };
 
 RS.renderStatPanel = function(mode) {
   var s = RS.computeGlobalStats(mode);
-  var headLabel = mode === 'real' ? '📶 내가 등록한 한국 로또 전체 통계 (실제구매분)' :
-                  mode === 'virtual' ? '📶 내가 등록한 한국 로또 전체 통계 (가상구매분)' :
-                  mode === 'upcoming' ? '📶 내가 등록한 한국 로또 전체 통계 (이번 추첨예정분)' :
-                  '📶 내가 등록한 한국 로또 전체 통계';
+  var headLabel = mode === 'real' ? T('stat_head_real') :
+                  mode === 'virtual' ? T('stat_head_virtual') :
+                  mode === 'upcoming' ? T('stat_head_upcoming') :
+                  T('stat_head_all');
 
   // mode가 'all'(또는 'upcoming')일 때만 실구매/가상구매 세부 숫자를 같이 보여준다.
   // (real/virtual 모드는 이미 한쪽만 걸러서 보는 화면이라 분리 표시가 의미 없다.)
@@ -1123,26 +1281,26 @@ RS.renderStatPanel = function(mode) {
       '<div class="minicard-grid3" style="margin-top:12px;">' +
         '<div class="minicard"><div class="minicard-icon">🎫</div><div class="minicard-val">'+s.totalSaved.toLocaleString()+'</div>' +
           '<div class="minicard-sub" style="text-align:left;">' +
-            '추첨전 &nbsp;'+s.preDrawCount+' &nbsp;|&nbsp; 실구매건 '+s.real.saved+'<br>' +
-            '추첨후미확인 '+s.unconfirmedCount+' &nbsp;|&nbsp; 가상구매 '+s.virtual.saved.toLocaleString()+'<br>' +
-            '추첨후확인건 '+s.confirmedCount.toLocaleString()+' &nbsp;' +
+            T('pre_draw')+' &nbsp;'+s.preDrawCount+' &nbsp;|&nbsp; '+T('real_purchase_count')+' '+s.real.saved+'<br>' +
+            T('unconfirmed_after_draw')+' '+s.unconfirmedCount+' &nbsp;|&nbsp; '+T('virtual_purchase')+' '+s.virtual.saved.toLocaleString()+'<br>' +
+            T('confirmed_after_draw')+' '+s.confirmedCount.toLocaleString()+' &nbsp;' +
           '</div></div>' +
         '<div class="minicard green"><div class="minicard-icon">✅</div><div class="minicard-val">'+s.confirmedCount.toLocaleString()+'</div>' +
-          '<div class="minicard-sub">결과 확인된 번호<br>실구매건 &nbsp;'+s.real.confirmed+' &nbsp;|&nbsp; 가상구매 '+s.virtual.confirmed.toLocaleString()+'</div></div>' +
-        '<div class="minicard red"><div class="minicard-icon">📈</div><div class="minicard-val" style="font-size:12px;line-height:1.5;">전체 당첨율<br>'+s.winRate.toFixed(1)+'% &nbsp;|&nbsp; 총 당첨건수 '+s.totalWin+'</div>' +
-          '<div class="minicard-sub">실구매건 '+s.real.winRate.toFixed(2)+'% / '+s.real.win+' &nbsp;|&nbsp; 가상구매 '+s.virtual.winRate.toFixed(2)+'% / '+s.virtual.win+'</div></div>' +
+          '<div class="minicard-sub">'+T('confirmed_numbers')+'<br>'+T('real_purchase_count')+' &nbsp;'+s.real.confirmed+' &nbsp;|&nbsp; '+T('virtual_purchase')+' '+s.virtual.confirmed.toLocaleString()+'</div></div>' +
+        '<div class="minicard red"><div class="minicard-icon">📈</div><div class="minicard-val" style="font-size:12px;line-height:1.5;">'+T('overall_win_rate')+'<br>'+s.winRate.toFixed(1)+'% &nbsp;|&nbsp; '+T('total_win_count')+' '+s.totalWin+'</div>' +
+          '<div class="minicard-sub">'+T('real_purchase_count')+' '+s.real.winRate.toFixed(2)+'% / '+s.real.win+' &nbsp;|&nbsp; '+T('virtual_purchase')+' '+s.virtual.winRate.toFixed(2)+'% / '+s.virtual.win+'</div></div>' +
       '</div>';
   } else {
     minicardsHtml =
       '<div class="minicard-grid" style="margin-top:12px;">' +
         '<div class="minicard"><div class="minicard-icon">🎫</div><div class="minicard-val">'+s.totalSaved+'</div>' +
-          '<div class="minicard-sub">저장된 번호<br>추첨전 '+s.preDrawCount+'<br>추첨후 미확인 '+s.unconfirmedCount+'<br>추첨후 확인건 '+s.confirmedCount+'</div></div>' +
+          '<div class="minicard-sub">'+T('saved_numbers')+'<br>'+T('pre_draw')+' '+s.preDrawCount+'<br>'+T('unconfirmed_after_draw2')+' '+s.unconfirmedCount+'<br>'+T('confirmed_after_draw2')+' '+s.confirmedCount+'</div></div>' +
         '<div class="minicard green"><div class="minicard-icon">✅</div><div class="minicard-val">'+s.confirmedCount+'</div>' +
-          '<div class="minicard-sub">결과 확인된 번호</div></div>' +
+          '<div class="minicard-sub">'+T('confirmed_numbers')+'</div></div>' +
         '<div class="minicard gold"><div class="minicard-icon">🏆</div><div class="minicard-val">'+s.totalWin+'</div>' +
-          '<div class="minicard-sub">총 당첨 건수</div></div>' +
+          '<div class="minicard-sub">'+T('total_win_count2')+'</div></div>' +
         '<div class="minicard red"><div class="minicard-icon">📈</div><div class="minicard-val">'+s.winRate.toFixed(1)+'%</div>' +
-          '<div class="minicard-sub">전체 당첨률</div></div>' +
+          '<div class="minicard-sub">'+T('overall_win_rate2')+'</div></div>' +
       '</div>';
   }
 
@@ -1153,8 +1311,8 @@ RS.renderStatPanel = function(mode) {
         gradeTableHtml +
         minicardsHtml +
         (s.unconfirmedCount>0 ?
-          '<div style="margin-top:10px;text-align:center;font-size:10px;color:#888;">미확인건 중 추첨일이 경과된 미확인건을 확인하시겠습니까? ' +
-          '<button class="checknow-btn" onclick="RS.runCheckNow(\''+(mode||'all')+'\')">⚡ 확인</button></div>' : '') +
+          '<div style="margin-top:10px;text-align:center;font-size:10px;color:#888;">'+T('unconfirmed_prompt') +
+          '<button class="checknow-btn" onclick="RS.runCheckNow(\''+(mode||'all')+'\')">'+T('btn_check_now')+'</button></div>' : '') +
       '</div>' +
     '</div>';
 };
@@ -1187,10 +1345,10 @@ RS.renderRoundSection = function(container, mode) {
   // mode: 'all'(회차별 전체) | 'real'(실제구매분) | 'virtual'(가상구매분) | 'upcoming'(추첨예정분 고정)
   var ro = RS.buildRoundOptions((mode === 'real' || mode === 'virtual') ? mode : 'all');
   var titleMap = {
-    all: '🏆 한국 로또 당첨 결과 확인 [회차별]',
-    real: '🏆 한국 로또 당첨 결과 확인 [실제구매분 · 회차별]',
-    virtual: '🏆 한국 로또 당첨 결과 확인 [가상구매분 · 회차별]',
-    upcoming: '🏆 한국 로또 당첨 결과 확인 [추첨예정분]'
+    all: T('title_round_all'),
+    real: T('title_round_real'),
+    virtual: T('title_round_virtual'),
+    upcoming: T('title_round_upcoming')
   };
 
   var selectAreaHtml;
@@ -1198,20 +1356,20 @@ RS.renderRoundSection = function(container, mode) {
     var upRound = RS.computeUpcomingRound();
     RS.upcomingRound = upRound;
     selectAreaHtml =
-      '<span style="font-size:11px;color:#888;">대상 회차</span>' +
-      '<span style="font-size:13px;font-weight:700;color:#e67700;">제 '+upRound+'회 (이번 추첨예정)</span>' +
+      '<span style="font-size:11px;color:#888;">'+T('target_round_label')+'</span>' +
+      '<span style="font-size:13px;font-weight:700;color:#e67700;">'+T('round_prefix_space')+upRound+T('round_upcoming_suffix')+'</span>' +
       '<span id="rs-unconfirmed-info" class="unconfirmed-pill"></span>';
   } else {
     var sel = RS.roundState[mode] || 'all';
     RS.roundState[mode] = sel;
-    var optionsHtml = '<option value="all">⭐ 모든회차</option>' +
+    var optionsHtml = '<option value="all">'+T('all_rounds_option')+'</option>' +
       ro.rounds.map(function(r){
-        return '<option value="'+r+'"'+(String(sel)===String(r)?' selected':'')+'>'+r+'회 ('+ro.counts[r]+')</option>';
+        return '<option value="'+r+'"'+(String(sel)===String(r)?' selected':'')+'>'+r+T('round_suffix')+' ('+ro.counts[r]+')</option>';
       }).join('');
     selectAreaHtml =
-      '<span style="font-size:11px;color:#888;">확인할 회차 선택</span>' +
+      '<span style="font-size:11px;color:#888;">'+T('select_round_label')+'</span>' +
       '<select id="rs-round-select-'+mode+'" onchange="RS.onRoundChange(\''+mode+'\',this.value)">'+optionsHtml+'</select>' +
-      '<button class="gobtn" onclick="RS.onRoundChange(\''+mode+'\',document.getElementById(\'rs-round-select-'+mode+'\').value)">🔍 결과 보기</button>' +
+      '<button class="gobtn" onclick="RS.onRoundChange(\''+mode+'\',document.getElementById(\'rs-round-select-'+mode+'\').value)">'+T('btn_view_results')+'</button>' +
       '<span id="rs-unconfirmed-info" class="unconfirmed-pill"></span>';
   }
 
@@ -1280,8 +1438,8 @@ RS.renderRoundBody = function(mode) {
   }).length;
 
   var unconfirmedHtml = unconfirmedInScope > 0
-    ? '등록한 동일회차내<br>추첨결과 미확인건 <b>'+unconfirmedInScope+'</b> &nbsp;<button class="checknow-btn" onclick="RS.runCheckNow(\''+mode+'\')">⚡ 지금확인</button>'
-    : '등록한 동일회차내<br>추첨결과 미확인건 <b>0</b>';
+    ? T('unconfirmed_same_round')+'<b>'+unconfirmedInScope+'</b> &nbsp;<button class="checknow-btn" onclick="RS.runCheckNow(\''+mode+'\')">'+T('btn_check_now_inline')+'</button>'
+    : T('unconfirmed_same_round')+'<b>0</b>';
   var infoEl = document.getElementById('rs-unconfirmed-info');
   if (infoEl) infoEl.innerHTML = unconfirmedHtml;
 
@@ -1299,15 +1457,15 @@ RS.renderRoundBody = function(mode) {
         return '<span class="wball" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+n+'</span>';
       }).join('');
       winboxHtml = '<div class="winbox">' +
-        '<span class="winbox-label">제 '+selectedRound+'회 당첨 번호</span>' +
+        '<span class="winbox-label">'+T('round_prefix_space')+selectedRound+T('win_box_label')+'</span>' +
         ballsHtml +
         '<span style="font-size:13px;color:#aaa;">+</span>' +
         '<span class="wball" style="background:#fff;color:#555;border:2px solid #aaa;">'+res.bonus+'</span>' +
         '</div>';
     } else {
       var emptyMsg = mode === 'upcoming'
-        ? '제 '+selectedRound+'회는 아직 추첨 전입니다. 추첨 후 결과가 반영되면 당첨번호가 표시됩니다.'
-        : '제 '+selectedRound+'회는 아직 추첨 전이거나 결과가 등록되지 않았습니다.';
+        ? T('round_prefix_space')+selectedRound+T('not_drawn_yet_upcoming')
+        : T('round_prefix_space')+selectedRound+T('not_drawn_yet_other');
       winboxHtml = '<div class="winbox" style="background:#f5f5f5;border-color:#e5e5e5;">' +
         '<span style="font-size:11px;color:#999;">'+emptyMsg+'</span></div>';
     }
@@ -1326,7 +1484,7 @@ RS.renderRoundBody = function(mode) {
   var showSplit4 = (mode === 'all' || !mode || mode === 'upcoming');
   var splitLine = showSplit4
     ? '<div class="summary4-split">' +
-        '<span>실구매/가상: &nbsp;'+realConfirmedRows.length+' / '+virtConfirmedRows.length+'</span>' +
+        '<span>'+T('real_virtual_label')+' &nbsp;'+realConfirmedRows.length+' / '+virtConfirmedRows.length+'</span>' +
         '<span>'+realWinRows.length+' / '+virtWinRows.length+'</span>' +
         '<span>'+realWinRate2.toFixed(2)+'% / '+virtWinRate2.toFixed(2)+'%</span>' +
         '<span>'+realPrize2.toLocaleString()+' / '+virtPrize2.toLocaleString()+'</span>' +
@@ -1334,10 +1492,10 @@ RS.renderRoundBody = function(mode) {
     : '';
 
   var summaryHtml = '<div class="summary4">' +
-    '<div class="s4box"><div class="s4box-val">'+confirmedRows.length+'</div><div class="s4box-label">추첨결과 확인한 등록 조합수</div></div>' +
-    '<div class="s4box"><div class="s4box-val" style="color:#e67700;">'+winRows.length+'</div><div class="s4box-label">당첨 조합 수</div></div>' +
-    '<div class="s4box"><div class="s4box-val" style="color:#1a7ad4;">'+winRate.toFixed(1)+'%</div><div class="s4box-label">당첨률</div></div>' +
-    '<div class="s4box"><div class="s4box-val" style="color:#e03131;">'+totalPrize.toLocaleString()+'</div><div class="s4box-label">총 당첨금 (원)</div></div>' +
+    '<div class="s4box"><div class="s4box-val">'+confirmedRows.length+'</div><div class="s4box-label">'+T('s4_confirmed_combos')+'</div></div>' +
+    '<div class="s4box"><div class="s4box-val" style="color:#e67700;">'+winRows.length+'</div><div class="s4box-label">'+T('s4_win_combos')+'</div></div>' +
+    '<div class="s4box"><div class="s4box-val" style="color:#1a7ad4;">'+winRate.toFixed(1)+'%</div><div class="s4box-label">'+T('s4_win_rate')+'</div></div>' +
+    '<div class="s4box"><div class="s4box-val" style="color:#e03131;">'+totalPrize.toLocaleString()+'</div><div class="s4box-label">'+T('s4_total_prize')+'</div></div>' +
   '</div>' + splitLine;
 
   // 정렬 적용 데이터 가공
@@ -1346,23 +1504,26 @@ RS.renderRoundBody = function(mode) {
   var tableHtml = RS.renderResultTable(sortedRows, getRes, isAll, ro.rounds);
 
   body.innerHTML = winboxHtml + summaryHtml +
-    '<div style="padding:0 16px 6px;font-size:11px;font-weight:700;color:#555;">상세 결과 ('+rows.length+'건)</div>' +
+    '<div style="padding:0 16px 6px;font-size:11px;font-weight:700;color:#555;">'+T('detail_results')+rows.length+T('cases_unit2')+'</div>' +
     tableHtml;
 };
 
 // ── 정렬 ──
-RS.COLUMNS = [
-  { key:'idx',        label:'#' },
-  { key:'round',       label:'회차', onlyAll:true },
-  { key:'nums',        label:'내 번호', noSort:true },
-  { key:'match',        label:'일치' },
-  { key:'grade',        label:'등수' },
-  { key:'prizeMoney',   label:'당첨금' },
-  { key:'type',         label:'구매형태' },
-  { key:'memo',         label:'메모' },
-  { key:'createdAt',    label:'등록일자' },
-  { key:'isFavorite',   label:'관심' }
-];
+RS.COLUMNS_DEF = function(){
+  return [
+    { key:'idx',        label:'#' },
+    { key:'round',       label:T('col_round'), onlyAll:true },
+    { key:'nums',        label:T('col_nums'), noSort:true },
+    { key:'match',        label:T('col_match') },
+    { key:'grade',        label:T('col_grade') },
+    { key:'prizeMoney',   label:T('col_prize') },
+    { key:'type',         label:T('col_type') },
+    { key:'memo',         label:T('col_memo') },
+    { key:'createdAt',    label:T('col_created') },
+    { key:'isFavorite',   label:T('col_fav') }
+  ];
+};
+Object.defineProperty(RS, 'COLUMNS', { get: function(){ return RS.COLUMNS_DEF(); } });
 
 RS.sortRows = function(rows, getRes, isAll) {
   // 정렬을 위해 파생값(match, grade서열) 미리 계산해 둠
@@ -1442,7 +1603,7 @@ RS.renderResultTable = function(rows, getRes, isAll, roundsDesc) {
 
   if (!rows.length) {
     return '<div class="detail-table-wrap"><table class="rtbl">'+theadHtml+
-      '<tbody><tr><td colspan="'+cols.length+'" class="empty-row">등록된 번호가 없습니다.</td></tr></tbody></table></div>';
+      '<tbody><tr><td colspan="'+cols.length+'" class="empty-row">'+T('no_entries')+'</td></tr></tbody></table></div>';
   }
 
   var bodyRows = rows.map(function(e, i){
@@ -1463,20 +1624,20 @@ RS.renderResultTable = function(rows, getRes, isAll, roundsDesc) {
 
     var gradeHtml;
     if (!isConfirmed) {
-      gradeHtml = '<span style="color:#bbb;font-size:9px;">미확인</span>';
+      gradeHtml = '<span style="color:#bbb;font-size:9px;">'+T('unconfirmed_short')+'</span>';
     } else if (e.grade===0) {
-      gradeHtml = '<span class="rbadge" style="background:'+MLL.GRADE_COLOR[0]+';">낙첨</span>';
+      gradeHtml = '<span class="rbadge" style="background:'+MLL.GRADE_COLOR[0]+';">'+T('grade_lose_short')+'</span>';
     } else {
-      gradeHtml = '<span class="rbadge" style="background:'+MLL.GRADE_COLOR[e.grade]+';">'+MLL.GRADE_LABEL[e.grade]+'</span>';
+      gradeHtml = '<span class="rbadge" style="background:'+MLL.GRADE_COLOR[e.grade]+';">'+MLL.getGradeLabel(e.grade)+'</span>';
     }
 
     var prizeHtml = (e.prizeMoney && e.prizeMoney>0)
-      ? '<span style="color:#e03131;font-weight:700;">'+e.prizeMoney.toLocaleString()+'원</span>'
+      ? '<span style="color:#e03131;font-weight:700;">'+e.prizeMoney.toLocaleString()+T('won_suffix')+'</span>'
       : '<span style="color:#ccc;">-</span>';
 
     var typeColor = e.type==='자동'?'#2f9e44':e.type==='반자동'?'#e67700':'#1a7ad4';
     var typeBg    = e.type==='자동'?'#e8fff0':e.type==='반자동'?'#fff3e0':'#e8f4ff';
-    var typeHtml  = '<span class="typebadge" style="color:'+typeColor+';background:'+typeBg+';border-color:'+typeColor+';">'+e.type+'</span>';
+    var typeHtml  = '<span class="typebadge" style="color:'+typeColor+';background:'+typeBg+';border-color:'+typeColor+';">'+RS.purchaseTypeLabel(e.type)+'</span>';
 
     var d = new Date(e.createdAt);
     var dateStr = String(d.getFullYear()).slice(2)+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0');
@@ -1486,7 +1647,7 @@ RS.renderResultTable = function(rows, getRes, isAll, roundsDesc) {
     var roundCellHtml = '';
     if (isAll) {
       var rc = RS.roundColor(e.round, roundsDesc);
-      roundCellHtml = '<td><span class="roundchip" style="background:'+rc+';">'+e.round+'회</span></td>';
+      roundCellHtml = '<td><span class="roundchip" style="background:'+rc+';">'+e.round+T('round_suffix')+'</span></td>';
     }
 
     return '<tr>' +
@@ -1532,57 +1693,55 @@ RS.CONDITION_FIELDS = [
 RS.renderByCondition = function(container) {
   container.innerHTML =
     '<div class="card">' +
-      '<div class="cond-card-head">🔎 찾는 조건식 Table</div>' +
+      '<div class="cond-card-head">'+T('cond_table_title')+'</div>' +
       '<div class="cond-body">' +
-        '<div class="cond-section-title">📊 번호 조건</div>' +
+        '<div class="cond-section-title">'+T('cond_section_number')+'</div>' +
         '<div class="cond-grid2">' +
-          '<div><div class="cond-label">홀짝비율 <span class="hint">홀:짝</span></div>' +
+          '<div><div class="cond-label">'+T('cond_odd_even')+' <span class="hint">'+T('cond_hint_oe')+'</span></div>' +
             '<select class="cond-select" id="c-odd-even">' +
-              '<option value="">무관</option>' +
+              '<option value="">'+T('cond_any')+'</option>' +
               '<option value="6:0">6:0</option><option value="5:1">5:1</option>' +
               '<option value="4:2">4:2</option><option value="3:3">3:3</option>' +
               '<option value="2:4">2:4</option><option value="1:5">1:5</option>' +
               '<option value="0:6">0:6</option>' +
             '</select></div>' +
-          '<div><div class="cond-label">연속제한 <span class="hint">최대 연속 개수</span></div>' +
-            '<input class="cond-input" id="c-consecutive" placeholder="예) 2 (1,2,3 제외)"></div>' +
-          '<div><div class="cond-label">번호합 최소</div>' +
-            '<input class="cond-input" id="c-sum-min" placeholder="예) 100"></div>' +
-          '<div><div class="cond-label">번호합 최대</div>' +
-            '<input class="cond-input" id="c-sum-max" placeholder="예) 170"></div>' +
-          '<div><div class="cond-label">시작번호 <span class="hint">순환구간</span></div>' +
-            '<input class="cond-input" id="c-range-start" placeholder="예) 1"></div>' +
-          '<div><div class="cond-label">끝번호 <span class="hint">45다음 1로 순환</span></div>' +
-            '<input class="cond-input" id="c-range-end" placeholder="예) 40"></div>' +
-          '<div><div class="cond-label">포함수 <span class="hint">반드시 포함될 번호</span></div>' +
-            '<input class="cond-input" id="c-include" placeholder="예) 21,33 또는 1~10"></div>' +
-          '<div><div class="cond-label">제외수 <span class="hint">절대 포함 안 될 번호</span></div>' +
-            '<input class="cond-input" id="c-exclude" placeholder="예) 3,7,11"></div>' +
+          '<div><div class="cond-label">'+T('cond_consecutive')+' <span class="hint">'+T('cond_hint_consecutive')+'</span></div>' +
+            '<input class="cond-input" id="c-consecutive" placeholder="'+T('cond_ph_consecutive')+'"></div>' +
+          '<div><div class="cond-label">'+T('cond_sum_min')+'</div>' +
+            '<input class="cond-input" id="c-sum-min" placeholder="'+T('cond_ph_sum_min')+'"></div>' +
+          '<div><div class="cond-label">'+T('cond_sum_max')+'</div>' +
+            '<input class="cond-input" id="c-sum-max" placeholder="'+T('cond_ph_sum_max')+'"></div>' +
+          '<div><div class="cond-label">'+T('cond_range_start')+' <span class="hint">'+T('cond_hint_range')+'</span></div>' +
+            '<input class="cond-input" id="c-range-start" placeholder="'+T('cond_ph_range_start')+'"></div>' +
+          '<div><div class="cond-label">'+T('cond_range_end')+' <span class="hint">'+T('cond_hint_range_end')+'</span></div>' +
+            '<input class="cond-input" id="c-range-end" placeholder="'+T('cond_ph_range_end')+'"></div>' +
+          '<div><div class="cond-label">'+T('cond_include')+' <span class="hint">'+T('cond_hint_include')+'</span></div>' +
+            '<input class="cond-input" id="c-include" placeholder="'+T('cond_ph_include')+'"></div>' +
+          '<div><div class="cond-label">'+T('cond_exclude')+' <span class="hint">'+T('cond_hint_exclude')+'</span></div>' +
+            '<input class="cond-input" id="c-exclude" placeholder="'+T('cond_ph_exclude')+'"></div>' +
         '</div>' +
 
         '<hr class="cond-divider">' +
-        '<div class="cond-section-title">📈 빈도 분석 조건</div>' +
+        '<div class="cond-section-title">'+T('cond_section_freq')+'</div>' +
         '<div class="cond-grid2">' +
-          '<div><div class="cond-label">상위빈도범위 <span class="hint">최근 N개 중 상위 M개</span></div>' +
-            '<input class="cond-input" id="c-top-range" placeholder="예) 20 (상위 20번호)"></div>' +
-          '<div><div class="cond-label">상위번호사용 <span class="hint">조합당 몇 개 포함</span></div>' +
-            '<input class="cond-input" id="c-top-use" placeholder="예) 2"></div>' +
-          '<div><div class="cond-label">최근분석회차 <span class="hint">최근 N회 분석</span></div>' +
-            '<input class="cond-input" id="c-recent-rounds" placeholder="예) 100"></div>' +
-          '<div><div class="cond-label">지난주기준 <span class="hint">지난주 당첨번호 기준 정렬</span></div>' +
+          '<div><div class="cond-label">'+T('cond_top_range')+' <span class="hint">'+T('cond_hint_top_range')+'</span></div>' +
+            '<input class="cond-input" id="c-top-range" placeholder="'+T('cond_ph_top_range')+'"></div>' +
+          '<div><div class="cond-label">'+T('cond_top_use')+' <span class="hint">'+T('cond_hint_top_use')+'</span></div>' +
+            '<input class="cond-input" id="c-top-use" placeholder="'+T('cond_ph_top_use')+'"></div>' +
+          '<div><div class="cond-label">'+T('cond_recent_rounds')+' <span class="hint">'+T('cond_hint_recent')+'</span></div>' +
+            '<input class="cond-input" id="c-recent-rounds" placeholder="'+T('cond_ph_recent')+'"></div>' +
+          '<div><div class="cond-label">'+T('cond_last_week')+' <span class="hint">'+T('cond_hint_last_week')+'</span></div>' +
             '<select class="cond-select" id="c-last-week">' +
-              '<option value="무관">무관</option>' +
-              '<option value="적은순">적은순 (겹침 적은 것 우선)</option>' +
-              '<option value="많은순">많은순 (겹침 많은 것 우선)</option>' +
+              '<option value="무관">'+T('cond_any')+'</option>' +
+              '<option value="적은순">'+T('cond_least_overlap')+'</option>' +
+              '<option value="많은순">'+T('cond_most_overlap')+'</option>' +
             '</select></div>' +
         '</div>' +
 
-        '<button class="cond-searchbtn" onclick="RS.runConditionSearch()">🔍 찾기 Click!</button>' +
+        '<button class="cond-searchbtn" onclick="RS.runConditionSearch()">'+T('btn_search')+'</button>' +
 
         '<div class="cond-note">' +
-          '여기서는 사용자가 생각하는 조건을 갖춘 번호조합이 내가 이미 등록한 이곳에 있나 찾아보는 곳입니다. ' +
-          '있을 경우 아래에 리스트로 나오게 됩니다.<br><br>' +
-          '만일 없을 경우 <b style="color:#5f3dc4;text-decoration:underline;cursor:pointer;" onclick="location.href=\'strategy_manager.html\'">"전략등록"</b>에서 원하는 조건으로 번호를 새로 생성해 보세요.' +
+          T('cond_note_html') +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -1642,7 +1801,7 @@ RS.renderConditionResult = function(matched) {
 
   box.innerHTML =
     '<div class="card">' +
-      '<div class="card-head head-dark">📋 조건을 만족하는 등록건 ('+matched.length+'건)</div>' +
+      '<div class="card-head head-dark">'+T('cond_result_title')+matched.length+T('cases_unit2')+'</div>' +
       tableHtml +
     '</div>';
 };
