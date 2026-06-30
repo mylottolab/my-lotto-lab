@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 회원가입</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f; --gold-bg:rgba(224,179,65,.10);
+  --accent:#5b6ee8; --accent-bg:rgba(91,110,232,.13);
+  --green:#3fb37f; --green-bg:rgba(63,179,127,.10);
+  --red:#e05c5c; --red-bg:rgba(224,92,92,.10);
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;display:flex;flex-direction:column;}
+
+/* TOPBAR */
+.topbar{border-bottom:1px solid var(--border-soft);}
+.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
+.brand-text .t1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
+.brand-text .t2{font-size:10px;color:var(--text-faint);margin-top:1px;}
+.lang-toggle{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.lang-toggle button{background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+.lang-toggle button.active{background:var(--gold);color:#1a1305;}
+
+/* MAIN */
+.page-body{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:40px 24px 60px;}
+.signup-wrap{width:100%;max-width:460px;}
+
+.signup-header{text-align:center;margin-bottom:30px;}
+.signup-header .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+.signup-header h1{font-size:22px;font-weight:700;letter-spacing:-0.025em;}
+.signup-header p{font-size:12.5px;color:var(--text-dim);margin-top:7px;line-height:1.6;}
+
+/* STEPS */
+.steps{display:flex;align-items:center;gap:0;margin-bottom:28px;}
+.step{display:flex;align-items:center;gap:8px;flex:1;}
+.step-dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text-faint);flex-shrink:0;transition:all .2s;}
+.step-dot.active{border-color:var(--accent);background:var(--accent);color:#fff;}
+.step-dot.done{border-color:var(--green);background:var(--green);color:#fff;}
+.step-label{font-size:11px;color:var(--text-faint);transition:color .2s;}
+.step-label.active{color:var(--text);}
+.step-sep{flex:1;height:1px;background:var(--border-soft);margin:0 6px;}
+
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:28px 28px 26px;}
+
+/* FIELDS */
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:11.5px;font-weight:600;color:var(--text-dim);margin-bottom:6px;letter-spacing:.01em;}
+.field input, .field select{
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:9px;
+  padding:10px 13px;font-size:13.5px;color:var(--text);outline:none;
+  transition:border-color .15s;font-family:inherit;
+}
+.field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235a6080' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;}
+.field input:focus, .field select:focus{border-color:var(--accent);}
+.field input::placeholder{color:var(--text-faint);}
+.field input.err{border-color:var(--red);}
+.field-err{font-size:11px;color:var(--red);margin-top:5px;display:none;}
+.field-err.show{display:block;}
+.field-hint{font-size:11px;color:var(--text-faint);margin-top:5px;line-height:1.5;}
+
+/* ROW */
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+/* PASSWORD */
+.pw-wrap{position:relative;}
+.pw-wrap input{padding-right:42px;}
+.pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-faint);padding:2px;display:flex;}
+.pw-toggle:hover{color:var(--text-dim);}
+.pw-toggle svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.6;fill:none;}
+
+/* PASSWORD STRENGTH */
+.pw-strength{margin-top:7px;}
+.pw-strength-bar{display:flex;gap:3px;height:3px;margin-bottom:5px;}
+.pw-strength-bar span{flex:1;border-radius:2px;background:var(--border);transition:background .25s;}
+.pw-strength-bar span.s1{background:#e05c5c;}
+.pw-strength-bar span.s2{background:#e0a041;}
+.pw-strength-bar span.s3{background:var(--gold);}
+.pw-strength-bar span.s4{background:var(--green);}
+.pw-strength-label{font-size:10.5px;color:var(--text-faint);}
+
+/* TERMS */
+.terms-block{background:var(--bg);border:1px solid var(--border-soft);border-radius:9px;padding:14px;margin-bottom:16px;}
+.terms-item{display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-bottom:1px solid var(--border-soft);}
+.terms-item:last-child{border-bottom:none;}
+.terms-item input[type=checkbox]{margin-top:2px;accent-color:var(--accent);flex-shrink:0;cursor:pointer;}
+.terms-item-text{flex:1;}
+.terms-item-text .tname{font-size:12.5px;cursor:pointer;}
+.terms-item-text .tname.required{color:var(--text);}
+.terms-item-text .tname.optional{color:var(--text-dim);}
+.terms-tag{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:5px;vertical-align:middle;}
+.terms-tag.req{background:rgba(224,179,65,.15);color:var(--gold);}
+.terms-tag.opt{background:var(--border-soft);color:var(--text-faint);}
+.terms-view{font-size:11px;color:var(--accent);cursor:pointer;white-space:nowrap;margin-top:2px;}
+.terms-view:hover{text-decoration:underline;}
+
+/* AGREE-ALL */
+.agree-all{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--accent-bg);border-radius:9px;margin-bottom:12px;cursor:pointer;user-select:none;}
+.agree-all input{accent-color:var(--accent);cursor:pointer;}
+.agree-all span{font-size:13px;font-weight:600;}
+
+/* SUBMIT */
+.btn-submit{
+  width:100%;padding:12px;border-radius:9px;border:none;
+  background:var(--gold);color:#1a1305;font-size:14px;font-weight:700;
+  cursor:pointer;letter-spacing:-.01em;transition:opacity .15s,transform .1s;
+  font-family:inherit;
+}
+.btn-submit:hover{opacity:.92;}
+.btn-submit:active{transform:scale(.99);}
+.btn-submit:disabled{opacity:.45;cursor:not-allowed;}
+.btn-submit.loading{position:relative;color:transparent;}
+.btn-submit.loading::after{content:'';position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border:2px solid rgba(26,19,5,.4);border-top-color:#1a1305;border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.btn-back{
+  width:100%;padding:11px;border-radius:9px;border:1px solid var(--border);
+  background:transparent;color:var(--text-dim);font-size:13px;font-weight:600;
+  cursor:pointer;margin-bottom:10px;font-family:inherit;transition:border-color .15s;
+}
+.btn-back:hover{border-color:var(--border);color:var(--text);}
+
+/* SUCCESS STATE */
+.success-wrap{text-align:center;padding:20px 0 10px;}
+.success-icon{width:60px;height:60px;border-radius:50%;background:var(--green-bg);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
+.success-icon svg{width:28px;height:28px;stroke:var(--green);stroke-width:2;fill:none;}
+.success-title{font-size:18px;font-weight:700;margin-bottom:8px;}
+.success-desc{font-size:12.5px;color:var(--text-dim);line-height:1.7;max-width:320px;margin:0 auto 24px;}
+
+/* ERROR BANNER */
+.err-banner{background:var(--red-bg);border:1px solid rgba(224,92,92,.25);border-radius:9px;padding:10px 13px;font-size:12.5px;color:#f08080;margin-bottom:16px;display:none;}
+.err-banner.show{display:block;}
+
+/* DEMO */
+.demo-note{background:var(--gold-bg);border:1px solid rgba(224,179,65,.2);border-radius:9px;padding:10px 13px;font-size:11.5px;color:var(--gold);margin-bottom:18px;line-height:1.5;}
+
+.login-row{text-align:center;margin-top:20px;font-size:12.5px;color:var(--text-dim);}
+.login-row a{color:var(--gold);cursor:pointer;font-weight:600;}
+.login-row a:hover{text-decoration:underline;}
+
+@media(max-width:480px){
+  .card{padding:22px 16px 20px;}
+  .field-row{grid-template-columns:1fr;}
+  .topbar-inner{padding:0 16px;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand" onclick="location.href='main_page.html'">
+      <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="brand-text">
+        <div class="t1">My Lotto Lab</div>
+        <div class="t2" data-i18n-kr="가상 로또 등록 · 당첨 분석 · 통계 플랫폼" data-i18n-en="Virtual Lotto Entry · Win Analysis · Stats Platform">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+      </div>
+    </div>
+    <div class="lang-toggle">
+      <button id="langKrBtn" class="active" onclick="setLang('kr')">KR</button>
+      <button id="langEnBtn" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+</div>
+
+<div class="page-body">
+  <div class="signup-wrap">
+
+    <div class="signup-header">
+      <div class="eyebrow" data-i18n-kr="새 계정 만들기" data-i18n-en="Create Account">새 계정 만들기</div>
+      <h1 data-i18n-kr="My Lotto Lab 시작하기" data-i18n-en="Get started with My Lotto Lab">My Lotto Lab 시작하기</h1>
+      <p data-i18n-kr="무료로 가입하고 번호 분석을 시작하세요." data-i18n-en="Sign up free and start analyzing your numbers.">무료로 가입하고 번호 분석을 시작하세요.</p>
+    </div>
+
+    <!-- STEP INDICATOR -->
+    <div class="steps" id="stepsBar">
+      <div class="step">
+        <div class="step-dot active" id="dot1">1</div>
+        <div class="step-label active" id="lbl1" data-i18n-kr="계정정보" data-i18n-en="Account">계정정보</div>
+      </div>
+      <div class="step-sep"></div>
+      <div class="step">
+        <div class="step-dot" id="dot2">2</div>
+        <div class="step-label" id="lbl2" data-i18n-kr="약관동의" data-i18n-en="Terms">약관동의</div>
+      </div>
+      <div class="step-sep"></div>
+      <div class="step">
+        <div class="step-dot" id="dot3">3</div>
+        <div class="step-label" id="lbl3" data-i18n-kr="완료" data-i18n-en="Done">완료</div>
+      </div>
+    </div>
+
+    <div class="card">
+
+      <!-- STEP 1: Account Info -->
+      <div id="step1">
+        <div class="demo-note">
+          <strong data-i18n-kr="🔧 준비 중" data-i18n-en="🔧 Coming Soon">🔧 준비 중</strong>
+          <span data-i18n-kr=" — 서버 연동 후 실제 가입이 활성화됩니다. 지금은 UI 미리보기 상태입니다." data-i18n-en=" — Real sign-up activates after server integration. This is a UI preview."> — 서버 연동 후 실제 가입이 활성화됩니다. 지금은 UI 미리보기 상태입니다.</span>
+        </div>
+        <div class="err-banner" id="errBanner1"></div>
+
+        <div class="field">
+          <label for="nickname" data-i18n-kr="닉네임" data-i18n-en="Nickname">닉네임</label>
+          <input type="text" id="nickname" maxlength="20"
+            data-i18n-placeholder-kr="2~20자 사이 닉네임" data-i18n-placeholder-en="2–20 character nickname"
+            placeholder="2~20자 사이 닉네임">
+          <div class="field-err" id="nicknameErr"></div>
+          <div class="field-hint" data-i18n-kr="리더보드 및 Battles에 표시되는 이름입니다." data-i18n-en="This name appears on leaderboards and Battles.">리더보드 및 Battles에 표시되는 이름입니다.</div>
+        </div>
+
+        <div class="field">
+          <label for="signupEmail" data-i18n-kr="이메일" data-i18n-en="Email">이메일</label>
+          <input type="email" id="signupEmail" autocomplete="email"
+            data-i18n-placeholder-kr="이메일 주소 입력" data-i18n-placeholder-en="Enter your email"
+            placeholder="이메일 주소 입력">
+          <div class="field-err" id="emailErr"></div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="pw1" data-i18n-kr="비밀번호" data-i18n-en="Password">비밀번호</label>
+            <div class="pw-wrap">
+              <input type="password" id="pw1" autocomplete="new-password"
+                data-i18n-placeholder-kr="8자 이상" data-i18n-placeholder-en="8+ characters"
+                placeholder="8자 이상" oninput="checkStrength(this.value)">
+              <button type="button" class="pw-toggle" onclick="togglePw('pw1','eye1')" aria-label="비밀번호 표시">
+                <svg id="eye1" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="pw-strength" id="pwStrength" style="display:none;">
+              <div class="pw-strength-bar">
+                <span id="s1"></span><span id="s2"></span><span id="s3"></span><span id="s4"></span>
+              </div>
+              <div class="pw-strength-label" id="strengthLabel"></div>
+            </div>
+            <div class="field-err" id="pw1Err"></div>
+          </div>
+          <div class="field">
+            <label for="pw2" data-i18n-kr="비밀번호 확인" data-i18n-en="Confirm Password">비밀번호 확인</label>
+            <div class="pw-wrap">
+              <input type="password" id="pw2" autocomplete="new-password"
+                data-i18n-placeholder-kr="동일하게 입력" data-i18n-placeholder-en="Repeat password"
+                placeholder="동일하게 입력">
+              <button type="button" class="pw-toggle" onclick="togglePw('pw2','eye2')" aria-label="비밀번호 표시">
+                <svg id="eye2" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="field-err" id="pw2Err"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="country" data-i18n-kr="국가" data-i18n-en="Country">국가</label>
+          <select id="country">
+            <option value="KR" selected>🇰🇷 대한민국</option>
+            <option value="US">🇺🇸 United States</option>
+            <option value="GB">🇬🇧 United Kingdom</option>
+            <option value="AU">🇦🇺 Australia</option>
+            <option value="CA">🇨🇦 Canada</option>
+            <option value="JP">🇯🇵 Japan</option>
+            <option value="SG">🇸🇬 Singapore</option>
+            <option value="other" data-i18n-kr="기타" data-i18n-en="Other">기타</option>
+          </select>
+        </div>
+
+        <button class="btn-submit" onclick="nextStep(1)">
+          <span data-i18n-kr="다음 단계 →" data-i18n-en="Next →">다음 단계 →</span>
+        </button>
+      </div>
+
+      <!-- STEP 2: Terms -->
+      <div id="step2" style="display:none;">
+        <div class="err-banner" id="errBanner2"></div>
+
+        <label class="agree-all" id="agreeAllRow" onclick="toggleAll()">
+          <input type="checkbox" id="agreeAll" onclick="event.stopPropagation();toggleAll()">
+          <span data-i18n-kr="전체 동의합니다" data-i18n-en="I agree to all">전체 동의합니다</span>
+        </label>
+
+        <div class="terms-block">
+          <div class="terms-item">
+            <input type="checkbox" id="t1" class="term-req">
+            <div class="terms-item-text">
+              <div class="tname required">
+                <span data-i18n-kr="서비스 이용약관" data-i18n-en="Terms of Service">서비스 이용약관</span>
+                <span class="terms-tag req" data-i18n-kr="필수" data-i18n-en="Required">필수</span>
+              </div>
+              <div class="terms-view" onclick="viewTerms('tos')" data-i18n-kr="내용 보기 ↗" data-i18n-en="View ↗">내용 보기 ↗</div>
+            </div>
+          </div>
+          <div class="terms-item">
+            <input type="checkbox" id="t2" class="term-req">
+            <div class="terms-item-text">
+              <div class="tname required">
+                <span data-i18n-kr="개인정보 처리방침" data-i18n-en="Privacy Policy">개인정보 처리방침</span>
+                <span class="terms-tag req" data-i18n-kr="필수" data-i18n-en="Required">필수</span>
+              </div>
+              <div class="terms-view" onclick="viewTerms('privacy')" data-i18n-kr="내용 보기 ↗" data-i18n-en="View ↗">내용 보기 ↗</div>
+            </div>
+          </div>
+          <div class="terms-item">
+            <input type="checkbox" id="t3" class="term-req">
+            <div class="terms-item-text">
+              <div class="tname required">
+                <span data-i18n-kr="만 14세 이상 확인" data-i18n-en="Confirm age 14+">만 14세 이상 확인</span>
+                <span class="terms-tag req" data-i18n-kr="필수" data-i18n-en="Required">필수</span>
+              </div>
+            </div>
+          </div>
+          <div class="terms-item">
+            <input type="checkbox" id="t4">
+            <div class="terms-item-text">
+              <div class="tname optional">
+                <span data-i18n-kr="이벤트·마케팅 정보 수신 동의" data-i18n-en="Receive marketing & event emails">이벤트·마케팅 정보 수신 동의</span>
+                <span class="terms-tag opt" data-i18n-kr="선택" data-i18n-en="Optional">선택</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-submit" id="submitBtn" onclick="handleSignup()">
+          <span data-i18n-kr="가입 완료" data-i18n-en="Create Account">가입 완료</span>
+        </button>
+        <button class="btn-back" onclick="prevStep(2)" style="margin-top:10px;">
+          <span data-i18n-kr="← 이전" data-i18n-en="← Back">← 이전</span>
+        </button>
+      </div>
+
+      <!-- STEP 3: Success -->
+      <div id="step3" style="display:none;">
+        <div class="success-wrap">
+          <div class="success-icon">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="success-title" data-i18n-kr="가입이 완료되었습니다!" data-i18n-en="Account created!">가입이 완료되었습니다!</div>
+          <div class="success-desc" data-i18n-kr="입력하신 이메일로 인증 메일을 보냈습니다. 메일함을 확인하고 인증 링크를 클릭해 주세요." data-i18n-en="We've sent a verification email. Please check your inbox and click the verification link.">입력하신 이메일로 인증 메일을 보냈습니다. 메일함을 확인하고 인증 링크를 클릭해 주세요.</div>
+          <button class="btn-submit" onclick="location.href='login.html'">
+            <span data-i18n-kr="로그인 화면으로 이동" data-i18n-en="Go to Sign In">로그인 화면으로 이동</span>
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /card -->
+
+    <div class="login-row" id="loginRow">
+      <span data-i18n-kr="이미 계정이 있으신가요?" data-i18n-en="Already have an account?">이미 계정이 있으신가요?</span>
+      &nbsp;<a onclick="location.href='login.html'" data-i18n-kr="로그인" data-i18n-en="Sign in">로그인</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+var currentStep = 1;
+
+var I18N = {
+  nicknameRequired: {kr:'닉네임을 입력해 주세요.', en:'Please enter a nickname.'},
+  nicknameLength:   {kr:'닉네임은 2~20자 사이여야 합니다.', en:'Nickname must be 2–20 characters.'},
+  emailRequired:    {kr:'이메일을 입력해 주세요.', en:'Please enter your email.'},
+  emailInvalid:     {kr:'올바른 이메일 형식이 아닙니다.', en:'Please enter a valid email.'},
+  pw1Required:      {kr:'비밀번호를 입력해 주세요.', en:'Please enter a password.'},
+  pw1Short:         {kr:'비밀번호는 8자 이상이어야 합니다.', en:'Password must be at least 8 characters.'},
+  pw2Required:      {kr:'비밀번호를 한 번 더 입력해 주세요.', en:'Please confirm your password.'},
+  pw2Mismatch:      {kr:'비밀번호가 일치하지 않습니다.', en:'Passwords do not match.'},
+  termsRequired:    {kr:'필수 약관에 모두 동의해 주세요.', en:'Please agree to all required terms.'},
+  strengthWeak:     {kr:'약함', en:'Weak'},
+  strengthFair:     {kr:'보통', en:'Fair'},
+  strengthGood:     {kr:'양호', en:'Good'},
+  strengthStrong:   {kr:'강함', en:'Strong'},
+};
+function t(k){ return I18N[k][LANG]; }
+
+function applyLang(){
+  document.title = LANG==='en' ? 'My Lotto Lab - Sign Up' : 'My Lotto Lab - 회원가입';
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var txt = LANG==='en' ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if(txt !== undefined) el.textContent = txt;
+  });
+  document.querySelectorAll('[data-i18n-placeholder-kr]').forEach(function(el){
+    el.placeholder = LANG==='en' ? el.dataset.i18nPlaceholderEn : el.dataset.i18nPlaceholderKr;
+  });
+  var kb=document.getElementById('langKrBtn'), eb=document.getElementById('langEnBtn');
+  kb.className = LANG==='kr' ? 'active' : '';
+  eb.className = LANG==='en' ? 'active' : '';
+}
+function setLang(lang){ LANG=lang; localStorage.setItem('mll_lang',lang); applyLang(); }
+
+function togglePw(id, iconId){
+  var inp=document.getElementById(id);
+  var isText=inp.type==='text';
+  inp.type=isText?'password':'text';
+  document.getElementById(iconId).innerHTML=isText
+    ?'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>'
+    :'<path d="M17.94 12c-.18.73-.46 1.43-.83 2.07M3 3l18 18M9.88 9.88A3 3 0 0014.12 14.12M10.73 5.08A10 10 0 0122 12a10 10 0 01-1.72 2.83M6.61 6.61A9.95 9.95 0 002 12a10 10 0 0010 7c2.38 0 4.58-.84 6.3-2.22" stroke-linecap="round"/>';
+}
+
+function checkStrength(val){
+  var wrap=document.getElementById('pwStrength');
+  if(!val){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  var score=0;
+  if(val.length>=8) score++;
+  if(/[A-Z]/.test(val)&&/[a-z]/.test(val)) score++;
+  if(/[0-9]/.test(val)) score++;
+  if(/[^A-Za-z0-9]/.test(val)) score++;
+  var labels=[null,t('strengthWeak'),t('strengthFair'),t('strengthGood'),t('strengthStrong')];
+  var colors=[null,'s1','s2','s3','s4'];
+  for(var i=1;i<=4;i++){
+    var s=document.getElementById('s'+i);
+    s.className = i<=score ? colors[score] : '';
+  }
+  document.getElementById('strengthLabel').textContent=labels[score]||'';
+}
+
+function showFieldErr(id,msg){
+  var inp=document.getElementById(id), err=document.getElementById(id+'Err');
+  if(inp) inp.classList.add('err');
+  if(err){ err.textContent=msg; err.classList.add('show'); }
+}
+function clearAll(){
+  document.querySelectorAll('.field-err').forEach(function(e){ e.classList.remove('show'); });
+  document.querySelectorAll('input').forEach(function(e){ e.classList.remove('err'); });
+  document.querySelectorAll('.err-banner').forEach(function(e){ e.classList.remove('show'); });
+}
+
+function setStep(n){
+  [1,2,3].forEach(function(i){
+    document.getElementById('step'+i).style.display = i===n ? '' : 'none';
+    var dot=document.getElementById('dot'+i), lbl=document.getElementById('lbl'+i);
+    dot.className='step-dot'+(i<n?' done':i===n?' active':'');
+    lbl.className='step-label'+(i===n?' active':'');
+    if(i<n) dot.innerHTML='✓';
+    else if(dot.textContent==='✓') dot.textContent=String(i);
+  });
+  currentStep=n;
+  if(n===3){ document.getElementById('loginRow').style.display='none'; }
+}
+
+function nextStep(from){
+  clearAll();
+  if(from===1){
+    var nick=document.getElementById('nickname').value.trim();
+    var email=document.getElementById('signupEmail').value.trim();
+    var pw1=document.getElementById('pw1').value;
+    var pw2=document.getElementById('pw2').value;
+    var valid=true;
+    if(!nick){ showFieldErr('nickname',t('nicknameRequired')); valid=false; }
+    else if(nick.length<2||nick.length>20){ showFieldErr('nickname',t('nicknameLength')); valid=false; }
+    if(!email){ showFieldErr('email',t('emailRequired')); valid=false; }
+    else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showFieldErr('email',t('emailInvalid')); valid=false; }
+    if(!pw1){ showFieldErr('pw1',t('pw1Required')); valid=false; }
+    else if(pw1.length<8){ showFieldErr('pw1',t('pw1Short')); valid=false; }
+    if(!pw2){ showFieldErr('pw2',t('pw2Required')); valid=false; }
+    else if(pw1&&pw2&&pw1!==pw2){ showFieldErr('pw2',t('pw2Mismatch')); valid=false; }
+    if(valid) setStep(2);
+  }
+}
+function prevStep(from){ if(from===2) setStep(1); }
+
+function toggleAll(){
+  var all=document.getElementById('agreeAll');
+  // slight delay so checkbox state is updated
+  setTimeout(function(){
+    var checked=all.checked;
+    ['t1','t2','t3','t4'].forEach(function(id){ document.getElementById(id).checked=checked; });
+  },0);
+}
+
+// Sync agreeAll when individual boxes change
+document.addEventListener('DOMContentLoaded',function(){
+  ['t1','t2','t3','t4'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', function(){
+      var all=['t1','t2','t3','t4'].every(function(x){ return document.getElementById(x).checked; });
+      document.getElementById('agreeAll').checked=all;
+    });
+  });
+  applyLang();
+});
+
+function handleSignup(){
+  clearAll();
+  var reqs=['t1','t2','t3'];
+  var allChecked=reqs.every(function(id){ return document.getElementById(id).checked; });
+  if(!allChecked){
+    var b=document.getElementById('errBanner2');
+    b.textContent=t('termsRequired'); b.classList.add('show');
+    return;
+  }
+  var btn=document.getElementById('submitBtn');
+  btn.classList.add('loading'); btn.disabled=true;
+  setTimeout(function(){
+    btn.classList.remove('loading'); btn.disabled=false;
+    setStep(3);
+  },1400);
+}
+
+function viewTerms(type){
+  var msg = LANG==='en'
+    ? 'The '+type+' document will open in a separate window after server integration.'
+    : (type==='tos'?'서비스 이용약관은 서버 연동 후 별도 창으로 표시됩니다.':'개인정보 처리방침은 서버 연동 후 별도 창으로 표시됩니다.');
+  alert(msg);
+}
+</script>
+
+</body>
+</html>
