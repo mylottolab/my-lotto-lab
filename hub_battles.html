@@ -647,6 +647,42 @@ button{font-family:inherit;cursor:pointer;}
 .admin-lock input{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 14px;font-size:13px;text-align:center;}
 
 @media (max-width:760px){ .type-grid{grid-template-columns:repeat(2,1fr);} }
+
+/* ── 메인 허브 레이아웃: 좌(새 방 만들기) / 우(참가가능한 방) 2단 ── */
+.hub-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+@media (max-width:900px){ .hub-columns{grid-template-columns:1fr;} }
+.hub-col-title{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:7px;}
+.hub-col-title .cnt{font-size:11px;font-weight:600;color:var(--text-faint);background:var(--surface-2);border-radius:20px;padding:2px 9px;}
+
+/* 새 방 만들기: 4개 타입 카드를 2열 그리드로 (좌측 컬럼 폭에 맞춤) */
+.create-type-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;}
+.create-type-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:14px;cursor:pointer;transition:border-color .15s;}
+.create-type-card:hover{border-color:var(--accent);}
+.create-type-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
+.create-type-card .ti{font-size:19px;margin-bottom:6px;}
+.create-type-card .tn{font-size:13px;font-weight:700;margin-bottom:3px;}
+.create-type-card .td{font-size:10.5px;color:var(--text-faint);line-height:1.45;}
+
+.tournament-stage-row{display:flex;gap:8px;margin-bottom:14px;}
+.tournament-stage-btn{flex:1;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);border-radius:9px;padding:10px 8px;text-align:center;cursor:pointer;font-size:11.5px;}
+.tournament-stage-btn.active{background:rgba(232,115,47,.12);border-color:var(--accent);color:var(--text);}
+.tournament-stage-btn b{display:block;font-size:13px;margin-bottom:2px;}
+
+/* 참가가능 방 목록: 종류별 탭 (토너먼트는 3/5/10단계 통합 1개 탭) */
+.avail-tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;}
+.avail-tab{flex:1;min-width:80px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);border-radius:9px;padding:8px 6px;text-align:center;cursor:pointer;font-size:11px;font-weight:600;}
+.avail-tab.active{background:rgba(232,115,47,.12);border-color:var(--accent);color:var(--text);}
+.avail-tab .cnt{display:block;font-size:9.5px;color:var(--text-faint);margin-top:2px;}
+.avail-tab.active .cnt{color:var(--accent);}
+.avail-room-list{display:flex;flex-direction:column;gap:8px;}
+.avail-room-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;padding:11px 13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.avail-room-card:hover{border-color:var(--accent);}
+.avail-room-card .arc-name{font-size:12.5px;font-weight:700;margin-bottom:2px;}
+.avail-room-card .arc-meta{font-size:10.5px;color:var(--text-faint);}
+.avail-room-card .arc-join{font-size:10.5px;font-weight:700;color:var(--accent);white-space:nowrap;flex-shrink:0;}
+.avail-empty{font-size:11px;color:var(--text-faint);padding:10px 0;}
+
+.my-progress-section{margin-top:32px;padding-top:24px;border-top:1px solid var(--border-soft);}
 </style>
 
 <body>
@@ -668,37 +704,38 @@ button{font-family:inherit;cursor:pointer;}
     </div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-outline" id="adminEntryBtn" onclick="BUI.openAdminView()">🔒 관리자</button>
-      <button class="btn btn-gold" onclick="BUI.openCreateModal()">+ 방 만들기</button>
     </div>
   </div>
 
-  <!-- ===== 1단계: 종류 선택 화면 ===== -->
+  <!-- ===== 메인 화면: 요약 + 좌(새 방 만들기) / 우(참가가능한 방) + 하단(내 진행상황) ===== -->
   <div id="viewTypeSelect">
     <div id="typeSelectBanner"></div>
     <div class="summary-card" id="battleSummary"></div>
-    <div class="type-grid" id="typeSelectGrid" style="margin-top:4px;"></div>
-  </div>
 
-  <!-- ===== 2단계: 방 목록 화면 ===== -->
-  <div id="viewRoomList" style="display:none;">
-    <button class="btn btn-outline" style="margin-bottom:16px;" onclick="BUI.backToTypeSelect()">← 대결종류 선택으로</button>
-    <div class="room-tabs" id="roomTabs"></div>
-    <div id="roomListBody"></div>
+    <div class="hub-columns">
+      <div>
+        <div class="hub-col-title">⚔️ 새 배틀방 만들기</div>
+        <div class="create-type-grid" id="createTypeGrid"></div>
+        <div id="createFormBody"></div>
+      </div>
+      <div>
+        <div class="hub-col-title">🙋 참가가능한 방<span class="cnt" id="availRoomCount">0개</span></div>
+        <div class="avail-tabs" id="availTabs"></div>
+        <div id="availableRoomsBody"></div>
+      </div>
+    </div>
+
+    <div class="my-progress-section">
+      <div class="hub-col-title">📋 내 진행상황</div>
+      <div class="room-tabs" id="roomTabs"></div>
+      <div id="roomListBody"></div>
+    </div>
   </div>
 
   <!-- ===== 관리자 화면 ===== -->
   <div id="viewAdmin" style="display:none;">
-    <button class="btn btn-outline" style="margin-bottom:16px;" onclick="BUI.backToTypeSelect()">← 대결종류 선택으로</button>
+    <button class="btn btn-outline" style="margin-bottom:16px;" onclick="BUI.backToTypeSelect()">← 메인으로</button>
     <div id="adminBody"></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="createModal" onclick="if(event.target===this)BUI.closeCreate()">
-  <div class="modal-box">
-    <button class="modal-close-x" onclick="BUI.closeCreate()" title="닫기">✕</button>
-    <h3>새 배틀 만들기</h3>
-    <div class="type-grid" id="createTypeGrid"></div>
-    <div id="createFormBody"></div>
   </div>
 </div>
 
@@ -711,7 +748,7 @@ button{font-family:inherit;cursor:pointer;}
 // BUI - 화면 컨트롤러
 // =====================================================
 var BUI = {};
-BUI.state = { view: 'typeSelect', filterType: null, roomTab: 'waiting', createType: '1v1', selectedBalls: [], multiCombos: [], currentRoomId: null, joinAsNickname: null };
+BUI.state = { view: 'typeSelect', filterType: null, roomTab: 'waiting', createType: null, createTournamentStage: 'tournament3', availFilterType: '1v1', selectedBalls: [], multiCombos: [], currentRoomId: null, joinAsNickname: null };
 BUI.MY_NICK_KEY = 'mll_battle_my_nick';
 
 BUI.getMyNick = function(){
@@ -773,7 +810,8 @@ BUI.renderSummary = function(){
   var typesHtml = Object.keys(typeCounts).map(function(key){
     var t = BATTLE.TYPES[key];
     var color = BUI.typeColor(key);
-    return '<div class="summary-type-pill" style="cursor:pointer;" onclick="BUI.openTypeRoomList(\'' + key + '\')" title="' + t.nameKr + ' 방 목록 보기">' +
+    var tabKey = t.isTournament ? 'tournament' : key;
+    return '<div class="summary-type-pill" style="cursor:pointer;" onclick="BUI.setAvailFilter(\'' + tabKey + '\')" title="' + t.nameKr + ' 방 목록 보기">' +
       '<span class="dot" style="background:' + color + ';"></span>' + t.nameKr + ' <b>' + typeCounts[key] + '</b></div>';
   }).join('');
 
@@ -820,42 +858,26 @@ BUI.pendingBannerHtml = function(){
   '</div>';
 };
 
-// ── 화면 전환 (1단계: 종류선택 / 2단계: 방목록 / 관리자) ──
+// ── 화면 전환: 메인(타입선택+만들기+목록 통합) / 관리자 ──
 BUI.showView = function(view){
   BUI.state.view = view;
   document.getElementById('viewTypeSelect').style.display = (view==='typeSelect') ? '' : 'none';
-  document.getElementById('viewRoomList').style.display = (view==='roomList') ? '' : 'none';
   document.getElementById('viewAdmin').style.display = (view==='admin') ? '' : 'none';
 };
 
 BUI.showTypeSelectView = function(){
-  BUI.state.filterType = null;
   document.getElementById('pageTitleArea').textContent = '⚔️ Battles';
   document.getElementById('pageSubArea').textContent = '같은 회차에 번호를 미리 제출하고, 추첨 결과로 승부를 가립니다.';
-  BUI.renderSummary();
-  BUI.renderTypeSelectGrid();
   var bannerEl = document.getElementById('typeSelectBanner');
   if (bannerEl) bannerEl.innerHTML = BUI.pendingBannerHtml();
-  BUI.showView('typeSelect');
-};
-
-BUI.openTypeRoomList = function(typeKey){
-  BUI.state.filterType = typeKey;
-  BUI.state.roomTab = 'waiting';
-  var t = BATTLE.TYPES[typeKey];
-  document.getElementById('pageTitleArea').textContent = BUI.typeIcons[typeKey] + ' ' + t.nameKr;
-  var descs = {
-    '1v1': '1:1 정면대결 — 둘 중 결과가 좋은 쪽이 승리합니다.',
-    'team': '여러 팀으로 나뉘어, 팀 내 최고성적자끼리 비교합니다. 인원 제한 없음.',
-    'ffa': '여러 명이 한꺼번에 참가하고, 1위가 승리합니다. 인원 제한 없음.',
-    'tournament3': '3단계 진행 — 1·2단계 각 30% 탈락, 3단계(결승)에서 누적 당첨금 1위가 우승합니다. 인원 제한 없음.',
-    'tournament5': '5단계 진행 — 1~4단계 각 20% 탈락, 5단계(결승)에서 누적 당첨금 1위가 우승합니다. 인원 제한 없음.',
-    'tournament10': '10단계 진행 — 1~9단계 각 10% 탈락, 10단계(결승)에서 누적 당첨금 1위가 우승합니다. 인원 제한 없음.',
-  };
-  document.getElementById('pageSubArea').textContent = descs[typeKey];
+  BUI.renderSummary();
+  BUI.renderCreateTypeGrid();
+  BUI.renderCreateForm();
+  BUI.renderAvailTabs();
+  BUI.renderAvailableRooms();
   BUI.renderTabs();
   BUI.renderRoomList();
-  BUI.showView('roomList');
+  BUI.showView('typeSelect');
 };
 
 BUI.backToTypeSelect = function(){
@@ -868,39 +890,60 @@ BUI.openAdminView = function(){
   BUI.showView('admin');
 };
 
-BUI.renderTypeSelectGrid = function(){
+// ── 오른쪽: 참가가능한 방 (탭으로 종류 구분, 토너먼트는 3종 통합 1개 탭) ──
+BUI.AVAIL_TABS = [
+  { key:'1v1', label:'1:1 대결', icon:'⚔️' },
+  { key:'team', label:'팀전', icon:'🛡️' },
+  { key:'ffa', label:'무제한', icon:'🌀' },
+  { key:'tournament', label:'토너먼트', icon:'🏆' }, // tournament3/5/10 통합
+];
+BUI.renderAvailTabs = function(){
   var rooms = BATTLE.load();
-  var descs = {
-    '1v1': '1:1 정면대결 — 둘 중 결과가 좋은 쪽이 승리',
-    'team': '여러 팀으로 나뉘어, 팀 내 최고성적자끼리 비교 (인원 무제한)',
-    'ffa': '여러 명이 한꺼번에, 1위가 승리 (인원 무제한)',
-    'tournament3': '3단계 진행 — 각 단계 30%씩 탈락, 결승은 누적 당첨금 1위 우승',
-    'tournament5': '5단계 진행 — 각 단계 20%씩 탈락, 결승은 누적 당첨금 1위 우승',
-    'tournament10': '10단계 진행 — 각 단계 10%씩 탈락, 결승은 누적 당첨금 1위 우승',
-  };
-  document.getElementById('typeSelectGrid').innerHTML = Object.keys(BATTLE.TYPES).map(function(key){
-    var t = BATTLE.TYPES[key];
-    var count = rooms.filter(function(r){ return r.type === key; }).length;
-    var openCount = rooms.filter(function(r){ return r.type === key && r.status === 'waiting'; }).length;
-    var priceTag = '<span style="color:var(--gold);">참가비 ' + BATTLE.getPrice(key).toLocaleString() + 'P</span> · <span style="color:var(--green);">보상 ' + BATTLE.getReward(key).toLocaleString() + 'P</span> · ';
-    return '<div class="type-card" onclick="BUI.openTypeRoomList(\'' + key + '\')">' +
-      '<div class="ti">' + BUI.typeIcons[key] + '</div>' +
-      '<div class="tn">' + t.nameKr + '</div>' +
-      '<div class="td">' + descs[key] + '</div>' +
-      '<div style="margin-top:10px;font-size:11px;color:var(--text-faint);">' + priceTag + '방 ' + count + '개' + (openCount>0 ? ' · <span style="color:var(--accent);font-weight:700;">참가가능 ' + openCount + '개</span>' : '') + '</div>' +
-    '</div>';
+  document.getElementById('availTabs').innerHTML = BUI.AVAIL_TABS.map(function(t){
+    var matchTypes = (t.key === 'tournament') ? ['tournament3','tournament5','tournament10'] : [t.key];
+    var count = rooms.filter(function(r){ return matchTypes.indexOf(r.type)>=0 && r.status==='waiting'; }).length;
+    var active = BUI.state.availFilterType === t.key;
+    return '<div class="avail-tab' + (active?' active':'') + '" onclick="BUI.setAvailFilter(\'' + t.key + '\')">' + t.icon + ' ' + t.label + '<span class="cnt">' + count + '개</span></div>';
   }).join('');
 };
+BUI.setAvailFilter = function(key){
+  BUI.state.availFilterType = key;
+  BUI.renderAvailTabs();
+  BUI.renderAvailableRooms();
+};
+BUI.renderAvailableRooms = function(){
+  var key = BUI.state.availFilterType;
+  var matchTypes = (key === 'tournament') ? ['tournament3','tournament5','tournament10'] : [key];
+  var rooms = BATTLE.load().filter(function(r){ return matchTypes.indexOf(r.type)>=0 && r.status==='waiting'; });
 
+  document.getElementById('availRoomCount').textContent = rooms.length + '개';
+
+  if (!rooms.length) {
+    document.getElementById('availableRoomsBody').innerHTML = '<div class="card"><div class="empty-state">지금 참가할 수 있는 방이 없어요.<br>왼쪽에서 새 방을 만들어보세요!</div></div>';
+    return;
+  }
+
+  document.getElementById('availableRoomsBody').innerHTML = '<div class="avail-room-list">' + rooms.map(function(r){
+    var typeInfo = BATTLE.TYPES[r.type];
+    var stageTag = typeInfo.isTournament ? (' · ' + typeInfo.totalStages + '단계') : '';
+    var capacityText = (r.maxParticipants >= 999999) ? (r.participants.length + '명 참가중') : (r.participants.length + '/' + r.maxParticipants + '명');
+    return '<div class="avail-room-card" onclick="BUI.openRoom(\'' + r.id + '\')">' +
+      '<div><div class="arc-name">' + r.name + typeInfo.nameKr + stageTag + '</div>' +
+      '<div class="arc-meta">제' + r.round + '회 · ' + capacityText + '</div></div>' +
+      '<div class="arc-join">참가하기 →</div>' +
+    '</div>';
+  }).join('') + '</div>';
+};
+
+// ── 하단: 내 진행상황 (전체 타입 통합, 상태탭으로만 구분) ──
 BUI.renderRoomList = function(){
   BUI.renderSummary();
   var body = document.getElementById('roomListBody');
 
-  var rooms = BATTLE.load().filter(function(r){ return r.status === BUI.state.roomTab && r.type === BUI.state.filterType; });
-  var banner = BUI.pendingBannerHtml();
-  if (!rooms.length) { body.innerHTML = banner + '<div class="card"><div class="empty-state">해당 상태의 방이 없습니다.</div></div>'; return; }
+  var rooms = BATTLE.load().filter(function(r){ return r.status === BUI.state.roomTab; });
+  if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">해당 상태의 방이 없습니다.</div></div>'; return; }
 
-  body.innerHTML = banner + '<div class="room-list">' + rooms.map(function(r){
+  body.innerHTML = '<div class="room-list">' + rooms.map(function(r){
     var typeInfo = BATTLE.TYPES[r.type];
     var color = BUI.typeColor(r.type);
     var stageInfo = typeInfo.isTournament ? (' · ' + r.stage + '/' + r.totalStages + '단계') : '';
@@ -921,55 +964,75 @@ BUI.statusLabel = function(s){
 };
 
 // ── 방 만들기 ──
-BUI.openCreateModal = function(){
-  BUI.state.createType = BUI.state.filterType || '1v1';
-  BUI.renderCreateTypeGrid();
-  BUI.renderCreateForm();
-  document.getElementById('createModal').classList.add('show');
-};
-BUI.closeCreate = function(){ document.getElementById('createModal').classList.remove('show'); };
+// ── 새 배틀방 만들기: 4개 카드(1:1/팀전/무제한/토너먼트), 토너먼트는 클릭시 단계선택 추가 ──
+BUI.CREATE_CARDS = [
+  { key:'1v1', icon:'⚔️', label:'1:1 대결', desc:'1:1 정면대결 — 둘 중 결과가 좋은 쪽이 승리' },
+  { key:'team', icon:'🛡️', label:'팀전', desc:'여러 팀으로 나뉘어, 팀 내 최고성적자끼리 비교' },
+  { key:'ffa', icon:'🌀', label:'무제한 대결', desc:'여러 명이 한꺼번에, 1위가 승리' },
+  { key:'tournament', icon:'🏆', label:'토너먼트', desc:'시스템이 운영하는 토너먼트입니다. 매 단계 추첨 후 하위 성적자가 탈락하며, 생존자는 번호를 그대로 쓰거나 새로 등록할 수 있어요.' },
+];
 
 BUI.renderCreateTypeGrid = function(){
-  var descs = {
-    '1v1': '1:1 정면대결 — 둘 중 결과가 좋은 쪽이 승리',
-    'team': '여러 팀으로 나뉘어, 팀 내 최고성적자끼리 비교 (인원 무제한)',
-    'ffa': '여러 명이 한꺼번에, 1위가 승리 (인원 무제한)',
-    'tournament3': '3단계 진행 — 1·2단계 각 30%씩 탈락, 3단계(결승)에서 누적 당첨금 1위가 우승 (인원 무제한)',
-    'tournament5': '5단계 진행 — 1~4단계 각 20%씩 탈락, 5단계(결승)에서 누적 당첨금 1위가 우승 (인원 무제한)',
-    'tournament10': '10단계 진행 — 1~9단계 각 10%씩 탈락, 10단계(결승)에서 누적 당첨금 1위가 우승 (인원 무제한)',
-  };
-  document.getElementById('createTypeGrid').innerHTML = Object.keys(BATTLE.TYPES).map(function(key){
-    var t = BATTLE.TYPES[key];
-    var active = BUI.state.createType === key;
-    return '<div class="type-card' + (active?' active':'') + '" onclick="BUI.selectCreateType(\'' + key + '\')">' +
-      '<div class="ti">' + BUI.typeIcons[key] + '</div>' +
-      '<div class="tn">' + t.nameKr + '</div>' +
-      '<div class="td">' + descs[key] + '</div>' +
+  document.getElementById('createTypeGrid').innerHTML = BUI.CREATE_CARDS.map(function(c){
+    var active = BUI.state.createType === c.key || (c.key==='tournament' && BUI.state.createType && BUI.state.createType.indexOf('tournament')===0);
+    return '<div class="create-type-card' + (active?' active':'') + '" onclick="BUI.selectCreateType(\'' + c.key + '\')">' +
+      '<div class="ti">' + c.icon + '</div>' +
+      '<div class="tn">' + c.label + '</div>' +
+      '<div class="td">' + c.desc + '</div>' +
     '</div>';
   }).join('');
 };
-BUI.selectCreateType = function(key){
-  BUI.state.createType = key;
+
+BUI.selectCreateType = function(cardKey){
+  if (cardKey === 'tournament') {
+    BUI.state.createType = BUI.state.createTournamentStage || 'tournament3';
+  } else {
+    BUI.state.createType = cardKey;
+  }
   BUI.renderCreateTypeGrid();
+  BUI.renderCreateForm();
+};
+
+BUI.selectTournamentStage = function(stageKey){
+  BUI.state.createTournamentStage = stageKey;
+  BUI.state.createType = stageKey;
   BUI.renderCreateForm();
 };
 
 BUI.renderCreateForm = function(){
-  var type = BATTLE.TYPES[BUI.state.createType];
+  var createType = BUI.state.createType;
+  if (!createType) {
+    document.getElementById('createFormBody').innerHTML = '<div class="card"><div class="empty-state" style="padding:18px;">위에서 대결 종류를 선택해주세요.</div></div>';
+    return;
+  }
+
+  var type = BATTLE.TYPES[createType];
   var info = MLL.getLottoInfo();
-  var price = BATTLE.getPrice(BUI.state.createType);
-  var reward = BATTLE.getReward(BUI.state.createType);
+  var isTournamentCard = type.isTournament;
+
+  var stageRowHtml = '';
+  if (isTournamentCard) {
+    var stages = [
+      { key:'tournament3', label:'3단계', sub:'30%씩 2회 탈락' },
+      { key:'tournament5', label:'5단계', sub:'20%씩 4회 탈락' },
+      { key:'tournament10', label:'10단계', sub:'10%씩 9회 탈락' },
+    ];
+    stageRowHtml = '<div class="tournament-stage-row">' + stages.map(function(s){
+      var active = BUI.state.createTournamentStage === s.key;
+      return '<div class="tournament-stage-btn' + (active?' active':'') + '" onclick="BUI.selectTournamentStage(\'' + s.key + '\')"><b>' + s.label + '</b>' + s.sub + '</div>';
+    }).join('') + '</div>';
+  }
 
   var sizeOptionsHtml = '';
-  if (BUI.state.createType === 'team') {
+  if (createType === 'team') {
     sizeOptionsHtml = '<div class="form-row"><label>팀 수</label><input type="number" class="inp" id="cfTeamCount" value="2" min="2" max="10" style="width:80px;"> <span style="font-size:11px;color:var(--text-faint);">팀당 인원 제한 없음 — 모집 후 방장이 마감</span></div>';
-  } else if (BUI.state.createType === 'ffa') {
-    sizeOptionsHtml = '<div class="form-row"><label style="color:var(--text-faint);">인원</label><span style="font-size:12px;color:var(--text-dim);">제한 없음 — 모집 후 방장이 마감</span></div>';
-  } else if (type.isTournament) {
+  } else {
     sizeOptionsHtml = '<div class="form-row"><label style="color:var(--text-faint);">인원</label><span style="font-size:12px;color:var(--text-dim);">제한 없음 — 모집 후 방장이 마감</span></div>';
   }
 
-  var priceUnitLabel = type.isTournament ? ' (참가 시 최초 1회만)' : ' (참가 1인당)';
+  var price = BATTLE.getPrice(createType);
+  var reward = BATTLE.getReward(createType);
+  var priceUnitLabel = isTournamentCard ? ' (참가 시 최초 1회만)' : ' (참가 1인당)';
   var priceRewardHtml = '<div class="form-row"><label style="color:var(--text-faint);">참가비/보상</label>' +
     '<span style="font-size:12px;color:var(--gold);font-weight:700;">참가비 ' + price.toLocaleString() + 'P' + priceUnitLabel + '</span>' +
     '<span style="font-size:12px;color:var(--green);font-weight:700;margin-left:8px;">우승 보상 ' + reward.toLocaleString() + 'P</span></div>';
@@ -985,19 +1048,22 @@ BUI.renderCreateForm = function(){
   }
 
   document.getElementById('createFormBody').innerHTML =
+    '<div class="card">' +
+    stageRowHtml +
     '<div class="form-row"><label>방 이름</label><input type="text" class="inp" id="cfName" placeholder="' + type.nameKr + ' 방" style="flex:1;"' + (info.isPending?' disabled':'') + '></div>' +
     roundFieldHtml +
     priceRewardHtml +
     sizeOptionsHtml +
-    '<button class="btn btn-gold" style="width:100%;margin-top:10px;" onclick="BUI.submitCreate()"' + (info.isPending?' disabled':'') + '>' + (info.isPending ? '결과 집계 완료 후 이용 가능' : '방 만들기') + '</button>';
+    '<button class="btn btn-gold" style="width:100%;margin-top:10px;" onclick="BUI.submitCreate()"' + (info.isPending?' disabled':'') + '>' + (info.isPending ? '결과 집계 완료 후 이용 가능' : '⚔️ 배틀방 만들기와 도전하기') + '</button>' +
+    '</div>';
 };
-
 
 BUI.submitCreate = function(){
   var info = MLL.getLottoInfo();
   if (info.isPending) { alert('⏳ 추첨대기 및 결과작업중입니다. 결과가 반영된 뒤 다시 시도해주세요.'); return; }
 
   var type = BUI.state.createType;
+  if (!type) { alert('대결 종류를 먼저 선택해주세요.'); return; }
   var name = document.getElementById('cfName').value.trim();
   // round는 BATTLE.createRoom 내부에서 MLL.getLottoInfo().saleRound로 자동 설정되므로 여기서 넘기지 않는다.
   var opts = { type: type, name: name };
@@ -1010,9 +1076,13 @@ BUI.submitCreate = function(){
   }
 
   var room = BATTLE.createRoom(opts);
-  BUI.closeCreate();
-  BUI.openTypeRoomList(type);
-  BUI.setRoomTab('waiting');
+
+  // 오른쪽 "참가가능한 방" 탭을 방금 만든 종류로 전환해서 바로 보이게
+  var tabKey = BATTLE.TYPES[type].isTournament ? 'tournament' : type;
+  BUI.state.availFilterType = tabKey;
+  BUI.state.createType = null; // 폼 초기화
+  BUI.showTypeSelectView();
+
   alert('✅ 방이 생성되었습니다! 참가자를 모아보세요.');
   BUI.openRoom(room.id);
 };
@@ -1027,6 +1097,9 @@ BUI.openRoom = function(roomId){
 };
 BUI.closeRoom = function(){
   document.getElementById('roomModal').classList.remove('show');
+  BUI.renderSummary();
+  BUI.renderAvailTabs();
+  BUI.renderAvailableRooms();
   BUI.renderRoomList();
 };
 
@@ -1494,7 +1567,6 @@ document.addEventListener('DOMContentLoaded', BUI.init);
 document.addEventListener('keydown', function(e){
   if (e.key !== 'Escape') return;
   if (document.getElementById('roomModal').classList.contains('show')) BUI.closeRoom();
-  else if (document.getElementById('createModal').classList.contains('show')) BUI.closeCreate();
 });
 </script>
 </body>
