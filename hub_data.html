@@ -69,79 +69,105 @@ a{color:inherit;text-decoration:none;}
       <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <div class="brand-text">
         <div class="t1">My Lotto Lab</div>
-        <div class="t2">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+        <div class="t2" data-i18n-kr="가상 로또 등록 · 당첨 분석 · 통계 플랫폼" data-i18n-en="Virtual Lotto Entry · Win Analysis · Stats Platform">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
       </div>
     </div>
-    <div class="crumb">
-      <a onclick="location.href='main_page.html'">홈</a>
-      <span class="sep">/</span>
-      <span class="cur">Data 등록과 관리</span>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
+        <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
+      </div>
+      <div class="crumb">
+        <a onclick="location.href='main_page.html'" data-i18n-kr="홈" data-i18n-en="Home">홈</a>
+        <span class="sep">/</span>
+        <span class="cur" data-i18n-kr="Data 등록과 관리" data-i18n-en="Data Entry & Management">Data 등록과 관리</span>
+      </div>
     </div>
   </div>
 </div>
 
 <div class="wrap">
   <div class="eyebrow">DATA ENTRY &amp; LOTTO SLIP</div>
-  <div class="page-title">Data 등록과 관리</div>
-  <div class="page-sub">번호를 기록하는 4가지 방법. 어떤 경로로 들어와도 같은 곳에 쌓이고, 같은 기준으로 분석됩니다. 원하는 조합을 즉석에서 편하게 구매용 전표로 작성하여 줍니다.</div>
+  <div class="page-title" data-i18n-kr="Data 등록과 관리" data-i18n-en="Data Entry & Management">Data 등록과 관리</div>
+  <div class="page-sub" data-i18n-kr="번호를 기록하는 4가지 방법. 어떤 경로로 들어와도 같은 곳에 쌓이고, 같은 기준으로 분석됩니다. 원하는 조합을 즉석에서 편하게 구매용 전표로 작성하여 줍니다." data-i18n-en="Four ways to record your numbers. However you enter them, they're stored in the same place and analyzed by the same standard. We'll also turn your chosen combos into a purchase slip on the spot.">번호를 기록하는 4가지 방법. 어떤 경로로 들어와도 같은 곳에 쌓이고, 같은 기준으로 분석됩니다. 원하는 조합을 즉석에서 편하게 구매용 전표로 작성하여 줍니다.</div>
 
   <div class="grid">
     <div class="card" onclick="location.href='lotto_input_page_v4.html'">
       <div class="ico">🖥️</div>
-      <div class="name">일반 방식 편한 등록</div>
-      <div class="desc">직접 번호 선택 / 자동 생성</div>
+      <div class="name" data-i18n-kr="일반 방식 편한 등록" data-i18n-en="Standard Easy Entry">일반 방식 편한 등록</div>
+      <div class="desc" data-i18n-kr="직접 번호 선택 / 자동 생성" data-i18n-en="Manual selection / Auto-generate">직접 번호 선택 / 자동 생성</div>
       <div class="arrow">→</div>
     </div>
     <div class="card" onclick="location.href='camera_qr.html'">
       <div class="ico">📷</div>
-      <div class="name">실구매 로또등록</div>
-      <div class="desc">카메라/QR/수동 직접입력</div>
+      <div class="name" data-i18n-kr="실구매 로또등록" data-i18n-en="Register Real Purchases">실구매 로또등록</div>
+      <div class="desc" data-i18n-kr="카메라/QR/수동 직접입력" data-i18n-en="Camera/QR/Manual entry">카메라/QR/수동 직접입력</div>
       <div class="arrow">→</div>
     </div>
     <div class="card" onclick="location.href='excel_upload.html'">
       <div class="ico">📄</div>
-      <div class="name">엑셀 파일 대량 등록</div>
-      <div class="desc">.xlsx / .csv 업로드</div>
+      <div class="name" data-i18n-kr="엑셀 파일 대량 등록" data-i18n-en="Bulk Entry via Excel">엑셀 파일 대량 등록</div>
+      <div class="desc" data-i18n-kr=".xlsx / .csv 업로드" data-i18n-en=".xlsx / .csv upload">.xlsx / .csv 업로드</div>
       <div class="arrow">→</div>
     </div>
     <div class="card" onclick="location.href='ai_input.html'">
       <div class="ico">✨</div>
-      <div class="name">AI 도우미 음성·문자로 등록</div>
-      <div class="desc">자연어 음성·문자로 번호 입력</div>
+      <div class="name" data-i18n-kr="AI 도우미 음성·문자로 등록" data-i18n-en="AI Assistant — Voice/Text Entry">AI 도우미 음성·문자로 등록</div>
+      <div class="desc" data-i18n-kr="자연어 음성·문자로 번호 입력" data-i18n-en="Enter numbers via natural voice or text">자연어 음성·문자로 번호 입력</div>
       <div class="arrow">→</div>
     </div>
   </div>
 
-  <div class="section-divider"><span class="lbl">📋 입력 후에는</span><div class="line"></div></div>
+  <div class="section-divider"><span class="lbl" data-i18n-kr="📋 입력 후에는" data-i18n-en="📋 After You've Entered Numbers">📋 입력 후에는</span><div class="line"></div></div>
 
   <div class="grid" style="grid-template-columns:repeat(3,1fr);">
     <div class="card print-card" onclick="location.href='lotto_slip_print.html'" style="grid-column: span 1;">
-      <span class="print-badge">이용 가능</span>
+      <span class="print-badge" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
       <div class="ico">🖨️</div>
-      <div class="name">편리한 로또구매전표 작성</div>
-      <div class="desc">위 4가지 방식으로 등록한 번호를 모아 보고, 체크해서 실물 마킹용지 PDF로 바로 출력</div>
+      <div class="name" data-i18n-kr="편리한 로또구매전표 작성" data-i18n-en="Easy Lotto Purchase Slip">편리한 로또구매전표 작성</div>
+      <div class="desc" data-i18n-kr="위 4가지 방식으로 등록한 번호를 모아 보고, 체크해서 실물 마킹용지 PDF로 바로 출력" data-i18n-en="Gather numbers entered via the 4 methods above, check the ones you want, and print directly as a physical marking-sheet PDF">위 4가지 방식으로 등록한 번호를 모아 보고, 체크해서 실물 마킹용지 PDF로 바로 출력</div>
       <div class="arrow">→</div>
     </div>
     <div class="card print-card" onclick="location.href='lotto_data_excel.html'" style="grid-column: span 1;">
-      <span class="print-badge">이용 가능</span>
+      <span class="print-badge" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
       <div class="ico">📊</div>
-      <div class="name">각종 데이터 엑셀로 받기</div>
-      <div class="desc">모든 입력방식·모의시뮬레이션·관심번호·전략비교평가 데이터를 모아 보고, 체크해서 엑셀 파일로 받기</div>
+      <div class="name" data-i18n-kr="각종 데이터 엑셀로 받기" data-i18n-en="Export Data to Excel">각종 데이터 엑셀로 받기</div>
+      <div class="desc" data-i18n-kr="모든 입력방식·모의시뮬레이션·관심번호·전략비교평가 데이터를 모아 보고, 체크해서 엑셀 파일로 받기" data-i18n-en="Gather data from all entry methods, mock simulation, favorite numbers, and strategy comparison, then export checked items to Excel">모든 입력방식·모의시뮬레이션·관심번호·전략비교평가 데이터를 모아 보고, 체크해서 엑셀 파일로 받기</div>
       <div class="arrow">→</div>
     </div>
     <div class="card print-card" onclick="location.href='lotto_data_report.html'" style="grid-column: span 1;">
-      <span class="print-badge">이용 가능</span>
+      <span class="print-badge" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
       <div class="ico">📑</div>
-      <div class="name">각종 데이터의 Report(PDF)로 받기</div>
-      <div class="desc">체크한 번호조합을 정리된 보고서 형태(PDF)로, 또는 결과·통계 화면을 인쇄용 리포트로 출력</div>
+      <div class="name" data-i18n-kr="각종 데이터의 Report(PDF)로 받기" data-i18n-en="Get Reports (PDF) of Your Data">각종 데이터의 Report(PDF)로 받기</div>
+      <div class="desc" data-i18n-kr="체크한 번호조합을 정리된 보고서 형태(PDF)로, 또는 결과·통계 화면을 인쇄용 리포트로 출력" data-i18n-en="Export checked number combos as an organized report (PDF), or print the results & stats screen as a printable report">체크한 번호조합을 정리된 보고서 형태(PDF)로, 또는 결과·통계 화면을 인쇄용 리포트로 출력</div>
       <div class="arrow">→</div>
     </div>
   </div>
 
   <div class="back-row">
-    <span class="back-link" onclick="location.href='main_page.html'">← 전체 카테고리로</span>
+    <span class="back-link" onclick="location.href='main_page.html'">← <span data-i18n-kr="전체 카테고리로" data-i18n-en="Back to All Categories">전체 카테고리로</span></span>
   </div>
 </div>
+
+<script>
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+function applyLang(){
+  document.title = (LANG === 'en') ? 'My Lotto Lab - Data Entry & Management' : 'My Lotto Lab - Data 등록과 관리';
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var text = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if (text !== undefined) el.textContent = text;
+  });
+  var krBtn = document.getElementById('langKrBtn'), enBtn = document.getElementById('langEnBtn');
+  if (krBtn) { krBtn.style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface)'; krBtn.style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)'; }
+  if (enBtn) { enBtn.style.background = LANG==='en' ? 'var(--gold)' : 'var(--surface)'; enBtn.style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)'; }
+}
+function setLang(lang){
+  LANG = lang;
+  localStorage.setItem('mll_lang', lang);
+  applyLang();
+}
+document.addEventListener('DOMContentLoaded', applyLang);
+</script>
 
 </body>
 </html>

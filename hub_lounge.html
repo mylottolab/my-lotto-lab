@@ -45,23 +45,49 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <div class="brand-text">
         <div class="t1">My Lotto Lab</div>
-        <div class="t2">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+        <div class="t2" data-i18n-kr="가상 로또 등록 · 당첨 분석 · 통계 플랫폼" data-i18n-en="Virtual Lotto Entry · Win Analysis · Stats Platform">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
       </div>
     </div>
-    <div class="crumb">
-      <a onclick="location.href='main_page.html'">홈</a>
-      <span class="sep">/</span>
-      <span class="cur">회원 · Lounge</span>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
+        <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
+      </div>
+      <div class="crumb">
+        <a onclick="location.href='main_page.html'" data-i18n-kr="홈" data-i18n-en="Home">홈</a>
+        <span class="sep">/</span>
+        <span class="cur" data-i18n-kr="회원 · Lounge" data-i18n-en="Member · Lounge">회원 · Lounge</span>
+      </div>
     </div>
   </div>
 </div>
 
 <div class="empty-wrap">
   <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.5"/><path d="M5 20c0-3.6 3.1-6.3 7-6.3s7 2.7 7 6.3" stroke-linecap="round"/></svg></div>
-  <div class="empty-title">회원·Lounge, 준비 중입니다</div>
-  <div class="empty-desc">회원가입, 결제, 포인트 같은 계정 관련 기능과, 비회원도 가볍게 들러 당첨 결과를 확인할 수 있는 공개 라운지가 여기 들어올 예정입니다.</div>
-  <div class="back-link" onclick="location.href='main_page.html'">← 전체 카테고리로</div>
+  <div class="empty-title" data-i18n-kr="회원·Lounge, 준비 중입니다" data-i18n-en="Member·Lounge — Coming Soon">회원·Lounge, 준비 중입니다</div>
+  <div class="empty-desc" data-i18n-kr="회원가입, 결제, 포인트 같은 계정 관련 기능과, 비회원도 가볍게 들러 당첨 결과를 확인할 수 있는 공개 라운지가 여기 들어올 예정입니다." data-i18n-en="Account features like sign-up, payment, and points, along with a public lounge where even non-members can casually check winning results, will be here.">회원가입, 결제, 포인트 같은 계정 관련 기능과, 비회원도 가볍게 들러 당첨 결과를 확인할 수 있는 공개 라운지가 여기 들어올 예정입니다.</div>
+  <div class="back-link" onclick="location.href='main_page.html'">← <span data-i18n-kr="전체 카테고리로" data-i18n-en="Back to All Categories">전체 카테고리로</span></div>
 </div>
+
+<script>
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+function applyLang(){
+  document.title = (LANG === 'en') ? 'My Lotto Lab - Member·Lounge' : 'My Lotto Lab - 회원·Lounge';
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var text = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if (text !== undefined) el.textContent = text;
+  });
+  var krBtn = document.getElementById('langKrBtn'), enBtn = document.getElementById('langEnBtn');
+  if (krBtn) { krBtn.style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface)'; krBtn.style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)'; }
+  if (enBtn) { enBtn.style.background = LANG==='en' ? 'var(--gold)' : 'var(--surface)'; enBtn.style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)'; }
+}
+function setLang(lang){
+  LANG = lang;
+  localStorage.setItem('mll_lang', lang);
+  applyLang();
+}
+document.addEventListener('DOMContentLoaded', applyLang);
+</script>
 
 </body>
 </html>

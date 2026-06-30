@@ -60,21 +60,27 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <div class="brand-text">
         <div class="t1">My Lotto Lab</div>
-        <div class="t2">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+        <div class="t2" data-i18n-kr="가상 로또 등록 · 당첨 분석 · 통계 플랫폼" data-i18n-en="Virtual Lotto Entry · Win Analysis · Stats Platform">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
       </div>
     </div>
-    <div class="crumb">
-      <a onclick="location.href='main_page.html'">홈</a>
-      <span class="sep">/</span>
-      <span class="cur">전략 등록</span>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
+        <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
+      </div>
+      <div class="crumb">
+        <a onclick="location.href='main_page.html'" data-i18n-kr="홈" data-i18n-en="Home">홈</a>
+        <span class="sep">/</span>
+        <span class="cur" data-i18n-kr="전략 등록" data-i18n-en="Strategy">전략 등록</span>
+      </div>
     </div>
   </div>
 </div>
 
 <div class="page-head">
   <div class="page-eyebrow">Strategy</div>
-  <div class="page-title">전략 등록</div>
-  <div class="page-desc">조건을 세우고, 번호를 생성하고, 결과를 비교하고, 쌓아둔다. 전략이 곧 데이터가 되는 곳입니다.</div>
+  <div class="page-title" data-i18n-kr="전략 등록" data-i18n-en="Strategy">전략 등록</div>
+  <div class="page-desc" data-i18n-kr="조건을 세우고, 번호를 생성하고, 결과를 비교하고, 쌓아둔다. 전략이 곧 데이터가 되는 곳입니다." data-i18n-en="Set your conditions, generate numbers, compare results, and build it up. Where strategy becomes data.">조건을 세우고, 번호를 생성하고, 결과를 비교하고, 쌓아둔다. 전략이 곧 데이터가 되는 곳입니다.</div>
 </div>
 
 <div class="sub">
@@ -83,8 +89,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="scard" onclick="location.href='strategy_manager.html'" tabindex="0" role="button">
       <div>
         <div class="scard-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.3"/><circle cx="12" cy="12" r="0.9" fill="var(--accent)" stroke="none"/></svg></div>
-        <div class="scard-name">전략 수립</div>
-        <div class="scard-desc">Lotto Master Pro 이용 전략수립</div>
+        <div class="scard-name" data-i18n-kr="전략 수립" data-i18n-en="Build Strategy">전략 수립</div>
+        <div class="scard-desc" data-i18n-kr="Lotto Master Pro 이용 전략수립" data-i18n-en="Build strategy using Lotto Master Pro">Lotto Master Pro 이용 전략수립</div>
       </div>
       <div class="scard-arrow">→</div>
     </div>
@@ -92,8 +98,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="scard" onclick="location.href='number_generator.html'" tabindex="0" role="button">
       <div>
         <div class="scard-icon"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3"/><circle cx="9" cy="9" r="1" fill="var(--accent)" stroke="none"/><circle cx="15" cy="15" r="1" fill="var(--accent)" stroke="none"/><circle cx="9" cy="15" r="1" fill="var(--accent)" stroke="none"/></svg></div>
-        <div class="scard-name">전략번호 생성</div>
-        <div class="scard-desc">각 전략별 번호조합 생성</div>
+        <div class="scard-name" data-i18n-kr="전략번호 생성" data-i18n-en="Generate Strategy Numbers">전략번호 생성</div>
+        <div class="scard-desc" data-i18n-kr="각 전략별 번호조합 생성" data-i18n-en="Generate number combos per strategy">각 전략별 번호조합 생성</div>
       </div>
       <div class="scard-arrow">→</div>
     </div>
@@ -101,8 +107,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="scard" onclick="location.href='strategy_compare.html'" tabindex="0" role="button">
       <div>
         <div class="scard-icon"><svg viewBox="0 0 24 24"><path d="M5 19V11M11 19V5M17 19v-7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <div class="scard-name">전략 비교평가</div>
-        <div class="scard-desc">추첨후 전략별 비교평가</div>
+        <div class="scard-name" data-i18n-kr="전략 비교평가" data-i18n-en="Compare Strategies">전략 비교평가</div>
+        <div class="scard-desc" data-i18n-kr="추첨후 전략별 비교평가" data-i18n-en="Post-draw comparison by strategy">추첨후 전략별 비교평가</div>
       </div>
       <div class="scard-arrow">→</div>
     </div>
@@ -110,16 +116,36 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="scard" onclick="location.href='strategy_storage.html'" tabindex="0" role="button">
       <div>
         <div class="scard-icon"><svg viewBox="0 0 24 24"><path d="M6 4h9l3 3v13H6z" stroke-linejoin="round"/><rect x="9" y="4" width="6" height="4"/></svg></div>
-        <div class="scard-name">최종전략 DATA 저장소</div>
-        <div class="scard-desc">최애번호/전략DATA/Battle번호/기타</div>
+        <div class="scard-name" data-i18n-kr="최종전략 DATA 저장소" data-i18n-en="Final Strategy Data Storage">최종전략 DATA 저장소</div>
+        <div class="scard-desc" data-i18n-kr="최애번호/전략DATA/Battle번호/기타" data-i18n-en="Favorite numbers / Strategy data / Battle numbers / etc.">최애번호/전략DATA/Battle번호/기타</div>
       </div>
       <div class="scard-arrow">→</div>
     </div>
 
   </div>
 
-  <div class="back-link" onclick="location.href='main_page.html'">← 전체 카테고리로</div>
+  <div class="back-link" onclick="location.href='main_page.html'">← <span data-i18n-kr="전체 카테고리로" data-i18n-en="Back to All Categories">전체 카테고리로</span></div>
 </div>
+
+<script>
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+function applyLang(){
+  document.title = (LANG === 'en') ? 'My Lotto Lab - Strategy' : 'My Lotto Lab - 전략 등록';
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var text = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if (text !== undefined) el.textContent = text;
+  });
+  var krBtn = document.getElementById('langKrBtn'), enBtn = document.getElementById('langEnBtn');
+  if (krBtn) { krBtn.style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface)'; krBtn.style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)'; }
+  if (enBtn) { enBtn.style.background = LANG==='en' ? 'var(--gold)' : 'var(--surface)'; enBtn.style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)'; }
+}
+function setLang(lang){
+  LANG = lang;
+  localStorage.setItem('mll_lang', lang);
+  applyLang();
+}
+document.addEventListener('DOMContentLoaded', applyLang);
+</script>
 
 </body>
 </html>
