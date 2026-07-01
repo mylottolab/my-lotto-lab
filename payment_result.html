@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 결제 결과</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;
+  --text:#eef0f6;--text-dim:#8b91ab;--text-faint:#5a6080;
+  --gold:#e0b341;--gold-dim:#8a6f2f;
+  --green:#3fb37f;--green-bg:rgba(63,179,127,.10);
+  --red:#e05c5c;--red-bg:rgba(224,92,92,.10);
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:40px 32px;max-width:420px;width:100%;text-align:center;}
+.icon{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;}
+.icon.success{background:var(--green-bg);border:2px solid var(--green);}
+.icon.fail{background:var(--red-bg);border:2px solid var(--red);}
+.icon svg{width:30px;height:30px;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+.icon.success svg{stroke:var(--green);}
+.icon.fail svg{stroke:var(--red);}
+h1{font-size:20px;font-weight:700;margin-bottom:8px;}
+.desc{font-size:13px;color:var(--text-dim);margin-bottom:28px;line-height:1.6;}
+.info-box{background:var(--bg);border:1px solid var(--border-soft);border-radius:10px;padding:16px;margin-bottom:24px;text-align:left;}
+.info-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border-soft);}
+.info-row:last-child{border-bottom:none;}
+.info-row .label{color:var(--text-dim);}
+.info-row .value{font-weight:600;}
+.btn{width:100%;padding:12px;border-radius:9px;border:none;background:var(--gold);color:#1a1305;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
+.btn:hover{opacity:.92;}
+.btn-outline{background:transparent;border:1px solid var(--border-soft);color:var(--text-dim);margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <!-- 동적으로 채워짐 -->
+</div>
+
+<script>
+var params = new URLSearchParams(location.search);
+var status = params.get('status');
+var card = document.getElementById('card');
+
+if(status === 'success'){
+  var orderNumber = params.get('orderNumber') || '-';
+  var price = params.get('price') || '-';
+  var goodName = params.get('goodName') || '-';
+  var buyerName = params.get('buyerName') || '-';
+  var tid = params.get('tid') || '-';
+
+  card.innerHTML = `
+    <div class="icon success">
+      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h1>결제가 완료되었습니다!</h1>
+    <p class="desc">결제가 정상적으로 처리되었습니다.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="label">주문번호</span><span class="value">${orderNumber}</span></div>
+      <div class="info-row"><span class="label">상품명</span><span class="value">${decodeURIComponent(goodName)}</span></div>
+      <div class="info-row"><span class="label">결제금액</span><span class="value">${Number(price).toLocaleString()}원</span></div>
+      <div class="info-row"><span class="label">구매자</span><span class="value">${decodeURIComponent(buyerName)}</span></div>
+      <div class="info-row"><span class="label">거래번호</span><span class="value" style="font-size:11px;">${tid}</span></div>
+    </div>
+    <button class="btn" onclick="location.href='main_page.html'">메인으로 이동</button>
+  `;
+} else {
+  var msg = params.get('msg') || '결제에 실패했습니다.';
+  card.innerHTML = `
+    <div class="icon fail">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </div>
+    <h1>결제에 실패했습니다</h1>
+    <p class="desc">${decodeURIComponent(msg)}</p>
+    <button class="btn" onclick="history.back()">다시 시도</button>
+    <button class="btn btn-outline" onclick="location.href='main_page.html'">메인으로 이동</button>
+  `;
+}
+</script>
+</body>
+</html>
