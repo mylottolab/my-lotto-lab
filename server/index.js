@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -15,10 +16,15 @@ app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ─── 정적 파일 서빙 (결제 관련 HTML) ─────────────────────────────────────────
+app.use('/pay', express.static(path.join(__dirname, 'public')));
+
+// ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'My Lotto Lab API' });
 });
 
+// ─── 회원가입 ──────────────────────────────────────────────────────────────────
 app.post('/api/auth/signup', async (req, res) => {
   const { email, password, nickname, country } = req.body;
   if (!email || !password || !nickname) {
@@ -45,6 +51,7 @@ app.post('/api/auth/signup', async (req, res) => {
   return res.status(201).json({ message: '가입이 완료되었습니다.', userId: data.user.id });
 });
 
+// ─── 로그인 ────────────────────────────────────────────────────────────────────
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -68,6 +75,7 @@ app.post('/api/auth/login', async (req, res) => {
   });
 });
 
+// ─── 내 정보 조회 ──────────────────────────────────────────────────────────────
 app.get('/api/auth/me', async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: '인증 토큰이 없습니다.' });
@@ -84,9 +92,11 @@ app.get('/api/auth/me', async (req, res) => {
   });
 });
 
+// ─── 이니시스 결제 ────────────────────────────────────────────────────────────
 const paymentRouter = require('./routes/payment');
 app.use('/api/payment/inicis', paymentRouter);
 
+// ─── 서버 시작 ────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`My Lotto Lab API running on port ${PORT}`);
 });
