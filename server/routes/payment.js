@@ -56,7 +56,7 @@ router.post('/return', async (req, res) => {
   const authTokenFixed = authToken.replace(/ /g, '+');
 
   // 위변조 검증
-  //const verifySignature = sha256(`authToken=${authTokenFixed}&price=${price}&mid=${mid}`);
+  //const verifySignature = sha256(`${authTokenFixed}${price}${SIGN_KEY}`);
   //if (verifySignature !== signature) {
   //  return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=위변조감지`);
   //}
