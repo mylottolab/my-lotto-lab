@@ -40,8 +40,6 @@ router.post('/return', async (req, res) => {
   console.log('=== price 관련 ===', req.body.price, req.body.Price, req.body.PRICE, req.body.amt, req.body.amount);
   
   const { resultCode, resultMsg, mid, orderNumber, authToken, authUrl, price, goodName, buyerName } = req.body;
-  const { resultCode, resultMsg, mid, orderNumber, authToken, authUrl, price, goodName, buyerName } = req.body;
-
   console.log('=== 이니시스 returnUrl 수신 ===');
   console.log('=== 전체 req.body ===', JSON.stringify(req.body));
   console.log('resultCode:', resultCode);
