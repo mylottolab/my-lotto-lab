@@ -37,6 +37,7 @@ router.post('/return', async (req, res) => {
   const { resultCode, resultMsg, mid, orderNumber, authToken, authUrl, price, goodName, buyerName } = req.body;
 
   console.log('=== 이니시스 returnUrl 수신 ===');
+  console.log('=== 전체 req.body ===', JSON.stringify(req.body));
   console.log('resultCode:', resultCode);
   console.log('authToken (raw):', authToken);
   console.log('price:', price);
