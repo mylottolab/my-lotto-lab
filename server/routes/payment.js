@@ -13,8 +13,6 @@ function sha256(str) {
 }
 
 // ─── 결제 준비 (서명 생성) ────────────────────────────────────────────────────
-// POST /api/payment/inicis/prepare
-// body: { price, goodname, buyername, buyertel, buyeremail, orderno }
 router.post('/prepare', (req, res) => {
   const { price, goodname, buyername, buyertel, buyeremail, orderno } = req.body;
 
@@ -25,10 +23,7 @@ router.post('/prepare', (req, res) => {
   const timestamp = Date.now().toString();
   const oid = orderno || `${MID}_${timestamp}`;
 
-  // 서명 생성: SHA256(mid + price + timestamp + signKey)
   const signature = sha256(`${MID}${price}${timestamp}${SIGN_KEY}`);
-
-  // 위변조방지 해시: SHA256(price + signKey)
   const mkey = sha256(SIGN_KEY);
 
   const SERVER_URL = process.env.SERVER_URL || 'https://my-lotto-lab-api.onrender.com';
@@ -49,8 +44,7 @@ router.post('/prepare', (req, res) => {
   });
 });
 
-// ─── 결제 결과 수신 (이니시스 → 서버 콜백) ────────────────────────────────────
-// POST /api/payment/inicis/return
+// ─── 결제 결과 수신 ───────────────────────────────────────────────────────────
 router.post('/return', async (req, res) => {
   const {
     resultCode, resultMsg,
@@ -61,18 +55,15 @@ router.post('/return', async (req, res) => {
 
   const CLIENT_URL = process.env.CLIENT_URL || 'https://mylottolab.github.io/my-lotto-lab';
 
-  // 결제 실패
   if (resultCode !== '0000') {
     return res.redirect(`${CLIENT_URL}/payment_result.html?status=fail&msg=${encodeURIComponent(resultMsg)}`);
   }
 
-  // 위변조 검증: SHA256(authToken + price + signKey)
   const verifySignature = sha256(`${authToken}${price}${SIGN_KEY}`);
   if (verifySignature !== signature) {
     return res.redirect(`${CLIENT_URL}/payment_result.html?status=fail&msg=위변조감지`);
   }
 
-  // 승인 요청 (이니시스 서버로)
   try {
     const approvalData = querystring.stringify({
       mid,
@@ -86,7 +77,6 @@ router.post('/return', async (req, res) => {
     const approvalResult = await callInicisApproval(authUrl, approvalData);
 
     if (approvalResult.resultCode === '0000') {
-      // 승인 성공 → 클라이언트 성공 페이지로
       return res.redirect(
         `${CLIENT_URL}/payment_result.html?status=success` +
         `&orderNumber=${encodeURIComponent(orderNumber)}` +
@@ -104,12 +94,12 @@ router.post('/return', async (req, res) => {
   }
 });
 
-// ─── 결제창 닫기 ───────────────────────────────────────────────────────────────
+// ─── 결제창 닫기 ──────────────────────────────────────────────────────────────
 router.post('/close', (req, res) => {
   res.send('<script>window.close();</script>');
 });
 
-// ─── 이니시스 승인 API 호출 ────────────────────────────────────────────────────
+// ─── 이니시스 승인 API 호출 ───────────────────────────────────────────────────
 function callInicisApproval(authUrl, postData) {
   return new Promise((resolve, reject) => {
     const url = new URL(authUrl);
