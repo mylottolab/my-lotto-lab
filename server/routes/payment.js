@@ -48,7 +48,7 @@ router.post('/return', async (req, res) => {
     return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent(resultMsg)}`);
   }
 
-  const verifySignature = sha256(`${authToken}${price}${SIGN_KEY}`);
+  const verifySignature = sha256(`authToken=${authToken}&price=${price}&mid=${mid}`);
   if (verifySignature !== signature) {
     return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=위변조감지`);
   }
