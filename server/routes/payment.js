@@ -63,14 +63,7 @@ router.post('/return', async (req, res) => {
 
   try {
     const ts = Date.now().toString();
-    const approvalData = querystring.stringify({
-      mid,
-      authToken: authTokenFixed,
-      timestamp: ts,
-      signature: sha256(`authToken=${authTokenFixed}&price=${price}&mid=${mid}`),
-      charset: 'UTF-8',
-      format: 'JSON'
-    });
+    const approvalData = `mid=${mid}&authToken=${encodeURIComponent(authTokenFixed)}&timestamp=${ts}&signature=${sha256(`${authTokenFixed}${price}${SIGN_KEY}`)}&charset=UTF-8&format=JSON`;
 
     const approvalResult = await callInicisApproval(authUrl, approvalData);
 
