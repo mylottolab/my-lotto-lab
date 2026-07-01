@@ -15,8 +15,6 @@
   --green:#3fb37f; --red:#e05c5c; --red-bg:rgba(224,92,92,.10);
 }
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;display:flex;flex-direction:column;}
-
-/* TOPBAR */
 .topbar{border-bottom:1px solid var(--border-soft);}
 .topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
 .brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
@@ -27,102 +25,49 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .lang-toggle{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
 .lang-toggle button{background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;}
 .lang-toggle button.active{background:var(--gold);color:#1a1305;}
-
-/* MAIN LAYOUT */
 .page-body{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 24px 60px;}
-
-/* SPLIT CARD */
 .login-wrap{width:100%;max-width:420px;}
-
 .login-header{text-align:center;margin-bottom:32px;}
 .login-header .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
 .login-header h1{font-size:22px;font-weight:700;letter-spacing:-0.025em;}
 .login-header p{font-size:12.5px;color:var(--text-dim);margin-top:7px;line-height:1.6;}
-
-.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:28px 28px 26px;position:relative;}
-
-/* FORM */
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:28px 28px 26px;}
 .field{margin-bottom:16px;}
-.field label{display:block;font-size:11.5px;font-weight:600;color:var(--text-dim);margin-bottom:6px;letter-spacing:.01em;}
-.field input{
-  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:9px;
-  padding:10px 13px;font-size:13.5px;color:var(--text);outline:none;
-  transition:border-color .15s;font-family:inherit;
-}
+.field label{display:block;font-size:11.5px;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+.field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:10px 13px;font-size:13.5px;color:var(--text);outline:none;transition:border-color .15s;font-family:inherit;}
 .field input:focus{border-color:var(--accent);}
 .field input::placeholder{color:var(--text-faint);}
 .field input.err{border-color:var(--red);}
 .field-err{font-size:11px;color:var(--red);margin-top:5px;display:none;}
 .field-err.show{display:block;}
-
-/* PASSWORD TOGGLE */
 .pw-wrap{position:relative;}
 .pw-wrap input{padding-right:42px;}
 .pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-faint);padding:2px;display:flex;}
-.pw-toggle:hover{color:var(--text-dim);}
 .pw-toggle svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.6;fill:none;}
-
-/* OPTIONS ROW */
 .options-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;margin-top:-4px;}
 .check-label{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;color:var(--text-dim);user-select:none;}
-.check-label input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;}
+.check-label input[type=checkbox]{accent-color:var(--accent);cursor:pointer;}
 .forgot-link{font-size:12px;color:var(--accent);cursor:pointer;background:none;border:none;font-family:inherit;}
-.forgot-link:hover{text-decoration:underline;}
-
-/* SUBMIT */
-.btn-submit{
-  width:100%;padding:12px;border-radius:9px;border:none;
-  background:var(--gold);color:#1a1305;font-size:14px;font-weight:700;
-  cursor:pointer;letter-spacing:-.01em;transition:opacity .15s,transform .1s;
-  font-family:inherit;
-}
+.btn-submit{width:100%;padding:12px;border-radius:9px;border:none;background:var(--gold);color:#1a1305;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:-.01em;transition:opacity .15s;font-family:inherit;}
 .btn-submit:hover{opacity:.92;}
-.btn-submit:active{transform:scale(.99);}
 .btn-submit:disabled{opacity:.45;cursor:not-allowed;}
-
-/* ERROR BANNER */
+.btn-submit.loading{position:relative;color:transparent;}
+.btn-submit.loading::after{content:'';position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border:2px solid rgba(26,19,5,.4);border-top-color:#1a1305;border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 .err-banner{background:var(--red-bg);border:1px solid rgba(224,92,92,.25);border-radius:9px;padding:10px 13px;font-size:12.5px;color:#f08080;margin-bottom:16px;display:none;}
 .err-banner.show{display:block;}
-
-/* DIVIDER */
+.ok-banner{background:rgba(63,179,127,.10);border:1px solid rgba(63,179,127,.25);border-radius:9px;padding:10px 13px;font-size:12.5px;color:var(--green);margin-bottom:16px;display:none;}
+.ok-banner.show{display:block;}
 .or-row{display:flex;align-items:center;gap:10px;margin:20px 0;}
 .or-row .line{flex:1;height:1px;background:var(--border-soft);}
 .or-row .lbl{font-size:11px;color:var(--text-faint);}
-
-/* OAUTH BUTTONS */
 .social-btns{display:flex;flex-direction:column;gap:10px;}
-.btn-social{
-  width:100%;padding:10px;border-radius:9px;border:1px solid var(--border);
-  background:var(--surface-2);color:var(--text);font-size:13px;font-weight:500;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
-  transition:border-color .15s,background .15s;font-family:inherit;
-}
-.btn-social:hover{border-color:var(--border);background:#1c2140;}
+.btn-social{width:100%;padding:10px;border-radius:9px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .15s;font-family:inherit;}
+.btn-social:hover{background:#1c2140;}
 .btn-social .icon{width:18px;height:18px;flex-shrink:0;}
-
-/* FOOTER */
 .signup-row{text-align:center;margin-top:22px;font-size:12.5px;color:var(--text-dim);}
 .signup-row a{color:var(--gold);cursor:pointer;font-weight:600;}
-.signup-row a:hover{text-decoration:underline;}
-
-/* LOADING STATE */
-.btn-submit.loading{position:relative;color:transparent;}
-.btn-submit.loading::after{
-  content:'';position:absolute;left:50%;top:50%;
-  width:16px;height:16px;margin:-8px 0 0 -8px;
-  border:2px solid rgba(26,19,5,.4);border-top-color:#1a1305;
-  border-radius:50%;animation:spin .6s linear infinite;
-}
-@keyframes spin{to{transform:rotate(360deg);}}
-
-/* DEMO BADGE */
-.demo-note{background:var(--gold-bg);border:1px solid rgba(224,179,65,.2);border-radius:9px;padding:10px 13px;font-size:11.5px;color:var(--gold);margin-bottom:18px;line-height:1.5;}
-.demo-note strong{font-weight:700;}
-
-@media(max-width:480px){
-  .card{padding:22px 18px 20px;}
-  .topbar-inner{padding:0 16px;}
-}
+@media(max-width:480px){.card{padding:22px 18px 20px;}.topbar-inner{padding:0 16px;}}
 </style>
 </head>
 <body>
@@ -145,7 +90,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 <div class="page-body">
   <div class="login-wrap">
-
     <div class="login-header">
       <div class="eyebrow" data-i18n-kr="계정 로그인" data-i18n-en="Sign In">계정 로그인</div>
       <h1 data-i18n-kr="다시 오셨군요" data-i18n-en="Welcome back">다시 오셨군요</h1>
@@ -153,20 +97,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
 
     <div class="card">
-
-      <!-- Demo notice — remove when real backend is live -->
-      <div class="demo-note">
-        <strong data-i18n-kr="🔧 준비 중" data-i18n-en="🔧 Coming Soon">🔧 준비 중</strong>
-        <span data-i18n-kr=" — 서버 연동 후 실제 로그인이 활성화됩니다. 지금은 UI 미리보기 상태입니다." data-i18n-en=" — Real login activates after server integration. This is a UI preview."> — 서버 연동 후 실제 로그인이 활성화됩니다. 지금은 UI 미리보기 상태입니다.</span>
-      </div>
-
+      <div class="ok-banner" id="okBanner"></div>
       <div class="err-banner" id="errBanner"></div>
 
       <form id="loginForm" onsubmit="handleLogin(event)" novalidate>
-
         <div class="field">
           <label for="email" data-i18n-kr="이메일" data-i18n-en="Email">이메일</label>
-          <input type="email" id="email" name="email" autocomplete="email"
+          <input type="email" id="email" autocomplete="email"
             data-i18n-placeholder-kr="이메일 주소 입력" data-i18n-placeholder-en="Enter your email"
             placeholder="이메일 주소 입력">
           <div class="field-err" id="emailErr"></div>
@@ -175,11 +112,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <div class="field">
           <label for="password" data-i18n-kr="비밀번호" data-i18n-en="Password">비밀번호</label>
           <div class="pw-wrap">
-            <input type="password" id="password" name="password" autocomplete="current-password"
+            <input type="password" id="password" autocomplete="current-password"
               data-i18n-placeholder-kr="비밀번호 입력" data-i18n-placeholder-en="Enter your password"
               placeholder="비밀번호 입력">
-            <button type="button" class="pw-toggle" onclick="togglePw('password')" aria-label="비밀번호 표시">
-              <svg id="eyeIcon" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            <button type="button" class="pw-toggle" onclick="togglePw('password','eye1')">
+              <svg id="eye1" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
           <div class="field-err" id="passwordErr"></div>
@@ -208,7 +145,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
       <div class="social-btns">
         <button class="btn-social" onclick="socialLogin('google')">
-          <!-- Google G icon -->
           <svg class="icon" viewBox="0 0 18 18" fill="none">
             <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
             <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
@@ -218,19 +154,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           <span data-i18n-kr="Google로 계속하기" data-i18n-en="Continue with Google">Google로 계속하기</span>
         </button>
         <button class="btn-social" onclick="socialLogin('kakao')">
-          <!-- Kakao icon -->
-          <svg class="icon" viewBox="0 0 18 18" fill="none">
-            <rect width="18" height="18" rx="4" fill="#FEE500"/>
-            <path d="M9 3.5C5.96 3.5 3.5 5.52 3.5 8c0 1.54.93 2.9 2.35 3.73l-.6 2.23c-.04.14.12.25.24.17L8.2 12.4c.26.03.53.05.8.05 3.04 0 5.5-2.02 5.5-4.5S12.04 3.5 9 3.5z" fill="#3C1E1E"/>
-          </svg>
+          <svg class="icon" viewBox="0 0 18 18" fill="none"><rect width="18" height="18" rx="4" fill="#FEE500"/><path d="M9 3.5C5.96 3.5 3.5 5.52 3.5 8c0 1.54.93 2.9 2.35 3.73l-.6 2.23c-.04.14.12.25.24.17L8.2 12.4c.26.03.53.05.8.05 3.04 0 5.5-2.02 5.5-4.5S12.04 3.5 9 3.5z" fill="#3C1E1E"/></svg>
           <span data-i18n-kr="카카오로 계속하기" data-i18n-en="Continue with Kakao">카카오로 계속하기</span>
         </button>
         <button class="btn-social" onclick="socialLogin('naver')">
-          <!-- Naver icon -->
-          <svg class="icon" viewBox="0 0 18 18" fill="none">
-            <rect width="18" height="18" rx="4" fill="#03C75A"/>
-            <path d="M10.25 9.28L7.6 4.5H5v9h2.75V8.72L10.4 13.5H13V4.5H10.25z" fill="white"/>
-          </svg>
+          <svg class="icon" viewBox="0 0 18 18" fill="none"><rect width="18" height="18" rx="4" fill="#03C75A"/><path d="M10.25 9.28L7.6 4.5H5v9h2.75V8.72L10.4 13.5H13V4.5H10.25z" fill="white"/></svg>
           <span data-i18n-kr="네이버로 계속하기" data-i18n-en="Continue with Naver">네이버로 계속하기</span>
         </button>
       </div>
@@ -240,23 +168,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <span data-i18n-kr="아직 계정이 없으신가요?" data-i18n-en="Don't have an account?">아직 계정이 없으신가요?</span>
       &nbsp;<a onclick="location.href='signup.html'" data-i18n-kr="회원가입" data-i18n-en="Sign up">회원가입</a>
     </div>
-
   </div>
 </div>
 
 <script>
+var API = 'https://my-lotto-lab-api.onrender.com';
 var LANG = localStorage.getItem('mll_lang') || 'kr';
 
-// i18n strings for error messages
 var I18N = {
-  emailRequired: {kr: '이메일을 입력해 주세요.', en: 'Please enter your email.'},
-  emailInvalid:  {kr: '올바른 이메일 형식이 아닙니다.', en: 'Please enter a valid email address.'},
-  pwRequired:    {kr: '비밀번호를 입력해 주세요.', en: 'Please enter your password.'},
-  loginFail:     {kr: '이메일 또는 비밀번호를 확인해 주세요.', en: 'Incorrect email or password. Please try again.'},
-  socialSoon:    {kr: '소셜 로그인은 서버 연동 후 이용 가능합니다.', en: 'Social login will be available after server integration.'}
+  emailRequired: {kr:'이메일을 입력해 주세요.', en:'Please enter your email.'},
+  emailInvalid:  {kr:'올바른 이메일 형식이 아닙니다.', en:'Please enter a valid email address.'},
+  pwRequired:    {kr:'비밀번호를 입력해 주세요.', en:'Please enter your password.'},
+  loginFail:     {kr:'이메일 또는 비밀번호를 확인해 주세요.', en:'Incorrect email or password.'},
+  loginOk:       {kr:'로그인 성공! 이동 중...', en:'Signed in! Redirecting...'},
+  socialSoon:    {kr:'소셜 로그인은 준비 중입니다.', en:'Social login is coming soon.'},
+  forgotSoon:    {kr:'비밀번호 찾기는 준비 중입니다.', en:'Password reset is coming soon.'},
+  networkErr:    {kr:'서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.', en:'Cannot connect to server. Please try again later.'}
 };
-
-function t(key){ return I18N[key][LANG]; }
+function t(k){ return I18N[k][LANG]; }
 
 function applyLang(){
   document.title = LANG==='en' ? 'My Lotto Lab - Sign In' : 'My Lotto Lab - 로그인';
@@ -267,78 +196,67 @@ function applyLang(){
   document.querySelectorAll('[data-i18n-placeholder-kr]').forEach(function(el){
     el.placeholder = LANG==='en' ? el.dataset.i18nPlaceholderEn : el.dataset.i18nPlaceholderKr;
   });
-  var kb = document.getElementById('langKrBtn'), eb = document.getElementById('langEnBtn');
-  kb.className = LANG==='kr' ? 'active' : '';
-  eb.className = LANG==='en' ? 'active' : '';
+  document.getElementById('langKrBtn').className = LANG==='kr' ? 'active' : '';
+  document.getElementById('langEnBtn').className = LANG==='en' ? 'active' : '';
 }
 function setLang(lang){ LANG=lang; localStorage.setItem('mll_lang',lang); applyLang(); }
 
-function togglePw(id){
-  var inp = document.getElementById(id);
-  var isText = inp.type==='text';
-  inp.type = isText ? 'password' : 'text';
-  document.getElementById('eyeIcon').innerHTML = isText
-    ? '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>'
-    : '<path d="M17.94 12c-.18.73-.46 1.43-.83 2.07M3 3l18 18M9.88 9.88A3 3 0 0014.12 14.12M10.73 5.08A10 10 0 0122 12a10 10 0 01-1.72 2.83M6.61 6.61A9.95 9.95 0 002 12a10 10 0 0010 7c2.38 0 4.58-.84 6.3-2.22" stroke-linecap="round"/>';
+function togglePw(id, iconId){
+  var inp=document.getElementById(id);
+  var isText=inp.type==='text';
+  inp.type=isText?'password':'text';
+  document.getElementById(iconId).innerHTML=isText
+    ?'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>'
+    :'<path d="M17.94 12c-.18.73-.46 1.43-.83 2.07M3 3l18 18M9.88 9.88A3 3 0 0014.12 14.12M10.73 5.08A10 10 0 0122 12a10 10 0 01-1.72 2.83M6.61 6.61A9.95 9.95 0 002 12a10 10 0 0010 7c2.38 0 4.58-.84 6.3-2.22" stroke-linecap="round"/>';
 }
 
-function showFieldErr(id, msg){
-  var inp = document.getElementById(id);
-  var err = document.getElementById(id+'Err');
-  if(inp) inp.classList.add('err');
-  if(err){ err.textContent=msg; err.classList.add('show'); }
-}
-function clearFieldErr(id){
-  var inp = document.getElementById(id);
-  var err = document.getElementById(id+'Err');
-  if(inp) inp.classList.remove('err');
-  if(err) err.classList.remove('show');
-}
-function showBanner(msg){
-  var b=document.getElementById('errBanner');
-  b.textContent=msg; b.classList.add('show');
-}
-function clearBanner(){
-  document.getElementById('errBanner').classList.remove('show');
-}
+function showFieldErr(id,msg){ var e=document.getElementById(id+'Err'); if(e){e.textContent=msg;e.classList.add('show');} document.getElementById(id).classList.add('err'); }
+function clearAll(){ document.querySelectorAll('.field-err').forEach(function(e){e.classList.remove('show');}); document.querySelectorAll('input').forEach(function(e){e.classList.remove('err');}); document.getElementById('errBanner').classList.remove('show'); document.getElementById('okBanner').classList.remove('show'); }
 
-function handleLogin(e){
+async function handleLogin(e){
   e.preventDefault();
-  clearBanner();
-  clearFieldErr('email'); clearFieldErr('password');
-
+  clearAll();
   var email = document.getElementById('email').value.trim();
   var pw    = document.getElementById('password').value;
+  var remember = document.getElementById('rememberMe').checked;
   var valid = true;
-
   if(!email){ showFieldErr('email', t('emailRequired')); valid=false; }
   else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showFieldErr('email', t('emailInvalid')); valid=false; }
   if(!pw){ showFieldErr('password', t('pwRequired')); valid=false; }
   if(!valid) return;
 
-  // Simulate loading state
   var btn = document.getElementById('submitBtn');
   btn.classList.add('loading'); btn.disabled=true;
 
-  setTimeout(function(){
+  try {
+    var res = await fetch(API + '/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email: email, password: pw})
+    });
+    var data = await res.json();
+    if(!res.ok){ throw new Error(data.error || t('loginFail')); }
+
+    // 토큰 저장
+    var storage = remember ? localStorage : sessionStorage;
+    storage.setItem('mll_token', data.accessToken);
+    storage.setItem('mll_user', JSON.stringify(data.user));
+
+    var ob = document.getElementById('okBanner');
+    ob.textContent = t('loginOk'); ob.classList.add('show');
+    setTimeout(function(){ location.href='main_page.html'; }, 800);
+  } catch(err) {
+    var msg = err.message === 'Failed to fetch' ? t('networkErr') : (err.message || t('loginFail'));
+    var b=document.getElementById('errBanner'); b.textContent=msg; b.classList.add('show');
+  } finally {
     btn.classList.remove('loading'); btn.disabled=false;
-    // Once real server is connected, replace this with actual API call
-    showBanner(t('loginFail'));
-  }, 1200);
+  }
 }
 
-function socialLogin(provider){
-  alert(t('socialSoon'));
-}
-
-function goForgot(){
-  // Will link to forgot_password.html once built
-  var msg = LANG==='en' ? 'Password reset will be available after server integration.' : '비밀번호 찾기는 서버 연동 후 이용 가능합니다.';
-  alert(msg);
-}
+function socialLogin(){ alert(t('socialSoon')); }
+function goForgot(){ alert(t('forgotSoon')); }
 
 document.addEventListener('DOMContentLoaded', applyLang);
 </script>
-
 </body>
 </html>
