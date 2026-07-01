@@ -40,7 +40,7 @@ router.post('/prepare', (req, res) => {
     signature,
     mkey,
     returnUrl: `${SERVER_URL}/api/payment/inicis/return`,
-    closeUrl: `${SERVER_URL}/api/payment/inicis/close`,
+    closeUrl: `https://mylottolab.github.io/my-lotto-lab/payment_close.html`,
   });
 });
 
