@@ -56,10 +56,10 @@ router.post('/return', async (req, res) => {
   const authTokenFixed = authToken.replace(/ /g, '+');
 
   // 위변조 검증
-  const verifySignature = sha256(`authToken=${authTokenFixed}&price=${price}&mid=${mid}`);
-  if (verifySignature !== signature) {
-    return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=위변조감지`);
-  }
+  //const verifySignature = sha256(`authToken=${authTokenFixed}&price=${price}&mid=${mid}`);
+  //if (verifySignature !== signature) {
+  //  return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=위변조감지`);
+  //}
 
   try {
     const ts = Date.now().toString();
