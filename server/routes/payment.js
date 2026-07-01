@@ -34,6 +34,12 @@ router.post('/prepare', (req, res) => {
 
 // ─── 결제 결과 수신 ───────────────────────────────────────────────────────────
 router.post('/return', async (req, res) => {
+  // 모든 필드명 확인용
+  const keys = Object.keys(req.body);
+  console.log('=== req.body 키 목록 ===', keys.join(', '));
+  console.log('=== price 관련 ===', req.body.price, req.body.Price, req.body.PRICE, req.body.amt, req.body.amount);
+  
+  const { resultCode, resultMsg, mid, orderNumber, authToken, authUrl, price, goodName, buyerName } = req.body;
   const { resultCode, resultMsg, mid, orderNumber, authToken, authUrl, price, goodName, buyerName } = req.body;
 
   console.log('=== 이니시스 returnUrl 수신 ===');
