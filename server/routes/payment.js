@@ -42,13 +42,21 @@ router.post('/prepare', (req, res) => {
 
 // ─── 결제 결과 수신 ───────────────────────────────────────────────────────────
 router.post('/return', async (req, res) => {
-  const { resultCode, resultMsg, mid, orderNumber, authToken, authUrl, price, goodName, buyerName, signature } = req.body;
+  const {
+    resultCode, resultMsg,
+    mid, orderNumber, authToken, authUrl,
+    price, goodName, buyerName, signature
+  } = req.body;
 
   if (resultCode !== '0000') {
     return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent(resultMsg)}`);
   }
 
-  const verifySignature = sha256(`authToken=${authToken}&price=${price}&mid=${mid}`);
+  // authToken의 + 기호가 공백으로 변환되는 문제 수정
+  const authTokenFixed = authToken.replace(/ /g, '+');
+
+  // 위변조 검증
+  const verifySignature = sha256(`authToken=${authTokenFixed}&price=${price}&mid=${mid}`);
   if (verifySignature !== signature) {
     return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=위변조감지`);
   }
@@ -57,9 +65,9 @@ router.post('/return', async (req, res) => {
     const ts = Date.now().toString();
     const approvalData = querystring.stringify({
       mid,
-      authToken,
+      authToken: authTokenFixed,
       timestamp: ts,
-      signature: sha256(`${mid}${authToken}${ts}${SIGN_KEY}`),
+      signature: sha256(`authToken=${authTokenFixed}&price=${price}&mid=${mid}`),
       charset: 'UTF-8',
       format: 'JSON'
     });
