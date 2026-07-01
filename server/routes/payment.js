@@ -21,7 +21,7 @@ router.post('/prepare', (req, res) => {
   }
   const timestamp = Date.now().toString();
   const oid = orderno || `${MID}_${timestamp}`;
-  const signature = sha256(`${MID}${price}${timestamp}${SIGN_KEY}`);
+  const signature = sha256(`oid=${oid}&price=${price}&timestamp=${timestamp}`);
   const mkey = sha256(SIGN_KEY);
 
   return res.json({
