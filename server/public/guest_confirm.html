@@ -53,7 +53,7 @@ function render(ok, title, desc){
     '</div>' +
     '<h1>' + title + '</h1>' +
     '<p class="desc">' + desc + '</p>' +
-    '<a class="btn" href="/pay/guest_test.html">' + (ok ? '포인트 조회하러 가기' : '다시 시도하기') + '</a>';
+    '<a class="btn" href="' + (ok ? '/pay/category_select.html' : '/pay/guest_test.html') + '">' + (ok ? '카테고리 선택하러 가기' : '다시 시도하기') + '</a>';
 }
 
 (async function(){
