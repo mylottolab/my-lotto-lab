@@ -80,6 +80,9 @@ router.post('/prepare', async (req, res) => {
   if (!price || !goodname || !buyername) {
     return res.status(400).json({ error: '필수 결제 정보가 없습니다.' });
   }
+  if (Number(price) < 1000) {
+    return res.status(400).json({ error: '충전금액은 1,000원 이상이어야 합니다.' });
+  }
 
   const payerId = await resolvePayerId(req);
   if (!payerId) {
