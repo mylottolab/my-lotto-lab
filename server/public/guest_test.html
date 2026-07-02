@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 비회원 테스트</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--accent:#5b6ee8;--green:#3fb37f;--red:#e05c5c;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;min-height:100vh;padding:24px;display:flex;justify-content:center;}
+.wrap{max-width:440px;width:100%;}
+.tabs{display:flex;gap:8px;margin-bottom:20px;}
+.tab{flex:1;padding:10px;text-align:center;border-radius:9px;border:1px solid var(--border-soft);cursor:pointer;font-size:12.5px;font-weight:600;color:var(--text-dim);background:var(--surface);}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:32px 28px;display:none;}
+.card.active{display:block;}
+h1{font-size:18px;font-weight:700;margin-bottom:6px;}
+.desc{font-size:12px;color:var(--text-dim);margin-bottom:22px;line-height:1.6;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11.5px;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+.field input{width:100%;background:var(--bg);border:1px solid var(--border-soft);border-radius:9px;padding:10px 13px;font-size:13.5px;color:var(--text);outline:none;font-family:inherit;}
+.field input:focus{border-color:var(--accent);}
+.btn{width:100%;padding:11px;border-radius:9px;border:none;background:var(--gold);color:#1a1305;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:6px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.msg{border-radius:9px;padding:10px 13px;font-size:12.5px;margin-bottom:14px;display:none;line-height:1.5;}
+.msg.show{display:block;}
+.msg.ok{background:rgba(63,179,127,.10);border:1px solid rgba(63,179,127,.25);color:var(--green);}
+.msg.err{background:rgba(224,92,92,.10);border:1px solid rgba(224,92,92,.25);color:var(--red);}
+.result{background:var(--bg);border:1px solid var(--border-soft);border-radius:10px;padding:14px 16px;margin-top:16px;display:none;}
+.result.show{display:block;}
+.result-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px;border-bottom:1px solid var(--border-soft);}
+.result-row:last-child{border-bottom:none;}
+.result-row .label{color:var(--text-dim);}
+.result-row .value{font-weight:600;}
+.lot{font-size:11.5px;color:var(--text-dim);padding:4px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-tab="register">1. 비회원 등록</div>
+    <div class="tab" data-tab="balance">2. 포인트 조회</div>
+  </div>
+
+  <!-- ─── 등록 탭 ─── -->
+  <div class="card active" id="tab-register">
+    <h1>🧪 비회원 등록</h1>
+    <p class="desc">닉네임 + 이메일로 등록하고, 이메일로 받은 인증코드를 입력하면 완료됩니다.</p>
+
+    <div class="msg" id="regMsg"></div>
+
+    <div class="field"><label>닉네임 (2~20자)</label><input type="text" id="reg_nickname" placeholder="예: 로또사냥꾼"></div>
+    <div class="field"><label>이메일</label><input type="email" id="reg_email" placeholder="test@example.com"></div>
+    <button class="btn" id="btnRequestOtp" onclick="requestOtp()">인증코드 받기</button>
+
+    <div class="field" style="margin-top:16px;">
+      <label>인증코드 (이메일로 받은 6자리)</label>
+      <input type="text" id="reg_code" placeholder="123456">
+    </div>
+    <button class="btn" id="btnVerify" onclick="verifyOtp()" disabled>등록 완료</button>
+  </div>
+
+  <!-- ─── 조회 탭 ─── -->
+  <div class="card" id="tab-balance">
+    <h1>🔍 포인트 잔액 조회</h1>
+    <p class="desc">등록하신 닉네임 + 이메일을 입력하면 바로 조회됩니다 (인증코드 불필요).</p>
+
+    <div class="msg" id="balMsg"></div>
+
+    <div class="field"><label>닉네임</label><input type="text" id="bal_nickname" placeholder="예: 로또사냥꾼"></div>
+    <div class="field"><label>이메일</label><input type="email" id="bal_email" placeholder="test@example.com"></div>
+    <button class="btn" onclick="checkBalance()">조회하기</button>
+
+    <div class="result" id="balResult"></div>
+  </div>
+</div>
+
+<script>
+var API = 'https://my-lotto-lab-api.onrender.com';
+
+document.querySelectorAll('.tab').forEach(function(tab){
+  tab.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    document.querySelectorAll('.card').forEach(function(c){ c.classList.remove('active'); });
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+function showMsg(id, text, isError){
+  var el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg show ' + (isError ? 'err' : 'ok');
+}
+
+async function requestOtp(){
+  var nickname = document.getElementById('reg_nickname').value.trim();
+  var email = document.getElementById('reg_email').value.trim();
+  if(!nickname || !email){ showMsg('regMsg', '닉네임과 이메일을 입력해 주세요.', true); return; }
+
+  try {
+    var res = await fetch(API + '/api/guest/register-request', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ nickname: nickname, email: email })
+    });
+    var data = await res.json();
+    if(!res.ok){ showMsg('regMsg', data.error || '요청 실패', true); return; }
+    showMsg('regMsg', data.message + ' 메일함(스팸함도 확인)을 확인해 주세요.', false);
+    document.getElementById('btnVerify').disabled = false;
+  } catch(e){
+    showMsg('regMsg', '오류가 발생했습니다.', true);
+  }
+}
+
+async function verifyOtp(){
+  var nickname = document.getElementById('reg_nickname').value.trim();
+  var email = document.getElementById('reg_email').value.trim();
+  var code = document.getElementById('reg_code').value.trim();
+  if(!code){ showMsg('regMsg', '인증코드를 입력해 주세요.', true); return; }
+
+  try {
+    var res = await fetch(API + '/api/guest/verify', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ nickname: nickname, email: email, code: code })
+    });
+    var data = await res.json();
+    if(!res.ok){ showMsg('regMsg', data.error || '인증 실패', true); return; }
+    showMsg('regMsg', '✅ 등록이 완료되었습니다! 이제 포인트 조회 탭에서 확인해보세요.', false);
+  } catch(e){
+    showMsg('regMsg', '오류가 발생했습니다.', true);
+  }
+}
+
+async function checkBalance(){
+  var nickname = document.getElementById('bal_nickname').value.trim();
+  var email = document.getElementById('bal_email').value.trim();
+  var resultBox = document.getElementById('balResult');
+  resultBox.classList.remove('show');
+
+  if(!nickname || !email){ showMsg('balMsg', '닉네임과 이메일을 입력해 주세요.', true); return; }
+
+  try {
+    var url = API + '/api/guest/balance?nickname=' + encodeURIComponent(nickname) + '&email=' + encodeURIComponent(email);
+    var res = await fetch(url);
+    var data = await res.json();
+    if(!res.ok){ showMsg('balMsg', data.error || '조회 실패', true); return; }
+
+    document.getElementById('balMsg').classList.remove('show');
+
+    var lotsHtml = (data.lots || []).map(function(l){
+      var typeLabel = l.type === 'deposit' ? '입금포인트' : '활동포인트';
+      var d = new Date(l.expiresAt);
+      return '<div class="lot">· ' + l.points + 'P (' + typeLabel + ') — ' + d.toLocaleDateString('ko-KR') + ' 소멸</div>';
+    }).join('');
+
+    resultBox.innerHTML =
+      '<div class="result-row"><span class="label">닉네임</span><span class="value">' + data.nickname + '</span></div>' +
+      '<div class="result-row"><span class="label">총 잔여 포인트</span><span class="value">' + data.totalPoints.toLocaleString() + 'P</span></div>' +
+      '<div class="result-row"><span class="label">가장 빠른 소멸일</span><span class="value">' + (data.nearestExpiry ? new Date(data.nearestExpiry).toLocaleDateString('ko-KR') : '-') + '</span></div>' +
+      (lotsHtml ? '<div style="margin-top:10px;">' + lotsHtml + '</div>' : '');
+    resultBox.classList.add('show');
+  } catch(e){
+    showMsg('balMsg', '오류가 발생했습니다.', true);
+  }
+}
+</script>
+</body>
+</html>
