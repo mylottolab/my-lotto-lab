@@ -70,16 +70,32 @@ async function startPayment(){
   btn.classList.add('loading'); btn.disabled=true;
 
   try {
+    if (typeof MLL === 'undefined') throw new Error('인증 모듈 로딩 실패. 새로고침 후 다시 시도해 주세요.');
+    var authState = MLL.getAuthState();
+    if (!authState.type) {
+      MLL.requireAuth(function(){});
+      throw new Error('결제 전 로그인 또는 비회원 등록이 필요합니다.');
+    }
+
+    var headers = {'Content-Type':'application/json'};
+    var payload = {
+      price: document.getElementById('price').value,
+      goodname: document.getElementById('goodname').value,
+      buyername: document.getElementById('buyername').value,
+      buyertel: document.getElementById('buyertel').value,
+      buyeremail: document.getElementById('buyeremail').value
+    };
+    if (authState.type === 'member') {
+      headers['Authorization'] = 'Bearer ' + authState.token;
+    } else {
+      payload.nickname = authState.nickname;
+      payload.email = authState.email;
+    }
+
     var res = await fetch(API+'/api/payment/inicis/prepare', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        price: document.getElementById('price').value,
-        goodname: document.getElementById('goodname').value,
-        buyername: document.getElementById('buyername').value,
-        buyertel: document.getElementById('buyertel').value,
-        buyeremail: document.getElementById('buyeremail').value
-      })
+      headers: headers,
+      body: JSON.stringify(payload)
     });
     var data = await res.json();
     if(!res.ok) throw new Error(data.error||'결제 준비 실패');
@@ -107,5 +123,6 @@ async function startPayment(){
   }
 }
 </script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 </body>
 </html>
