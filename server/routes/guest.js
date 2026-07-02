@@ -36,47 +36,50 @@ router.post('/register-request', async (req, res) => {
       return res.status(409).json({ error: '이미 사용 중인 닉네임입니다.' });
     }
 
-    // 이메일 OTP 발송 (계정이 없으면 자동 생성, 닉네임은 metadata에 임시 보관)
+    // 이메일 인증 링크 발송 (클릭 시 guest_confirm.html로 이동, 거기서 등록 확정)
+    // 계정이 없으면 자동 생성, 닉네임은 metadata에 임시 보관
+    const redirectTo = `${process.env.SERVER_URL || 'https://my-lotto-lab-api.onrender.com'}/pay/guest_confirm.html?nickname=${encodeURIComponent(nickname)}`;
+
     const { error: otpErr } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: true,
-        data: { nickname, is_guest: true }
+        data: { nickname, is_guest: true },
+        emailRedirectTo: redirectTo
       }
     });
 
     if (otpErr) {
-      console.error('[guest] OTP 발송 오류:', otpErr);
+      console.error('[guest] 인증메일 발송 오류:', otpErr);
       return res.status(500).json({ error: '인증 메일 발송에 실패했습니다.' });
     }
 
-    return res.json({ message: '인증 코드를 이메일로 발송했습니다.' });
+    return res.json({ message: '인증 메일을 발송했습니다. 메일함에서 링크를 클릭해 주세요.' });
   } catch (err) {
     console.error('[guest] register-request 오류:', err);
     return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
   }
 });
 
-// ─── 2) 이메일 OTP 인증 완료 → profiles에 등록 확정 ─────────────────────────
-router.post('/verify', async (req, res) => {
+// ─── 2) 이메일 링크 클릭 후 확정: access_token으로 사용자 확인 → profiles 등록 ────
+// guest_confirm.html에서 호출. 링크 클릭 자체가 이메일 소유 인증이므로
+// 별도 코드 입력 없이, Supabase가 발급한 access_token만 검증하면 됩니다.
+router.post('/finalize-link', async (req, res) => {
   try {
-    const { email, code, nickname } = req.body;
-    if (!email || !code || !nickname) {
-      return res.status(400).json({ error: '이메일, 인증코드, 닉네임을 모두 입력해 주세요.' });
+    const { accessToken, nickname } = req.body;
+    if (!accessToken || !nickname) {
+      return res.status(400).json({ error: 'accessToken과 닉네임이 필요합니다.' });
     }
 
-    const { data, error } = await supabase.auth.verifyOtp({
-      email,
-      token: code,
-      type: 'email'
-    });
-
+    const { data, error } = await supabase.auth.getUser(accessToken);
     if (error || !data.user) {
-      console.error('[guest] OTP 인증 실패:', error);
-      return res.status(400).json({ error: '인증코드가 올바르지 않거나 만료되었습니다.' });
+      console.error('[guest] access_token 검증 실패:', error);
+      return res.status(400).json({ error: '인증 링크가 유효하지 않거나 만료되었습니다.' });
     }
 
-    // 등록 확정 시점에 다시 한 번 닉네임 중복 확인 (동시 가입 경합 방지)
+    const email = data.user.email;
+
+    // 등록 확정 시점에 닉네임 중복 재확인 (동시 가입 경합 방지)
     const { data: existing } = await supabase
       .from('profiles')
       .select('id')
@@ -85,7 +88,7 @@ router.post('/verify', async (req, res) => {
       .maybeSingle();
 
     if (existing) {
-      return res.status(409).json({ error: '이미 사용 중인 닉네임입니다. 다른 닉네임으로 다시 시도해 주세요.' });
+      return res.status(409).json({ error: '이미 사용 중인 닉네임입니다. 다시 등록을 시도해 주세요.' });
     }
 
     const { error: upsertErr } = await supabase
@@ -104,7 +107,7 @@ router.post('/verify', async (req, res) => {
 
     return res.json({ message: '등록이 완료되었습니다.', nickname, email });
   } catch (err) {
-    console.error('[guest] verify 오류:', err);
+    console.error('[guest] finalize-link 오류:', err);
     return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
   }
 });
