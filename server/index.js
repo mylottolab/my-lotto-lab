@@ -96,6 +96,10 @@ app.get('/api/auth/me', async (req, res) => {
 const paymentRouter = require('./routes/payment');
 app.use('/api/payment/inicis', paymentRouter);
 
+// ─── 페이팔 결제 ──────────────────────────────────────────────────────────────
+const paypalRouter = require('./routes/payment_paypal');
+app.use('/api/payment/paypal', paypalRouter);
+
 // ─── 서버 시작 ────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`My Lotto Lab API running on port ${PORT}`);
