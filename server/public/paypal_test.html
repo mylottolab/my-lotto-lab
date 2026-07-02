@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - PayPal 결제 테스트</title>
+<!--
+  ⚠ 아래 client-id는 배포 전 반드시 실제 PAYPAL_CLIENT_ID로 교체하세요.
+  (PayPal JS SDK의 client-id는 브라우저에 노출되는 값이라 Secret과 달리
+   공개되어도 안전합니다 — 결제 승인은 항상 서버가 Secret으로 처리합니다.)
+-->
+<script src="https://www.paypal.com/sdk/js?client-id=AYsmVIjVL_ZL4u-zpfzQ2WVnqSG-0-C3RaqQcZXLDfdsJgvuVlaENpG3fzG3Jgoo0P3YwSdOhosQGT-K&currency=USD"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--accent:#5b6ee8;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:36px 32px;max-width:440px;width:100%;}
+h1{font-size:20px;font-weight:700;margin-bottom:6px;}
+.desc{font-size:12.5px;color:var(--text-dim);margin-bottom:28px;line-height:1.6;}
+.field{margin-bottom:20px;}
+.field label{display:block;font-size:11.5px;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+.field input{width:100%;background:var(--bg);border:1px solid var(--border-soft);border-radius:9px;padding:10px 13px;font-size:13.5px;color:var(--text);outline:none;font-family:inherit;}
+.field input:focus{border-color:var(--accent);}
+.field .hint{font-size:11px;color:var(--text-dim);margin-top:6px;}
+.err{background:rgba(224,92,92,.10);border:1px solid rgba(224,92,92,.25);border-radius:9px;padding:10px 13px;font-size:12.5px;color:#f08080;margin-bottom:16px;display:none;}
+.err.show{display:block;}
+.ok{background:rgba(63,179,127,.10);border:1px solid rgba(63,179,127,.25);border-radius:9px;padding:10px 13px;font-size:12.5px;color:#3fb37f;margin-bottom:16px;display:none;}
+.ok.show{display:block;}
+#paypal-button-container{margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🧪 PayPal 결제 테스트</h1>
+  <p class="desc">Sandbox 환경입니다. 실제 카드가 청구되지 않습니다.</p>
+
+  <div class="err" id="errMsg"></div>
+  <div class="ok" id="okMsg"></div>
+
+  <div class="field">
+    <label>충전 금액 (USD)</label>
+    <input type="number" id="usdAmount" value="10" min="1" step="0.01">
+    <div class="hint">$1 ~ $700 사이로 입력하세요.</div>
+  </div>
+
+  <div id="paypal-button-container"></div>
+</div>
+
+<script>
+var API = 'https://my-lotto-lab-api.onrender.com';
+
+function showError(msg){
+  var err = document.getElementById('errMsg');
+  err.textContent = msg;
+  err.classList.add('show');
+  document.getElementById('okMsg').classList.remove('show');
+}
+function showSuccess(msg){
+  var ok = document.getElementById('okMsg');
+  ok.textContent = msg;
+  ok.classList.add('show');
+  document.getElementById('errMsg').classList.remove('show');
+}
+
+if (typeof paypal === 'undefined') {
+  showError('PayPal SDK 로딩에 실패했습니다. client-id 설정을 확인하세요.');
+} else {
+  paypal.Buttons({
+    // 1) 주문 생성: 서버에 현재 입력된 금액으로 주문 생성 요청
+    createOrder: function(data, actions) {
+      document.getElementById('errMsg').classList.remove('show');
+      document.getElementById('okMsg').classList.remove('show');
+
+      var usdAmount = document.getElementById('usdAmount').value;
+
+      return fetch(API + '/api/payment/paypal/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usdAmount: usdAmount })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(order) {
+        if (order.error) {
+          showError(order.error);
+          throw new Error(order.error);
+        }
+        return order.id;
+      });
+    },
+
+    // 2) 사용자가 PayPal 결제창에서 승인 완료 시: 서버에 캡처(최종 승인) 요청
+    onApprove: function(data, actions) {
+      return fetch(API + '/api/payment/paypal/capture-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderID: data.orderID })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(result) {
+        if (result.error) {
+          showError(result.error);
+          return;
+        }
+        showSuccess('결제가 완료되었습니다! ' + result.points + 'P 적립 (주문번호: ' + data.orderID + ')');
+      })
+      .catch(function(err) {
+        console.error(err);
+        showError('결제 승인 처리 중 오류가 발생했습니다.');
+      });
+    },
+
+    onError: function(err) {
+      console.error('PayPal 오류:', err);
+      showError('결제 중 오류가 발생했습니다.');
+    },
+
+    onCancel: function(data) {
+      showError('결제가 취소되었습니다.');
+    }
+  }).render('#paypal-button-container');
+}
+</script>
+</body>
+</html>
