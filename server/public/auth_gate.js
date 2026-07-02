@@ -24,6 +24,7 @@
   var LOGIN_URL = 'https://mylottolab.github.io/my-lotto-lab/login.html';
   var SIGNUP_URL = 'https://mylottolab.github.io/my-lotto-lab/signup.html';
   var GUEST_URL = API + '/pay/guest_test.html';
+  var LOUNGE_URL = 'https://mylottolab.github.io/my-lotto-lab/hub_lounge.html';
 
   // ── 인증 상태 확인 ──────────────────────────────────────────
   function getAuthState() {
@@ -57,36 +58,53 @@
     '.mll-modal .mll-primary{background:#e0b341;color:#1a1305;}',
     '.mll-modal .mll-secondary{background:transparent;border:1px solid #1b2038;color:#eef0f6;}',
     '.mll-modal .mll-close{background:none;border:none;color:#8b91ab;font-size:12px;cursor:pointer;margin-top:4px;font-family:inherit;}',
-    '.mll-ticker{position:fixed;left:0;right:0;bottom:0;z-index:9997;background:#0a0d18;',
-    'border-top:1px solid #1b2038;padding:7px 0;overflow:hidden;white-space:nowrap;}',
-    '.mll-ticker-inner{display:inline-block;padding-left:100%;font-size:12px;font-weight:600;',
-    'color:#e0b341;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;',
-    'animation-name:mllTickerScroll;animation-timing-function:linear;animation-iteration-count:infinite;}',
-    '@keyframes mllTickerScroll{0%{transform:translateX(0);}100%{transform:translateX(-100%);}}'
+    '.mll-topbanner{position:fixed;left:50%;top:14px;z-index:9997;background:#11152a;',
+    'border:1px solid #e0b341;border-radius:12px;padding:10px 20px;',
+    'box-shadow:0 8px 24px rgba(0,0,0,.4);white-space:nowrap;',
+    'transform:translate(-50%,-140%);opacity:0;transition:transform .5s ease,opacity .5s ease;pointer-events:none;}',
+    '.mll-topbanner.show{transform:translate(-50%,0);opacity:1;}',
+    '.mll-topbanner-text{font-size:12.5px;font-weight:600;color:#e0b341;',
+    'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}',
+    '.mll-topbanner-text b{color:#eef0f6;}'
   ].join('');
   document.head.appendChild(style);
 
-  // ── 하단 롤링 전광판: 로그인 중 닉네임 + 포인트 상세 ──────────────────────────
-  function renderStatusTicker(nickname, balance) {
-    var existing = document.querySelector('.mll-ticker');
+  // ── 상단에 주기적으로 나타났다 사라지는 배너: 로그인 중 닉네임 + 포인트 요약 ──────
+  var bannerIntervalId = null;
+
+  function buildBannerText(nickname, balance) {
+    return '🔑 <b>' + nickname + '</b>님 로그인 중  ·  포인트 총 <b>' +
+      balance.total.toLocaleString() + 'P</b> (입금 ' + balance.deposit.toLocaleString() +
+      ' · 활동 ' + balance.activity.toLocaleString() + ')  ' +
+      '<a href="' + LOUNGE_URL + '" style="color:#5b6ee8;text-decoration:underline;">라운지 보기 →</a>';
+  }
+
+  function showTopBanner(nickname, balance) {
+    var existing = document.querySelector('.mll-topbanner');
     if (existing) existing.remove();
 
-    var text = '🔑 ' + nickname + '님 로그인 중   ·   포인트 잔액 총 ' +
-      balance.total.toLocaleString() + 'P (입금 ' + balance.deposit.toLocaleString() +
-      ' · 활동 ' + balance.activity.toLocaleString() + ')' +
-      '      🔑 ' + nickname + '님 로그인 중   ·   포인트 잔액 총 ' +
-      balance.total.toLocaleString() + 'P (입금 ' + balance.deposit.toLocaleString() +
-      ' · 활동 ' + balance.activity.toLocaleString() + ')';
-
-    var bar = document.createElement('div');
-    bar.className = 'mll-ticker';
+    var banner = document.createElement('div');
+    banner.className = 'mll-topbanner';
     var inner = document.createElement('div');
-    inner.className = 'mll-ticker-inner';
-    inner.textContent = text;
-    var duration = Math.max(14, text.length * 0.16);
-    inner.style.animationDuration = duration + 's';
-    bar.appendChild(inner);
-    document.body.appendChild(bar);
+    inner.className = 'mll-topbanner-text';
+    inner.innerHTML = buildBannerText(nickname, balance);
+    banner.appendChild(inner);
+    banner.style.pointerEvents = 'auto';
+    document.body.appendChild(banner);
+
+    // 살짝 뒤에 슬라이드인 → 몇 초 후 슬라이드아웃
+    requestAnimationFrame(function(){
+      setTimeout(function(){ banner.classList.add('show'); }, 50);
+    });
+    setTimeout(function(){ banner.classList.remove('show'); }, 5500);
+  }
+
+  function startBannerLoop(nickname, balance) {
+    if (bannerIntervalId) clearInterval(bannerIntervalId);
+    showTopBanner(nickname, balance); // 페이지 진입 시 한 번 바로 표시
+    bannerIntervalId = setInterval(function(){
+      showTopBanner(nickname, balance);
+    }, 25000); // 25초마다 반복
   }
 
   async function fetchNickname(state) {
@@ -117,11 +135,13 @@
   async function renderAuthUI() {
     var existingFab = document.querySelector('.mll-fab');
     if (existingFab) existingFab.remove();
-    var existingTicker = document.querySelector('.mll-ticker');
-    if (existingTicker) existingTicker.remove();
 
     var state = getAuthState();
     if (!state.type) {
+      if (bannerIntervalId) { clearInterval(bannerIntervalId); bannerIntervalId = null; }
+      var existingBanner = document.querySelector('.mll-topbanner');
+      if (existingBanner) existingBanner.remove();
+
       var fab = document.createElement('button');
       fab.className = 'mll-fab';
       fab.type = 'button';
@@ -133,7 +153,7 @@
 
     var nickname = await fetchNickname(state);
     var balance = await fetchBalance(state);
-    renderStatusTicker(nickname, balance);
+    startBannerLoop(nickname, balance);
   }
 
   window.MLL = window.MLL || {};
