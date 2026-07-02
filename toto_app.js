@@ -194,6 +194,27 @@ APP.loadRankRounds = function(){
 APP.saveRankRounds = function(obj){ localStorage.setItem(APP.STORAGE.RANK_ROUNDS, JSON.stringify(obj)); };
 APP.rankRoundKey = function(sport, round){ return sport + '_' + round; };
 
+// ── 실제 서버 포인트 잔액 조회 (해외복권 app.js와 동일 로직) ──
+APP.refreshPointsBalance = async function(){
+  var el = document.getElementById('pointsBalance');
+  if (!el || typeof MLL === 'undefined') return;
+  var state = MLL.getAuthState();
+  if (!state.type) { el.textContent = '0'; return; }
+
+  var headers = {};
+  var qs = '';
+  if (state.type === 'member') {
+    headers['Authorization'] = 'Bearer ' + state.token;
+  } else {
+    qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  }
+  try {
+    var res = await fetch('https://my-lotto-lab-api.onrender.com/api/points/balance' + qs, { headers: headers });
+    var data = await res.json();
+    if (res.ok) el.textContent = data.total.toLocaleString();
+  } catch(e){ console.error('[APP] 포인트 잔액 조회 오류:', e); }
+};
+
 document.addEventListener('DOMContentLoaded', function(){ APP.init(); });
 
 function toggleLottoMenu(){
@@ -362,6 +383,7 @@ APP.init = function(){
   if (TOTO.RANK_GAMES[game]) APP.state.sport = game;
 
   APP.renderAll();
+  APP.refreshPointsBalance();
 };
 
 APP.renderAll = function(){
@@ -555,9 +577,6 @@ APP.openRankConfirm = function(){
   var betAmount = Math.max(1000, parseInt(document.getElementById('rankBetAmount').value) || s.betAmount);
   APP.state.betAmount = betAmount;
 
-  var pt = APP.getPoints();
-  if (pt.balance < betAmount) { alert(APP.t('insufficient_points')); return; }
-
   var matches = APP.loadMatches(s.sport, round);
   var outcomesDisplay = lang === 'en' ? game.outcomesEn : game.outcomes;
   var summary = matches.map(function(m){
@@ -574,10 +593,10 @@ APP.openRankConfirm = function(){
   document.getElementById('confirmBody').textContent =
     sportName + ' ' + gameName + ' — ' + roundLabel + '\n' +
     summary + '\n\n' +
-    APP.t('bet_amount') + ': ' + betAmount.toLocaleString() + APP.t('won_suffix') + '\n' +
+    APP.t('bet_amount') + ' (시뮬레이션용): ' + betAmount.toLocaleString() + APP.t('won_suffix') + '\n' +
     (lang === 'en'
-      ? 'This entry will deduct ' + betAmount.toLocaleString() + ' points.'
-      : '이 등록으로 ' + betAmount.toLocaleString() + 'P가 차감됩니다.');
+      ? 'This entry will deduct a fixed 10 points (registration fee).'
+      : '이 등록으로 고정 10P(등록료)가 차감됩니다.');
   document.getElementById('confirmCancelBtn').textContent = APP.t('btn_cancel');
   document.getElementById('confirmOkBtn').textContent = APP.t('btn_confirm_register');
   document.getElementById('confirmModal').classList.add('show');
@@ -590,15 +609,22 @@ APP.confirmRegister = function(){
   return APP.confirmRankRegister();
 };
 
-APP.confirmRankRegister = function(){
+APP.confirmRankRegister = async function(){
   var s = APP.state;
   var game = TOTO.RANK_GAMES[s.sport];
   var round = APP.CURRENT_ROUND[s.sport];
   var picksArr = [];
   for (var i = 1; i <= game.matchCount; i++) picksArr.push(s.picks[i]);
 
-  var ok = APP.deductPoints(s.betAmount, game.nameKr + ' ' + round + '회 등록');
-  if (!ok) { alert(APP.t('insufficient_points')); APP.closeConfirm(); return; }
+  // 실제 서버 포인트 차감 (건당 고정단가 - 관리자 화면에서 조정 가능)
+  var spendResult = await MLL.spendPoints('toto_deungsu', 1);
+  if (!spendResult.success) {
+    APP.closeConfirm();
+    if (!spendResult.needAuth && !spendResult.insufficientPoints) {
+      alert(spendResult.message || APP.t('insufficient_points'));
+    }
+    return;
+  }
 
   APP.addRankEntry({
     gameCode: s.sport,
@@ -612,6 +638,7 @@ APP.confirmRankRegister = function(){
   APP.state.picks = {};
   alert(APP.t('register_success'));
   APP.renderAll();
+  APP.refreshPointsBalance();
 };
 
 // ── 내 등록현황 ──
@@ -1018,9 +1045,6 @@ APP.openProtoConfirm = function(){
   var stake = Math.max(TOTO.PROTO_MIN_BET, Math.min(TOTO.PROTO_MAX_BET, parseInt(document.getElementById('protoStake').value) || APP.proto.stake));
   APP.proto.stake = stake;
 
-  var pt = APP.getPoints();
-  if (pt.balance < stake) { alert(APP.t('insufficient_points')); return; }
-
   var matches = APP.loadProtoMatches(APP.PROTO_CURRENT_ROUND);
   var combinedOdds = TOTO.calcProtoCombinedOdds(sel);
   var summary = sel.map(function(s){
@@ -1036,24 +1060,31 @@ APP.openProtoConfirm = function(){
   document.getElementById('confirmBody').textContent =
     summary + '\n\n' +
     APP.t('proto_combined_odds') + ': ' + combinedOdds.toFixed(2) + '\n' +
-    APP.t('bet_amount') + ': ' + stake.toLocaleString() + APP.t('won_suffix') + '\n' +
+    APP.t('bet_amount') + ' (시뮬레이션용): ' + stake.toLocaleString() + APP.t('won_suffix') + '\n' +
     APP.t('proto_est_win') + ' ' + Math.floor(stake*combinedOdds).toLocaleString() + APP.t('won_suffix') + '\n\n' +
     (lang === 'en'
-      ? 'This entry will deduct ' + stake.toLocaleString() + ' points.'
-      : '이 등록으로 ' + stake.toLocaleString() + 'P가 차감됩니다.');
+      ? 'This entry will deduct a fixed 10 points (registration fee).'
+      : '이 등록으로 고정 10P(등록료)가 차감됩니다.');
   document.getElementById('confirmCancelBtn').textContent = APP.t('btn_cancel');
   document.getElementById('confirmOkBtn').textContent = APP.t('btn_confirm_register');
   document.getElementById('confirmModal').classList.add('show');
   APP.confirmMode = 'proto';
 };
 
-APP.confirmProtoRegister = function(){
+APP.confirmProtoRegister = async function(){
   var sel = APP.proto.selections;
   var stake = APP.proto.stake;
   var combinedOdds = TOTO.calcProtoCombinedOdds(sel);
 
-  var ok = APP.deductPoints(stake, '프로토 제' + APP.PROTO_CURRENT_ROUND + '회 조합 등록');
-  if (!ok) { alert(APP.t('insufficient_points')); APP.closeConfirm(); return; }
+  // 실제 서버 포인트 차감 (조합당 고정단가 - 관리자 화면에서 조정 가능)
+  var spendResult = await MLL.spendPoints('toto_proto_fixed', 1);
+  if (!spendResult.success) {
+    APP.closeConfirm();
+    if (!spendResult.needAuth && !spendResult.insufficientPoints) {
+      alert(spendResult.message || APP.t('insufficient_points'));
+    }
+    return;
+  }
 
   APP.addProtoEntry({
     round: APP.PROTO_CURRENT_ROUND,
@@ -1067,6 +1098,7 @@ APP.confirmProtoRegister = function(){
   APP.proto.selections = [];
   alert(APP.t('register_success'));
   APP.renderAll();
+  APP.refreshPointsBalance();
 };
 // ── 종목별 간단 설명 팝업 ──
 APP.openHelp = function(sportCode){
