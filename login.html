@@ -244,7 +244,7 @@ async function handleLogin(e){
 
     var ob = document.getElementById('okBanner');
     ob.textContent = t('loginOk'); ob.classList.add('show');
-    setTimeout(function(){ location.href='main_page.html'; }, 800);
+    setTimeout(function(){ location.href='https://my-lotto-lab-api.onrender.com/pay/category_select.html'; }, 800);
   } catch(err) {
     var msg = err.message === 'Failed to fetch' ? t('networkErr') : (err.message || t('loginFail'));
     var b=document.getElementById('errBanner'); b.textContent=msg; b.classList.add('show');
