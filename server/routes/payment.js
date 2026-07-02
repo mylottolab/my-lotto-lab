@@ -19,14 +19,19 @@ router.post('/prepare', (req, res) => {
   }
   const timestamp = Date.now().toString();
   const oid = orderno || `${MID}_${timestamp}`;
+
   const signature = sha256(`oid=${oid}&price=${price}&timestamp=${timestamp}`);
+  const verification = sha256(`oid=${oid}&price=${price}&signKey=${SIGN_KEY}&timestamp=${timestamp}`);
   const mkey = sha256(SIGN_KEY);
 
   return res.json({
     mid: MID, price, goodname, buyername,
     buyertel: buyertel || '',
     buyeremail: buyeremail || '',
-    oid, timestamp, signature, mkey,
+    oid, timestamp,
+    signature,
+    verification,
+    mkey,
     returnUrl: `${SERVER_URL}/api/payment/inicis/return`,
     closeUrl: `${SERVER_URL}/pay/payment_close.html`,
   });
@@ -38,7 +43,7 @@ router.post('/return', async (req, res) => {
   const keys = Object.keys(req.body);
   console.log('=== req.body 키 목록 ===', keys.join(', '));
   console.log('=== price 관련 ===', req.body.price, req.body.Price, req.body.PRICE, req.body.amt, req.body.amount);
-  
+
   const { resultCode, resultMsg, mid, orderNumber, authToken, authUrl, price, goodName, buyerName } = req.body;
   console.log('=== 이니시스 returnUrl 수신 ===');
   console.log('=== 전체 req.body ===', JSON.stringify(req.body));
