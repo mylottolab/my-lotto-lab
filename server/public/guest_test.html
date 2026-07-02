@@ -45,19 +45,13 @@ h1{font-size:18px;font-weight:700;margin-bottom:6px;}
   <!-- ─── 등록 탭 ─── -->
   <div class="card active" id="tab-register">
     <h1>🧪 비회원 등록</h1>
-    <p class="desc">닉네임 + 이메일로 등록하고, 이메일로 받은 인증코드를 입력하면 완료됩니다.</p>
+    <p class="desc">닉네임 + 이메일을 입력하면 인증 메일이 발송됩니다. 메일의 링크를 클릭하면 등록이 완료됩니다.</p>
 
     <div class="msg" id="regMsg"></div>
 
     <div class="field"><label>닉네임 (2~20자)</label><input type="text" id="reg_nickname" placeholder="예: 로또사냥꾼"></div>
     <div class="field"><label>이메일</label><input type="email" id="reg_email" placeholder="test@example.com"></div>
-    <button class="btn" id="btnRequestOtp" onclick="requestOtp()">인증코드 받기</button>
-
-    <div class="field" style="margin-top:16px;">
-      <label>인증코드 (이메일로 받은 6자리)</label>
-      <input type="text" id="reg_code" placeholder="123456">
-    </div>
-    <button class="btn" id="btnVerify" onclick="verifyOtp()" disabled>등록 완료</button>
+    <button class="btn" id="btnRequestOtp" onclick="requestOtp()">인증 메일 받기</button>
   </div>
 
   <!-- ─── 조회 탭 ─── -->
@@ -106,28 +100,7 @@ async function requestOtp(){
     });
     var data = await res.json();
     if(!res.ok){ showMsg('regMsg', data.error || '요청 실패', true); return; }
-    showMsg('regMsg', data.message + ' 메일함(스팸함도 확인)을 확인해 주세요.', false);
-    document.getElementById('btnVerify').disabled = false;
-  } catch(e){
-    showMsg('regMsg', '오류가 발생했습니다.', true);
-  }
-}
-
-async function verifyOtp(){
-  var nickname = document.getElementById('reg_nickname').value.trim();
-  var email = document.getElementById('reg_email').value.trim();
-  var code = document.getElementById('reg_code').value.trim();
-  if(!code){ showMsg('regMsg', '인증코드를 입력해 주세요.', true); return; }
-
-  try {
-    var res = await fetch(API + '/api/guest/verify', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ nickname: nickname, email: email, code: code })
-    });
-    var data = await res.json();
-    if(!res.ok){ showMsg('regMsg', data.error || '인증 실패', true); return; }
-    showMsg('regMsg', '✅ 등록이 완료되었습니다! 이제 포인트 조회 탭에서 확인해보세요.', false);
+    showMsg('regMsg', '✅ ' + data.message + ' (스팸함도 확인해 주세요)', false);
   } catch(e){
     showMsg('regMsg', '오류가 발생했습니다.', true);
   }
