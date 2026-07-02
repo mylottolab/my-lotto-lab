@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 카테고리 선택</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0a0d18;--surface:#11152a;--surface-hover:#161b36;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--accent:#5b6ee8;--green:#3fb37f;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.wrap{max-width:460px;width:100%;text-align:center;}
+h1{font-size:22px;font-weight:700;margin-bottom:6px;}
+.desc{font-size:13px;color:var(--text-dim);margin-bottom:32px;}
+.cards{display:flex;flex-direction:column;gap:14px;}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:20px 22px;display:flex;align-items:center;gap:16px;text-align:left;text-decoration:none;color:var(--text);transition:transform .15s, background .15s, border-color .15s;cursor:pointer;}
+.card:hover{background:var(--surface-hover);border-color:var(--accent);transform:translateY(-2px);}
+.card .emoji{font-size:30px;flex-shrink:0;}
+.card .titles{flex:1;min-width:0;}
+.card .ko{font-size:16px;font-weight:700;}
+.card .en{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+.card .badge{display:inline-block;margin-top:7px;font-size:10.5px;font-weight:700;color:var(--gold);background:rgba(224,179,65,.12);border-radius:6px;padding:3px 8px;line-height:1.4;}
+.card .arrow{font-size:18px;color:var(--text-dim);flex-shrink:0;}
+
+.charge-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:20px 22px;}
+.charge-head{display:flex;align-items:center;gap:16px;margin-bottom:16px;}
+.charge-head .emoji{font-size:30px;flex-shrink:0;}
+.charge-head .titles{flex:1;text-align:left;}
+.charge-head .ko{font-size:16px;font-weight:700;}
+.charge-head .en{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+.charge-btns{display:flex;gap:10px;}
+.charge-btn{flex:1;background:var(--bg);border:1px solid var(--border-soft);border-radius:11px;padding:14px 10px;text-decoration:none;color:var(--text);transition:border-color .15s, background .15s;text-align:center;}
+.charge-btn:hover{border-color:var(--accent);background:var(--surface-hover);}
+.charge-btn .flag{font-size:22px;margin-bottom:4px;}
+.charge-btn .ko{font-size:13px;font-weight:700;}
+.charge-btn .en{font-size:10.5px;color:var(--text-dim);margin-top:1px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>어디로 가시겠어요?</h1>
+  <p class="desc">Where would you like to go?</p>
+
+  <div class="cards">
+    <a class="card" href="https://mylottolab.github.io/my-lotto-lab/main_page.html">
+      <span class="emoji">🇰🇷</span>
+      <span class="titles">
+        <div class="ko">한국로또</div>
+        <div class="en">Korea Lotto</div>
+      </span>
+      <span class="arrow">›</span>
+    </a>
+
+    <a class="card" href="https://mylottolab.github.io/my-lotto-lab/global_lotto.html">
+      <span class="emoji">🌎</span>
+      <span class="titles">
+        <div class="ko">해외복권 3종</div>
+        <div class="en">Global Lottery (Powerball · Mega Millions · EuroMillions)</div>
+        <div class="badge">초저비용 연습·실험용 시뮬레이터</div>
+      </span>
+      <span class="arrow">›</span>
+    </a>
+
+    <a class="card" href="https://mylottolab.github.io/my-lotto-lab/toto_proto.html">
+      <span class="emoji">⚽</span>
+      <span class="titles">
+        <div class="ko">토토·프로토</div>
+        <div class="en">Toto · Proto</div>
+        <div class="badge">초저비용 연습·실험용 시뮬레이터</div>
+      </span>
+      <span class="arrow">›</span>
+    </a>
+
+    <div class="charge-card">
+      <div class="charge-head">
+        <span class="emoji">💰</span>
+        <span class="titles">
+          <div class="ko">포인트 충전소</div>
+          <div class="en">Point Charging Station</div>
+        </span>
+      </div>
+      <div class="charge-btns">
+        <a class="charge-btn" href="/pay/payment_test.html">
+          <div class="flag">🇰🇷</div>
+          <div class="ko">원화 충전</div>
+          <div class="en">KRW</div>
+        </a>
+        <a class="charge-btn" href="/pay/paypal_test.html">
+          <div class="flag">💵</div>
+          <div class="ko">달러 충전</div>
+          <div class="en">USD</div>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
