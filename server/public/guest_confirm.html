@@ -57,15 +57,13 @@ function render(ok, title, desc){
 }
 
 (async function(){
-  var query = new URLSearchParams(window.location.search);
-  var nickname = query.get('nickname');
   var hashData = parseHash();
 
   if (hashData.error) {
     render(false, '인증에 실패했습니다', '링크가 만료되었거나 이미 사용된 링크입니다. 처음부터 다시 시도해 주세요.');
     return;
   }
-  if (!hashData.accessToken || !nickname) {
+  if (!hashData.accessToken) {
     render(false, '잘못된 접근입니다', '이메일에서 받은 링크를 통해 접속해 주세요.');
     return;
   }
@@ -74,7 +72,7 @@ function render(ok, title, desc){
     var res = await fetch(API + '/api/guest/finalize-link', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accessToken: hashData.accessToken, nickname: nickname })
+      body: JSON.stringify({ accessToken: hashData.accessToken })
     });
     var data = await res.json();
 
@@ -91,3 +89,4 @@ function render(ok, title, desc){
 </script>
 </body>
 </html>
+
