@@ -9,7 +9,7 @@
   (PayPal JS SDK의 client-id는 브라우저에 노출되는 값이라 Secret과 달리
    공개되어도 안전합니다 — 결제 승인은 항상 서버가 Secret으로 처리합니다.)
 -->
-<script src="https://www.paypal.com/sdk/js?client-id=AYsmVIjVL_ZL4u-zpfzQ2WVnqSG-0-C3RaqQcZXLDfdsJgvuVlaENpG3fzG3Jgoo0P3YwSdOhosQGT-K&currency=USD"></script>
+<script src="https://www.paypal.com/sdk/js?client-id=YOUR_PAYPAL_CLIENT_ID&currency=USD"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{--bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--accent:#5b6ee8;}
@@ -71,12 +71,30 @@ if (typeof paypal === 'undefined') {
       document.getElementById('errMsg').classList.remove('show');
       document.getElementById('okMsg').classList.remove('show');
 
+      if (typeof MLL === 'undefined') {
+        showError('인증 모듈 로딩 실패. 새로고침 후 다시 시도해 주세요.');
+        return Promise.reject(new Error('MLL not loaded'));
+      }
+      var authState = MLL.getAuthState();
+      if (!authState.type) {
+        MLL.requireAuth(function(){});
+        return Promise.reject(new Error('로그인/등록 필요'));
+      }
+
       var usdAmount = document.getElementById('usdAmount').value;
+      var headers = { 'Content-Type': 'application/json' };
+      var payload = { usdAmount: usdAmount };
+      if (authState.type === 'member') {
+        headers['Authorization'] = 'Bearer ' + authState.token;
+      } else {
+        payload.nickname = authState.nickname;
+        payload.email = authState.email;
+      }
 
       return fetch(API + '/api/payment/paypal/create-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usdAmount: usdAmount })
+        headers: headers,
+        body: JSON.stringify(payload)
       })
       .then(function(res) { return res.json(); })
       .then(function(order) {
@@ -120,5 +138,6 @@ if (typeof paypal === 'undefined') {
   }).render('#paypal-button-container');
 }
 </script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 </body>
 </html>
