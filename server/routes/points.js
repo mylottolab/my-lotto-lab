@@ -121,6 +121,53 @@ router.get('/balance', async (req, res) => {
   }
 });
 
+// ─── 포인트 lot 상세 내역 (회원/비회원 공통, 라운지 화면용) ────────────────────
+// 각 적립 건(lot)을 만료일 빠른 순으로 반환. 회원: Authorization 헤더 /
+// 비회원: nickname+email 쿼리파라미터
+router.get('/lots', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req);
+    if (!userId) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
+
+    const nowIso = new Date().toISOString();
+    const { data: lots, error } = await supabase
+      .from('point_ledger')
+      .select('point_type, remaining, expires_at, source, earned_at')
+      .eq('user_id', userId)
+      .gt('remaining', 0)
+      .gt('expires_at', nowIso)
+      .order('expires_at', { ascending: true });
+
+    if (error) {
+      console.error('[points] lots 조회 오류:', error);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    const items = lots.map(l => ({
+      type: l.point_type,
+      points: l.remaining,
+      source: l.source,
+      earnedAt: l.earned_at,
+      expiresAt: l.expires_at
+    }));
+
+    const activity = items.filter(l => l.type === 'activity').reduce((s, l) => s + l.points, 0);
+    const deposit = items.filter(l => l.type === 'deposit').reduce((s, l) => s + l.points, 0);
+    const nearestExpiry = items.length > 0 ? items[0].expiresAt : null;
+
+    return res.json({
+      total: activity + deposit,
+      activity,
+      deposit,
+      nearestExpiry,
+      lots: items
+    });
+  } catch (err) {
+    console.error('[points] lots 오류:', err);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // ─── 포인트 차감 실행 (실제 게임/기능 페이지에서 호출) ─────────────────────────
 // 요청: { actionKey, quantity(기본1), refId }
 router.post('/spend', async (req, res) => {
