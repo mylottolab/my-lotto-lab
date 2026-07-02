@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 관리자: 포인트 단가 관리</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--green:#3fb37f;--red:#e05c5c;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13.5px;padding:24px;}
+.wrap{max-width:960px;margin:0 auto;}
+h1{font-size:19px;font-weight:700;margin-bottom:4px;}
+.desc{font-size:12px;color:var(--text-dim);margin-bottom:20px;}
+.gate{max-width:360px;margin:80px auto;background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:28px;text-align:center;}
+.gate input{width:100%;background:var(--bg);border:1px solid var(--border-soft);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;margin:14px 0;outline:none;}
+.gate button{width:100%;padding:10px;border-radius:8px;border:none;background:var(--gold);color:#1a1305;font-weight:700;cursor:pointer;}
+
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:18px 20px;margin-bottom:20px;}
+.card h2{font-size:14.5px;font-weight:700;margin-bottom:12px;}
+.rate-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.rate-row input{width:120px;background:var(--bg);border:1px solid var(--border-soft);border-radius:7px;padding:8px 10px;color:var(--text);font-size:13px;}
+.rate-row button{background:var(--gold);color:#1a1305;border:none;border-radius:7px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:12.5px;}
+
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;font-size:11px;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--border-soft);font-weight:600;}
+td{padding:9px 10px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:12.5px;}
+tr:last-child td{border-bottom:none;}
+.label-cell .kr{font-weight:600;}
+.label-cell .en{font-size:10.5px;color:var(--text-faint);}
+.notes-cell{color:var(--text-dim);font-size:11px;max-width:260px;}
+.cost-input{width:80px;background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12.5px;}
+.save-btn{background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;}
+.save-btn:disabled{opacity:.4;cursor:default;}
+.badge{font-size:9.5px;padding:2px 7px;border-radius:20px;font-weight:700;}
+.badge.free{background:rgba(63,179,127,.15);color:var(--green);}
+.badge.paid{background:rgba(224,179,65,.15);color:var(--gold);}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;padding:12px 18px;font-size:12.5px;display:none;}
+.toast.show{display:block;}
+.toast.ok{border-color:var(--green);color:var(--green);}
+.toast.err{border-color:var(--red);color:var(--red);}
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <h1>🔐 관리자 인증</h1>
+  <p class="desc">Render에 설정한 ADMIN_API_KEY를 입력하세요.</p>
+  <input type="password" id="adminKeyInput" placeholder="관리자 키">
+  <button onclick="unlock()">입장</button>
+</div>
+
+<div class="wrap" id="main" style="display:none;">
+  <h1>⚙️ 포인트 단가 관리</h1>
+  <p class="desc">수정 후 저장하면 즉시 반영됩니다. (이미 발생한 결제/차감 내역은 소급 변경되지 않습니다)</p>
+
+  <div class="card">
+    <h2>💱 USD 환율 (1달러 = 몇 포인트)</h2>
+    <div class="rate-row">
+      <span>1 USD =</span>
+      <input type="number" id="rateInput" step="1">
+      <span>포인트</span>
+      <button onclick="saveRate()">저장</button>
+      <span id="rateUpdated" style="font-size:11px;color:var(--text-faint);"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📋 메뉴별 포인트 차감 단가</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>메뉴</th>
+          <th>단가(P)</th>
+          <th>무료한도</th>
+          <th>활동P지급</th>
+          <th>비고</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="costsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var API = 'https://my-lotto-lab-api.onrender.com';
+var adminKey = '';
+
+function showToast(msg, ok){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (ok ? 'ok' : 'err');
+  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+function unlock(){
+  adminKey = document.getElementById('adminKeyInput').value.trim();
+  if(!adminKey){ return; }
+  sessionStorage.setItem('mll_admin_key', adminKey);
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+  loadAll();
+}
+
+async function apiGet(path){
+  var res = await fetch(API + path, { headers: { 'x-admin-key': adminKey } });
+  var data = await res.json();
+  if(!res.ok){ showToast(data.error || '조회 실패', false); throw new Error(data.error); }
+  return data;
+}
+async function apiPut(path, body){
+  var res = await fetch(API + path, {
+    method: 'PUT',
+    headers: { 'Content-Type':'application/json', 'x-admin-key': adminKey },
+    body: JSON.stringify(body)
+  });
+  var data = await res.json();
+  if(!res.ok){ showToast(data.error || '저장 실패', false); throw new Error(data.error); }
+  return data;
+}
+
+async function loadAll(){
+  try {
+    var rate = await apiGet('/api/admin/exchange-rate');
+    document.getElementById('rateInput').value = rate.usd_to_point;
+    document.getElementById('rateUpdated').textContent = rate.updated_at ? ('최종수정: ' + new Date(rate.updated_at).toLocaleString('ko-KR')) : '';
+
+    var costs = await apiGet('/api/admin/point-costs');
+    renderCosts(costs.items);
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+async function saveRate(){
+  var val = document.getElementById('rateInput').value;
+  try {
+    var result = await apiPut('/api/admin/exchange-rate', { usd_to_point: Number(val) });
+    showToast('환율이 저장되었습니다.', true);
+    document.getElementById('rateUpdated').textContent = '최종수정: ' + new Date(result.item.updated_at).toLocaleString('ko-KR');
+  } catch(e){}
+}
+
+function renderCosts(items){
+  var body = document.getElementById('costsBody');
+  body.innerHTML = items.map(function(item){
+    var freeInfo = item.free_quota
+      ? (item.free_quota_period === 'monthly' ? '매월 ' + item.free_quota + '개' : (item.free_quota_period === 'lifetime' ? '평생 ' + item.free_quota + '회' : item.free_quota))
+      : '-';
+    return (
+      '<tr>' +
+        '<td class="label-cell"><div class="kr">' + item.label_kr + '</div><div class="en">' + item.label_en + '</div></td>' +
+        '<td><input class="cost-input" type="number" step="0.01" value="' + item.cost_points + '" id="cost_' + item.action_key + '"></td>' +
+        '<td>' + freeInfo + '</td>' +
+        '<td><span class="badge ' + (item.grants_activity_point ? 'free' : 'paid') + '">' + (item.grants_activity_point ? 'O' : 'X') + '</span></td>' +
+        '<td class="notes-cell">' + (item.notes || '') + '</td>' +
+        '<td><button class="save-btn" onclick="saveCost(\'' + item.action_key + '\')">저장</button></td>' +
+      '</tr>'
+    );
+  }).join('');
+}
+
+async function saveCost(actionKey){
+  var input = document.getElementById('cost_' + actionKey);
+  var val = input.value;
+  try {
+    await apiPut('/api/admin/point-costs/' + actionKey, { cost_points: Number(val) });
+    showToast(actionKey + ' 저장되었습니다.', true);
+  } catch(e){}
+}
+
+// 세션에 저장된 키가 있으면 자동 입장
+(function(){
+  var saved = sessionStorage.getItem('mll_admin_key');
+  if (saved) {
+    adminKey = saved;
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    loadAll();
+  }
+})();
+</script>
+</body>
+</html>
