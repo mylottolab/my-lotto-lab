@@ -11,6 +11,19 @@ function sha256(str) {
   return crypto.createHash('sha256').update(str).digest('hex');
 }
 
+// 이니시스는 returnUrl로 price/goodname/buyername을 돌려주지 않으므로
+// prepare 단계에서 만든 oid를 키로 잠깐 저장해뒀다가 return 단계에서 꺼내 씁니다.
+// (서버 재시작 시 초기화됨 — 운영에서는 DB/Redis 사용 권장)
+const orderStore = new Map();
+
+// 1시간 지난 주문 정보는 자동 정리 (메모리 누수 방지)
+setInterval(() => {
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  for (const [oid, info] of orderStore.entries()) {
+    if (info.createdAt < oneHourAgo) orderStore.delete(oid);
+  }
+}, 10 * 60 * 1000);
+
 // ─── 결제 준비 ────────────────────────────────────────────────────────────────
 router.post('/prepare', (req, res) => {
   const { price, goodname, buyername, buyertel, buyeremail, orderno } = req.body;
@@ -23,6 +36,12 @@ router.post('/prepare', (req, res) => {
   const signature = sha256(`oid=${oid}&price=${price}&timestamp=${timestamp}`);
   const verification = sha256(`oid=${oid}&price=${price}&signKey=${SIGN_KEY}&timestamp=${timestamp}`);
   const mkey = sha256(SIGN_KEY);
+
+  // return 단계에서 조회할 수 있도록 주문 정보 저장
+  orderStore.set(oid, {
+    price, goodname, buyername,
+    createdAt: Date.now()
+  });
 
   return res.json({
     mid: MID, price, goodname, buyername,
@@ -44,16 +63,27 @@ router.post('/return', async (req, res) => {
   console.log('=== req.body 키 목록 ===', keys.join(', '));
   console.log('=== price 관련 ===', req.body.price, req.body.Price, req.body.PRICE, req.body.amt, req.body.amount);
 
-  const { resultCode, resultMsg, mid, orderNumber, authToken, authUrl, price, goodName, buyerName } = req.body;
+  const { resultCode, resultMsg, mid, orderNumber, authToken, authUrl } = req.body;
   console.log('=== 이니시스 returnUrl 수신 ===');
   console.log('=== 전체 req.body ===', JSON.stringify(req.body));
   console.log('resultCode:', resultCode);
   console.log('authToken (raw):', authToken);
-  console.log('price:', price);
   console.log('mid:', mid);
 
   if (resultCode !== '0000') {
     return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent(resultMsg || '결제실패')}`);
+  }
+
+  // prepare 단계에서 저장해둔 주문 정보 조회 (orderNumber === oid)
+  const orderInfo = orderStore.get(orderNumber) || {};
+  const price = orderInfo.price;
+  const goodName = orderInfo.goodname;
+  const buyerName = orderInfo.buyername;
+  console.log('저장된 주문 정보:', JSON.stringify(orderInfo));
+
+  if (!price) {
+    console.error('주문 정보를 찾을 수 없습니다. orderNumber:', orderNumber);
+    return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent('주문 정보를 찾을 수 없습니다.')}`);
   }
 
   // + 기호 복원 (URL 파싱 과정에서 공백으로 변환됨)
@@ -85,6 +115,7 @@ router.post('/return', async (req, res) => {
     console.log('승인 결과:', JSON.stringify(result));
 
     if (result.resultCode === '0000') {
+      orderStore.delete(orderNumber); // 사용 완료된 주문 정보 정리
       return res.redirect(
         `${SERVER_URL}/pay/payment_result.html?status=success` +
         `&orderNumber=${encodeURIComponent(orderNumber || '')}` +
