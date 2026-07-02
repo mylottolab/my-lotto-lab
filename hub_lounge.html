@@ -125,17 +125,11 @@ async function load() {
   var balance = { total: 0, deposit: 0, activity: 0 };
   var lots = [];
   try {
-    var balRes = await fetch(API + '/api/points/balance' + qs, { headers: headers });
-    var balData = await balRes.json();
-    if (balRes.ok) balance = balData;
-  } catch (e) {}
-
-  // 비회원은 guest_test.html의 balance API가 lot 상세까지 주므로 재사용
-  try {
-    if (isGuest) {
-      var lotRes = await fetch(API + '/api/guest/balance' + qs);
-      var lotData = await lotRes.json();
-      if (lotRes.ok) lots = lotData.lots || [];
+    var lotsRes = await fetch(API + '/api/points/lots' + qs, { headers: headers });
+    var lotsData = await lotsRes.json();
+    if (lotsRes.ok) {
+      balance = { total: lotsData.total, deposit: lotsData.deposit, activity: lotsData.activity };
+      lots = (lotsData.lots || []).map(function(l){ return { type: l.type, points: l.points, expiresAt: l.expiresAt }; });
     }
   } catch (e) {}
 
@@ -148,7 +142,7 @@ async function load() {
         var label = l.type === 'deposit' ? '입금포인트' : '활동포인트';
         return '<div class="lot-row ' + cls + '"><span class="ltype"><span class="ldot"></span>' + label + '</span><span class="lpoints">' + l.points.toLocaleString() + 'P</span><span class="lexpiry">' + d.toLocaleDateString('ko-KR') + ' 소멸</span></div>';
       }).join('')
-    : '<div class="empty">' + (isGuest ? '적립된 포인트 내역이 없습니다.' : '상세 내역은 준비 중입니다.') + '</div>';
+    : '<div class="empty">적립된 포인트 내역이 없습니다.</div>';
 
   content.innerHTML =
     '<div class="profile-card">' +
