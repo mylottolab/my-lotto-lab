@@ -52,6 +52,49 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000);
 
+// ─── 결제자(회원/비회원) 식별 ────────────────────────────────────────────────
+async function resolvePayerId(req) {
+  const authHeader = req.headers['authorization'];
+  if (authHeader) {
+    const token = authHeader.replace('Bearer ', '');
+    const { data, error } = await supabase.auth.getUser(token);
+    if (!error && data.user) return data.user.id;
+  }
+  const { nickname, email } = req.body;
+  if (nickname && email) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('nickname', nickname)
+      .eq('email', email)
+      .maybeSingle();
+    if (data) return data.id;
+  }
+  return null;
+}
+
+// ─── 입금포인트 적립 (취득일로부터 30일 후 소멸) ───────────────────────────────
+async function creditDepositPoints(userId, points, meta) {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const { error } = await supabase.from('point_ledger').insert({
+    user_id: userId,
+    point_type: 'deposit',
+    amount: points,
+    remaining: points,
+    source: meta.source,
+    order_id: meta.orderId,
+    earned_at: now.toISOString(),
+    expires_at: expiresAt.toISOString()
+  });
+  if (error) {
+    console.error('[PayPal] 포인트 적립 오류:', error);
+    return false;
+  }
+  console.log(`[PayPal] 포인트 적립 완료: user=${userId}, ${points}P, orderId=${meta.orderId}`);
+  return true;
+}
+
 // ─── PayPal OAuth 액세스 토큰 발급 ─────────────────────────────────────────────
 async function getAccessToken() {
   if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
@@ -90,6 +133,11 @@ router.post('/create-order', async (req, res) => {
       return res.status(400).json({ error: `결제 금액은 $${MIN_USD} ~ $${MAX_USD} 사이여야 합니다.` });
     }
 
+    const payerId = await resolvePayerId(req);
+    if (!payerId) {
+      return res.status(401).json({ error: '결제 전 로그인 또는 비회원 등록이 필요합니다.' });
+    }
+
     const accessToken = await getAccessToken();
     const amountStr = usdAmount.toFixed(2);
 
@@ -126,9 +174,9 @@ router.post('/create-order', async (req, res) => {
     orderStore.set(orderData.id, {
       usdAmount,
       points,
+      payerId,
       status: 'created',
       createdAt: Date.now()
-      // TODO: 실제 로그인 연동 시 req.user.id 등 회원 식별 정보도 함께 저장
     });
 
     console.log(`[PayPal] 주문 생성: orderID=${orderData.id}, $${amountStr}, ${points}P`);
@@ -190,8 +238,7 @@ router.post('/capture-order', async (req, res) => {
     }
 
     // ── 서버 간 통신으로 확정된 결제만 신뢰하여 포인트 적립 ──────────────────────
-    // TODO: 여기서 실제 DB의 point_ledger에 적립 트랜잭션 기록 + users.paid_charge_point 증가
-    // 예: await creditPoints(orderInfo.userId, orderInfo.points, { source: 'paypal', orderID });
+    await creditDepositPoints(orderInfo.payerId, orderInfo.points, { source: 'paypal', orderId: orderID });
 
     orderInfo.status = 'completed';
     orderInfo.tid = captureData.purchase_units?.[0]?.payments?.captures?.[0]?.id;
