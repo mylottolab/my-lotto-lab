@@ -252,11 +252,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div id="step3" style="display:none;">
         <div class="success-wrap">
           <div class="success-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-          <div class="success-title" data-i18n-kr="가입이 완료되었습니다!" data-i18n-en="Account created!">가입이 완료되었습니다!</div>
-          <div class="success-desc" data-i18n-kr="입력하신 이메일로 인증 메일을 보냈습니다. 메일함을 확인하고 인증 링크를 클릭해 주세요." data-i18n-en="We've sent a verification email. Please check your inbox and click the link.">입력하신 이메일로 인증 메일을 보냈습니다. 메일함을 확인하고 인증 링크를 클릭해 주세요.</div>
-          <button class="btn-submit" onclick="location.href='login.html'">
-            <span data-i18n-kr="로그인 화면으로 이동" data-i18n-en="Go to Sign In">로그인 화면으로 이동</span>
-          </button>
+          <div class="success-title" data-i18n-kr="이메일 인증이 필요합니다" data-i18n-en="Email verification required">이메일 인증이 필요합니다</div>
+          <div class="success-desc" data-i18n-kr="Supabase Auth에서 귀하의 메일로 인증 클릭을 요청합니다. 메일을 열어 Sign in을 클릭해주세요. 그래야 가입이 완료됩니다." data-i18n-en="Supabase Auth has sent a verification request to your email. Please open the email and click Sign in to complete your registration.">Supabase Auth에서 귀하의 메일로 인증 클릭을 요청합니다. 메일을 열어 Sign in을 클릭해주세요. 그래야 가입이 완료됩니다.</div>
         </div>
       </div>
     </div>
@@ -410,6 +407,23 @@ document.addEventListener('DOMContentLoaded',function(){
     });
   });
   applyLang();
+});
+
+// 뒤로가기(bfcache)나 재방문 시 이전 입력값이 남아있는 문제 방지 — 폼 전체 초기화
+function resetForm(){
+  ['nickname','signupEmail','pw1','pw2'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('country').value='KR';
+  ['t1','t2','t3','t4','agreeAll'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.checked=false;
+  });
+  document.getElementById('pwStrength').style.display='none';
+  clearAll();
+  setStep(1);
+}
+window.addEventListener('pageshow', function(e){
+  resetForm();
 });
 </script>
 </body>
