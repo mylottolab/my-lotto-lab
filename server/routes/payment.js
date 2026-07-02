@@ -62,8 +62,10 @@ router.post('/return', async (req, res) => {
 
   try {
     const ts = Date.now().toString();
-    // 승인 요청 signature: SHA256(authToken=VALUE&price=VALUE&mid=VALUE)
-    const sig = sha256(`authToken=${token}&price=${price}&mid=${mid}`);
+    // 승인 요청 signature: SHA256(authToken=VALUE&timestamp=VALUE)
+    // ※ 이니시스 공식 승인 API 규격 — price/mid는 signature 대상에서 제외
+    const sig = sha256(`authToken=${token}&timestamp=${ts}`);
+    const mkey = sha256(SIGN_KEY);
     console.log('승인 signature:', sig);
 
     // POST body 직접 구성 (querystring 인코딩 문제 방지)
@@ -71,10 +73,10 @@ router.post('/return', async (req, res) => {
       `mid=${encodeURIComponent(mid)}`,
       `authToken=${encodeURIComponent(token)}`,
       `timestamp=${ts}`,
-      `price=${encodeURIComponent(price)}`,
       `signature=${sig}`,
       `charset=UTF-8`,
-      `format=JSON`
+      `format=JSON`,
+      `mKey=${mkey}`
     ].join('&');
 
     console.log('승인 요청 body:', body);
