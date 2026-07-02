@@ -56,11 +56,88 @@
     'font-family:inherit;text-decoration:none;}',
     '.mll-modal .mll-primary{background:#e0b341;color:#1a1305;}',
     '.mll-modal .mll-secondary{background:transparent;border:1px solid #1b2038;color:#eef0f6;}',
-    '.mll-modal .mll-close{background:none;border:none;color:#8b91ab;font-size:12px;cursor:pointer;margin-top:4px;font-family:inherit;}'
+    '.mll-modal .mll-close{background:none;border:none;color:#8b91ab;font-size:12px;cursor:pointer;margin-top:4px;font-family:inherit;}',
+    '.mll-ticker{position:fixed;left:0;right:0;bottom:0;z-index:9997;background:#0a0d18;',
+    'border-top:1px solid #1b2038;padding:7px 0;overflow:hidden;white-space:nowrap;}',
+    '.mll-ticker-inner{display:inline-block;padding-left:100%;font-size:12px;font-weight:600;',
+    'color:#e0b341;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;',
+    'animation-name:mllTickerScroll;animation-timing-function:linear;animation-iteration-count:infinite;}',
+    '@keyframes mllTickerScroll{0%{transform:translateX(0);}100%{transform:translateX(-100%);}}'
   ].join('');
   document.head.appendChild(style);
 
-  // ── 등록 유도 모달 ───────────────────────────────────────────
+  // ── 하단 롤링 전광판: 로그인 중 닉네임 + 포인트 상세 ──────────────────────────
+  function renderStatusTicker(nickname, balance) {
+    var existing = document.querySelector('.mll-ticker');
+    if (existing) existing.remove();
+
+    var text = '🔑 ' + nickname + '님 로그인 중   ·   포인트 잔액 총 ' +
+      balance.total.toLocaleString() + 'P (입금 ' + balance.deposit.toLocaleString() +
+      ' · 활동 ' + balance.activity.toLocaleString() + ')' +
+      '      🔑 ' + nickname + '님 로그인 중   ·   포인트 잔액 총 ' +
+      balance.total.toLocaleString() + 'P (입금 ' + balance.deposit.toLocaleString() +
+      ' · 활동 ' + balance.activity.toLocaleString() + ')';
+
+    var bar = document.createElement('div');
+    bar.className = 'mll-ticker';
+    var inner = document.createElement('div');
+    inner.className = 'mll-ticker-inner';
+    inner.textContent = text;
+    var duration = Math.max(14, text.length * 0.16);
+    inner.style.animationDuration = duration + 's';
+    bar.appendChild(inner);
+    document.body.appendChild(bar);
+  }
+
+  async function fetchNickname(state) {
+    if (state.type === 'guest') return state.nickname;
+    try {
+      var res = await fetch(API + '/api/auth/me', { headers: { Authorization: 'Bearer ' + state.token } });
+      var data = await res.json();
+      return res.ok ? (data.nickname || '회원') : '회원';
+    } catch (e) { return '회원'; }
+  }
+
+  async function fetchBalance(state) {
+    var headers = {};
+    var qs = '';
+    if (state.type === 'member') {
+      headers['Authorization'] = 'Bearer ' + state.token;
+    } else {
+      qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+    }
+    try {
+      var res = await fetch(API + '/api/points/balance' + qs, { headers: headers });
+      var data = await res.json();
+      if (res.ok) return data;
+    } catch (e) {}
+    return { total: 0, deposit: 0, activity: 0 };
+  }
+
+  async function renderAuthUI() {
+    var existingFab = document.querySelector('.mll-fab');
+    if (existingFab) existingFab.remove();
+    var existingTicker = document.querySelector('.mll-ticker');
+    if (existingTicker) existingTicker.remove();
+
+    var state = getAuthState();
+    if (!state.type) {
+      var fab = document.createElement('button');
+      fab.className = 'mll-fab';
+      fab.type = 'button';
+      fab.textContent = '👤 로그인 / 회원가입';
+      fab.addEventListener('click', showAuthModal);
+      document.body.appendChild(fab);
+      return;
+    }
+
+    var nickname = await fetchNickname(state);
+    var balance = await fetchBalance(state);
+    renderStatusTicker(nickname, balance);
+  }
+
+  window.MLL = window.MLL || {};
+  window.MLL.refreshStatusBar = renderAuthUI;
   function showAuthModal() {
     var overlay = document.createElement('div');
     overlay.className = 'mll-overlay';
@@ -82,21 +159,7 @@
     });
   }
 
-  // ── 우측 하단 플로팅 버튼 (미등록 상태에서만 표시) ──────────────
-  function renderFab() {
-    var existing = document.querySelector('.mll-fab');
-    if (existing) existing.remove();
-
-    var state = getAuthState();
-    if (state.type) return; // 이미 로그인/등록되어 있으면 표시 안 함
-
-    var fab = document.createElement('button');
-    fab.className = 'mll-fab';
-    fab.type = 'button';
-    fab.textContent = '👤 로그인 / 회원가입';
-    fab.addEventListener('click', showAuthModal);
-    document.body.appendChild(fab);
-  }
+  // ── 우측 하단 플로팅 버튼은 renderAuthUI()에서 통합 관리 (아래 참고) ──────────
 
   // ── 포인트 부족 안내 모달 (설계서 3.4절: 공통 컴포넌트) ─────────────────────
   function showInsufficientModal(message, chargeUrl) {
@@ -119,7 +182,6 @@
   }
 
   // ── 전역 API ───────────────────────────────────────────────
-  window.MLL = window.MLL || {};
   window.MLL.getAuthState = getAuthState;
   window.MLL.requireAuth = function (callback) {
     var state = getAuthState();
@@ -170,6 +232,7 @@
       if (!res.ok) {
         return { success: false, message: data.error || '처리 중 오류가 발생했습니다.' };
       }
+      renderAuthUI(); // 잔액 즉시 갱신
       return { success: true, data: data };
     } catch (e) {
       console.error('[MLL.spendPoints] 오류:', e);
@@ -178,8 +241,8 @@
   };
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', renderFab);
+    document.addEventListener('DOMContentLoaded', renderAuthUI);
   } else {
-    renderFab();
+    renderAuthUI();
   }
 })();
