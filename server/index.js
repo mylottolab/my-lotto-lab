@@ -100,6 +100,10 @@ app.use('/api/payment/inicis', paymentRouter);
 const paypalRouter = require('./routes/payment_paypal');
 app.use('/api/payment/paypal', paypalRouter);
 
+// ─── 비회원 등록/인증/포인트조회 ───────────────────────────────────────────────
+const guestRouter = require('./routes/guest');
+app.use('/api/guest', guestRouter);
+
 // ─── 서버 시작 ────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`My Lotto Lab API running on port ${PORT}`);
