@@ -51,6 +51,7 @@ h1{font-size:20px;font-weight:700;margin-bottom:6px;}
   <input type="hidden" name="buyeremail" id="f_buyeremail">
   <input type="hidden" name="timestamp" id="f_timestamp">
   <input type="hidden" name="signature" id="f_signature">
+  <input type="hidden" name="verification" id="f_verification">
   <input type="hidden" name="mKey" id="f_mkey">
   <input type="hidden" name="returnUrl" id="f_returnUrl">
   <input type="hidden" name="closeUrl" id="f_closeUrl">
@@ -83,18 +84,19 @@ async function startPayment(){
     var data = await res.json();
     if(!res.ok) throw new Error(data.error||'결제 준비 실패');
 
-    document.getElementById('f_mid').value       = data.mid;
-    document.getElementById('f_goodname').value  = data.goodname;
-    document.getElementById('f_oid').value       = data.oid;
-    document.getElementById('f_price').value     = data.price;
-    document.getElementById('f_buyername').value = data.buyername;
-    document.getElementById('f_buyertel').value  = data.buyertel;
-    document.getElementById('f_buyeremail').value= data.buyeremail;
-    document.getElementById('f_timestamp').value = data.timestamp;
-    document.getElementById('f_signature').value = data.signature;
-    document.getElementById('f_mkey').value      = data.mkey;
-    document.getElementById('f_returnUrl').value = data.returnUrl;
-    document.getElementById('f_closeUrl').value  = data.closeUrl;
+    document.getElementById('f_mid').value        = data.mid;
+    document.getElementById('f_goodname').value   = data.goodname;
+    document.getElementById('f_oid').value        = data.oid;
+    document.getElementById('f_price').value      = data.price;
+    document.getElementById('f_buyername').value  = data.buyername;
+    document.getElementById('f_buyertel').value   = data.buyertel;
+    document.getElementById('f_buyeremail').value = data.buyeremail;
+    document.getElementById('f_timestamp').value  = data.timestamp;
+    document.getElementById('f_signature').value  = data.signature;
+    document.getElementById('f_verification').value = data.verification;
+    document.getElementById('f_mkey').value       = data.mkey;
+    document.getElementById('f_returnUrl').value  = data.returnUrl;
+    document.getElementById('f_closeUrl').value   = data.closeUrl;
 
     INIStdPay.pay('inicisForm');
   } catch(e) {
