@@ -37,8 +37,9 @@ router.post('/register-request', async (req, res) => {
     }
 
     // 이메일 인증 링크 발송 (클릭 시 guest_confirm.html로 이동, 거기서 등록 확정)
-    // 계정이 없으면 자동 생성, 닉네임은 metadata에 임시 보관
-    const redirectTo = `${process.env.SERVER_URL || 'https://my-lotto-lab-api.onrender.com'}/pay/guest_confirm.html?nickname=${encodeURIComponent(nickname)}`;
+    // ※ redirectTo는 Supabase 허용목록(Redirect URLs)과 문자열이 정확히 일치해야
+    //   하므로 쿼리파라미터를 붙이지 않습니다. 닉네임은 user metadata로 전달합니다.
+    const redirectTo = `${process.env.SERVER_URL || 'https://my-lotto-lab-api.onrender.com'}/pay/guest_confirm.html`;
 
     const { error: otpErr } = await supabase.auth.signInWithOtp({
       email,
@@ -66,9 +67,9 @@ router.post('/register-request', async (req, res) => {
 // 별도 코드 입력 없이, Supabase가 발급한 access_token만 검증하면 됩니다.
 router.post('/finalize-link', async (req, res) => {
   try {
-    const { accessToken, nickname } = req.body;
-    if (!accessToken || !nickname) {
-      return res.status(400).json({ error: 'accessToken과 닉네임이 필요합니다.' });
+    const { accessToken } = req.body;
+    if (!accessToken) {
+      return res.status(400).json({ error: 'accessToken이 필요합니다.' });
     }
 
     const { data, error } = await supabase.auth.getUser(accessToken);
@@ -78,6 +79,12 @@ router.post('/finalize-link', async (req, res) => {
     }
 
     const email = data.user.email;
+    const nickname = data.user.user_metadata?.nickname;
+
+    if (!nickname) {
+      console.error('[guest] user_metadata에 닉네임이 없음:', data.user.id);
+      return res.status(400).json({ error: '등록 정보를 찾을 수 없습니다. 처음부터 다시 시도해 주세요.' });
+    }
 
     // 등록 확정 시점에 닉네임 중복 재확인 (동시 가입 경합 방지)
     const { data: existing } = await supabase
