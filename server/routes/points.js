@@ -128,7 +128,7 @@ router.post('/spend', async (req, res) => {
     const userId = await resolveUserId(req);
     if (!userId) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
 
-    const { actionKey, quantity, refId } = req.body;
+    const { actionKey, quantity, refId, amount } = req.body;
     if (!actionKey) return res.status(400).json({ error: 'actionKey가 필요합니다.' });
 
     const { data: cost, error: costErr } = await supabase
@@ -142,10 +142,27 @@ router.post('/spend', async (req, res) => {
       return res.status(400).json({ error: '알 수 없는 기능입니다.' });
     }
 
-    const qty = Math.max(1, Number(quantity) || 1);
-    const amount = Number(cost.cost_points) * qty;
+    let deductAmount;
 
-    const result = await deductPoints(userId, amount, { actionKey, refId, reason: cost.label_kr });
+    if (cost.unit_type === 'variable') {
+      // 토토(등수제)·프로토처럼 사용자가 직접 고른 베팅금액만큼 차감되는 경우.
+      // 클라이언트가 보낸 amount를 사용하되, 정해진 허용범위 안인지 서버가 검증합니다.
+      const userAmount = Number(amount);
+      if (!userAmount || isNaN(userAmount)) {
+        return res.status(400).json({ error: '베팅(등록) 금액을 입력해 주세요.' });
+      }
+
+      const validation = validateVariableAmount(actionKey, userAmount);
+      if (!validation.ok) {
+        return res.status(400).json({ error: validation.message });
+      }
+      deductAmount = userAmount;
+    } else {
+      const qty = Math.max(1, Number(quantity) || 1);
+      deductAmount = Number(cost.cost_points) * qty;
+    }
+
+    const result = await deductPoints(userId, deductAmount, { actionKey, refId, reason: cost.label_kr });
 
     if (!result.success) {
       // 설계서 3.4절: 공통 UX - 부족 안내 + 충전 이동 버튼용 정보 제공
@@ -160,7 +177,7 @@ router.post('/spend', async (req, res) => {
     return res.json({
       message: '차감이 완료되었습니다.',
       actionKey,
-      amountDeducted: amount,
+      amountDeducted: deductAmount,
       spent: result.spent
     });
   } catch (err) {
@@ -168,6 +185,26 @@ router.post('/spend', async (req, res) => {
     return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
   }
 });
+
+// ─── 변동금액(variable) 액션의 허용범위 검증 (설계서 3.3절 기준) ────────────────
+function validateVariableAmount(actionKey, amount) {
+  if (actionKey === 'toto_deungsu') {
+    const allowed = [1000, 5000, 10000, 50000];
+    if (!allowed.includes(amount)) {
+      return { ok: false, message: '베팅금액은 1,000 / 5,000 / 10,000 / 50,000원 중에서 선택해야 합니다.' };
+    }
+    return { ok: true };
+  }
+  if (actionKey === 'toto_proto_fixed') {
+    if (amount < 100 || amount > 100000) {
+      return { ok: false, message: '베팅금액은 최소 100원 ~ 최대 100,000원 사이여야 합니다.' };
+    }
+    return { ok: true };
+  }
+  // 그 외 variable 타입은 하한선(1P)만 확인
+  if (amount <= 0) return { ok: false, message: '금액이 올바르지 않습니다.' };
+  return { ok: true };
+}
 
 // ─── 공개 가격표 (비회원도 열람 가능, 설계서 GET /api/guest/price-list 대응) ────
 router.get('/price-list', async (req, res) => {
