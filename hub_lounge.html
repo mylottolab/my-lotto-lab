@@ -3,38 +3,64 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Lotto Lab - 회원·Lounge</title>
+<title>My Lotto Lab - 회원 라운지</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-:root{
-  --bg:#0a0d18; --surface:#11152a;
-  --border:#252b48; --border-soft:#1b2038;
-  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
-  --gold:#e0b341; --gold-dim:#8a6f2f;
-  --accent:#34a8c4; --accent-bg:rgba(52,168,196,.13);
-}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
+:root{--bg:#0a0d18;--surface:#11152a;--surface-2:#161b35;--border-soft:#1b2038;--border:#252b48;--text:#eef0f6;--text-dim:#8b91ab;--text-faint:#5a6080;--gold:#e0b341;--gold-dim:#8a6f2f;--accent:#5b6ee8;--green:#3fb37f;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;min-height:100vh;}
+a{color:inherit;text-decoration:none;}
 
 .topbar{border-bottom:1px solid var(--border-soft);}
-.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
-.brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
-.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
-.brand-text .t1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
-.brand-text .t2{font-size:10px;color:var(--text-faint);margin-top:1px;}
-.crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);}
-.crumb a{color:var(--text-dim);text-decoration:none;cursor:pointer;}
-.crumb a:hover{color:var(--text);}
-.crumb .sep{color:var(--text-faint);}
-.crumb .cur{color:var(--accent);}
+.topbar-inner{max-width:900px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
+.brand-mark{width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;font-size:15px;}
+.brand-name{font-size:14.5px;font-weight:700;}
+.back-link{font-size:12.5px;color:var(--text-dim);}
+.back-link:hover{color:var(--text);}
 
-.empty-wrap{max-width:560px;margin:0 auto;padding:100px 24px 120px;text-align:center;}
-.empty-icon{width:56px;height:56px;border-radius:16px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;}
-.empty-icon svg{width:26px;height:26px;stroke:var(--accent);stroke-width:1.5;fill:none;}
-.empty-title{font-size:19px;font-weight:600;letter-spacing:-0.01em;}
-.empty-desc{font-size:13px;color:var(--text-dim);margin-top:10px;line-height:1.7;}
-.back-link{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--gold);cursor:pointer;margin-top:30px;border:1px solid var(--gold-dim);padding:9px 18px;border-radius:8px;transition:background .15s;}
-.back-link:hover{background:rgba(224,179,65,.08);}
+.wrap{max-width:900px;margin:0 auto;padding:32px 24px 60px;}
+
+.profile-card{background:linear-gradient(135deg,#161b35,#11152a);border:1px solid var(--border-soft);border-radius:20px;padding:32px;margin-bottom:24px;}
+.profile-top{display:flex;align-items:center;gap:16px;margin-bottom:26px;}
+.avatar{width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.profile-name{font-size:19px;font-weight:700;}
+.profile-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(224,179,65,.14);color:var(--gold);margin-top:5px;}
+
+.balance-hero{text-align:center;padding:20px 0 26px;border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft);}
+.balance-label{font-size:12px;color:var(--text-dim);margin-bottom:8px;}
+.balance-value{font-size:44px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;}
+.balance-value .unit{font-size:20px;font-weight:600;margin-left:4px;}
+
+.balance-split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px;}
+.split-box{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:14px;padding:18px 20px;}
+.split-box .slabel{font-size:11.5px;color:var(--text-dim);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.split-box .sdot{width:8px;height:8px;border-radius:50%;}
+.split-box.deposit .sdot{background:var(--accent);}
+.split-box.activity .sdot{background:var(--green);}
+.split-box .sval{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;}
+.split-box .ssub{font-size:11px;color:var(--text-faint);margin-top:6px;}
+
+.expiry-note{margin-top:16px;background:rgba(224,179,65,.08);border:1px solid rgba(224,179,65,.2);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--text-dim);}
+.expiry-note b{color:var(--gold);}
+
+.action-row{display:flex;gap:10px;margin-top:22px;}
+.action-btn{flex:1;text-align:center;padding:13px;border-radius:11px;font-size:13.5px;font-weight:700;cursor:pointer;}
+.action-btn.primary{background:var(--gold);color:#1a1305;}
+.action-btn.secondary{background:var(--surface-2);border:1px solid var(--border);color:var(--text);}
+
+.lots-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:22px;}
+.lots-card h3{font-size:14.5px;font-weight:700;margin-bottom:14px;}
+.lot-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-soft);font-size:12.5px;}
+.lot-row:last-child{border-bottom:none;}
+.lot-row .ltype{display:flex;align-items:center;gap:8px;}
+.lot-row .ldot{width:7px;height:7px;border-radius:50%;}
+.lot-row.deposit .ldot{background:var(--accent);}
+.lot-row.activity .ldot{background:var(--green);}
+.lot-row .lpoints{font-weight:700;}
+.lot-row .lexpiry{color:var(--text-faint);font-size:11px;}
+.empty{text-align:center;padding:30px;color:var(--text-faint);font-size:12.5px;}
+
+.loading{text-align:center;padding:60px 20px;color:var(--text-faint);}
 </style>
 </head>
 <body>
@@ -42,52 +68,122 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <div class="topbar">
   <div class="topbar-inner">
     <div class="brand" onclick="location.href='main_page.html'">
-      <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-      <div class="brand-text">
-        <div class="t1">My Lotto Lab</div>
-        <div class="t2" data-i18n-kr="가상 로또 등록 · 당첨 분석 · 통계 플랫폼" data-i18n-en="Virtual Lotto Entry · Win Analysis · Stats Platform">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
-      </div>
+      <div class="brand-mark">🏠</div>
+      <div class="brand-name">My Lotto Lab</div>
     </div>
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
-        <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
-        <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
-      </div>
-      <div class="crumb">
-        <a onclick="location.href='main_page.html'" data-i18n-kr="홈" data-i18n-en="Home">홈</a>
-        <span class="sep">/</span>
-        <span class="cur" data-i18n-kr="회원 · Lounge" data-i18n-en="Member · Lounge">회원 · Lounge</span>
-      </div>
-    </div>
+    <a class="back-link" href="main_page.html">← 메인으로</a>
   </div>
 </div>
 
-<div class="empty-wrap">
-  <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.5"/><path d="M5 20c0-3.6 3.1-6.3 7-6.3s7 2.7 7 6.3" stroke-linecap="round"/></svg></div>
-  <div class="empty-title" data-i18n-kr="회원·Lounge, 준비 중입니다" data-i18n-en="Member·Lounge — Coming Soon">회원·Lounge, 준비 중입니다</div>
-  <div class="empty-desc" data-i18n-kr="회원가입, 결제, 포인트 같은 계정 관련 기능과, 비회원도 가볍게 들러 당첨 결과를 확인할 수 있는 공개 라운지가 여기 들어올 예정입니다." data-i18n-en="Account features like sign-up, payment, and points, along with a public lounge where even non-members can casually check winning results, will be here.">회원가입, 결제, 포인트 같은 계정 관련 기능과, 비회원도 가볍게 들러 당첨 결과를 확인할 수 있는 공개 라운지가 여기 들어올 예정입니다.</div>
-  <div class="back-link" onclick="location.href='main_page.html'">← <span data-i18n-kr="전체 카테고리로" data-i18n-en="Back to All Categories">전체 카테고리로</span></div>
+<div class="wrap" id="content">
+  <div class="loading">불러오는 중...</div>
 </div>
 
 <script>
-var LANG = localStorage.getItem('mll_lang') || 'kr';
-function applyLang(){
-  document.title = (LANG === 'en') ? 'My Lotto Lab - Member·Lounge' : 'My Lotto Lab - 회원·Lounge';
-  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
-    var text = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
-    if (text !== undefined) el.textContent = text;
-  });
-  var krBtn = document.getElementById('langKrBtn'), enBtn = document.getElementById('langEnBtn');
-  if (krBtn) { krBtn.style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface)'; krBtn.style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)'; }
-  if (enBtn) { enBtn.style.background = LANG==='en' ? 'var(--gold)' : 'var(--surface)'; enBtn.style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)'; }
-}
-function setLang(lang){
-  LANG = lang;
-  localStorage.setItem('mll_lang', lang);
-  applyLang();
-}
-document.addEventListener('DOMContentLoaded', applyLang);
-</script>
+var API = 'https://my-lotto-lab-api.onrender.com';
 
+function getAuthState() {
+  var token = localStorage.getItem('mll_token') || sessionStorage.getItem('mll_token');
+  if (token) return { type: 'member', token: token };
+  var gNick = localStorage.getItem('mll_guest_nickname');
+  var gEmail = localStorage.getItem('mll_guest_email');
+  if (gNick && gEmail) return { type: 'guest', nickname: gNick, email: gEmail };
+  return { type: null };
+}
+
+async function load() {
+  var state = getAuthState();
+  var content = document.getElementById('content');
+
+  if (!state.type) {
+    content.innerHTML =
+      '<div class="profile-card" style="text-align:center;">' +
+        '<div class="balance-label">로그인이 필요합니다</div>' +
+        '<div class="action-row">' +
+          '<a class="action-btn primary" href="login.html">로그인 / 회원가입</a>' +
+          '<a class="action-btn secondary" href="' + API + '/pay/guest_test.html">비회원 임시등록</a>' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  var nickname = state.nickname;
+  var isGuest = state.type === 'guest';
+  var headers = {};
+  var qs = '';
+  if (state.type === 'member') {
+    headers['Authorization'] = 'Bearer ' + state.token;
+    try {
+      var meRes = await fetch(API + '/api/auth/me', { headers: headers });
+      var me = await meRes.json();
+      if (meRes.ok) nickname = me.nickname;
+    } catch (e) {}
+  } else {
+    qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  }
+
+  var balance = { total: 0, deposit: 0, activity: 0 };
+  var lots = [];
+  try {
+    var balRes = await fetch(API + '/api/points/balance' + qs, { headers: headers });
+    var balData = await balRes.json();
+    if (balRes.ok) balance = balData;
+  } catch (e) {}
+
+  // 비회원은 guest_test.html의 balance API가 lot 상세까지 주므로 재사용
+  try {
+    if (isGuest) {
+      var lotRes = await fetch(API + '/api/guest/balance' + qs);
+      var lotData = await lotRes.json();
+      if (lotRes.ok) lots = lotData.lots || [];
+    }
+  } catch (e) {}
+
+  var nearestExpiry = lots.length ? lots.slice().sort(function(a,b){ return new Date(a.expiresAt) - new Date(b.expiresAt); })[0] : null;
+
+  var lotsHtml = lots.length
+    ? lots.map(function(l){
+        var d = new Date(l.expiresAt);
+        var cls = l.type === 'deposit' ? 'deposit' : 'activity';
+        var label = l.type === 'deposit' ? '입금포인트' : '활동포인트';
+        return '<div class="lot-row ' + cls + '"><span class="ltype"><span class="ldot"></span>' + label + '</span><span class="lpoints">' + l.points.toLocaleString() + 'P</span><span class="lexpiry">' + d.toLocaleDateString('ko-KR') + ' 소멸</span></div>';
+      }).join('')
+    : '<div class="empty">' + (isGuest ? '적립된 포인트 내역이 없습니다.' : '상세 내역은 준비 중입니다.') + '</div>';
+
+  content.innerHTML =
+    '<div class="profile-card">' +
+      '<div class="profile-top">' +
+        '<div class="avatar">' + (isGuest ? '🕶️' : '👤') + '</div>' +
+        '<div>' +
+          '<div class="profile-name">' + nickname + '님</div>' +
+          '<div class="profile-badge">' + (isGuest ? '비회원' : '회원') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="balance-hero">' +
+        '<div class="balance-label">총 포인트 잔액</div>' +
+        '<div class="balance-value">' + balance.total.toLocaleString() + '<span class="unit">P</span></div>' +
+      '</div>' +
+      '<div class="balance-split">' +
+        '<div class="split-box deposit"><div class="slabel"><span class="sdot"></span>입금포인트</div><div class="sval">' + balance.deposit.toLocaleString() + 'P</div><div class="ssub">카드·페이팔·무통장입금으로 충전</div></div>' +
+        '<div class="split-box activity"><div class="slabel"><span class="sdot"></span>활동포인트</div><div class="sval">' + balance.activity.toLocaleString() + 'P</div><div class="ssub">활동·보상으로 적립, 차감시 우선 사용</div></div>' +
+      '</div>' +
+      (nearestExpiry
+        ? '<div class="expiry-note">가장 빠른 소멸 예정: <b>' + new Date(nearestExpiry.expiresAt).toLocaleDateString('ko-KR') + '</b> (' + nearestExpiry.points.toLocaleString() + 'P) — 포인트는 취득일로부터 30일 후 소멸됩니다.</div>'
+        : '<div class="expiry-note">포인트는 취득일로부터 30일 후 소멸됩니다.</div>'
+      ) +
+      '<div class="action-row">' +
+        '<a class="action-btn primary" href="' + API + '/pay/category_select.html">포인트 충전하러 가기</a>' +
+        '<a class="action-btn secondary" href="main_page.html">메인으로</a>' +
+      '</div>' +
+    '</div>' +
+    '<div class="lots-card">' +
+      '<h3>포인트 상세 내역</h3>' +
+      lotsHtml +
+    '</div>';
+}
+
+load();
+</script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 </body>
 </html>
