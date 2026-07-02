@@ -1,5 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const { createClient } = require('@supabase/supabase-js');
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
 // ─── 설정 ──────────────────────────────────────────────────────────────────
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
@@ -10,10 +16,24 @@ const PAYPAL_API_BASE = PAYPAL_MODE === 'live'
   ? 'https://api-m.paypal.com'
   : 'https://api-m.sandbox.paypal.com';
 
-// USD → 포인트 환산 비율 (1 USD = 몇 포인트인지). 국내 정책(1원=1포인트)과
-// 별개로 관리자가 조정 가능하도록 환경변수로 둡니다. 운영 시 실제 환율에
-// 맞춰 조정하세요. (예: 1 USD ≈ 1,400원 이라면 1400으로 설정)
-const POINT_EXCHANGE_RATE = Number(process.env.PAYPAL_EXCHANGE_RATE || 1400);
+// USD → 포인트 환산 비율은 관리자 화면(admin.js)에서 DB의 exchange_rate
+// 테이블을 수정하면 실시간 반영됩니다. 여기서는 매 주문 생성 시점에 조회합니다.
+// (DB 조회 실패 시에만 대비용 기본값 사용)
+const FALLBACK_EXCHANGE_RATE = 1400;
+
+async function getExchangeRate() {
+  const { data, error } = await supabase
+    .from('exchange_rate')
+    .select('usd_to_point')
+    .eq('id', 1)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error('[PayPal] 환율 조회 실패, 기본값 사용:', error);
+    return FALLBACK_EXCHANGE_RATE;
+  }
+  return Number(data.usd_to_point);
+}
 
 // 결제 한도 (USD 기준) - 국내 카드결제 한도(최소 1,000원~최대 100만원)와
 // 균형을 맞춰 대략적으로 설정. 필요시 조정하세요.
@@ -98,8 +118,10 @@ router.post('/create-order', async (req, res) => {
     }
 
     // 적립될 포인트 미리 계산해서 저장 (승인 시점에 이 값을 그대로 사용 —
-    // 승인 시점 환율 변동과 무관하게 결제 시점 기준으로 고정)
-    const points = Math.round(usdAmount * POINT_EXCHANGE_RATE);
+    // 승인 시점 환율 변동과 무관하게 결제(주문 생성) 시점 환율로 고정됩니다.
+    // ※ 이미 계산된 포인트는 이후 관리자가 환율을 바꿔도 소급 변경되지 않습니다.
+    const exchangeRate = await getExchangeRate();
+    const points = Math.round(usdAmount * exchangeRate);
 
     orderStore.set(orderData.id, {
       usdAmount,
