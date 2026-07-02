@@ -104,6 +104,14 @@ app.use('/api/payment/paypal', paypalRouter);
 const guestRouter = require('./routes/guest');
 app.use('/api/guest', guestRouter);
 
+// ─── 포인트 차감/조회/가격표 ───────────────────────────────────────────────────
+const pointsRouter = require('./routes/points');
+app.use('/api/points', pointsRouter);
+
+// ─── 관리자: 포인트 단가/환율 관리 ─────────────────────────────────────────────
+const adminRouter = require('./routes/admin');
+app.use('/api/admin', adminRouter);
+
 // ─── 서버 시작 ────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`My Lotto Lab API running on port ${PORT}`);
