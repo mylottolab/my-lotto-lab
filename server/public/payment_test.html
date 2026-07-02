@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Lotto Lab - 결제 테스트</title>
+<title>My Lotto Lab - 포인트 충전 (원화)</title>
 <script src="https://stdpay.inicis.com/stdjs/INIStdPay.js" charset="UTF-8"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -16,6 +16,10 @@ h1{font-size:20px;font-weight:700;margin-bottom:6px;}
 .field label{display:block;font-size:11.5px;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
 .field input{width:100%;background:var(--bg);border:1px solid var(--border-soft);border-radius:9px;padding:10px 13px;font-size:13.5px;color:var(--text);outline:none;font-family:inherit;}
 .field input:focus{border-color:var(--accent);}
+.amount-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+.amount-btn{background:var(--bg);border:1px solid var(--border-soft);border-radius:8px;padding:10px 4px;font-size:12.5px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;}
+.amount-btn:hover{border-color:var(--accent);}
+.amount-btn.active{background:var(--gold);border-color:var(--gold);color:#1a1305;}
 .btn{width:100%;padding:12px;border-radius:9px;border:none;background:var(--gold);color:#1a1305;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;}
 .btn:disabled{opacity:.45;cursor:not-allowed;}
 .btn.loading{position:relative;color:transparent;}
@@ -28,14 +32,18 @@ h1{font-size:20px;font-weight:700;margin-bottom:6px;}
 </head>
 <body>
 <div class="card">
-  <h1>🧪 결제 테스트</h1>
-  <p class="desc">실제 이니시스 결제창으로 테스트합니다. 소액(100원)으로 진행하세요.</p>
+  <h1>💳 포인트 충전 (원화)</h1>
+  <p class="desc">카드로 안전하게 포인트를 충전합니다. 1원 = 1포인트, 최소 1,000원부터 가능합니다.</p>
   <div class="err" id="errMsg"></div>
-  <div class="field"><label>상품명</label><input type="text" id="goodname" value="My Lotto Lab 이용권 (테스트)"></div>
-  <div class="field"><label>결제금액 (원)</label><input type="number" id="price" value="1000"></div>
-  <div class="field"><label>구매자 이름</label><input type="text" id="buyername" value="테스트구매자"></div>
-  <div class="field"><label>구매자 연락처</label><input type="text" id="buyertel" value="01012345678"></div>
-  <div class="field"><label>구매자 이메일</label><input type="email" id="buyeremail" value="test@test.com"></div>
+  <div class="field"><label>상품명</label><input type="text" id="goodname" value="My Lotto Lab 포인트 충전"></div>
+  <div class="field">
+    <label>충전금액 (원)</label>
+    <div class="amount-grid" id="amountGrid"></div>
+    <input type="number" id="price" value="1000" min="1000" step="1000">
+  </div>
+  <div class="field"><label>구매자 이름</label><input type="text" id="buyername" placeholder="이름을 입력하세요"></div>
+  <div class="field"><label>구매자 연락처</label><input type="text" id="buyertel" placeholder="010-0000-0000"></div>
+  <div class="field"><label>구매자 이메일</label><input type="email" id="buyeremail" placeholder="이메일을 입력하세요"></div>
   <button class="btn" id="payBtn" onclick="startPayment()">결제창 열기</button>
 </div>
 
@@ -63,10 +71,41 @@ h1{font-size:20px;font-weight:700;margin-bottom:6px;}
 <script>
 var API = 'https://my-lotto-lab-api.onrender.com';
 
+var AMOUNTS = [1000, 5000, 10000, 15000, 20000, 50000, 100000, 500000, 1000000];
+(function renderAmountButtons(){
+  var grid = document.getElementById('amountGrid');
+  var priceInput = document.getElementById('price');
+  grid.innerHTML = AMOUNTS.map(function(a){
+    return '<button type="button" class="amount-btn" data-amt="' + a + '">' + a.toLocaleString() + '원</button>';
+  }).join('');
+  grid.querySelectorAll('.amount-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      grid.querySelectorAll('.amount-btn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      priceInput.value = btn.dataset.amt;
+    });
+  });
+  priceInput.addEventListener('input', function(){
+    grid.querySelectorAll('.amount-btn').forEach(function(b){
+      b.classList.toggle('active', Number(b.dataset.amt) === Number(priceInput.value));
+    });
+  });
+  // 초기값 1,000원 버튼 활성화
+  grid.querySelector('.amount-btn').classList.add('active');
+})();
+
 async function startPayment(){
   var btn = document.getElementById('payBtn');
   var err = document.getElementById('errMsg');
   err.classList.remove('show');
+
+  var priceVal = Number(document.getElementById('price').value);
+  if (!priceVal || priceVal < 1000) {
+    err.textContent = '충전금액은 1,000원 이상이어야 합니다.';
+    err.classList.add('show');
+    return;
+  }
+
   btn.classList.add('loading'); btn.disabled=true;
 
   try {
