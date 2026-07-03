@@ -36,6 +36,17 @@ app.post('/api/auth/signup', async (req, res) => {
   if (nickname.length < 2 || nickname.length > 20) {
     return res.status(400).json({ error: '닉네임은 2~20자 사이여야 합니다.' });
   }
+
+  // profiles 테이블 기준으로 닉네임 중복 사전 확인 (회원/비회원 공통 닉네임 공간)
+  const { data: existingProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('nickname', nickname)
+    .maybeSingle();
+  if (existingProfile) {
+    return res.status(409).json({ error: '이미 사용 중인 닉네임입니다.' });
+  }
+
   const { data, error } = await supabase.auth.admin.createUser({
     email,
     password,
@@ -48,6 +59,20 @@ app.post('/api/auth/signup', async (req, res) => {
     }
     return res.status(400).json({ error: error.message });
   }
+
+  // profiles 테이블에도 실제 저장 (포인트 시스템 등 다른 기능이 이 테이블을 참조함)
+  const { error: profileErr } = await supabase.from('profiles').insert({
+    id: data.user.id,
+    nickname,
+    email,
+    is_guest: false,
+    country: country || 'KR'
+  });
+  if (profileErr) {
+    console.error('[signup] profiles 저장 오류:', profileErr);
+    // auth 계정은 이미 생성됐으므로 가입 자체는 성공으로 처리하되 로그만 남김
+  }
+
   return res.status(201).json({ message: '가입이 완료되었습니다.', userId: data.user.id });
 });
 
@@ -90,6 +115,60 @@ app.get('/api/auth/me', async (req, res) => {
     emailConfirmed: user.email_confirmed_at ? true : false,
     createdAt: user.created_at
   });
+});
+
+// ─── OAuth(구글/카카오) 로그인 사용자 프로필 완성 ───────────────────────────────
+// OAuth는 저희가 만든 회원가입 폼을 거치지 않으므로, 최초 로그인 시
+// profiles 테이블에 닉네임을 등록해야 합니다. 이미 등록되어 있으면 그대로 통과.
+app.post('/api/auth/finalize-profile', async (req, res) => {
+  const { accessToken, nickname } = req.body;
+  if (!accessToken) return res.status(400).json({ error: 'accessToken이 필요합니다.' });
+
+  const { data: userData, error: userErr } = await supabase.auth.getUser(accessToken);
+  if (userErr || !userData.user) {
+    return res.status(401).json({ error: '유효하지 않은 토큰입니다.' });
+  }
+  const user = userData.user;
+
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('nickname')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (existing) {
+    return res.json({ ok: true, nickname: existing.nickname, alreadyExists: true });
+  }
+
+  if (!nickname) {
+    return res.json({ ok: false, needsNickname: true });
+  }
+  if (nickname.length < 2 || nickname.length > 20) {
+    return res.status(400).json({ error: '닉네임은 2~20자 사이여야 합니다.' });
+  }
+
+  const { data: dupe } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('nickname', nickname)
+    .maybeSingle();
+  if (dupe) {
+    return res.status(409).json({ error: '이미 사용 중인 닉네임입니다.' });
+  }
+
+  const { error: insertErr } = await supabase.from('profiles').insert({
+    id: user.id,
+    nickname,
+    email: user.email,
+    is_guest: false,
+    country: 'KR'
+  });
+  if (insertErr) {
+    console.error('[finalize-profile] profiles 저장 오류:', insertErr);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+
+  return res.json({ ok: true, nickname });
 });
 
 // ─── 이니시스 결제 ────────────────────────────────────────────────────────────
