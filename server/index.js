@@ -195,6 +195,14 @@ app.use('/api/admin', adminRouter);
 const bankTransferRouter = require('./routes/bank_transfer');
 app.use('/api/payment/bank-transfer', bankTransferRouter);
 
+// ─── 한국로또 entries/results ──────────────────────────────────────────────────
+const lottoRouter = require('./routes/lotto');
+app.use('/api/lotto', lottoRouter);
+
+// ─── 마킹용지 PDF 생성 (makinglotto.com 프록시) ────────────────────────────────
+const markingRouter = require('./routes/marking');
+app.use('/api/marking', markingRouter);
+
 // ─── 서버 시작 ────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`My Lotto Lab API running on port ${PORT}`);
