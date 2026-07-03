@@ -7,53 +7,118 @@
 <script src="https://stdpay.inicis.com/stdjs/INIStdPay.js" charset="UTF-8"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-:root{--bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--accent:#5b6ee8;}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
-.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:36px 32px;max-width:440px;width:100%;}
-h1{font-size:20px;font-weight:700;margin-bottom:6px;}
-.desc{font-size:12.5px;color:var(--text-dim);margin-bottom:28px;line-height:1.6;}
-.field{margin-bottom:16px;}
-.field label{display:block;font-size:11.5px;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
-.field input{width:100%;background:var(--bg);border:1px solid var(--border-soft);border-radius:9px;padding:10px 13px;font-size:13.5px;color:var(--text);outline:none;font-family:inherit;}
-.field input:focus{border-color:var(--accent);}
-.amount-input-wrap{position:relative;}
-.amount-input-wrap input{padding-right:32px;}
-.amount-input-wrap .unit{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text-dim);pointer-events:none;}
-.my-balance{background:var(--bg);border:1px solid var(--border-soft);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--gold);margin-bottom:18px;display:none;line-height:1.6;}
+:root{--bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--accent:#5b6ee8;--green:#3fb37f;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13.5px;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px;}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:22px 22px;max-width:400px;width:100%;}
+.top-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+h1{font-size:17px;font-weight:700;}
+.lang-toggle{display:flex;border:1px solid var(--border-soft);border-radius:7px;overflow:hidden;flex-shrink:0;}
+.lang-toggle button{background:var(--bg);color:var(--text-dim);border:none;padding:4px 9px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;}
+.lang-toggle button.active{background:var(--gold);color:#1a1305;}
+.desc{font-size:11.5px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;}
+.my-balance{background:var(--bg);border:1px solid var(--border-soft);border-radius:8px;padding:8px 11px;font-size:11px;color:var(--gold);margin-bottom:14px;display:none;line-height:1.5;}
 .my-balance.show{display:block;}
-.amount-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
-.amount-btn{background:var(--bg);border:1px solid var(--border-soft);border-radius:8px;padding:10px 4px;font-size:12.5px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:5px;}
+.field input{width:100%;background:var(--bg);border:1px solid var(--border-soft);border-radius:8px;padding:8px 11px;font-size:13px;color:var(--text);outline:none;font-family:inherit;}
+.field input:focus{border-color:var(--accent);}
+.amount-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;}
+.amount-btn{background:var(--bg);border:1px solid var(--border-soft);border-radius:7px;padding:8px 2px;font-size:11.5px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;}
 .amount-btn:hover{border-color:var(--accent);}
 .amount-btn.active{background:var(--gold);border-color:var(--gold);color:#1a1305;}
-.btn{width:100%;padding:12px;border-radius:9px;border:none;background:var(--gold);color:#1a1305;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;}
+.amount-input-wrap{position:relative;max-width:200px;margin:0 auto;}
+.amount-input-wrap input{text-align:right;padding-right:28px;}
+.amount-input-wrap .unit{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text-dim);pointer-events:none;}
+.err{background:rgba(224,92,92,.10);border:1px solid rgba(224,92,92,.25);border-radius:8px;padding:8px 11px;font-size:11.5px;color:#f08080;margin-bottom:12px;display:none;}
+.err.show{display:block;}
+.ok{background:rgba(63,179,127,.10);border:1px solid rgba(63,179,127,.25);border-radius:8px;padding:8px 11px;font-size:11.5px;color:var(--green);margin-bottom:12px;display:none;line-height:1.5;}
+.ok.show{display:block;}
+
+.mode-row{display:flex;gap:8px;margin-top:16px;}
+.mode-btn{flex:1;padding:10px;border-radius:9px;border:1px solid var(--border-soft);background:var(--bg);color:var(--text);font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;}
+.mode-btn.active{background:var(--gold);border-color:var(--gold);color:#1a1305;}
+
+.panel{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border-soft);}
+.panel.show{display:block;}
+.btn{width:100%;padding:11px;border-radius:9px;border:none;background:var(--gold);color:#1a1305;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;}
 .btn:disabled{opacity:.45;cursor:not-allowed;}
 .btn.loading{position:relative;color:transparent;}
-.btn.loading::after{content:'';position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border:2px solid rgba(26,19,5,.4);border-top-color:#1a1305;border-radius:50%;animation:spin .6s linear infinite;}
+.btn.loading::after{content:'';position:absolute;left:50%;top:50%;width:15px;height:15px;margin:-7.5px 0 0 -7.5px;border:2px solid rgba(26,19,5,.4);border-top-color:#1a1305;border-radius:50%;animation:spin .6s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-.err{background:rgba(224,92,92,.10);border:1px solid rgba(224,92,92,.25);border-radius:9px;padding:10px 13px;font-size:12.5px;color:#f08080;margin-bottom:16px;display:none;}
-.err.show{display:block;}
+
+.bank-info{background:var(--bg);border:1px solid var(--border-soft);border-radius:9px;padding:12px 14px;margin-bottom:12px;font-size:12px;}
+.bank-info-row{display:flex;justify-content:space-between;padding:3px 0;}
+.bank-info-row .l{color:var(--text-dim);}
+.bank-info-row .v{font-weight:700;}
+.notice{font-size:10.5px;color:var(--text-dim);line-height:1.5;margin-top:10px;}
+.notice b{color:#f0c060;}
+
 #inicisForm{display:none;}
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>💳 포인트 충전 (원화)</h1>
-  <p class="desc">카드로 안전하게 포인트를 충전합니다. 1원 = 1포인트, 최소 1,000원부터 가능합니다.</p>
-  <div class="my-balance" id="myBalance"></div>
-  <div class="err" id="errMsg"></div>
-  <div class="field"><label>상품명</label><input type="text" id="goodname" value="My Lotto Lab 포인트 충전"></div>
-  <div class="field">
-    <label>충전금액 (원)</label>
-    <div class="amount-grid" id="amountGrid"></div>
-    <div class="amount-input-wrap">
-      <input type="number" id="price" value="1000" min="1000" step="1000">
-      <span class="unit">원</span>
+  <div class="top-row">
+    <h1 data-i18n-kr="💳 포인트 충전 (원화)" data-i18n-en="💳 Charge Points (KRW)">💳 포인트 충전 (원화)</h1>
+    <div class="lang-toggle">
+      <button id="langKrBtn" onclick="setLang('kr')">KR</button>
+      <button id="langEnBtn" onclick="setLang('en')">EN</button>
     </div>
   </div>
-  <div class="field"><label>구매자 이름</label><input type="text" id="buyername" placeholder="이름을 입력하세요"></div>
-  <div class="field"><label>구매자 연락처</label><input type="text" id="buyertel" placeholder="010-0000-0000"></div>
-  <div class="field"><label>구매자 이메일</label><input type="email" id="buyeremail" placeholder="이메일을 입력하세요"></div>
-  <button class="btn" id="payBtn" onclick="startPayment()">결제창 열기</button>
+  <p class="desc" data-i18n-kr="카드 또는 계좌이체로 포인트를 충전합니다. 1원 = 1포인트, 최소 1,000원부터 가능합니다." data-i18n-en="Charge points by card or bank transfer. 1 KRW = 1 point, minimum 1,000 KRW.">카드 또는 계좌이체로 포인트를 충전합니다. 1원 = 1포인트, 최소 1,000원부터 가능합니다.</p>
+
+  <div class="my-balance" id="myBalance"></div>
+  <div class="err" id="errMsg"></div>
+  <div class="ok" id="okMsg"></div>
+
+  <div class="field">
+    <label data-i18n-kr="충전금액 (원)" data-i18n-en="Amount (KRW)">충전금액 (원)</label>
+    <div class="amount-grid" id="amountGrid"></div>
+    <div class="amount-input-wrap">
+      <input type="text" id="priceDisplay" inputmode="numeric" value="1,000">
+      <span class="unit" data-i18n-kr="원" data-i18n-en="KRW">원</span>
+    </div>
+  </div>
+
+  <div class="mode-row">
+    <button class="mode-btn" id="bankModeBtn" onclick="switchMode('bank')" data-i18n-kr="계좌이체로 충전하기" data-i18n-en="Bank Transfer">계좌이체로 충전하기</button>
+    <button class="mode-btn active" id="cardModeBtn" onclick="switchMode('card')" data-i18n-kr="신용카드로 충전하기" data-i18n-en="Credit Card">신용카드로 충전하기</button>
+  </div>
+
+  <!-- 카드결제 패널 -->
+  <div class="panel show" id="cardPanel">
+    <div class="field"><label data-i18n-kr="상품명" data-i18n-en="Item name">상품명</label><input type="text" id="goodname" value="My Lotto Lab 포인트 충전"></div>
+    <div class="field"><label data-i18n-kr="구매자 이름" data-i18n-en="Name">구매자 이름</label><input type="text" id="buyername" data-i18n-ph-kr="이름을 입력하세요" data-i18n-ph-en="Enter your name" placeholder="이름을 입력하세요"></div>
+    <div class="field"><label data-i18n-kr="구매자 연락처" data-i18n-en="Phone">구매자 연락처</label><input type="text" id="buyertel" placeholder="010-0000-0000"></div>
+    <div class="field"><label data-i18n-kr="구매자 이메일" data-i18n-en="Email">구매자 이메일</label><input type="email" id="buyeremail" data-i18n-ph-kr="이메일을 입력하세요" data-i18n-ph-en="Enter your email" placeholder="이메일을 입력하세요"></div>
+    <button class="btn" id="payBtn" onclick="startPayment()" data-i18n-kr="결제창 열기" data-i18n-en="Open Payment Window">결제창 열기</button>
+  </div>
+
+  <!-- 계좌이체 패널 -->
+  <div class="panel" id="bankPanel">
+    <div class="bank-info" id="bankInfoBox">
+      <div class="bank-info-row"><span class="l" data-i18n-kr="입금은행" data-i18n-en="Bank">입금은행</span><span class="v" id="biBank">-</span></div>
+      <div class="bank-info-row"><span class="l" data-i18n-kr="계좌번호" data-i18n-en="Account No.">계좌번호</span><span class="v" id="biAccount">-</span></div>
+      <div class="bank-info-row"><span class="l" data-i18n-kr="예금주명" data-i18n-en="Account Holder">예금주명</span><span class="v" id="biHolder">-</span></div>
+    </div>
+    <div class="field"><label data-i18n-kr="입금자명" data-i18n-en="Depositor Name">입금자명</label><input type="text" id="depositorName" data-i18n-ph-kr="통장에 표시될 입금자명" data-i18n-ph-en="Name shown on the transfer" placeholder="통장에 표시될 입금자명"></div>
+    <div class="field">
+      <label data-i18n-kr="입금자 닉네임 (회원등록시 등록한 닉네임)" data-i18n-en="Nickname (must match your registered nickname)">입금자 닉네임 (회원등록시 등록한 닉네임)</label>
+      <input type="text" id="depositorNickname">
+    </div>
+    <div class="field">
+      <label data-i18n-kr="입금자 이메일 (회원등록시 등록한 이메일)" data-i18n-en="Email (must match your registered email)">입금자 이메일 (회원등록시 등록한 이메일)</label>
+      <input type="email" id="depositorEmail">
+    </div>
+    <div class="field"><label data-i18n-kr="입금자 연락처" data-i18n-en="Phone">입금자 연락처</label><input type="text" id="depositorPhone" placeholder="010-0000-0000"></div>
+    <button class="btn" id="bankSubmitBtn" onclick="submitBankTransfer()" data-i18n-kr="입금 신청하기" data-i18n-en="Submit Request">입금 신청하기</button>
+    <p class="notice">
+      <b>※</b>
+      <span data-i18n-kr="등록된 이메일이나 닉네임을 모두 기재하지 않거나 불명확한 경우 입금처리가 되지 않습니다." data-i18n-en="If the registered email or nickname is missing or incorrect, the deposit cannot be processed.">등록된 이메일이나 닉네임을 모두 기재하지 않거나 불명확한 경우 입금처리가 되지 않습니다.</span><br>
+      <b>※</b>
+      <span data-i18n-kr="입금확인은 당사가 대부분 12시간 이내 처리되나 휴일 등의 경우는 지체될 수 있는 점 양해 바랍니다." data-i18n-en="Deposit confirmation is usually processed within 12 hours, but may be delayed on holidays.">입금확인은 당사가 대부분 12시간 이내 처리되나 휴일 등의 경우는 지체될 수 있는 점 양해 바랍니다.</span>
+    </p>
+  </div>
 </div>
 
 <form id="inicisForm" method="post">
@@ -79,55 +144,170 @@ h1{font-size:20px;font-weight:700;margin-bottom:6px;}
 
 <script>
 var API = 'https://my-lotto-lab-api.onrender.com';
-
 var AMOUNTS = [1000, 5000, 10000, 15000, 20000, 50000, 100000, 500000, 1000000];
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+
+function applyLang(){
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var val = LANG === 'en' ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if (val !== undefined) el.textContent = val;
+  });
+  document.querySelectorAll('[data-i18n-ph-kr]').forEach(function(el){
+    var val = LANG === 'en' ? el.dataset.i18nPhEn : el.dataset.i18nPhKr;
+    if (val !== undefined) el.placeholder = val;
+  });
+  document.getElementById('langKrBtn').classList.toggle('active', LANG==='kr');
+  document.getElementById('langEnBtn').classList.toggle('active', LANG==='en');
+  document.title = LANG === 'en' ? 'My Lotto Lab - Charge Points (KRW)' : 'My Lotto Lab - 포인트 충전 (원화)';
+}
+function setLang(lang){ LANG=lang; localStorage.setItem('mll_lang',lang); applyLang(); }
+
+// ── 금액 선택 ──
 (function renderAmountButtons(){
   var grid = document.getElementById('amountGrid');
-  var priceInput = document.getElementById('price');
+  var display = document.getElementById('priceDisplay');
   grid.innerHTML = AMOUNTS.map(function(a){
-    return '<button type="button" class="amount-btn" data-amt="' + a + '">' + a.toLocaleString() + '원</button>';
+    return '<button type="button" class="amount-btn" data-amt="' + a + '">' + a.toLocaleString() + '</button>';
   }).join('');
   grid.querySelectorAll('.amount-btn').forEach(function(btn){
     btn.addEventListener('click', function(){
       grid.querySelectorAll('.amount-btn').forEach(function(b){ b.classList.remove('active'); });
       btn.classList.add('active');
-      priceInput.value = btn.dataset.amt;
+      display.value = Number(btn.dataset.amt).toLocaleString();
     });
   });
-  priceInput.addEventListener('input', function(){
+  display.addEventListener('input', function(){
+    var raw = display.value.replace(/[^0-9]/g, '');
+    display.value = raw ? Number(raw).toLocaleString() : '';
     grid.querySelectorAll('.amount-btn').forEach(function(b){
-      b.classList.toggle('active', Number(b.dataset.amt) === Number(priceInput.value));
+      b.classList.toggle('active', Number(b.dataset.amt) === Number(raw));
     });
   });
-  // 초기값 1,000원 버튼 활성화
   grid.querySelector('.amount-btn').classList.add('active');
 })();
+function getPrice(){ return Number(document.getElementById('priceDisplay').value.replace(/[^0-9]/g, '')); }
+
+// ── 결제방식 전환 ──
+function switchMode(mode){
+  document.getElementById('cardPanel').classList.toggle('show', mode==='card');
+  document.getElementById('bankPanel').classList.toggle('show', mode==='bank');
+  document.getElementById('cardModeBtn').classList.toggle('active', mode==='card');
+  document.getElementById('bankModeBtn').classList.toggle('active', mode==='bank');
+  document.getElementById('errMsg').classList.remove('show');
+  document.getElementById('okMsg').classList.remove('show');
+  if (mode === 'bank') loadBankInfo();
+}
+
+async function loadBankInfo(){
+  try {
+    var res = await fetch(API + '/api/payment/bank-transfer/info');
+    var data = await res.json();
+    if (res.ok) {
+      document.getElementById('biBank').textContent = LANG === 'en' ? (data.bankNameEn || data.bankName) : data.bankName;
+      document.getElementById('biAccount').textContent = data.accountNumber;
+      document.getElementById('biHolder').textContent = data.accountHolder;
+    }
+  } catch(e){}
+}
+
+async function submitBankTransfer(){
+  var btn = document.getElementById('bankSubmitBtn');
+  var err = document.getElementById('errMsg');
+  var ok = document.getElementById('okMsg');
+  err.classList.remove('show'); ok.classList.remove('show');
+
+  var price = getPrice();
+  if (!price || price < 1000) {
+    err.textContent = LANG==='en' ? 'Amount must be at least 1,000 KRW.' : '충전금액은 1,000원 이상이어야 합니다.';
+    err.classList.add('show'); return;
+  }
+  var depositorName = document.getElementById('depositorName').value.trim();
+  var nickname = document.getElementById('depositorNickname').value.trim();
+  var email = document.getElementById('depositorEmail').value.trim();
+  if (!depositorName || !nickname || !email) {
+    err.textContent = LANG==='en' ? 'Please fill in depositor name, nickname, and email.' : '입금자명, 닉네임, 이메일을 모두 입력해 주세요.';
+    err.classList.add('show'); return;
+  }
+
+  btn.classList.add('loading'); btn.disabled = true;
+  try {
+    var res = await fetch(API + '/api/payment/bank-transfer/request', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ depositorName: depositorName, nickname: nickname, email: email, amount: price })
+    });
+    var data = await res.json();
+    if (!res.ok) { err.textContent = (LANG==='en' ? data.errorEn : data.error) || data.error || '오류가 발생했습니다.'; err.classList.add('show'); return; }
+    ok.textContent = LANG==='en' ? (data.messageEn || data.message) : data.message;
+    ok.classList.add('show');
+  } catch(e){
+    err.textContent = LANG==='en' ? 'An error occurred.' : '오류가 발생했습니다.';
+    err.classList.add('show');
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+}
+
+async function loadBalance(){
+  if (typeof MLL === 'undefined') return;
+  var state = MLL.getAuthState();
+  var box = document.getElementById('myBalance');
+  if (!state.type) return;
+
+  if (state.type === 'guest') {
+    document.getElementById('depositorNickname').value = state.nickname;
+    document.getElementById('depositorEmail').value = state.email;
+  } else {
+    try {
+      var meRes = await fetch(API + '/api/auth/me', { headers: { Authorization: 'Bearer ' + state.token } });
+      var me = await meRes.json();
+      if (meRes.ok) {
+        document.getElementById('depositorNickname').value = me.nickname;
+        document.getElementById('depositorEmail').value = me.email;
+      }
+    } catch(e){}
+  }
+
+  var headers = {};
+  var qs = '';
+  if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
+  else qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+
+  try {
+    var res = await fetch(API + '/api/points/balance' + qs, { headers: headers });
+    var data = await res.json();
+    if (res.ok) {
+      box.innerHTML = (LANG==='en' ? 'Current balance: ' : '현재 보유 포인트: ') + '<b>' + data.total.toLocaleString() + 'P</b> (' + (LANG==='en'?'deposit ':'입금 ') + data.deposit.toLocaleString() + ' · ' + (LANG==='en'?'activity ':'활동 ') + data.activity.toLocaleString() + ')';
+      box.classList.add('show');
+    }
+  } catch(e){}
+}
 
 async function startPayment(){
   var btn = document.getElementById('payBtn');
   var err = document.getElementById('errMsg');
   err.classList.remove('show');
 
-  var priceVal = Number(document.getElementById('price').value);
+  var priceVal = getPrice();
   if (!priceVal || priceVal < 1000) {
-    err.textContent = '충전금액은 1,000원 이상이어야 합니다.';
+    err.textContent = LANG==='en' ? 'Amount must be at least 1,000 KRW.' : '충전금액은 1,000원 이상이어야 합니다.';
     err.classList.add('show');
     return;
   }
 
-  btn.classList.add('loading'); btn.disabled=true;
-
   try {
-    if (typeof MLL === 'undefined') throw new Error('인증 모듈 로딩 실패. 새로고침 후 다시 시도해 주세요.');
+    if (typeof MLL === 'undefined') throw new Error(LANG==='en' ? 'Auth module failed to load. Please refresh.' : '인증 모듈 로딩 실패. 새로고침 후 다시 시도해 주세요.');
     var authState = MLL.getAuthState();
     if (!authState.type) {
       MLL.requireAuth(function(){});
-      throw new Error('결제 전 로그인 또는 비회원 등록이 필요합니다.');
+      throw new Error(LANG==='en' ? 'Please log in or register as a guest before paying.' : '결제 전 로그인 또는 비회원 등록이 필요합니다.');
     }
+
+    btn.classList.add('loading'); btn.disabled=true;
 
     var headers = {'Content-Type':'application/json'};
     var payload = {
-      price: document.getElementById('price').value,
+      price: priceVal,
       goodname: document.getElementById('goodname').value,
       buyername: document.getElementById('buyername').value,
       buyertel: document.getElementById('buyertel').value,
@@ -170,39 +350,25 @@ async function startPayment(){
     btn.classList.remove('loading'); btn.disabled=false;
   }
 }
-async function loadBalance(){
-  if (typeof MLL === 'undefined') return;
-  var state = MLL.getAuthState();
-  var box = document.getElementById('myBalance');
-  if (!state.type) return;
 
-  var headers = {};
-  var qs = '';
-  if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
-  else qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
-
-  try {
-    var res = await fetch(API + '/api/points/balance' + qs, { headers: headers });
-    var data = await res.json();
-    if (res.ok) {
-      box.innerHTML = '현재 보유 포인트: <b>' + data.total.toLocaleString() + 'P</b> (입금 ' + data.deposit.toLocaleString() + ' · 활동 ' + data.activity.toLocaleString() + ')';
-      box.classList.add('show');
-    }
-  } catch(e){}
-}
-loadBalance();
-
-// 재방문/뒤로가기 시 입력값 잔상 제거
 window.addEventListener('pageshow', function(){
-  document.getElementById('price').value = 1000;
+  document.getElementById('priceDisplay').value = '1,000';
   document.getElementById('buyername').value = '';
   document.getElementById('buyertel').value = '';
   document.getElementById('buyeremail').value = '';
+  document.getElementById('depositorName').value = '';
   document.getElementById('errMsg').classList.remove('show');
+  document.getElementById('okMsg').classList.remove('show');
   document.querySelectorAll('.amount-btn').forEach(function(b){ b.classList.remove('active'); });
   var first = document.querySelector('.amount-btn');
   if (first) first.classList.add('active');
+  switchMode('card');
+  applyLang();
+  loadBalance();
 });
+
+applyLang();
+loadBalance();
 </script>
 <script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 </body>
