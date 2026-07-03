@@ -24,7 +24,6 @@
   var LOGIN_URL = 'https://mylottolab.github.io/my-lotto-lab/login.html';
   var SIGNUP_URL = 'https://mylottolab.github.io/my-lotto-lab/signup.html';
   var GUEST_URL = API + '/pay/guest_test.html';
-  var LOUNGE_URL = 'https://mylottolab.github.io/my-lotto-lab/hub_lounge.html';
 
   // ── 인증 상태 확인 ──────────────────────────────────────────
   function getAuthState() {
@@ -36,6 +35,46 @@
     if (gNick && gEmail) return { type: 'guest', nickname: gNick, email: gEmail };
 
     return { type: null };
+  }
+
+  // ── 도메인 간(GitHub Pages ↔ Render) 인증정보 전달 ──────────────
+  // localStorage는 origin마다 분리되므로, MLL.crossOriginUrl()로 만든 링크를 타고
+  // 들어온 경우 URL 쿼리에 실려온 인증정보를 이 도메인의 localStorage에 옮겨 담는다.
+  // common.js에도 동일 로직이 있음 — 둘 중 먼저 실행되는 쪽이 처리하면 URL에서
+  // 파라미터가 사라지므로 중복 실행돼도 안전하다.
+  (function crossOriginBootstrap() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var authType = params.get('mll_auth');
+      var changed = false;
+      if (authType === 'member' && params.get('mll_tok')) {
+        localStorage.setItem('mll_token', params.get('mll_tok'));
+        changed = true;
+      } else if (authType === 'guest' && params.get('mll_nick') && params.get('mll_em')) {
+        localStorage.setItem('mll_guest_nickname', params.get('mll_nick'));
+        localStorage.setItem('mll_guest_email', params.get('mll_em'));
+        changed = true;
+      }
+      if (changed) {
+        params.delete('mll_auth'); params.delete('mll_tok');
+        params.delete('mll_nick'); params.delete('mll_em');
+        var qs = params.toString();
+        var newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+        window.history.replaceState({}, '', newUrl);
+      }
+    } catch (e) { console.error('[MLL] 인증정보 전달 처리 오류:', e); }
+  })();
+
+  // 다른 도메인으로 이동하는 링크를 만들 때 사용
+  function crossOriginUrl(url) {
+    var state = getAuthState();
+    if (!state.type) return url;
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    if (state.type === 'member') {
+      return url + sep + 'mll_auth=member&mll_tok=' + encodeURIComponent(state.token);
+    }
+    return url + sep + 'mll_auth=guest&mll_nick=' + encodeURIComponent(state.nickname) +
+      '&mll_em=' + encodeURIComponent(state.email);
   }
 
   // ── 스타일 주입 ─────────────────────────────────────────────
@@ -57,107 +96,11 @@
     'font-family:inherit;text-decoration:none;}',
     '.mll-modal .mll-primary{background:#e0b341;color:#1a1305;}',
     '.mll-modal .mll-secondary{background:transparent;border:1px solid #1b2038;color:#eef0f6;}',
-    '.mll-modal .mll-close{background:none;border:none;color:#8b91ab;font-size:12px;cursor:pointer;margin-top:4px;font-family:inherit;}',
-    '.mll-topbanner{position:fixed;left:50%;top:14px;z-index:9997;background:#11152a;',
-    'border:1px solid #e0b341;border-radius:12px;padding:10px 20px;',
-    'box-shadow:0 8px 24px rgba(0,0,0,.4);white-space:nowrap;',
-    'transform:translate(-50%,-140%);opacity:0;transition:transform .5s ease,opacity .5s ease;pointer-events:none;}',
-    '.mll-topbanner.show{transform:translate(-50%,0);opacity:1;}',
-    '.mll-topbanner-text{font-size:12.5px;font-weight:600;color:#e0b341;',
-    'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}',
-    '.mll-topbanner-text b{color:#eef0f6;}'
+    '.mll-modal .mll-close{background:none;border:none;color:#8b91ab;font-size:12px;cursor:pointer;margin-top:4px;font-family:inherit;}'
   ].join('');
   document.head.appendChild(style);
 
-  // ── 상단에 주기적으로 나타났다 사라지는 배너: 로그인 중 닉네임 + 포인트 요약 ──────
-  var bannerIntervalId = null;
-
-  function buildBannerText(nickname, balance) {
-    return '🔑 <b>' + nickname + '</b>님 로그인 중  ·  포인트 총 <b>' +
-      balance.total.toLocaleString() + 'P</b> (입금 ' + balance.deposit.toLocaleString() +
-      ' · 활동 ' + balance.activity.toLocaleString() + ')  ' +
-      '<a href="' + LOUNGE_URL + '" style="color:#5b6ee8;text-decoration:underline;">라운지 보기 →</a>';
-  }
-
-  function showTopBanner(nickname, balance) {
-    var existing = document.querySelector('.mll-topbanner');
-    if (existing) existing.remove();
-
-    var banner = document.createElement('div');
-    banner.className = 'mll-topbanner';
-    var inner = document.createElement('div');
-    inner.className = 'mll-topbanner-text';
-    inner.innerHTML = buildBannerText(nickname, balance);
-    banner.appendChild(inner);
-    banner.style.pointerEvents = 'auto';
-    document.body.appendChild(banner);
-
-    // 살짝 뒤에 슬라이드인 → 몇 초 후 슬라이드아웃
-    requestAnimationFrame(function(){
-      setTimeout(function(){ banner.classList.add('show'); }, 50);
-    });
-    setTimeout(function(){ banner.classList.remove('show'); }, 5500);
-  }
-
-  function startBannerLoop(nickname, balance) {
-    if (bannerIntervalId) clearInterval(bannerIntervalId);
-    showTopBanner(nickname, balance); // 페이지 진입 시 한 번 바로 표시
-    bannerIntervalId = setInterval(function(){
-      showTopBanner(nickname, balance);
-    }, 25000); // 25초마다 반복
-  }
-
-  async function fetchNickname(state) {
-    if (state.type === 'guest') return state.nickname;
-    try {
-      var res = await fetch(API + '/api/auth/me', { headers: { Authorization: 'Bearer ' + state.token } });
-      var data = await res.json();
-      return res.ok ? (data.nickname || '회원') : '회원';
-    } catch (e) { return '회원'; }
-  }
-
-  async function fetchBalance(state) {
-    var headers = {};
-    var qs = '';
-    if (state.type === 'member') {
-      headers['Authorization'] = 'Bearer ' + state.token;
-    } else {
-      qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
-    }
-    try {
-      var res = await fetch(API + '/api/points/balance' + qs, { headers: headers });
-      var data = await res.json();
-      if (res.ok) return data;
-    } catch (e) {}
-    return { total: 0, deposit: 0, activity: 0 };
-  }
-
-  async function renderAuthUI() {
-    var existingFab = document.querySelector('.mll-fab');
-    if (existingFab) existingFab.remove();
-
-    var state = getAuthState();
-    if (!state.type) {
-      if (bannerIntervalId) { clearInterval(bannerIntervalId); bannerIntervalId = null; }
-      var existingBanner = document.querySelector('.mll-topbanner');
-      if (existingBanner) existingBanner.remove();
-
-      var fab = document.createElement('button');
-      fab.className = 'mll-fab';
-      fab.type = 'button';
-      fab.textContent = '👤 로그인 / 회원가입';
-      fab.addEventListener('click', showAuthModal);
-      document.body.appendChild(fab);
-      return;
-    }
-
-    var nickname = await fetchNickname(state);
-    var balance = await fetchBalance(state);
-    startBannerLoop(nickname, balance);
-  }
-
-  window.MLL = window.MLL || {};
-  window.MLL.refreshStatusBar = renderAuthUI;
+  // ── 등록 유도 모달 ───────────────────────────────────────────
   function showAuthModal() {
     var overlay = document.createElement('div');
     overlay.className = 'mll-overlay';
@@ -179,17 +122,32 @@
     });
   }
 
-  // ── 우측 하단 플로팅 버튼은 renderAuthUI()에서 통합 관리 (아래 참고) ──────────
+  // ── 우측 하단 플로팅 버튼 (미등록 상태에서만 표시) ──────────────
+  function renderFab() {
+    var existing = document.querySelector('.mll-fab');
+    if (existing) existing.remove();
+
+    var state = getAuthState();
+    if (state.type) return; // 이미 로그인/등록되어 있으면 표시 안 함
+
+    var fab = document.createElement('button');
+    fab.className = 'mll-fab';
+    fab.type = 'button';
+    fab.textContent = '👤 로그인 / 회원가입';
+    fab.addEventListener('click', showAuthModal);
+    document.body.appendChild(fab);
+  }
 
   // ── 포인트 부족 안내 모달 (설계서 3.4절: 공통 컴포넌트) ─────────────────────
   function showInsufficientModal(message, chargeUrl) {
+    var target = crossOriginUrl(chargeUrl || (API + '/pay/category_select.html'));
     var overlay = document.createElement('div');
     overlay.className = 'mll-overlay';
     overlay.innerHTML =
       '<div class="mll-modal">' +
         '<h2>포인트가 부족합니다</h2>' +
         '<p>' + (message || '포인트가 부족합니다. 충전해주세요.') + '</p>' +
-        '<a class="mll-btn mll-primary" href="' + (chargeUrl || (API + '/pay/category_select.html')) + '">충전하러 가기</a>' +
+        '<a class="mll-btn mll-primary" href="' + target + '">충전하러 가기</a>' +
         '<button class="mll-close" type="button">닫기</button>' +
       '</div>';
     document.body.appendChild(overlay);
@@ -202,7 +160,9 @@
   }
 
   // ── 전역 API ───────────────────────────────────────────────
+  window.MLL = window.MLL || {};
   window.MLL.getAuthState = getAuthState;
+  window.MLL.crossOriginUrl = crossOriginUrl;
   window.MLL.requireAuth = function (callback) {
     var state = getAuthState();
     if (state.type) {
@@ -252,7 +212,6 @@
       if (!res.ok) {
         return { success: false, message: data.error || '처리 중 오류가 발생했습니다.' };
       }
-      renderAuthUI(); // 잔액 즉시 갱신
       return { success: true, data: data };
     } catch (e) {
       console.error('[MLL.spendPoints] 오류:', e);
@@ -261,8 +220,8 @@
   };
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', renderAuthUI);
+    document.addEventListener('DOMContentLoaded', renderFab);
   } else {
-    renderAuthUI();
+    renderFab();
   }
 })();
