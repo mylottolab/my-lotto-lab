@@ -37,8 +37,8 @@ async function getExchangeRate() {
 
 // 결제 한도 (USD 기준) - 국내 카드결제 한도(최소 1,000원~최대 100만원)와
 // 균형을 맞춰 대략적으로 설정. 필요시 조정하세요.
-const MIN_USD = 1;      // 약 1,400원 상당
-const MAX_USD = 700;    // 약 100만원 상당
+const MIN_USD = 1;
+const MAX_USD = 1000;
 
 // ─── 주문 상태 저장소 ─────────────────────────────────────────────────────────
 // PayPal 주문번호(orderID)를 키로, 결제 준비~완료 상태를 잠깐 저장합니다.
@@ -128,6 +128,9 @@ router.post('/create-order', async (req, res) => {
 
     if (!usdAmount || isNaN(usdAmount)) {
       return res.status(400).json({ error: '결제 금액이 올바르지 않습니다.' });
+    }
+    if (!Number.isInteger(usdAmount)) {
+      return res.status(400).json({ error: '충전 금액은 정수(소수점 없이)여야 합니다.' });
     }
     if (usdAmount < MIN_USD || usdAmount > MAX_USD) {
       return res.status(400).json({ error: `결제 금액은 $${MIN_USD} ~ $${MAX_USD} 사이여야 합니다.` });
