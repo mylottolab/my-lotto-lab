@@ -97,15 +97,35 @@ h1{font-size:22px;font-weight:700;margin-bottom:6px;}
 </div>
 
 <script>
+function getAuthState(){
+  var token = localStorage.getItem('mll_token') || sessionStorage.getItem('mll_token');
+  if (token) return { type: 'member', token: token };
+  var gNick = localStorage.getItem('mll_guest_nickname');
+  var gEmail = localStorage.getItem('mll_guest_email');
+  if (gNick && gEmail) return { type: 'guest', nickname: gNick, email: gEmail };
+  return { type: null };
+}
+
+// 다른 도메인(mylottolab.github.io)으로 이동하는 링크에 인증정보를 실어 보낸다.
+// (localStorage는 도메인별로 분리 저장되므로, 그냥 링크만 걸면 도착 페이지에서 로그인이 풀려보임)
+function withAuthParams(url, state){
+  if (!state.type) return url;
+  var sep = url.indexOf('?') >= 0 ? '&' : '?';
+  if (state.type === 'member') return url + sep + 'mll_auth=member&mll_tok=' + encodeURIComponent(state.token);
+  return url + sep + 'mll_auth=guest&mll_nick=' + encodeURIComponent(state.nickname) + '&mll_em=' + encodeURIComponent(state.email);
+}
+
+// 상단 3개 카드(한국로또/해외복권/토토프로토)는 GitHub Pages 도메인으로 넘어가므로
+// 로그인/비회원등록 상태라면 링크에 인증정보를 실어준다.
+(function patchNavLinks(){
+  var state = getAuthState();
+  if (!state.type) return;
+  document.querySelectorAll('a.card[href]').forEach(function(a){
+    a.href = withAuthParams(a.getAttribute('href'), state);
+  });
+})();
+
 (async function(){
-  function getAuthState(){
-    var token = localStorage.getItem('mll_token') || sessionStorage.getItem('mll_token');
-    if (token) return { type: 'member', token: token };
-    var gNick = localStorage.getItem('mll_guest_nickname');
-    var gEmail = localStorage.getItem('mll_guest_email');
-    if (gNick && gEmail) return { type: 'guest', nickname: gNick, email: gEmail };
-    return { type: null };
-  }
   var state = getAuthState();
   var el = document.getElementById('myBalance');
   if (!state.type) return;
