@@ -245,7 +245,13 @@ async function handleLogin(e){
 
     var ob = document.getElementById('okBanner');
     ob.textContent = t('loginOk'); ob.classList.add('show');
-    setTimeout(function(){ location.href='https://my-lotto-lab-api.onrender.com/pay/category_select.html'; }, 800);
+    // ⚠ category_select.html은 다른 도메인(my-lotto-lab-api.onrender.com)에 있어서
+    // 방금 이 페이지(mylottolab.github.io)의 localStorage에 저장한 토큰을 그대로는
+    // 못 읽는다. URL 쿼리로 토큰을 함께 실어 보내면, 도착한 페이지에서
+    // common.js/auth_gate.js의 부트스트랩이 그 값을 받아 자기 도메인 localStorage에 다시 저장한다.
+    var target = 'https://my-lotto-lab-api.onrender.com/pay/category_select.html' +
+      '?mll_auth=member&mll_tok=' + encodeURIComponent(data.accessToken);
+    setTimeout(function(){ location.href = target; }, 800);
   } catch(err) {
     var msg = err.message === 'Failed to fetch' ? t('networkErr') : (err.message || t('loginFail'));
     var b=document.getElementById('errBanner'); b.textContent=msg; b.classList.add('show');
