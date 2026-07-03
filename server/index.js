@@ -191,6 +191,10 @@ app.use('/api/points', pointsRouter);
 const adminRouter = require('./routes/admin');
 app.use('/api/admin', adminRouter);
 
+// ─── 무통장입금 ───────────────────────────────────────────────────────────────
+const bankTransferRouter = require('./routes/bank_transfer');
+app.use('/api/payment/bank-transfer', bankTransferRouter);
+
 // ─── 서버 시작 ────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`My Lotto Lab API running on port ${PORT}`);
