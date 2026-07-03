@@ -91,6 +91,15 @@ function getAuthState() {
   return { type: null };
 }
 
+// 다른 도메인(my-lotto-lab-api.onrender.com)으로 이동하는 링크에 인증정보를 실어 보낸다.
+// (localStorage는 도메인별로 분리 저장되므로, 그냥 링크만 걸면 도착 페이지에서 로그인이 풀려보임)
+function withAuthParams(url, state) {
+  if (!state.type) return url;
+  var sep = url.indexOf('?') >= 0 ? '&' : '?';
+  if (state.type === 'member') return url + sep + 'mll_auth=member&mll_tok=' + encodeURIComponent(state.token);
+  return url + sep + 'mll_auth=guest&mll_nick=' + encodeURIComponent(state.nickname) + '&mll_em=' + encodeURIComponent(state.email);
+}
+
 async function load() {
   var state = getAuthState();
   var content = document.getElementById('content');
@@ -166,7 +175,7 @@ async function load() {
         : '<div class="expiry-note">포인트는 취득일로부터 30일 후 소멸됩니다.</div>'
       ) +
       '<div class="action-row">' +
-        '<a class="action-btn primary" href="' + API + '/pay/category_select.html">포인트 충전하러 가기</a>' +
+        '<a class="action-btn primary" href="' + withAuthParams(API + '/pay/category_select.html', state) + '">포인트 충전하러 가기</a>' +
         '<a class="action-btn secondary" href="main_page.html">메인으로</a>' +
       '</div>' +
     '</div>' +
