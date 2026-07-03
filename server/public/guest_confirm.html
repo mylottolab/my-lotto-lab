@@ -56,14 +56,27 @@ function render(ok, title, desc){
     '<a class="btn" href="' + (ok ? '/pay/category_select.html' : '/pay/guest_test.html') + '">' + (ok ? '카테고리 선택하러 가기' : '다시 시도하기') + '</a>';
 }
 
+// accessToken(JWT)의 payload에서 email 클레임을 꺼낸다.
+// finalize-link 응답에 email이 안 들어있는 경우를 대비한 안전장치.
+function decodeEmailFromJwt(token){
+  try {
+    var payload = token.split('.')[1];
+    var json = decodeURIComponent(atob(payload.replace(/-/g,'+').replace(/_/g,'/'))
+      .split('').map(function(c){ return '%' + ('00'+c.charCodeAt(0).toString(16)).slice(-2); }).join(''));
+    return JSON.parse(json).email || null;
+  } catch(e) { return null; }
+}
+
 (async function(){
+  var query = new URLSearchParams(window.location.search);
+  var nickname = query.get('nickname');
   var hashData = parseHash();
 
   if (hashData.error) {
     render(false, '인증에 실패했습니다', '링크가 만료되었거나 이미 사용된 링크입니다. 처음부터 다시 시도해 주세요.');
     return;
   }
-  if (!hashData.accessToken) {
+  if (!hashData.accessToken || !nickname) {
     render(false, '잘못된 접근입니다', '이메일에서 받은 링크를 통해 접속해 주세요.');
     return;
   }
@@ -72,13 +85,24 @@ function render(ok, title, desc){
     var res = await fetch(API + '/api/guest/finalize-link', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accessToken: hashData.accessToken })
+      body: JSON.stringify({ accessToken: hashData.accessToken, nickname: nickname })
     });
     var data = await res.json();
 
     if (!res.ok) {
       render(false, '등록에 실패했습니다', data.error || '알 수 없는 오류가 발생했습니다.');
       return;
+    }
+
+    // ⚠ 예전 코드에는 이 부분이 아예 빠져있었음 — 화면엔 "등록 완료"라고 뜨지만
+    // 실제로는 로그인 상태가 저장되지 않아, 다음 페이지에서 계속 "회원등록 필요"로
+    // 보이는 문제가 있었다. 여기서 반드시 저장해야 auth_gate.js/common.js가 인식한다.
+    var email = data.email || decodeEmailFromJwt(hashData.accessToken);
+    if (email) {
+      localStorage.setItem('mll_guest_nickname', data.nickname || nickname);
+      localStorage.setItem('mll_guest_email', email);
+    } else {
+      console.error('[guest_confirm] email을 확인할 수 없어 로그인 상태를 저장하지 못했습니다.');
     }
 
     render(true, '등록이 완료되었습니다!', '닉네임 "' + data.nickname + '" 으로 등록되었습니다. 이제 포인트 조회가 가능합니다.');
@@ -89,4 +113,3 @@ function render(ok, title, desc){
 </script>
 </body>
 </html>
-
