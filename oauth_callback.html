@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 로그인 처리 중</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0d18;color:#eef0f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.box{text-align:center;max-width:340px;width:100%;}
+.spinner{width:32px;height:32px;border:3px solid #1b2038;border-top-color:#e0b341;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+p{font-size:13px;color:#8b91ab;line-height:1.6;}
+.err{color:#f08080;}
+.nick-card{background:#11152a;border:1px solid #1b2038;border-radius:14px;padding:24px;text-align:left;display:none;}
+.nick-card.show{display:block;}
+.nick-card h2{font-size:15px;margin-bottom:6px;}
+.nick-card p{margin-bottom:14px;}
+.nick-card input{width:100%;background:#0a0d18;border:1px solid #1b2038;border-radius:9px;padding:10px 13px;font-size:13.5px;color:#eef0f6;outline:none;margin-bottom:10px;font-family:inherit;}
+.nick-card button{width:100%;padding:11px;border-radius:9px;border:none;background:#e0b341;color:#1a1305;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;}
+.nick-err{font-size:11.5px;color:#f08080;margin-bottom:10px;display:none;}
+.nick-err.show{display:block;}
+</style>
+</head>
+<body>
+<div class="box">
+  <div id="loadingBox">
+    <div class="spinner" id="spinner"></div>
+    <p id="msg">로그인 처리 중입니다...</p>
+  </div>
+
+  <div class="nick-card" id="nickCard">
+    <h2>닉네임을 설정해 주세요</h2>
+    <p>My Lotto Lab에서 처음 뵙네요! 리더보드·Battles에 표시될 닉네임을 정해주세요.</p>
+    <div class="nick-err" id="nickErr"></div>
+    <input type="text" id="nickInput" placeholder="2~20자 사이 닉네임" maxlength="20">
+    <button onclick="submitNickname()">시작하기</button>
+  </div>
+</div>
+
+<script>
+// ⚠ login.html과 동일한 값으로 교체하세요.
+var SUPABASE_URL = 'https://lgwzueyhtxiywoqwshxy.supabase.co';
+var SUPABASE_ANON_KEY = 'sb_publishable_7a7XwW2R64-2n5NEbYVCFg_zPj-iQ8a';
+var API = 'https://my-lotto-lab-api.onrender.com';
+var CATEGORY_URL = API + '/pay/category_select.html';
+
+var accessToken = null;
+
+function showError(text){
+  document.getElementById('spinner').style.display = 'none';
+  var msg = document.getElementById('msg');
+  msg.className = 'err';
+  msg.textContent = text;
+  setTimeout(function(){ location.href = 'login.html'; }, 2200);
+}
+
+async function finalizeProfile(nickname){
+  var body = { accessToken: accessToken };
+  if (nickname) body.nickname = nickname;
+
+  var res = await fetch(API + '/api/auth/finalize-profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  var data = await res.json();
+
+  if (!res.ok) {
+    if (nickname) {
+      var errBox = document.getElementById('nickErr');
+      errBox.textContent = data.error || '오류가 발생했습니다.';
+      errBox.classList.add('show');
+    } else {
+      showError('처리 중 오류가 발생했습니다.');
+    }
+    return;
+  }
+
+  if (data.needsNickname) {
+    document.getElementById('loadingBox').style.display = 'none';
+    document.getElementById('nickCard').classList.add('show');
+    return;
+  }
+
+  // 닉네임 확정 완료 → 카테고리 화면으로 이동
+  location.href = CATEGORY_URL;
+}
+
+function submitNickname(){
+  var val = document.getElementById('nickInput').value.trim();
+  document.getElementById('nickErr').classList.remove('show');
+  if (val.length < 2 || val.length > 20) {
+    var errBox = document.getElementById('nickErr');
+    errBox.textContent = '닉네임은 2~20자 사이여야 합니다.';
+    errBox.classList.add('show');
+    return;
+  }
+  finalizeProfile(val);
+}
+
+(async function(){
+  try {
+    var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    var { data, error } = await supabaseClient.auth.getSession();
+
+    if (error || !data.session) {
+      showError('로그인에 실패했습니다. 다시 시도해 주세요.');
+      return;
+    }
+
+    accessToken = data.session.access_token;
+    // 기존 이메일/비밀번호 로그인과 동일한 방식으로 토큰 저장 (auth_gate.js가 이 키를 읽음)
+    localStorage.setItem('mll_token', accessToken);
+
+    await finalizeProfile(null); // 먼저 닉네임 등록 여부만 확인
+  } catch (e) {
+    console.error(e);
+    showError('오류가 발생했습니다. 다시 시도해 주세요.');
+  }
+})();
+</script>
+</body>
+</html>
+

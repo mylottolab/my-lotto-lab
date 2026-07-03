@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab - 로그인</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -253,7 +254,35 @@ async function handleLogin(e){
   }
 }
 
-function socialLogin(){ alert(t('socialSoon')); }
+// ⚠ 아래 SUPABASE_URL / SUPABASE_ANON_KEY를 실제 값으로 교체하세요.
+// (anon/public key는 브라우저에 노출돼도 안전한 공개키입니다 — service_role 키와는 다릅니다)
+var SUPABASE_URL = 'https://lgwzueyhtxiywoqwshxy.supabase.co';
+var SUPABASE_ANON_KEY = 'sb_publishable_7a7XwW2R64-2n5NEbYVCFg_zPj-iQ8a';
+var supabaseClient = (typeof supabase !== 'undefined')
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+async function socialLogin(provider){
+  if (provider === 'naver') {
+    alert(t('socialSoon'));
+    return;
+  }
+  if (!supabaseClient) {
+    alert(t('networkErr'));
+    return;
+  }
+  var { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: provider, // 'google' | 'kakao'
+    options: {
+      redirectTo: 'https://mylottolab.github.io/my-lotto-lab/oauth_callback.html'
+    }
+  });
+  if (error) {
+    console.error('소셜 로그인 오류:', error);
+    alert(t('networkErr'));
+  }
+  // 성공 시 자동으로 provider 로그인 화면으로 리다이렉트됨 (이후 코드 실행 안 됨)
+}
 function goForgot(){ alert(t('forgotSoon')); }
 
 document.addEventListener('DOMContentLoaded', applyLang);
