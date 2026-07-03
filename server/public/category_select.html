@@ -27,6 +27,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:6px;}
 .charge-head .titles{flex:1;text-align:left;}
 .charge-head .ko{font-size:16px;font-weight:700;}
 .charge-head .en{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+.charge-head .my-balance{font-size:11px;color:var(--gold);text-align:right;line-height:1.6;font-weight:600;white-space:nowrap;}
 .charge-btns{display:flex;gap:10px;}
 .charge-btn{flex:1;background:var(--bg);border:1px solid var(--border-soft);border-radius:11px;padding:14px 10px;text-decoration:none;color:var(--text);transition:border-color .15s, background .15s;text-align:center;}
 .charge-btn:hover{border-color:var(--accent);background:var(--surface-hover);}
@@ -77,6 +78,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:6px;}
           <div class="ko">포인트 충전소</div>
           <div class="en">Point Charging Station</div>
         </span>
+        <span class="my-balance" id="myBalance"></span>
       </div>
       <div class="charge-btns">
         <a class="charge-btn" href="/pay/payment_test.html">
@@ -93,6 +95,35 @@ h1{font-size:22px;font-weight:700;margin-bottom:6px;}
     </div>
   </div>
 </div>
+
+<script>
+(async function(){
+  function getAuthState(){
+    var token = localStorage.getItem('mll_token') || sessionStorage.getItem('mll_token');
+    if (token) return { type: 'member', token: token };
+    var gNick = localStorage.getItem('mll_guest_nickname');
+    var gEmail = localStorage.getItem('mll_guest_email');
+    if (gNick && gEmail) return { type: 'guest', nickname: gNick, email: gEmail };
+    return { type: null };
+  }
+  var state = getAuthState();
+  var el = document.getElementById('myBalance');
+  if (!state.type) return;
+
+  var headers = {};
+  var qs = '';
+  if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
+  else qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+
+  try {
+    var res = await fetch('https://my-lotto-lab-api.onrender.com/api/points/balance' + qs, { headers: headers });
+    var data = await res.json();
+    if (res.ok) {
+      el.innerHTML = '현재 귀하의 포인트<br>입금포인트: ' + data.deposit.toLocaleString() + '<br>활동포인트: ' + data.activity.toLocaleString();
+    }
+  } catch(e){}
+})();
+</script>
 <script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 </body>
 </html>
