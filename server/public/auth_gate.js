@@ -108,8 +108,11 @@
       '<div class="mll-modal">' +
         '<h2>회원등록이 필요합니다</h2>' +
         '<p>입력·조회·배틀참가 등의 기능은 회원가입 또는 비회원 임시등록 후 이용하실 수 있습니다.</p>' +
-        '<a class="mll-btn mll-primary" href="' + SIGNUP_URL + '">회원가입 / 로그인</a>' +
-        '<a class="mll-btn mll-secondary" href="' + GUEST_URL + '">비회원 임시등록 (간편)</a>' +
+        '<a class="mll-btn mll-primary" href="' + LOGIN_URL + '">로그인</a>' +
+        '<a class="mll-btn mll-secondary" href="' + GUEST_URL + '">비회원 등록 / 로그인 (간편)</a>' +
+        '<p style="margin:12px 0 0;font-size:11.5px;color:var(--text-dim,#8b91ab);">' +
+          '아직 계정이 없으신가요? <a href="' + SIGNUP_URL + '" style="color:var(--gold,#e0b341);font-weight:600;text-decoration:none;">회원가입</a>' +
+        '</p>' +
         '<button class="mll-close" type="button">닫기</button>' +
       '</div>';
     document.body.appendChild(overlay);
