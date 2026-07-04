@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Lotto Lab - 관리자: 포인트 단가 관리</title>
+<title>My Lotto Lab - 관리자 화면</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{--bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--green:#3fb37f;--red:#e05c5c;}
@@ -34,6 +34,10 @@ tr:last-child td{border-bottom:none;}
 .badge{font-size:9.5px;padding:2px 7px;border-radius:20px;font-weight:700;}
 .badge.free{background:rgba(63,179,127,.15);color:var(--green);}
 .badge.paid{background:rgba(224,179,65,.15);color:var(--gold);}
+.badge.bank_transfer{background:rgba(63,179,127,.15);color:var(--green);}
+.badge.inicis{background:rgba(91,110,232,.15);color:#8f9dfa;}
+.badge.paypal{background:rgba(224,179,65,.15);color:var(--gold);}
+.badge.activity_reward{background:rgba(139,145,171,.15);color:var(--text-dim);}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;padding:12px 18px;font-size:12.5px;display:none;}
 .toast.show{display:block;}
 .toast.ok{border-color:var(--green);color:var(--green);}
@@ -50,18 +54,50 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <div class="wrap" id="main" style="display:none;">
-  <h1>⚙️ 포인트 단가 관리</h1>
+  <h1>⚙️ 관리자 화면</h1>
   <p class="desc">수정 후 저장하면 즉시 반영됩니다. (이미 발생한 결제/차감 내역은 소급 변경되지 않습니다)</p>
 
   <div class="card">
-    <h2>💱 USD 환율 (1달러 = 몇 포인트)</h2>
-    <div class="rate-row">
-      <span>1 USD =</span>
-      <input type="number" id="rateInput" step="1">
-      <span>포인트</span>
-      <button onclick="saveRate()">저장</button>
-      <span id="rateUpdated" style="font-size:11px;color:var(--text-faint);"></span>
-    </div>
+    <h2>🏦 무통장입금 대기 목록</h2>
+    <table>
+      <thead>
+        <tr><th>신청ID</th><th>닉네임</th><th>입금자명</th><th>금액</th><th>신청일시</th><th></th></tr>
+      </thead>
+      <tbody id="bankTransferBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>✅ 입금확인자 (적립 완료 내역)</h2>
+    <p class="desc" style="margin-bottom:12px;">계좌이체 승인·신용카드·PayPal 결제가 모두 이 목록 하나에 모입니다 (결제수단은 뱃지로 구분).</p>
+    <table>
+      <thead>
+        <tr><th>닉네임</th><th>결제수단</th><th>금액</th><th>적립일시</th></tr>
+      </thead>
+      <tbody id="depositsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>👥 회원/비회원 포인트 현황</h2>
+    <p class="desc" style="margin-bottom:12px;">최근 가입순 상위 200명. 만료되지 않은 잔여 포인트만 집계됩니다.</p>
+    <table>
+      <thead>
+        <tr><th>닉네임</th><th>구분</th><th>입금포인트</th><th>활동포인트</th><th>합계</th></tr>
+      </thead>
+      <tbody id="usersBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>📊 항목별 매출현황</h2>
+    <p class="desc" style="margin-bottom:12px;">전체 기간 누적. 활동포인트로 차감된 것도 포함된 총량입니다(실제 입금액과는 다를 수 있음).</p>
+    <table>
+      <thead>
+        <tr><th>메뉴</th><th>누적 차감(P)</th><th>사용 횟수</th></tr>
+      </thead>
+      <tbody id="revenueBody"></tbody>
+    </table>
   </div>
 
   <div class="card">
@@ -82,13 +118,14 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <div class="card">
-    <h2>🏦 무통장입금 대기 목록</h2>
-    <table>
-      <thead>
-        <tr><th>신청ID</th><th>닉네임</th><th>입금자명</th><th>금액</th><th>신청일시</th><th></th></tr>
-      </thead>
-      <tbody id="bankTransferBody"></tbody>
-    </table>
+    <h2>💱 USD 환율 (1달러 = 몇 포인트)</h2>
+    <div class="rate-row">
+      <span>1 USD =</span>
+      <input type="number" id="rateInput" step="1">
+      <span>포인트</span>
+      <button onclick="saveRate()">저장</button>
+      <span id="rateUpdated" style="font-size:11px;color:var(--text-faint);"></span>
+    </div>
   </div>
 </div>
 
@@ -142,6 +179,15 @@ async function loadAll(){
 
     var bankReqs = await apiGet('/api/admin/bank-transfer?status=pending');
     renderBankTransfers(bankReqs.items);
+
+    var deposits = await apiGet('/api/admin/deposits?limit=50');
+    renderDeposits(deposits.items);
+
+    var users = await apiGet('/api/admin/users?limit=200');
+    renderUsers(users.items);
+
+    var revenue = await apiGet('/api/admin/revenue');
+    renderRevenue(revenue.items, revenue.grandTotalPoints);
   } catch(e) {
     console.error(e);
   }
@@ -207,6 +253,75 @@ function renderBankTransfers(items){
       '</tr>'
     );
   }).join('');
+}
+
+var DEPOSIT_SOURCE_LABEL = {
+  bank_transfer: '계좌이체',
+  inicis: '신용카드',
+  paypal: 'PayPal',
+  activity_reward: '활동적립'
+};
+
+function renderDeposits(items){
+  var body = document.getElementById('depositsBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">입금확인(적립) 내역이 없습니다.</td></tr>';
+    return;
+  }
+  body.innerHTML = items.map(function(r){
+    var nickname = r.profiles ? r.profiles.nickname : '-';
+    var label = DEPOSIT_SOURCE_LABEL[r.source] || r.source;
+    var date = new Date(r.earned_at).toLocaleString('ko-KR');
+    return (
+      '<tr>' +
+        '<td>' + nickname + '</td>' +
+        '<td><span class="badge ' + r.source + '">' + label + '</span></td>' +
+        '<td>' + Number(r.amount).toLocaleString() + 'P</td>' +
+        '<td style="font-size:11px;color:var(--text-dim);">' + date + '</td>' +
+      '</tr>'
+    );
+  }).join('');
+}
+
+function renderUsers(items){
+  var body = document.getElementById('usersBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">가입자가 없습니다.</td></tr>';
+    return;
+  }
+  body.innerHTML = items.map(function(u){
+    var typeBadge = u.isGuest
+      ? '<span class="badge activity_reward">비회원</span>'
+      : '<span class="badge free">회원</span>';
+    return (
+      '<tr>' +
+        '<td>' + u.nickname + '</td>' +
+        '<td>' + typeBadge + '</td>' +
+        '<td>' + u.deposit.toLocaleString() + 'P</td>' +
+        '<td>' + u.activity.toLocaleString() + 'P</td>' +
+        '<td><b>' + u.total.toLocaleString() + 'P</b></td>' +
+      '</tr>'
+    );
+  }).join('');
+}
+
+function renderRevenue(items, grandTotal){
+  var body = document.getElementById('revenueBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">차감 내역이 없습니다.</td></tr>';
+    return;
+  }
+  var rows = items.map(function(r){
+    return (
+      '<tr>' +
+        '<td>' + r.labelKr + '</td>' +
+        '<td>' + r.totalPoints.toLocaleString() + 'P</td>' +
+        '<td>' + r.count.toLocaleString() + '회</td>' +
+      '</tr>'
+    );
+  }).join('');
+  rows += '<tr style="font-weight:700;"><td>합계</td><td>' + (grandTotal||0).toLocaleString() + 'P</td><td></td></tr>';
+  body.innerHTML = rows;
 }
 
 async function approveBankTransfer(id){
