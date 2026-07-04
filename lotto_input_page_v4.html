@@ -498,6 +498,8 @@ var MLL = window.MLL;
 
 MLL.MARKING_CONFIG = {
   chunkSize: 15,
+  pageSize: 15,          // makinglotto.com이 이미지를 바꿀 수 있는 실제 단위(페이지=전표 3매).
+                         // 이 값을 넘게 이미지를 선택해도 실제로는 쓰이지 않으므로, 선택 개수 자체를 여기서 제한한다.
   defaultCid: '158',
   pricePerSheet: 300,   // 전표용지 1매당 300원
   gamesPerSheet: 5,      // 마킹용지 1매(A~E)에 들어가는 게임(번호조합) 수
@@ -539,7 +541,8 @@ MLL._ensureMarkingModalDom = function(){
     '<div class="modal-box" style="position:relative;max-width:760px;width:100%;max-height:88vh;overflow-y:auto;background:#11152a;border:1px solid #252b48;border-radius:16px;padding:24px;box-sizing:border-box;">' +
       '<button class="modal-close-x" style="position:absolute;top:20px;right:20px;background:none;border:none;color:#5a6080;font-size:18px;cursor:pointer;" onclick="MLL.closeMarkingModal()">✕</button>' +
       '<h3 style="font-size:16px;font-weight:700;margin-bottom:8px;color:#eef0f6;display:flex;align-items:center;gap:7px;"><span style="font-size:18px;">🖨️</span> 로또인쇄 — 마킹용지 PDF로 받기</h3>' +
-      '<p style="font-size:11.5px;color:#8b91ab;line-height:1.7;margin-bottom:14px;">실물 로또 판매점에 바로 제출 가능한 마킹용지 형태로 출력합니다. 이미지를 여러 개 선택하면 용지마다 순서대로 번갈아 적용됩니다.</p>' +
+      '<p style="font-size:11.5px;color:#8b91ab;line-height:1.7;margin-bottom:8px;">실물 로또 판매점에 바로 제출 가능한 마킹용지 형태로 출력합니다.</p>' +
+      '<div id="mllMarkingGuide" style="font-size:11.5px;color:#e0b341;background:rgba(224,179,65,.08);border:1px solid rgba(224,179,65,.25);border-radius:8px;padding:8px 11px;margin-bottom:12px;line-height:1.6;"></div>' +
       '<div id="mllCharGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:320px;overflow-y:auto;padding:4px;border:1px solid #252b48;border-radius:10px;margin-bottom:14px;"></div>' +
       '<div id="mllMarkingPriceBox" style="font-size:12.5px;color:#8b91ab;margin-bottom:12px;"></div>' +
       '<div id="mllMarkingResultBox" style="margin-top:10px;padding:11px 14px;border-radius:9px;font-size:12px;display:none;"></div>' +
@@ -556,6 +559,13 @@ MLL._ensureMarkingModalDom = function(){
 
 MLL._renderMarkingModal = function(){
   MLL._ensureMarkingModalDom();
+  var cfg = MLL.MARKING_CONFIG;
+  var gameCount = (MLL.markingState.pendingRows||[]).length;
+  var maxUsefulImages = Math.max(1, Math.ceil(gameCount / cfg.pageSize));
+  var sheetsPerPage = Math.round(cfg.pageSize / cfg.gamesPerSheet); // 15/5 = 3매
+  document.getElementById('mllMarkingGuide').innerHTML =
+    '💡 지금 게임 수(' + gameCount + '게임) 기준으로 <b>이미지 ' + maxUsefulImages + '개</b>까지 선택할 수 있으며, ' +
+    '전표 ' + sheetsPerPage + '매씩 같은 이미지로 인쇄됩니다.';
   var ids = MLL.getAvailableCharacterIds();
   var grid = document.getElementById('mllCharGrid');
   grid.innerHTML = ids.map(function(id){
@@ -570,9 +580,21 @@ MLL._renderMarkingModal = function(){
 
 MLL.toggleCharacter = function(cid){
   var s = MLL.markingState;
+  var cfg = MLL.MARKING_CONFIG;
   var idx = s.selectedCids.indexOf(cid);
-  if (idx>=0) s.selectedCids.splice(idx,1);
-  else s.selectedCids.push(cid);
+  if (idx>=0) {
+    s.selectedCids.splice(idx,1);
+  } else {
+    // 실제로 쓰일 수 있는 최대 이미지 개수(=생성될 페이지 수)를 넘으면 더 못 고르게 막는다.
+    // (안 그러면 돈은 냈는데 실제로는 한 번도 안 쓰이는 이미지가 생김)
+    var gameCount = (s.pendingRows||[]).length;
+    var maxUsefulImages = Math.max(1, Math.ceil(gameCount / cfg.pageSize));
+    if (s.selectedCids.length >= maxUsefulImages) {
+      alert('지금 게임 수(' + gameCount + '게임)로는 이미지를 최대 ' + maxUsefulImages + '개까지만 실제로 쓸 수 있어요.\n(이미지는 15게임=용지 3매 단위로만 바뀝니다)');
+      return;
+    }
+    s.selectedCids.push(cid);
+  }
   document.querySelectorAll('.mll-char-card').forEach(function(el){
     var on = s.selectedCids.indexOf(parseInt(el.dataset.cid))>=0;
     el.style.borderColor = on ? '#2FBFA3' : 'var(--border,#252b48)';
@@ -586,7 +608,8 @@ MLL._updateMarkingPriceBox = function(){
   var cfg = MLL.MARKING_CONFIG;
   var gameCount = rows.length;
   var sheetCount = Math.ceil(gameCount / cfg.gamesPerSheet); // 5게임당 1매, 나머지가 있으면 올림(1매 더)
-  var imgCount = Math.max(1, MLL.markingState.selectedCids.length); // 0개 선택시 디폴트 1개 취급
+  var maxUsefulImages = Math.max(1, Math.ceil(gameCount / cfg.pageSize));
+  var imgCount = Math.max(1, Math.min(MLL.markingState.selectedCids.length, maxUsefulImages)); // 0개 선택시 디폴트 1개, 실사용 한도로 자동 캡
   var sheetCost = sheetCount * cfg.pricePerSheet;
   var extraImgCost = Math.max(0, imgCount-1) * cfg.extraImagePrice;
   var total = sheetCost + extraImgCost;
@@ -594,7 +617,8 @@ MLL._updateMarkingPriceBox = function(){
     gameCount+'게임 → 용지 '+sheetCount+'매('+cfg.gamesPerSheet+'게임/매) × '+cfg.pricePerSheet.toLocaleString()+'원 = '+sheetCost.toLocaleString()+'원' +
     (extraImgCost>0 ? ' + 이미지 추가 '+(imgCount-1)+'개 × '+cfg.extraImagePrice.toLocaleString()+'원 = '+extraImgCost.toLocaleString()+'원' : ' (이미지 1개는 무료)') +
     '<br><b style="color:#2FBFA3;font-size:14px;">합계: '+total.toLocaleString()+'원</b>' +
-    '<div style="font-size:10px;color:var(--text-faint,#5a6080);margin-top:4px;">⚠️ 테스트 모드: 현재는 실제 포인트 차감 없이 동작만 확인합니다. (서버 구축 후 정식 차감 적용)</div>';
+    
+    '<div style="font-size:10px;color:var(--text-faint,#5a6080);margin-top:2px;">⚠️ 테스트 모드: 현재는 실제 포인트 차감 없이 동작만 확인합니다. (서버 구축 후 정식 차감 적용)</div>';
 };
 
 MLL.closeMarkingModal = function(){
