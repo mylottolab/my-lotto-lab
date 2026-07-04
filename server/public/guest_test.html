@@ -38,8 +38,8 @@ h1{font-size:18px;font-weight:700;margin-bottom:6px;}
 <body>
 <div class="wrap">
   <div class="tabs">
-    <div class="tab active" data-tab="register">1. 비회원 등록</div>
-    <div class="tab" data-tab="balance">2. 포인트 조회</div>
+    <div class="tab active" data-tab="register">1. 신규 비회원 등록</div>
+    <div class="tab" data-tab="balance">2. 로그인 (기존 비회원)</div>
   </div>
 
   <!-- ─── 등록 탭 ─── -->
@@ -56,8 +56,8 @@ h1{font-size:18px;font-weight:700;margin-bottom:6px;}
 
   <!-- ─── 조회 탭 ─── -->
   <div class="card" id="tab-balance">
-    <h1>🔍 포인트 잔액 조회</h1>
-    <p class="desc">등록하신 닉네임 + 이메일을 입력하면 바로 조회됩니다 (인증코드 불필요).</p>
+    <h1>🔍 로그인 (기존 비회원)</h1>
+    <p class="desc">이미 등록하신 분은 여기서 닉네임 + 이메일만 입력하면 바로 로그인됩니다 (인증코드 불필요). 조회 성공 시 자동으로 로그인 처리됩니다.</p>
 
     <div class="msg" id="balMsg"></div>
 
@@ -120,6 +120,14 @@ async function checkBalance(){
     var data = await res.json();
     if(!res.ok){ showMsg('balMsg', data.error || '조회 실패', true); return; }
 
+    // ⚠ 여기서 조회가 성공했다는 것 자체가 "본인 확인 완료"라는 뜻이므로
+    // (이 사이트의 비회원 인증 방식은 최초 1회 이메일 인증 이후로는 닉네임+이메일
+    //  조합만으로 본인 확인함), 이 시점에 실제로 로그인 상태를 만들어준다.
+    // 예전 코드는 잔액만 보여주고 로그인 처리를 안 해서, 재방문한 비회원이
+    // 다음 화면으로 넘어가면 다시 "회원등록 필요"가 뜨는 문제가 있었다.
+    localStorage.setItem('mll_guest_nickname', data.nickname);
+    localStorage.setItem('mll_guest_email', email);
+
     document.getElementById('balMsg').classList.remove('show');
 
     var lotsHtml = (data.lots || []).map(function(l){
@@ -132,7 +140,11 @@ async function checkBalance(){
       '<div class="result-row"><span class="label">닉네임</span><span class="value">' + data.nickname + '</span></div>' +
       '<div class="result-row"><span class="label">총 잔여 포인트</span><span class="value">' + data.totalPoints.toLocaleString() + 'P</span></div>' +
       '<div class="result-row"><span class="label">가장 빠른 소멸일</span><span class="value">' + (data.nearestExpiry ? new Date(data.nearestExpiry).toLocaleDateString('ko-KR') : '-') + '</span></div>' +
-      (lotsHtml ? '<div style="margin-top:10px;">' + lotsHtml + '</div>' : '');
+      (lotsHtml ? '<div style="margin-top:10px;">' + lotsHtml + '</div>' : '') +
+      '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-soft);">' +
+        '<div style="font-size:11.5px;color:var(--green);margin-bottom:10px;">✅ 로그인되었습니다. 이제 다른 화면으로 이동하셔도 로그인 상태가 유지됩니다.</div>' +
+        '<a class="btn" style="display:block;text-align:center;text-decoration:none;" href="' + API + '/pay/category_select.html">카테고리 선택하러 가기</a>' +
+      '</div>';
     resultBox.classList.add('show');
   } catch(e){
     showMsg('balMsg', '오류가 발생했습니다.', true);
