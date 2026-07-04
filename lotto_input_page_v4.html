@@ -184,10 +184,11 @@ document.addEventListener('click',function(e){
       <button onclick="makeSlipFromChecked()" id="btnSlipMake" disabled style="background:#1a7ad4;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:11.5px;font-weight:700;cursor:pointer;">🖨️ 로또구매전표 작성</button>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px;margin-top:8px;font-size:11px;color:#888;">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;font-size:11px;color:#222;">
     <div style="line-height:1.5;">
-      추첨일이 지난 회차는 결과가 나오는 즉시 자동으로 반영됩니다.
+      등록을 마치셨나요?<br>클릭하시면 결과확인 풍선이 뜨고 계정이 업데이트 됩니다.
     </div>
+    <span onclick="MLL.applyCheck(SESSION_TAG)" style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0;background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;font-size:11px;font-weight:700;padding:7px 12px;border-radius:9px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2);animation:pulse-btn 1.5s infinite;white-space:nowrap;">⚡ 즉시확인 Click!</span>
   </div>
 </div>
 
@@ -216,7 +217,8 @@ document.addEventListener('click',function(e){
     </div>
   </div>
   <div style="font-size:10px;color:#222;margin-top:8px;line-height:1.5;display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
-    <span style="flex:1;min-width:0;padding-top:1px;">추첨일이 경과한 번호를 새롭게 등록하시면 당첨결과가 자동으로 반영되어 보여집니다.</span>
+    <span style="flex:1;min-width:0;padding-top:1px;">추첨일이 경과한 번호를 새롭게 등록하셨다면 당첨결과를 바로 아실 수 있습니다.</span>
+    <span onclick="MLL.applyCheck(SESSION_TAG)" style="display:inline-flex;align-items:center;gap:2px;flex-shrink:0;background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;font-size:9px;font-weight:700;padding:4px 7px;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.2);animation:pulse-btn 1.5s infinite;white-space:nowrap;">⚡ 즉시확인 Click!</span>
   </div>
 </div>
 </div>
