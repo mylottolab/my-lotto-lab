@@ -150,7 +150,10 @@ async function load() {
   var NEVER_EXPIRES_YEAR = 2099;
   function isPermanent(expiresAt){ return new Date(expiresAt).getFullYear() >= NEVER_EXPIRES_YEAR; }
 
-  var expiringLots = lots.filter(function(l){ return !isPermanent(l.expiresAt); });
+  // ⚠ 회원은 정책상 포인트가 소멸되지 않으므로, 혹시 예전(정책 적용 전) 데이터가
+  //   30일 만료값을 그대로 갖고 있더라도 회원에게는 절대 소멸 안내를 보여주지 않는다.
+  //   (데이터 정합성은 별도 SQL로 맞추더라도, 화면 표시는 정책을 우선 신뢰한다)
+  var expiringLots = isGuest ? lots.filter(function(l){ return !isPermanent(l.expiresAt); }) : [];
   var nearestExpiry = expiringLots.length
     ? expiringLots.slice().sort(function(a,b){ return new Date(a.expiresAt) - new Date(b.expiresAt); })[0]
     : null;
@@ -159,7 +162,7 @@ async function load() {
     ? lots.map(function(l){
         var cls = l.type === 'deposit' ? 'deposit' : 'activity';
         var label = l.type === 'deposit' ? '입금포인트' : '활동포인트';
-        var expiryLabel = isPermanent(l.expiresAt) ? '소멸 없음' : (new Date(l.expiresAt).toLocaleDateString('ko-KR') + ' 소멸');
+        var expiryLabel = (!isGuest || isPermanent(l.expiresAt)) ? '소멸 없음' : (new Date(l.expiresAt).toLocaleDateString('ko-KR') + ' 소멸');
         return '<div class="lot-row ' + cls + '"><span class="ltype"><span class="ldot"></span>' + label + '</span><span class="lpoints">' + l.points.toLocaleString() + 'P</span><span class="lexpiry">' + expiryLabel + '</span></div>';
       }).join('')
     : '<div class="empty">적립된 포인트 내역이 없습니다.</div>';
