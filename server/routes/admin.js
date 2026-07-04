@@ -197,4 +197,135 @@ router.post('/bank-transfer/:id/reject', requireAdmin, async (req, res) => {
   return res.json({ message: '거절 처리되었습니다.' });
 });
 
+// ─── 입금확인(적립완료) 내역 조회 — 계좌이체/신용카드/PayPal 통합 ──────────────
+// point_ledger에 실제로 적립된 입금포인트(deposit) 기록을 최신순으로 보여준다.
+// source 값으로 결제수단을 구분: 'inicis'(신용카드) | 'paypal' | 'bank_transfer'(계좌이체)
+router.get('/deposits', requireAdmin, async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+
+  let query = supabase
+    .from('point_ledger')
+    .select('id, user_id, source, amount, order_id, earned_at, profiles(nickname, email)')
+    .eq('point_type', 'deposit')
+    .order('earned_at', { ascending: false })
+    .limit(limit);
+
+  if (req.query.source) query = query.eq('source', req.query.source);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('[admin] deposits 조회 오류:', error);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+  return res.json({ items: data });
+});
+
+// ─── 회원/비회원 포인트 현황 (닉네임 + 구분 + 입금/활동 포인트 잔액) ────────────
+// 규모가 커지면 페이지네이션이 필요하지만, 우선은 최근 가입순 상위 limit개만 반환.
+router.get('/users', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 200, 1000);
+
+    const { data: profiles, error: profErr } = await supabase
+      .from('profiles')
+      .select('id, nickname, email, is_guest, created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (profErr) {
+      console.error('[admin] users(profiles) 조회 오류:', profErr);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    const ids = profiles.map(p => p.id);
+    const nowIso = new Date().toISOString();
+    let ledgerByUser = {};
+
+    if (ids.length) {
+      const { data: lots, error: lotErr } = await supabase
+        .from('point_ledger')
+        .select('user_id, point_type, remaining, expires_at')
+        .in('user_id', ids)
+        .gt('remaining', 0)
+        .gt('expires_at', nowIso);
+
+      if (lotErr) {
+        console.error('[admin] users(point_ledger) 조회 오류:', lotErr);
+        return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+      }
+
+      lots.forEach(l => {
+        if (!ledgerByUser[l.user_id]) ledgerByUser[l.user_id] = { deposit: 0, activity: 0 };
+        ledgerByUser[l.user_id][l.point_type] += Number(l.remaining);
+      });
+    }
+
+    const items = profiles.map(p => {
+      const bal = ledgerByUser[p.id] || { deposit: 0, activity: 0 };
+      return {
+        id: p.id,
+        nickname: p.nickname,
+        email: p.email,
+        isGuest: p.is_guest,
+        deposit: bal.deposit,
+        activity: bal.activity,
+        total: bal.deposit + bal.activity,
+        createdAt: p.created_at
+      };
+    });
+
+    return res.json({ items });
+  } catch (err) {
+    console.error('[admin] users 오류:', err);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// ─── 항목별 매출현황 (point_spend_log 집계) ────────────────────────────────────
+// ?from=, ?to= (ISO 날짜)로 기간 필터 가능. 지정 안 하면 전체 기간.
+router.get('/revenue', requireAdmin, async (req, res) => {
+  try {
+    let query = supabase.from('point_spend_log').select('action_key, amount');
+    if (req.query.from) query = query.gte('created_at', req.query.from);
+    if (req.query.to) query = query.lte('created_at', req.query.to);
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[admin] revenue 조회 오류:', error);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    const agg = {};
+    data.forEach(r => {
+      if (!agg[r.action_key]) agg[r.action_key] = { actionKey: r.action_key, totalPoints: 0, count: 0 };
+      agg[r.action_key].totalPoints += Number(r.amount);
+      agg[r.action_key].count += 1;
+    });
+
+    const { data: costs } = await supabase
+      .from('point_costs')
+      .select('action_key, label_kr, label_en');
+    const labelMap = {};
+    (costs || []).forEach(c => { labelMap[c.action_key] = c; });
+
+    const items = Object.values(agg)
+      .map(a => ({
+        actionKey: a.actionKey,
+        labelKr: (labelMap[a.actionKey] && labelMap[a.actionKey].label_kr) || a.actionKey,
+        labelEn: (labelMap[a.actionKey] && labelMap[a.actionKey].label_en) || '',
+        totalPoints: a.totalPoints,
+        count: a.count
+      }))
+      .sort((a, b) => b.totalPoints - a.totalPoints);
+
+    return res.json({
+      items,
+      grandTotalPoints: items.reduce((s, i) => s + i.totalPoints, 0)
+    });
+  } catch (err) {
+    console.error('[admin] revenue 오류:', err);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+});
+
 module.exports = router;
