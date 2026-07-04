@@ -372,4 +372,41 @@ router.get('/revenue', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── 사이트 설정 (키-값) — 마킹용지 하단 광고 문구 등 ───────────────────────────
+router.get('/settings/:key', requireAdmin, async (req, res) => {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('*')
+    .eq('key', req.params.key)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[admin] settings 조회 오류:', error);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+  return res.json(data || { key: req.params.key, value: '' });
+});
+
+router.put('/settings/:key', requireAdmin, async (req, res) => {
+  const { value } = req.body;
+  if (value === undefined) return res.status(400).json({ error: 'value가 필요합니다.' });
+
+  const { data, error } = await supabase
+    .from('app_settings')
+    .upsert({
+      key: req.params.key,
+      value: String(value),
+      updated_at: new Date().toISOString(),
+      updated_by: req.headers['x-admin-name'] || 'admin'
+    }, { onConflict: 'key' })
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    console.error('[admin] settings 저장 오류:', error);
+    return res.status(500).json({ error: '저장 중 오류가 발생했습니다.' });
+  }
+  return res.json({ message: '저장되었습니다.', item: data });
+});
+
 module.exports = router;
