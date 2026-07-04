@@ -363,7 +363,7 @@ async function saveGrid(){
 
     // 판매 가능 회차 체크
     if(round>SALE_ROUND){ blocked++; continue; }
-    if(SOLD_OUT&&round===THIS_ROUND){ blocked++; continue; }
+    if(SOLD_OUT&&round===SALE_ROUND){ blocked++; continue; }
 
     // 실구매인데 번호 일부만 입력 → SKIP
     if(isReal && hasAnyNum && !hasAllNum){ skip++; continue; }
@@ -491,7 +491,7 @@ async function processRows(rows){
 
       if(!round||round<1) throw new Error('회차 오류');
       if(round>SALE_ROUND){ blocked++; return; }
-      if(SOLD_OUT&&round===THIS_ROUND){ blocked++; return; }
+      if(SOLD_OUT&&round===SALE_ROUND){ blocked++; return; }
 
       // 실구매인데 번호 일부만 있으면 SKIP
       if(isReal && nums.length>0 && nums.length<6){ skip++; return; }

@@ -341,9 +341,11 @@ async function sv(p){
     alert('⛔ 제'+round+'회는 아직 판매하지 않습니다.\n현재 판매 중인 회차: 제'+SALE_ROUND+'회');
     return;
   }
-  // 판매중단 시간대 현재 회차 차단
-  if(SOLD_OUT && round===THIS_ROUND){
-    alert('⛔ 제'+THIS_ROUND+'회는 현재 판매 중단 중입니다.\n(토요일 20:00 ~ 일요일 06:00)');
+  // 판매중단 시간대 차단 — 아직 결과가 없는 "다음 판매회차(SALE_ROUND)" 자체에만 적용.
+  // (예전엔 브라우저 시계로 계산한 THIS_ROUND와 비교했는데, 그러면 결과가 이미 올라온
+  //  회차도 "지금 이 시각 기준 회차와 같다"는 이유로 잘못 차단되는 버그가 있었음)
+  if(SOLD_OUT && round===SALE_ROUND){
+    alert('⛔ 제'+SALE_ROUND+'회는 현재 판매 중단 중입니다.\n(토요일 20:00 ~ 일요일 06:00)');
     return;
   }
 
