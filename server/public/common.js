@@ -356,17 +356,21 @@ MLL.calcPrize = function(grade, result) {
 };
 
 // =====================================================
-// 정렬 (추첨전 상단, 추첨후 하단, 각각 회차 내림차순)
-// 서버가 조회 시점에 항상 최신 status/grade/prizeMoney를 계산해서 내려주므로
-// (구버전에 있던) "추첨됐으나 미확인" 중간 단계는 더 이상 존재하지 않는다.
+// 정렬 (추첨전 → 미확인 → 추첨후 순, 각각 회차 내림차순)
+// 서버는 결과가 나온 회차라도 사용자가 "즉시확인"을 누르기 전까지는 status를
+// '미확인'으로 내려준다 (등수/당첨금은 비공개). 이는 결과가 나오자마자 자동으로
+// 보여주면 정작 본인이 뭘 등록했는지 인식할 새도 없이 결과부터 보게 되는 문제를
+// 막기 위한 의도적인 장치다.
 // =====================================================
 
 MLL.sortEntries = function(entries) {
-  var preDraw = entries.filter(function(e){ return e.status === '추첨전'; })
-                        .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  var post    = entries.filter(function(e){ return e.status === '추첨후'; })
-                        .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  return preDraw.concat(post);
+  var preDraw     = entries.filter(function(e){ return e.status === '추첨전'; })
+                            .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  var unconfirmed = entries.filter(function(e){ return e.status === '미확인'; })
+                            .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  var post        = entries.filter(function(e){ return e.status === '추첨후'; })
+                            .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  return preDraw.concat(unconfirmed).concat(post);
 };
 
 // =====================================================
@@ -394,13 +398,12 @@ MLL.renderBalls = function(nums, bonusNums, small) {
 MLL.renderRow = function(entry, sessionTag, opts) {
   opts = opts || {};
   var isSession = sessionTag && entry.sessionTag === sessionTag;
-  var result    = MLL.getResult(entry.round);
-  var winNums   = result ? result.nums  : [];
-  var bonusNum  = result ? result.bonus : null;
-
-  // status 실시간 재판단 (당첨결과 적용 후 반영)
+  // 서버가 이미 확정한 status(추첨전/미확인/추첨후)를 그대로 신뢰한다.
   var actualStatus = entry.status;
-  if (result && entry.status === '추첨전') actualStatus = '추첨후';
+  // 결과 숫자는 "확인 완료"일 때만 공개되므로, 그때만 결과를 조회해서 볼공 표시에 사용한다.
+  var result   = (actualStatus === '추첨후') ? MLL.getResult(entry.round) : null;
+  var winNums  = result ? result.nums  : [];
+  var bonusNum = result ? result.bonus : null;
 
   // 반자동: autoNums 필드(시스템 채운 번호) 저장되어 있으면 사용
   var autoNums = entry.autoNums || [];
@@ -433,12 +436,17 @@ MLL.renderRow = function(entry, sessionTag, opts) {
     ? '<span style="background:#f5c518;color:#7a5e00;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;">실구매</span>'
     : '<span style="background:#eee;color:#999;font-size:8px;padding:1px 4px;border-radius:3px;">가상</span>';
 
-  // 추첨상태 (실시간 재판단 적용)
-  var statusHTML = actualStatus==='추첨전'
-    ? '<span style="color:#e03131;font-weight:700;font-size:9px;">추첨전</span>'
-    : '<span style="color:#999;font-size:9px;">추첨후</span>';
+  // 추첨상태 (3단계)
+  var statusHTML;
+  if (actualStatus === '추첨전') {
+    statusHTML = '<span style="color:#e03131;font-weight:700;font-size:9px;">추첨전</span>';
+  } else if (actualStatus === '미확인') {
+    statusHTML = '<span style="color:#e67700;font-weight:700;font-size:9px;">미확인</span>';
+  } else {
+    statusHTML = '<span style="color:#999;font-size:9px;">추첨후</span>';
+  }
 
-  // 당첨결과
+  // 당첨결과 (확인 완료일 때만 공개)
   var gradeHTML = '<span style="color:#ddd;">-</span>';
   if (actualStatus==='추첨후' && entry.grade !== null) {
     if (entry.grade === 0) {
@@ -447,21 +455,26 @@ MLL.renderRow = function(entry, sessionTag, opts) {
       gradeHTML = '<span style="color:'+MLL.GRADE_COLOR[entry.grade]+';font-weight:700;font-size:9px;">' +
         MLL.GRADE_LABEL[entry.grade]+'</span>';
     }
+  } else if (actualStatus === '미확인') {
+    gradeHTML = '<span style="color:#e67700;font-size:9px;">?</span>';
   }
 
-  // 당첨금
+  // 당첨금 (확인 완료일 때만 공개)
   var prizeHTML = '<span style="color:#ddd;">-</span>';
-  if (entry.prizeMoney && entry.prizeMoney > 0) {
+  if (actualStatus === '추첨후' && entry.prizeMoney && entry.prizeMoney > 0) {
     prizeHTML = '<span style="color:#e03131;font-weight:700;font-size:9px;">' +
       entry.prizeMoney.toLocaleString()+'원</span>';
+  } else if (actualStatus === '미확인') {
+    prizeHTML = '<span style="color:#e67700;font-size:9px;">?</span>';
   }
 
-  // 세션 하이라이트
+  // 세션 하이라이트 / 상태별 배경
+  var bg = actualStatus==='추첨전' ? '#fff8e1' : (actualStatus==='미확인' ? '#fff3e0' : '');
   var rowStyle = isSession
     ? 'border-left:3px solid #1a7ad4;background:#f0f8ff;'
-    : (actualStatus==='추첨전' ? 'background:#fff8e1;' : '');
+    : (bg ? 'background:'+bg+';' : '');
 
-  var rcColor = actualStatus==='추첨전' ? '#e03131' : '#555';
+  var rcColor = actualStatus==='추첨전' ? '#e03131' : (actualStatus==='미확인' ? '#e67700' : '#555');
 
   var delBtn = opts.noDelete ? '' :
     '<button onclick="MLL.handleDeleteClick(\''+entry.id+'\')" ' +
@@ -496,8 +509,120 @@ MLL.handleDeleteClick = async function(id) {
   if (ok && window.refreshTable) refreshTable();
 };
 
-// 전체 테이블 렌더 (서버가 매 조회시 status/grade/prizeMoney를 이미 최신으로
-// 계산해서 내려주므로, 추첨전 / 추첨후 2단계만 있으면 된다)
+// ── 즉시확인 버튼 HTML ──
+MLL.renderCheckBtn = function(sessionTag) {
+  return '<span onclick="MLL.applyCheck(\''+(sessionTag||'')+'\')" ' +
+    'style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;' +
+    'background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;' +
+    'font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;' +
+    'cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2);' +
+    'animation:pulse-btn 1.5s infinite;">' +
+    '⚡ 즉시확인 Click!</span>' +
+    '<style>@keyframes pulse-btn{0%,100%{opacity:1;}50%{opacity:0.7;}}</style>';
+};
+
+// ── 즉시확인 실행 (서버에 확인 처리 요청) ──
+// sessionTag가 있으면 "전체" 또는 "지금 입력분만" 선택 팝업을 띄우고,
+// 없으면 바로 전체 확인 처리한다.
+MLL.applyCheck = function(sessionTag) {
+  var entries = MLL.loadEntries();
+  var pendingCount = entries.filter(function(e){ return e.status === '미확인'; }).length;
+  if (!pendingCount) { alert('확인할 미확인 항목이 없습니다.'); return; }
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:16px;padding:28px 28px;max-width:340px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.25);">' +
+    '<div style="font-size:24px;margin-bottom:8px;">⚡</div>' +
+    '<div style="font-size:15px;font-weight:700;color:#222;margin-bottom:6px;">즉시확인</div>' +
+    '<div style="font-size:12px;color:#888;margin-bottom:22px;">어떤 범위를 확인하시겠습니까?</div>' +
+    '<div style="display:flex;gap:10px;margin-bottom:10px;">' +
+    '<button id="mll-check-all" style="flex:1;background:#e03131;color:#fff;border:none;border-radius:10px;padding:13px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(224,49,49,0.3);">📋 미확인분 전체</button>' +
+    '<button id="mll-check-cur" style="flex:1;background:#1a7ad4;color:#fff;border:none;border-radius:10px;padding:13px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(26,122,212,0.3);">✏️ 지금 입력분만</button>' +
+    '</div>' +
+    '<button id="mll-check-cancel" style="width:100%;background:#f5f5f5;border:none;border-radius:10px;padding:10px;font-size:12px;color:#888;cursor:pointer;font-weight:600;">✕ 취소 (나중에 확인)</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  async function doCheck(allItems) {
+    document.body.removeChild(overlay);
+    var state = MLL.getAuthState();
+    var body = allItems ? {} : { sessionTag: sessionTag };
+    if (state.type === 'guest') { body.nickname = state.nickname; body.email = state.email; }
+
+    try {
+      var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/confirm', {
+        method: 'POST', headers: _mllHeaders(state), body: JSON.stringify(body)
+      });
+      var data = await resp.json();
+      if (!resp.ok) { alert('확인 처리 실패: ' + (data.error||'')); return; }
+
+      await MLL.refreshEntries();
+      if (window.refreshTable) refreshTable();
+      MLL.showCheckResultBubble(data.items || []);
+    } catch(e) {
+      console.error('[MLL] applyCheck 오류:', e);
+      alert('네트워크 오류가 발생했습니다.');
+    }
+  }
+
+  document.getElementById('mll-check-all').onclick    = function(){ doCheck(true); };
+  document.getElementById('mll-check-cur').onclick    = function(){ doCheck(false); };
+  document.getElementById('mll-check-cancel').onclick = function(){ document.body.removeChild(overlay); };
+  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
+};
+
+// ── 결과확인 통계 말풍선 ──
+// "즉시확인"으로 새로 갱신된 항목들(touched)을 바탕으로 안내 말풍선을 띄운다.
+// 30초가 지나면 자동으로 사라지고, X 버튼으로 바로 닫을 수도 있다.
+MLL.showCheckResultBubble = function(touched) {
+  var old = document.getElementById('mll-check-bubble');
+  if (old) old.remove();
+
+  if (!touched.length) {
+    var emptyBox = document.createElement('div');
+    emptyBox.id = 'mll-check-bubble';
+    emptyBox.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9998;background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px 18px;box-shadow:0 4px 16px rgba(0,0,0,0.15);font-size:12.5px;color:#555;max-width:280px;';
+    emptyBox.innerHTML = '✅ 새로 확인할 항목이 없어요. 이미 최신 상태예요.';
+    document.body.appendChild(emptyBox);
+    setTimeout(function(){ if(emptyBox.parentNode) emptyBox.remove(); }, 30000);
+    return;
+  }
+
+  var gradeCount = {1:0,2:0,3:0,4:0,5:0};
+  var totalPrize = 0;
+  touched.forEach(function(e){
+    if (e.grade >= 1 && e.grade <= 5) gradeCount[e.grade]++;
+    totalPrize += (e.prizeMoney || 0);
+  });
+
+  var gradeLabel = {1:'1등',2:'2등',3:'3등',4:'4등',5:'5등'};
+  var winParts = [];
+  [1,2,3,4,5].forEach(function(g){
+    if (gradeCount[g] > 0) winParts.push(gradeLabel[g]+' '+gradeCount[g]+'건');
+  });
+
+  var bodyText;
+  if (winParts.length) {
+    bodyText = '방금 <b>'+touched.length+'게임</b>을 확인했어요.<br>' +
+      '이중 '+winParts.join(', ')+'이 당첨되어 총 <b>'+totalPrize.toLocaleString()+'원</b>의 상금을 받게 되었어요.';
+  } else {
+    bodyText = '방금 <b>'+touched.length+'게임</b>을 확인했어요.<br>아쉽게도 이번엔 당첨된 게임이 없어요.';
+  }
+
+  var bubble = document.createElement('div');
+  bubble.id = 'mll-check-bubble';
+  bubble.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9998;background:#eef9ec;border:1px solid #b9e6ae;border-radius:14px;padding:16px 20px 16px 18px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:12.5px;color:#2e5c2a;max-width:300px;line-height:1.6;';
+  bubble.innerHTML =
+    '<span id="mll-check-bubble-x" style="position:absolute;top:8px;right:10px;cursor:pointer;color:#7a9c75;font-size:13px;font-weight:700;line-height:1;">✕</span>' +
+    '<div style="padding-right:14px;">'+bodyText+'</div>';
+  document.body.appendChild(bubble);
+
+  document.getElementById('mll-check-bubble-x').onclick = function(){ bubble.remove(); };
+  setTimeout(function(){ if(bubble.parentNode) bubble.remove(); }, 30000);
+};
+
+// 전체 테이블 렌더 (추첨전 / 미확인 / 추첨후 3단계)
 MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
   var entries = MLL.loadEntries();
   if (filterRound) entries = entries.filter(function(e){ return e.round == filterRound; });
@@ -505,15 +630,24 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
   var tbody   = document.getElementById(tbodyId);
   if (!tbody) return;
 
-  var preDraw  = sorted.filter(function(e){ return e.status === '추첨전'; });
-  var postDraw = sorted.filter(function(e){ return e.status === '추첨후'; });
+  var preDraw     = sorted.filter(function(e){ return e.status === '추첨전'; });
+  var unconfirmed = sorted.filter(function(e){ return e.status === '미확인'; });
+  var postDraw    = sorted.filter(function(e){ return e.status === '추첨후'; });
 
   // 배지 업데이트
   var badgeEl = document.getElementById('sectionBadge');
   if (badgeEl) {
-    badgeEl.innerHTML =
+    var badgeHtml =
       '<span style="color:#e03131;font-weight:700;">🔴추첨전 '+preDraw.length+'개</span>' +
-      ' &nbsp;|&nbsp; <span style="color:#555;">✅추첨후 '+postDraw.length+'개</span>';
+      ' &nbsp;|&nbsp; ';
+    if (unconfirmed.length > 0) {
+      badgeHtml += '<span style="color:#e67700;font-weight:700;">🟡미확인 '+unconfirmed.length+'개</span>' +
+        MLL.renderCheckBtn(sessionTag);
+    } else {
+      badgeHtml += '<span style="color:#e67700;">🟡미확인 0개</span>';
+    }
+    badgeHtml += ' &nbsp;|&nbsp; <span style="color:#555;">✅확인완료 '+postDraw.length+'개</span>';
+    badgeEl.innerHTML = badgeHtml;
   }
 
   // 카운트 업데이트
@@ -530,8 +664,13 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
       html += MLL.renderDivider('🔴 추첨 전', preDraw.length);
       preDraw.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
     }
+    if (unconfirmed.length) {
+      html += '<tr><td colspan="10" style="background:#fff3e0;padding:4px 8px;font-size:9px;font-weight:700;color:#e67700;">' +
+        '🟡 추첨됐으나 미확인 (' + unconfirmed.length + '개)' + MLL.renderCheckBtn(sessionTag) + '</td></tr>';
+      unconfirmed.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
+    }
     if (postDraw.length) {
-      html += MLL.renderDivider('✅ 추첨 후', postDraw.length);
+      html += MLL.renderDivider('✅ 추첨후 확인분', postDraw.length);
       postDraw.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
     }
   }
