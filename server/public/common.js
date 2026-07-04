@@ -252,16 +252,58 @@ MLL.addEntries = async function(items) {
       method: 'POST', headers: _mllHeaders(state), body: JSON.stringify(body)
     });
     var data = await resp.json();
+
+    // 클라이언트는 "로그인된 것처럼" 보이는데 서버가 401을 준 경우 —
+    // 로컬에 남아있는 로그인정보(토큰/닉네임+이메일)가 더 이상 유효하지 않다는 뜻이므로
+    // 그걸 지우고 새로 로그인하도록 유도한다. (그대로 두면 "로그인 상태인데 계속 저장 실패"처럼
+    // 보이는 매우 헷갈리는 상황이 발생함)
+    if (resp.status === 401) {
+      localStorage.removeItem('mll_token');
+      sessionStorage.removeItem('mll_token');
+      localStorage.removeItem('mll_guest_nickname');
+      localStorage.removeItem('mll_guest_email');
+      if (window.MLL.requireAuth) MLL.requireAuth(function(){});
+      return { success:false, needAuth:true };
+    }
     if (resp.status === 402) {
       return { success:false, insufficientPoints:true, shortfall:data.shortfall, message:data.error };
     }
     if (!resp.ok) return { success:false, message: data.error || '등록 중 오류가 발생했습니다.' };
+
     await MLL.refreshEntries();
+    if (data.deducted !== undefined) MLL._showPointToast(data.deducted, data.balanceAfter, data.freeCount, data.chargedCount);
     return { success:true, items:data.items };
   } catch (e) {
     console.error('[MLL] addEntries 오류:', e);
     return { success:false, message:'네트워크 오류가 발생했습니다.' };
   }
+};
+
+// 저장 성공시 "N포인트 차감, 현재 잔액 M포인트" 작은 알림 배너 (몇 초 후 자동 소멸)
+// freeCount/chargedCount가 주어지면(예: 매월 무료한도 적용) 무료/유료 내역도 같이 보여준다.
+MLL._showPointToast = function(deducted, balanceAfter, freeCount, chargedCount) {
+  var old = document.getElementById('mll-point-toast');
+  if (old) old.remove();
+
+  var toast = document.createElement('div');
+  toast.id = 'mll-point-toast';
+  toast.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9998;background:#11152a;border:1px solid #252b48;' +
+    'border-radius:12px;padding:12px 18px;box-shadow:0 6px 20px rgba(0,0,0,0.3);font-size:12.5px;color:#eef0f6;' +
+    'max-width:260px;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+
+  var line1;
+  if (freeCount !== undefined && chargedCount !== undefined && (freeCount > 0)) {
+    if (chargedCount > 0) {
+      line1 = '무료 '+freeCount+'개 + 유료 '+chargedCount+'개 → <b style="color:#e0b341;">'+deducted.toLocaleString()+'P</b> 차감';
+    } else {
+      line1 = '이번 달 무료한도로 <b style="color:#3fb37f;">'+freeCount+'개 전부 무료</b> 등록 (0P 차감)';
+    }
+  } else {
+    line1 = deducted > 0 ? ('<b style="color:#e0b341;">'+deducted.toLocaleString()+'P</b> 차감') : '무료 등록 (0P 차감)';
+  }
+  toast.innerHTML = line1 + '<br>현재 잔액 <b>'+balanceAfter.toLocaleString()+'P</b>';
+  document.body.appendChild(toast);
+  setTimeout(function(){ if (toast.parentNode) toast.remove(); }, 4000);
 };
 
 // 단건 등록 (내부적으로 addEntries 재사용)
