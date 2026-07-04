@@ -27,7 +27,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:6px;}
 .charge-head .titles{flex:1;text-align:left;}
 .charge-head .ko{font-size:16px;font-weight:700;}
 .charge-head .en{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
-.charge-head .my-balance{font-size:11px;color:var(--gold);text-align:right;line-height:1.6;font-weight:600;white-space:nowrap;}
+.charge-head .my-balance{font-size:11px;color:var(--gold);text-align:right;line-height:1.6;font-weight:600;max-width:180px;}
 .charge-btns{display:flex;gap:10px;}
 .charge-btn{flex:1;background:var(--bg);border:1px solid var(--border-soft);border-radius:11px;padding:14px 10px;text-decoration:none;color:var(--text);transition:border-color .15s, background .15s;text-align:center;}
 .charge-btn:hover{border-color:var(--accent);background:var(--surface-hover);}
@@ -38,6 +38,7 @@ h1{font-size:22px;font-weight:700;margin-bottom:6px;}
 </head>
 <body>
 <div class="wrap">
+  <div class="user-badge" id="userBadge" style="display:none;color:var(--gold);font-size:15px;font-weight:700;margin-bottom:6px;"></div>
   <h1>어디로 가시겠어요?</h1>
   <p class="desc">Where would you like to go?</p>
 
@@ -128,6 +129,7 @@ function withAuthParams(url, state){
 (async function(){
   var state = getAuthState();
   var el = document.getElementById('myBalance');
+  var badge = document.getElementById('userBadge');
   if (!state.type) return;
 
   var headers = {};
@@ -135,11 +137,28 @@ function withAuthParams(url, state){
   if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
   else qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
 
+  // 닉네임 표시 (비회원은 이미 알고 있고, 회원은 /api/auth/me로 조회)
+  var nickname = state.nickname || '';
+  if (state.type === 'member') {
+    try {
+      var meRes = await fetch('https://my-lotto-lab-api.onrender.com/api/auth/me', { headers: headers });
+      var me = await meRes.json();
+      if (meRes.ok) nickname = me.nickname;
+    } catch (e) {}
+  }
+  if (nickname) {
+    badge.innerHTML = nickname + '님 <span style="font-size:11px;color:var(--text-dim);font-weight:600;">· Welcome</span>';
+    badge.style.display = 'block';
+  }
+
   try {
     var res = await fetch('https://my-lotto-lab-api.onrender.com/api/points/balance' + qs, { headers: headers });
     var data = await res.json();
     if (res.ok) {
-      el.innerHTML = '현재 귀하의 포인트<br>입금포인트: ' + data.deposit.toLocaleString() + '<br>활동포인트: ' + data.activity.toLocaleString();
+      var total = (data.deposit || 0) + (data.activity || 0);
+      el.innerHTML =
+        '잔여 사용가능포인트 <span style="color:var(--text-dim);font-weight:400;">(Available Points)</span><br>' +
+        total.toLocaleString() + '포인트 <span style="color:var(--text-dim);font-weight:400;">(' + total.toLocaleString() + ' pts)</span>';
     }
   } catch(e){}
 })();
