@@ -12,7 +12,7 @@ const NICKNAME_REGEX = /^[a-zA-Z0-9가-힣_-]{2,20}$/;
 // ─── 1) 비회원 등록 요청: 닉네임 중복확인 + 이메일 OTP 발송 ───────────────────
 router.post('/register-request', async (req, res) => {
   try {
-    const { email, nickname } = req.body;
+    const { email, nickname, phone } = req.body;
 
     if (!email || !nickname) {
       return res.status(400).json({ error: '이메일과 닉네임을 입력해 주세요.' });
@@ -38,14 +38,15 @@ router.post('/register-request', async (req, res) => {
 
     // 이메일 인증 링크 발송 (클릭 시 guest_confirm.html로 이동, 거기서 등록 확정)
     // ※ redirectTo는 Supabase 허용목록(Redirect URLs)과 문자열이 정확히 일치해야
-    //   하므로 쿼리파라미터를 붙이지 않습니다. 닉네임은 user metadata로 전달합니다.
+    //   하므로 쿼리파라미터를 붙이지 않습니다. 닉네임/전화번호는 user metadata로 전달합니다.
+    // (전화번호는 선택 입력 — 2026-07-04 신규, 값이 없으면 null로 전달됨)
     const redirectTo = `${process.env.SERVER_URL || 'https://my-lotto-lab-api.onrender.com'}/pay/guest_confirm.html`;
 
     const { error: otpErr } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: true,
-        data: { nickname, is_guest: true },
+        data: { nickname, phone: phone || null, is_guest: true },
         emailRedirectTo: redirectTo
       }
     });
@@ -80,6 +81,7 @@ router.post('/finalize-link', async (req, res) => {
 
     const email = data.user.email;
     const nickname = data.user.user_metadata?.nickname;
+    const phone = data.user.user_metadata?.phone || null;
 
     if (!nickname) {
       console.error('[guest] user_metadata에 닉네임이 없음:', data.user.id);
@@ -104,6 +106,7 @@ router.post('/finalize-link', async (req, res) => {
         id: data.user.id,
         nickname,
         email,
+        phone,
         is_guest: true
       }, { onConflict: 'id' });
 
