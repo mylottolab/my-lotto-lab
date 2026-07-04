@@ -25,6 +25,67 @@ MLL.getAuthState = function() {
   return { type: null };
 };
 
+// =====================================================
+// 도메인 간(GitHub Pages ↔ Render) 인증정보 전달
+// -----------------------------------------------------
+// localStorage는 도메인(origin)마다 완전히 분리되어 저장되므로,
+// mylottolab.github.io 에서 로그인해도 my-lotto-lab-api.onrender.com
+// 쪽 페이지(/pay/*)에서는 그 로그인 정보를 알 수 없다.
+// 그래서 도메인을 넘어가는 링크를 만들 때는 반드시 MLL.crossOriginUrl(url)로
+// 감싸서 인증정보를 URL 쿼리로 함께 실어 보내고, 도착한 페이지는
+// 아래 부트스트랩이 그 값을 받아 "자기 도메인"의 localStorage에 다시 저장한다.
+// (같은 로직이 auth_gate.js에도 동일하게 들어있음 — 둘 다 로드되지만 먼저
+//  실행되는 쪽이 처리하고 나면 URL에서 파라미터가 지워지므로 중복 실행돼도 안전함)
+// =====================================================
+(function mllCrossOriginBootstrap() {
+  try {
+    var params = new URLSearchParams(window.location.search);
+
+    if (params.get('mll_logout') === '1') {
+      localStorage.removeItem('mll_token');
+      sessionStorage.removeItem('mll_token');
+      localStorage.removeItem('mll_guest_nickname');
+      localStorage.removeItem('mll_guest_email');
+      params.delete('mll_logout');
+      var qs0 = params.toString();
+      var newUrl0 = window.location.pathname + (qs0 ? '?' + qs0 : '') + window.location.hash;
+      window.history.replaceState({}, '', newUrl0);
+      return;
+    }
+
+    var authType = params.get('mll_auth');
+    var changed = false;
+    if (authType === 'member' && params.get('mll_tok')) {
+      localStorage.setItem('mll_token', params.get('mll_tok'));
+      changed = true;
+    } else if (authType === 'guest' && params.get('mll_nick') && params.get('mll_em')) {
+      localStorage.setItem('mll_guest_nickname', params.get('mll_nick'));
+      localStorage.setItem('mll_guest_email', params.get('mll_em'));
+      changed = true;
+    }
+    if (changed) {
+      params.delete('mll_auth'); params.delete('mll_tok');
+      params.delete('mll_nick'); params.delete('mll_em');
+      var qs = params.toString();
+      var newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+      window.history.replaceState({}, '', newUrl);
+    }
+  } catch (e) { console.error('[MLL] 인증정보 전달 처리 오류:', e); }
+})();
+
+// 다른 도메인으로 이동하는 링크를 만들 때 사용. 로그인/비회원등록 상태가 아니면
+// 원래 url을 그대로 반환(어차피 넘길 정보가 없음).
+MLL.crossOriginUrl = function(url) {
+  var state = MLL.getAuthState();
+  if (!state.type) return url;
+  var sep = url.indexOf('?') >= 0 ? '&' : '?';
+  if (state.type === 'member') {
+    return url + sep + 'mll_auth=member&mll_tok=' + encodeURIComponent(state.token);
+  }
+  return url + sep + 'mll_auth=guest&mll_nick=' + encodeURIComponent(state.nickname) +
+    '&mll_em=' + encodeURIComponent(state.email);
+};
+
 // ── 세션ID 생성/조회 ──
 // sessionStorage는 탭을 닫거나 새로고침 환경이 바뀌면 사라지는 문제가 있어
 // localStorage 기반으로 바꾸고, 날짜(한국시간 기준)가 바뀌면 새 세션을 발급한다.
