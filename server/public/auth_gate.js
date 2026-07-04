@@ -42,9 +42,24 @@
   // 들어온 경우 URL 쿼리에 실려온 인증정보를 이 도메인의 localStorage에 옮겨 담는다.
   // common.js에도 동일 로직이 있음 — 둘 중 먼저 실행되는 쪽이 처리하면 URL에서
   // 파라미터가 사라지므로 중복 실행돼도 안전하다.
+  // ⚠ mll_logout=1 파라미터가 오면 반대로 이 도메인의 로그인정보를 지운다
+  //   (MLL.logout()이 로그아웃을 다른 도메인에도 전파할 때 사용).
   (function crossOriginBootstrap() {
     try {
       var params = new URLSearchParams(window.location.search);
+
+      if (params.get('mll_logout') === '1') {
+        localStorage.removeItem('mll_token');
+        sessionStorage.removeItem('mll_token');
+        localStorage.removeItem('mll_guest_nickname');
+        localStorage.removeItem('mll_guest_email');
+        params.delete('mll_logout');
+        var qs0 = params.toString();
+        var newUrl0 = window.location.pathname + (qs0 ? '?' + qs0 : '') + window.location.hash;
+        window.history.replaceState({}, '', newUrl0);
+        return;
+      }
+
       var authType = params.get('mll_auth');
       var changed = false;
       if (authType === 'member' && params.get('mll_tok')) {
@@ -77,6 +92,28 @@
       '&mll_em=' + encodeURIComponent(state.email);
   }
 
+  // ── 로그아웃 ─────────────────────────────────────────────────
+  // 현재 도메인의 로그인정보를 지우고, 다른 쪽 도메인도 mll_logout=1 파라미터를 실어
+  // 한 번 거쳐가며 지운 뒤, 지정한 목적지(기본: 메인 페이지)로 이동한다.
+  // GitHub Pages(mylottolab.github.io)와 Render(my-lotto-lab-api.onrender.com)
+  // 딱 두 도메인만 쓰는 구조라는 전제 하에 상대편 도메인을 고정으로 판단한다.
+  function logout(afterUrl) {
+    localStorage.removeItem('mll_token');
+    sessionStorage.removeItem('mll_token');
+    localStorage.removeItem('mll_guest_nickname');
+    localStorage.removeItem('mll_guest_email');
+
+    var host = window.location.hostname;
+    var isOnRender = host.indexOf('onrender.com') >= 0;
+    var otherDomainBounce = isOnRender
+      ? 'https://mylottolab.github.io/my-lotto-lab/main_page.html?mll_logout=1'
+      : 'https://my-lotto-lab-api.onrender.com/pay/category_select.html?mll_logout=1';
+
+    // afterUrl을 지정했으면, 상대 도메인을 지운 뒤 그 URL로 최종 이동하도록
+    // encodeURIComponent로 실어 보낸다(간단히 처리: 상대도메인 페이지 자체를 최종 목적지로 사용).
+    window.location.href = afterUrl || otherDomainBounce;
+  }
+
   // ── 스타일 주입 ─────────────────────────────────────────────
   var style = document.createElement('style');
   style.textContent = [
@@ -84,6 +121,10 @@
     'background:#e0b341;color:#1a1305;border:none;border-radius:999px;',
     'padding:12px 18px;font-size:13px;font-weight:700;cursor:pointer;',
     'box-shadow:0 4px 16px rgba(0,0,0,.35);font-family:inherit;}',
+    '.mll-fab.mll-fab-logout{background:#1b2038;color:#8b91ab;',
+    'padding:8px 14px;font-size:11.5px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.3);',
+    'border:1px solid #2a2f4a;}',
+    '.mll-fab.mll-fab-logout:hover{color:#eef0f6;border-color:#e0b341;}',
     '.mll-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);',
     'z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}',
     '.mll-modal{background:#11152a;border:1px solid #1b2038;border-radius:16px;',
@@ -131,13 +172,21 @@
     if (existing) existing.remove();
 
     var state = getAuthState();
-    if (state.type) return; // 이미 로그인/등록되어 있으면 표시 안 함
-
     var fab = document.createElement('button');
     fab.className = 'mll-fab';
     fab.type = 'button';
-    fab.textContent = '👤 로그인 / 회원가입';
-    fab.addEventListener('click', showAuthModal);
+
+    if (state.type) {
+      // 로그인/등록된 상태 — 로그아웃 버튼(작고 눈에 덜 띄게)
+      fab.classList.add('mll-fab-logout');
+      fab.textContent = '🚪 로그아웃';
+      fab.addEventListener('click', function () {
+        if (confirm('로그아웃 하시겠습니까?')) logout();
+      });
+    } else {
+      fab.textContent = '👤 로그인 / 회원가입';
+      fab.addEventListener('click', showAuthModal);
+    }
     document.body.appendChild(fab);
   }
 
@@ -166,6 +215,7 @@
   window.MLL = window.MLL || {};
   window.MLL.getAuthState = getAuthState;
   window.MLL.crossOriginUrl = crossOriginUrl;
+  window.MLL.logout = logout;
   window.MLL.requireAuth = function (callback) {
     var state = getAuthState();
     if (state.type) {
