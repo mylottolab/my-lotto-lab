@@ -26,7 +26,7 @@ app.get('/', (req, res) => {
 
 // ─── 회원가입 ──────────────────────────────────────────────────────────────────
 app.post('/api/auth/signup', async (req, res) => {
-  const { email, password, nickname, country } = req.body;
+  const { email, password, nickname, country, phone } = req.body;
   if (!email || !password || !nickname) {
     return res.status(400).json({ error: '이메일, 비밀번호, 닉네임은 필수입니다.' });
   }
@@ -61,10 +61,12 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 
   // profiles 테이블에도 실제 저장 (포인트 시스템 등 다른 기능이 이 테이블을 참조함)
+  // phone은 선택 입력 (2026-07-04 신규 컬럼, 필수 아님 — 기존 가입자와의 하위호환)
   const { error: profileErr } = await supabase.from('profiles').insert({
     id: data.user.id,
     nickname,
     email,
+    phone: phone || null,
     is_guest: false,
     country: country || 'KR'
   });
@@ -121,7 +123,7 @@ app.get('/api/auth/me', async (req, res) => {
 // OAuth는 저희가 만든 회원가입 폼을 거치지 않으므로, 최초 로그인 시
 // profiles 테이블에 닉네임을 등록해야 합니다. 이미 등록되어 있으면 그대로 통과.
 app.post('/api/auth/finalize-profile', async (req, res) => {
-  const { accessToken, nickname } = req.body;
+  const { accessToken, nickname, phone } = req.body;
   if (!accessToken) return res.status(400).json({ error: 'accessToken이 필요합니다.' });
 
   const { data: userData, error: userErr } = await supabase.auth.getUser(accessToken);
@@ -156,10 +158,12 @@ app.post('/api/auth/finalize-profile', async (req, res) => {
     return res.status(409).json({ error: '이미 사용 중인 닉네임입니다.' });
   }
 
+  // phone은 선택 입력 (OAuth 가입 화면에 아직 입력란이 없으므로 대부분 null로 저장됨)
   const { error: insertErr } = await supabase.from('profiles').insert({
     id: user.id,
     nickname,
     email: user.email,
+    phone: phone || null,
     is_guest: false,
     country: 'KR'
   });
