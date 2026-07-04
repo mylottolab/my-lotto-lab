@@ -147,7 +147,8 @@ function withAuthParams(url, state){
     } catch (e) {}
   }
   if (nickname) {
-    badge.innerHTML = nickname + '님 <span style="font-size:11px;color:var(--text-dim);font-weight:600;">· Welcome</span>';
+    badge.innerHTML = nickname + '님 <span style="font-size:11px;color:var(--text-dim);font-weight:600;">· Welcome</span>' +
+      ' <span onclick="if(confirm(\'로그아웃 하시겠습니까?\'))MLL.logout();" style="font-size:11px;color:var(--text-dim);font-weight:600;cursor:pointer;text-decoration:underline;margin-left:6px;">🚪 로그아웃</span>';
     badge.style.display = 'block';
   }
 
