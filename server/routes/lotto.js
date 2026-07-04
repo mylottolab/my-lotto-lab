@@ -320,4 +320,91 @@ router.post('/results', async (req, res) => {
   }
 });
 
+// ─── GET /api/lotto/entries/admin-stats ─── 관리자 전용 (x-admin-key), 전체 사용자 통계
+// admin.html의 통계 대시보드용. 규모가 커지면 페이지네이션/집계쿼리로 개선 필요.
+router.get('/entries/admin-stats', async (req, res) => {
+  try {
+    const adminKey = req.headers['x-admin-key'];
+    if (!adminKey || adminKey !== process.env.ADMIN_API_KEY) {
+      return res.status(403).json({ error: '관리자 인증이 필요합니다.' });
+    }
+
+    const { data: entries, error } = await supabase
+      .from('kr_lotto_entries')
+      .select('round, nums, type, is_real, input_method');
+    if (error) {
+      console.error('[lotto] admin-stats entries 조회 오류:', error);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    const { data: results, error: rErr } = await supabase.from('kr_lotto_results').select('*');
+    if (rErr) {
+      console.error('[lotto] admin-stats results 조회 오류:', rErr);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+    const resultsByRound = {};
+    results.forEach(r => { resultsByRound[r.round] = r; });
+
+    const stats = {
+      total: entries.length,
+      byMethod: { general: 0, camera: 0, ai: 0, excel: 0 },
+      byType: { auto: 0, semi: 0, manual: 0 },
+      byStatus: { pre: 0, post: 0 },
+      byReal: { real: 0, virtual: 0 },
+      byGrade: { g1: 0, g2: 0, g3: 0, g4: 0, g5: 0, fail: 0 },
+      totalPrize: 0
+    };
+
+    entries.forEach(e => {
+      const m = e.input_method || 'general';
+      if (stats.byMethod[m] !== undefined) stats.byMethod[m]++;
+      if (e.type === '자동') stats.byType.auto++;
+      else if (e.type === '반자동') stats.byType.semi++;
+      else if (e.type === '수동') stats.byType.manual++;
+      if (e.is_real) stats.byReal.real++; else stats.byReal.virtual++;
+
+      const res2 = resultsByRound[e.round];
+      if (!res2) { stats.byStatus.pre++; return; }
+      stats.byStatus.post++;
+
+      const grade = calcGrade(e.nums, res2.nums, res2.bonus);
+      const prize = calcPrize(grade, res2);
+      stats.totalPrize += prize;
+      if (grade === 0) stats.byGrade.fail++;
+      else if (grade === 1) stats.byGrade.g1++;
+      else if (grade === 2) stats.byGrade.g2++;
+      else if (grade === 3) stats.byGrade.g3++;
+      else if (grade === 4) stats.byGrade.g4++;
+      else if (grade === 5) stats.byGrade.g5++;
+    });
+
+    return res.json(stats);
+  } catch (err) {
+    console.error('[lotto] admin-stats 오류:', err);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+});
+
+// ─── DELETE /api/lotto/results/:round ─── 관리자 전용 (x-admin-key)
+router.delete('/results/:round', async (req, res) => {
+  try {
+    const adminKey = req.headers['x-admin-key'];
+    if (!adminKey || adminKey !== process.env.ADMIN_API_KEY) {
+      return res.status(403).json({ error: '관리자 인증이 필요합니다.' });
+    }
+    const round = Number(req.params.round);
+    if (!round) return res.status(400).json({ error: '회차가 올바르지 않습니다.' });
+
+    const { error } = await supabase.from('kr_lotto_results').delete().eq('round', round);
+    if (error) {
+      console.error('[lotto] results 삭제 오류:', error);
+      return res.status(500).json({ error: '삭제 중 오류가 발생했습니다.' });
+    }
+    return res.json({ message: round + '회 당첨결과가 삭제되었습니다.' });
+  } catch (err) {
+    console.error('[lotto] results DELETE 오류:', err);
+    return res.status(500).json({ error: '삭제 중 오류가 발생했습니다.' });
+  }
+});
+
 module.exports = router;
