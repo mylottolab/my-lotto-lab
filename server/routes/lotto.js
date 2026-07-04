@@ -142,7 +142,7 @@ router.post('/entries', async (req, res) => {
       }
     }
 
-    // ── 포인트 차감 (data_entry, 게임 수만큼) ──
+    // ── 포인트 차감 (data_entry, 게임 수만큼 — 단, 매월 무료한도 초과분만) ──
     const { data: cost, error: costErr } = await supabase
       .from('point_costs')
       .select('*')
@@ -154,7 +154,30 @@ router.post('/entries', async (req, res) => {
       return res.status(500).json({ error: '가격 정보를 불러올 수 없습니다.' });
     }
 
-    const deductAmount = Number(cost.cost_points) * items.length;
+    let freeCount = 0;
+    let chargedCount = items.length;
+
+    if (cost.free_quota && cost.free_quota_period === 'monthly') {
+      // 이번 달(1일 0시~)에 이미 등록한 게임 수를 세어, 남은 무료한도만큼만 무료 처리
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { count: usedThisMonth, error: cntErr } = await supabase
+        .from('kr_lotto_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('created_at', startOfMonth);
+
+      if (cntErr) {
+        console.error('[lotto] 이번달 등록수 조회 오류:', cntErr);
+        return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+      }
+
+      const freeRemaining = Math.max(0, Number(cost.free_quota) - (usedThisMonth || 0));
+      freeCount = Math.min(freeRemaining, items.length);
+      chargedCount = items.length - freeCount;
+    }
+
+    const deductAmount = Number(cost.cost_points) * chargedCount;
     const spendResult = await deductPoints(userId, deductAmount, {
       actionKey: 'data_entry',
       reason: cost.label_kr
@@ -196,10 +219,24 @@ router.post('/entries', async (req, res) => {
     const rounds = [...new Set(inserted.map(e => e.round))];
     const resultsByRound = await fetchResultsByRound(rounds);
 
+    // 차감 후 잔여 포인트 (프론트 알림 배너용 - "N포인트 차감, 잔액 M포인트")
+    const nowIso2 = new Date().toISOString();
+    const { data: remainLots } = await supabase
+      .from('point_ledger')
+      .select('remaining')
+      .eq('user_id', userId)
+      .gt('remaining', 0)
+      .gt('expires_at', nowIso2);
+    const balanceAfter = (remainLots || []).reduce((s, l) => s + Number(l.remaining), 0);
+
     return res.json({
       message: '등록이 완료되었습니다.',
       items: inserted.map(e => attachResult(e, resultsByRound)),
-      spent: spendResult.spent
+      spent: spendResult.spent,
+      deducted: deductAmount,
+      freeCount: freeCount,
+      chargedCount: chargedCount,
+      balanceAfter: balanceAfter
     });
   } catch (err) {
     console.error('[lotto] entries POST 오류:', err);
