@@ -40,10 +40,11 @@ async function deductPoints(userId, amount, meta) {
     throw new Error('포인트 조회 중 오류가 발생했습니다.');
   }
 
-  // 활동포인트 lot 먼저, 그다음 입금포인트 lot (각각 만료일 빠른 순 유지)
+  // ── 차감 순서: 활동포인트(activity) lot 전부 먼저, 그다음 입금포인트(deposit) lot ──
+  // (각 그룹 내부는 위 쿼리에서 이미 만료일 빠른 순으로 정렬됨)
   const activityLots = lots.filter(l => l.point_type === 'activity');
   const depositLots = lots.filter(l => l.point_type === 'deposit');
-  const orderedLots = [...activityLots, ...depositLots];
+  const orderedLots = [...activityLots, ...depositLots]; // ⚠ 이 순서가 "활동 우선" 규칙의 핵심
 
   const totalAvailable = orderedLots.reduce((s, l) => s + l.remaining, 0);
   if (totalAvailable < amount) {
@@ -84,6 +85,20 @@ async function deductPoints(userId, amount, meta) {
   }
 
   console.log(`[points] 차감 완료: user=${userId}, amount=${amount} (활동${spentActivity}+입금${spentDeposit}), action=${meta?.actionKey || '-'}`);
+
+  // ── 매출현황 집계를 위한 차감 로그 기록 (2026-07-04 신규) ──
+  // 실패해도 차감 자체는 이미 완료된 상태이므로, 로그 기록 실패는 전체 요청을 막지 않고 콘솔에만 남긴다.
+  if (meta && meta.actionKey) {
+    const { error: logErr } = await supabase.from('point_spend_log').insert({
+      user_id: userId,
+      action_key: meta.actionKey,
+      amount: amount,
+      spent_activity: spentActivity,
+      spent_deposit: spentDeposit,
+      ref_id: meta.refId || null
+    });
+    if (logErr) console.error('[points] point_spend_log 기록 오류 (차감 자체는 정상 처리됨):', logErr);
+  }
 
   return { success: true, spent: { activity: spentActivity, deposit: spentDeposit } };
 }
