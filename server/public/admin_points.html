@@ -112,6 +112,23 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <div class="card">
+    <h2>🖨️ 마킹용지 하단 광고</h2>
+    <p class="desc" style="margin-bottom:12px;">
+      마킹용지 PDF 하단에 들어갈 문구입니다. 저장하면 다음 생성분부터 바로 반영됩니다.<br>
+      이미지를 넣고 싶으면, GitHub 저장소의 <code>server/public/marking_footer.png</code> 경로에
+      그 파일명 그대로 이미지를 올려주세요 (PNG 파일만 지원, 자동으로 하단 중앙에 배치됩니다).
+      파일이 없으면 이미지 없이 문구만 표시됩니다.<br>
+      <span style="color:var(--gold);">⚠️ 실제 출력 위치/크기는 makinglotto.com 용지 형태에 따라 다를 수 있어, 처음엔 미세조정이 필요할 수 있습니다.</span>
+    </p>
+    <div style="display:flex;gap:10px;align-items:flex-start;">
+      <textarea id="footerTextInput" rows="2" placeholder="예: My Lotto Lab - mylottolab.github.io"
+        style="flex:1;background:var(--bg);border:1px solid var(--border-soft);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12.5px;font-family:inherit;resize:vertical;"></textarea>
+      <button onclick="saveFooterText()" style="background:var(--gold);color:#1a1305;border:none;border-radius:7px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:12.5px;white-space:nowrap;">저장</button>
+    </div>
+    <div id="footerTextUpdated" style="font-size:11px;color:var(--text-faint);margin-top:6px;"></div>
+  </div>
+
+  <div class="card">
     <h2>📋 메뉴별 포인트 차감 단가</h2>
     <table>
       <thead>
@@ -199,9 +216,22 @@ async function loadAll(){
 
     var revenue = await apiGet('/api/admin/revenue');
     renderRevenue(revenue.items, revenue.grandTotalPoints);
+
+    var footer = await apiGet('/api/admin/settings/marking_footer_text');
+    document.getElementById('footerTextInput').value = footer.value || '';
+    document.getElementById('footerTextUpdated').textContent = footer.updated_at ? ('최종수정: ' + new Date(footer.updated_at).toLocaleString('ko-KR')) : '';
   } catch(e) {
     console.error(e);
   }
+}
+
+async function saveFooterText(){
+  var val = document.getElementById('footerTextInput').value;
+  try {
+    var result = await apiPut('/api/admin/settings/marking_footer_text', { value: val });
+    showToast('마킹용지 하단 광고 문구가 저장되었습니다.', true);
+    document.getElementById('footerTextUpdated').textContent = '최종수정: ' + new Date(result.item.updated_at).toLocaleString('ko-KR');
+  } catch(e){}
 }
 
 async function saveRate(){
