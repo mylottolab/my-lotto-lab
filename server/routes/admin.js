@@ -130,6 +130,16 @@ router.get('/bank-transfer', requireAdmin, async (req, res) => {
   return res.json({ items: data });
 });
 
+// 포인트 만료일 계산: 회원은 소멸 없음(사실상 영구), 비회원만 30일 후 소멸.
+// (null을 쓰지 않고 먼 미래 날짜를 쓰는 이유: 기존의 모든 조회 쿼리가
+//  .gt('expires_at', now) 형태라, null이면 그 비교에서 걸러져버려서
+//  "영원히 안 없어짐"이 오히려 "이미 소멸됨"처럼 취급될 위험이 있음)
+const NEVER_EXPIRES = '2099-12-31T23:59:59+09:00';
+function calcExpiresAt(isGuest, earnedAt) {
+  if (!isGuest) return NEVER_EXPIRES;
+  return new Date(earnedAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+}
+
 // ─── 무통장입금 승인 → 실제 point_ledger 적립 ───────────────────────────────
 router.post('/bank-transfer/:id/approve', requireAdmin, async (req, res) => {
   const { id } = req.params;
@@ -147,8 +157,20 @@ router.post('/bank-transfer/:id/approve', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: '이미 처리된 신청입니다.' });
   }
 
+  // 회원/비회원에 따라 만료일이 다르므로 먼저 확인
+  const { data: profile, error: profErr } = await supabase
+    .from('profiles')
+    .select('is_guest')
+    .eq('id', reqRow.user_id)
+    .maybeSingle();
+
+  if (profErr || !profile) {
+    console.error('[admin] 무통장입금 승인 - 프로필 조회 오류:', profErr);
+    return res.status(500).json({ error: '회원 정보를 확인할 수 없습니다.' });
+  }
+
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const expiresAt = calcExpiresAt(profile.is_guest, now);
 
   const { error: creditErr } = await supabase.from('point_ledger').insert({
     user_id: reqRow.user_id,
@@ -158,7 +180,7 @@ router.post('/bank-transfer/:id/approve', requireAdmin, async (req, res) => {
     source: 'bank_transfer',
     order_id: 'bank-' + reqRow.id,
     earned_at: now.toISOString(),
-    expires_at: expiresAt.toISOString()
+    expires_at: expiresAt
   });
 
   if (creditErr) {
@@ -228,7 +250,7 @@ router.get('/users', requireAdmin, async (req, res) => {
 
     const { data: profiles, error: profErr } = await supabase
       .from('profiles')
-      .select('id, nickname, email, is_guest, created_at')
+      .select('id, nickname, email, phone, is_guest, created_at')
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -239,34 +261,56 @@ router.get('/users', requireAdmin, async (req, res) => {
 
     const ids = profiles.map(p => p.id);
     const nowIso = new Date().toISOString();
-    let ledgerByUser = {};
+    let remainingByUser = {};
+    let cumulativeDepositByUser = {};
 
     if (ids.length) {
-      const { data: lots, error: lotErr } = await supabase
+      // 현재 남아있는(사용가능한) 잔여 포인트 — 만료 안 되고 remaining>0인 것만
+      const { data: remainLots, error: remainErr } = await supabase
         .from('point_ledger')
         .select('user_id, point_type, remaining, expires_at')
         .in('user_id', ids)
         .gt('remaining', 0)
         .gt('expires_at', nowIso);
 
-      if (lotErr) {
-        console.error('[admin] users(point_ledger) 조회 오류:', lotErr);
+      if (remainErr) {
+        console.error('[admin] users(point_ledger remaining) 조회 오류:', remainErr);
         return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
       }
 
-      lots.forEach(l => {
-        if (!ledgerByUser[l.user_id]) ledgerByUser[l.user_id] = { deposit: 0, activity: 0 };
-        ledgerByUser[l.user_id][l.point_type] += Number(l.remaining);
+      remainLots.forEach(l => {
+        if (!remainingByUser[l.user_id]) remainingByUser[l.user_id] = { deposit: 0, activity: 0 };
+        remainingByUser[l.user_id][l.point_type] += Number(l.remaining);
+      });
+
+      // 누적 입금포인트 — 지금까지 한 번이라도 적립된 입금포인트 총량(이미 소멸/사용된 것 포함)
+      const { data: allDeposits, error: depErr } = await supabase
+        .from('point_ledger')
+        .select('user_id, amount')
+        .in('user_id', ids)
+        .eq('point_type', 'deposit');
+
+      if (depErr) {
+        console.error('[admin] users(point_ledger cumulative) 조회 오류:', depErr);
+        return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+      }
+
+      allDeposits.forEach(l => {
+        cumulativeDepositByUser[l.user_id] = (cumulativeDepositByUser[l.user_id] || 0) + Number(l.amount);
       });
     }
 
+    // 전화번호: 2026-07-04부터 회원가입/비회원등록 화면에 입력란이 추가됨.
+    // 그 이전 가입자는 값이 없어 null(관리자 화면에서 "미수집"으로 표시)로 내려감.
     const items = profiles.map(p => {
-      const bal = ledgerByUser[p.id] || { deposit: 0, activity: 0 };
+      const bal = remainingByUser[p.id] || { deposit: 0, activity: 0 };
       return {
         id: p.id,
         nickname: p.nickname,
         email: p.email,
+        phone: p.phone || null,
         isGuest: p.is_guest,
+        depositCumulative: cumulativeDepositByUser[p.id] || 0,
         deposit: bal.deposit,
         activity: bal.activity,
         total: bal.deposit + bal.activity,
