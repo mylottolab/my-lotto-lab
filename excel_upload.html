@@ -570,15 +570,24 @@ function refreshTable(){
     return av<bv?sortDir:av>bv?-sortDir:0;
   });
 
-  // 서버가 조회 시점마다 status/grade/prizeMoney를 항상 최신으로 계산해서 내려주므로
-  // (구버전에 있던) "추첨됐으나 미확인" 중간 단계는 더 이상 존재하지 않는다.
+  // 서버는 결과가 나온 회차라도 사용자가 "즉시확인"을 누르기 전까지 status를 '미확인'으로
+  // 내려준다 (등수/당첨금 비공개) — 결과가 나오자마자 자동으로 보여주면 본인이 뭘 등록했는지
+  // 인식할 새도 없이 결과부터 보게 되는 문제를 막기 위한 의도적인 장치.
   var useSections=(sortCol==='round');
-  var preDraw =useSections?entries.filter(function(e){return e.status==='추첨전';}):[];
-  var postDraw=useSections?entries.filter(function(e){return e.status==='추첨후';}):entries;
+  var preDraw     =useSections?entries.filter(function(e){return e.status==='추첨전';}):[];
+  var unconfirmed =useSections?entries.filter(function(e){return e.status==='미확인';}):[];
+  var postDraw    =useSections?entries.filter(function(e){return e.status==='추첨후';}):entries;
 
   var badge=document.getElementById('sectionBadge');
   if(useSections){
-    badge.innerHTML='<span style="color:#e03131;font-weight:700;">🔴추첨전 '+preDraw.length+'개</span> &nbsp;|&nbsp; <span style="color:#555;">✅추첨후 '+postDraw.length+'개</span>';
+    var bHtml='<span style="color:#e03131;font-weight:700;">🔴추첨전 '+preDraw.length+'개</span> &nbsp;|&nbsp; ';
+    if(unconfirmed.length>0){
+      bHtml+='<span style="color:#e67700;font-weight:700;">🟡미확인 '+unconfirmed.length+'개</span>'+MLL.renderCheckBtn(SESSION_TAG);
+    } else {
+      bHtml+='<span style="color:#e67700;">🟡미확인 0개</span>';
+    }
+    bHtml+=' &nbsp;|&nbsp; <span style="color:#555;">✅확인완료 '+postDraw.length+'개</span>';
+    badge.innerHTML=bHtml;
   } else badge.textContent='';
 
   var tb=document.getElementById('tb');
@@ -586,10 +595,10 @@ function refreshTable(){
 
   function makeRows(list, bgColor){
     return list.map(function(entry){
-      var result  =MLL.getResult(entry.round);
+      var actualSt=entry.status;
+      var result  =(actualSt==='추첨후')?MLL.getResult(entry.round):null;
       var winNums =result?result.nums:[];
       var bonusNum=result?result.bonus:null;
-      var actualSt=entry.status;
       var isSession=entry.sessionTag===SESSION_TAG;
       var autoNums=entry.autoNums||[];
 
@@ -608,20 +617,27 @@ function refreshTable(){
       var realHTML=entry.isReal
         ?'<span style="background:#f5c518;color:#7a5e00;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;">실구매</span>'
         :'<span style="background:#eee;color:#999;font-size:8px;padding:1px 4px;border-radius:3px;">가상</span>';
-      var statusHTML=actualSt==='추첨전'
-        ?'<span style="color:#e03131;font-weight:700;font-size:9px;">추첨전</span>'
-        :'<span style="color:#999;font-size:9px;">추첨후</span>';
+      var statusHTML;
+      if(actualSt==='추첨전') statusHTML='<span style="color:#e03131;font-weight:700;font-size:9px;">추첨전</span>';
+      else if(actualSt==='미확인') statusHTML='<span style="color:#e67700;font-weight:700;font-size:9px;">미확인</span>';
+      else statusHTML='<span style="color:#999;font-size:9px;">추첨후</span>';
+
       var gradeHTML='<span style="color:#ddd;">-</span>';
       if(actualSt==='추첨후'&&entry.grade!==null){
         gradeHTML=entry.grade===0?'<span style="color:#aaa;font-size:9px;">낙첨</span>'
           :'<span style="color:'+MLL.GRADE_COLOR[entry.grade]+';font-weight:700;font-size:9px;">'+MLL.GRADE_LABEL[entry.grade]+'</span>';
+      } else if(actualSt==='미확인'){
+        gradeHTML='<span style="color:#e67700;font-size:9px;">?</span>';
       }
       var prizeHTML='<span style="color:#ddd;">-</span>';
-      if(entry.prizeMoney&&entry.prizeMoney>0)
+      if(actualSt==='추첨후'&&entry.prizeMoney&&entry.prizeMoney>0)
         prizeHTML='<span style="color:#e03131;font-weight:700;font-size:9px;">'+entry.prizeMoney.toLocaleString()+'원</span>';
+      else if(actualSt==='미확인')
+        prizeHTML='<span style="color:#e67700;font-size:9px;">?</span>';
 
-      var rcColor=actualSt==='추첨전'?'#e03131':'#555';
-      var rowBg=isSession?'#f0f8ff':(bgColor||(actualSt==='추첨전'?'#fff8e1':''));
+      var rcColor=actualSt==='추첨전'?'#e03131':(actualSt==='미확인'?'#e67700':'#555');
+      var defaultBg = actualSt==='추첨전'?'#fff8e1':(actualSt==='미확인'?'#fff3e0':'');
+      var rowBg=isSession?'#f0f8ff':(bgColor||defaultBg);
       var borderL=isSession?'border-left:3px solid #1a7ad4;':'';
       var rowStyle=borderL+'background:'+rowBg+';';
 
@@ -649,8 +665,12 @@ function refreshTable(){
       html+='<tr class="sdiv"><td colspan="10">🔴 추첨 전 ('+preDraw.length+'개)</td></tr>';
       html+=makeRows(preDraw,'#fff8e1');
     }
+    if(unconfirmed.length){
+      html+='<tr><td colspan="10" style="background:#fff3e0;padding:3px 8px;font-size:9px;font-weight:700;color:#e67700;">🟡 추첨됐으나 미확인 ('+unconfirmed.length+'개)'+MLL.renderCheckBtn(SESSION_TAG)+'</td></tr>';
+      html+=makeRows(unconfirmed,'#fff3e0');
+    }
     if(postDraw.length){
-      html+='<tr class="sdiv"><td colspan="10">✅ 추첨 후 ('+postDraw.length+'개)</td></tr>';
+      html+='<tr class="sdiv"><td colspan="10">✅ 추첨후 확인분 ('+postDraw.length+'개)</td></tr>';
       html+=makeRows(postDraw,'');
     }
   } else html=makeRows(entries,'');
