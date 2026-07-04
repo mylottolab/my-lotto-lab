@@ -1,12 +1,109 @@
 const express = require('express');
 const router = express.Router();
-const { PDFDocument } = require('pdf-lib');
+const fs = require('fs');
+const path = require('path');
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const { createClient } = require('@supabase/supabase-js');
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
 // ─── makinglotto.com 연동 설정 (인증정보는 절대 클라이언트로 내려보내지 않음) ────────
 const MAKING_SLIPDOWN_URL = 'https://makinglotto.com/lottomaking/slipdown';
 const MAKING_USER = process.env.MAKINGLOTTO_USER;
 const MAKING_PASS = process.env.MAKINGLOTTO_PASS;
-const CHUNK_SIZE = 15; // makinglotto.com API 한 번 호출당 최대 게임 수
+// ⚠ 2026-07-05: CHUNK_SIZE를 15 → 5(전표 1매 분량)로 변경.
+// 예전에는 15게임(=전표 3매)을 한 번의 API 호출로 처리했는데, makinglotto.com 응답은
+// "그 호출 전체에 캐릭터 1개"만 적용되는 방식이라, 전표 3매가 전부 같은 이미지로
+// 찍혔다. 그러다 보니 사용자가 이미지 여러 개를 선택하고 값을 지불해도, 정작
+// 게임 수가 적으면(예: 30게임=전표6매인데 이미지 6개 선택) 청크 단위(15게임=전표3매)로만
+// 캐릭터가 바뀌어서 선택한 이미지 중 상당수가 실제로는 한 번도 안 쓰이는 문제가 있었다.
+// 청크를 전표 1매 단위(5게임)로 맞추면 전표마다 정확히 다음 캐릭터로 순환되어,
+// 지불한 이미지 개수만큼 실제로 다 쓰이게 된다.
+// 트레이드오프: API 호출 횟수가 늘어나(게임수/15 → 게임수/5, 최대 3배) 생성 시간이
+// 길어지고 makinglotto.com 서버 부담도 커진다. 대량 주문 시 체감될 수 있음.
+const CHUNK_SIZE = 5; // 전표 1매 분량(gamesPerSheet)과 반드시 일치시켜야 함
+
+// ─── 마킹용지 하단 광고(문구+이미지) — 관리자가 설정 ─────────────────────────────
+// 문구: admin_points.html에서 app_settings.marking_footer_text로 저장/조회.
+// 이미지: server/public/marking_footer.png 파일이 있으면 자동으로 사용 (PNG만 지원).
+// 둘 다 없으면 아무것도 그리지 않고 원본 그대로 반환한다.
+// ⚠ 정확한 위치/크기는 makinglotto.com 용지의 실제 여백을 보지 못한 상태에서 잡은
+//   추정값이라, 실제 출력물을 보고 아래 좌표(FOOTER_* 상수)를 조정해야 할 수 있다.
+const FOOTER_MARGIN_BOTTOM = 10;   // 페이지 하단에서부터의 여백(pt)
+const FOOTER_IMAGE_MAX_HEIGHT = 40; // 광고 이미지 최대 높이(pt)
+const FOOTER_TEXT_SIZE = 8;
+
+async function getFooterSettings() {
+  let footerText = '';
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'marking_footer_text')
+      .maybeSingle();
+    if (!error && data) footerText = data.value || '';
+  } catch (e) {
+    console.error('[marking] footer 문구 조회 오류:', e);
+  }
+
+  let footerImageBytes = null;
+  try {
+    const imgPath = path.join(__dirname, '..', 'public', 'marking_footer.png');
+    if (fs.existsSync(imgPath)) footerImageBytes = fs.readFileSync(imgPath);
+  } catch (e) {
+    console.error('[marking] footer 이미지 로드 오류:', e);
+  }
+
+  return { footerText, footerImageBytes };
+}
+
+// 병합된 PDF의 모든 페이지 하단에 문구/이미지를 그려 넣는다.
+async function applyFooter(mergedDoc) {
+  const { footerText, footerImageBytes } = await getFooterSettings();
+  if (!footerText && !footerImageBytes) return; // 설정된 게 없으면 아무 것도 안 함
+
+  let footerImage = null;
+  if (footerImageBytes) {
+    try {
+      footerImage = await mergedDoc.embedPng(footerImageBytes);
+    } catch (e) {
+      console.error('[marking] footer 이미지 embed 실패 (PNG 파일이 맞는지 확인 필요):', e);
+    }
+  }
+
+  let font = null;
+  if (footerText) {
+    try { font = await mergedDoc.embedFont(StandardFonts.Helvetica); }
+    catch (e) { console.error('[marking] footer 폰트 embed 실패:', e); }
+  }
+
+  mergedDoc.getPages().forEach(page => {
+    const { width } = page.getSize();
+    let cursorY = FOOTER_MARGIN_BOTTOM;
+
+    if (footerImage) {
+      const dims = footerImage.scale(1);
+      const maxW = width - 20;
+      const scale = Math.min(maxW / dims.width, FOOTER_IMAGE_MAX_HEIGHT / dims.height, 1);
+      const w = dims.width * scale, h = dims.height * scale;
+      page.drawImage(footerImage, { x: (width - w) / 2, y: cursorY, width: w, height: h });
+      cursorY += h + 2;
+    }
+    if (footerText && font) {
+      const textWidth = font.widthOfTextAtSize(footerText, FOOTER_TEXT_SIZE);
+      page.drawText(footerText, {
+        x: (width - textWidth) / 2,
+        y: cursorY,
+        size: FOOTER_TEXT_SIZE,
+        font,
+        color: rgb(0.45, 0.45, 0.45)
+      });
+    }
+  });
+}
 
 // ─── 마킹용지 PDF 생성 (회원/비회원 모두 이용 가능, 인증만 필요) ────────────────────
 // body: { rows: [[6개 번호], ...], cids: [캐릭터ID, ...] }
@@ -69,6 +166,9 @@ router.post('/generate', async (req, res) => {
       const pages = await merged.copyPages(src, src.getPageIndices());
       pages.forEach(p => merged.addPage(p));
     }
+
+    await applyFooter(merged); // 관리자가 설정한 하단 광고(문구/이미지) 적용
+
     const mergedBytes = await merged.save();
 
     console.log(`[marking] PDF 생성 완료: ${rows.length}게임, ${chunks.length}청크`);
