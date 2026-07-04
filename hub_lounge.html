@@ -142,14 +142,24 @@ async function load() {
     }
   } catch (e) {}
 
-  var nearestExpiry = lots.length ? lots.slice().sort(function(a,b){ return new Date(a.expiresAt) - new Date(b.expiresAt); })[0] : null;
+  // ⚠ 회원 포인트는 소멸되지 않는다(설계 확정, 2026-07-04). 서버는 이를
+  // '2099-12-31' 같은 먼 미래 날짜로 표현하므로, 화면에서는 그 날짜를
+  // "소멸 없음"으로 바꿔서 보여준다. 실제로 곧 소멸되는(비회원) 포인트만
+  // "가장 빠른 소멸 예정" 계산에 포함시킨다.
+  var NEVER_EXPIRES_YEAR = 2099;
+  function isPermanent(expiresAt){ return new Date(expiresAt).getFullYear() >= NEVER_EXPIRES_YEAR; }
+
+  var expiringLots = lots.filter(function(l){ return !isPermanent(l.expiresAt); });
+  var nearestExpiry = expiringLots.length
+    ? expiringLots.slice().sort(function(a,b){ return new Date(a.expiresAt) - new Date(b.expiresAt); })[0]
+    : null;
 
   var lotsHtml = lots.length
     ? lots.map(function(l){
-        var d = new Date(l.expiresAt);
         var cls = l.type === 'deposit' ? 'deposit' : 'activity';
         var label = l.type === 'deposit' ? '입금포인트' : '활동포인트';
-        return '<div class="lot-row ' + cls + '"><span class="ltype"><span class="ldot"></span>' + label + '</span><span class="lpoints">' + l.points.toLocaleString() + 'P</span><span class="lexpiry">' + d.toLocaleDateString('ko-KR') + ' 소멸</span></div>';
+        var expiryLabel = isPermanent(l.expiresAt) ? '소멸 없음' : (new Date(l.expiresAt).toLocaleDateString('ko-KR') + ' 소멸');
+        return '<div class="lot-row ' + cls + '"><span class="ltype"><span class="ldot"></span>' + label + '</span><span class="lpoints">' + l.points.toLocaleString() + 'P</span><span class="lexpiry">' + expiryLabel + '</span></div>';
       }).join('')
     : '<div class="empty">적립된 포인트 내역이 없습니다.</div>';
 
@@ -171,12 +181,18 @@ async function load() {
         '<div class="split-box activity"><div class="slabel"><span class="sdot"></span>활동포인트</div><div class="sval">' + balance.activity.toLocaleString() + 'P</div><div class="ssub">활동·보상으로 적립, 차감시 우선 사용</div></div>' +
       '</div>' +
       (nearestExpiry
-        ? '<div class="expiry-note">가장 빠른 소멸 예정: <b>' + new Date(nearestExpiry.expiresAt).toLocaleDateString('ko-KR') + '</b> (' + nearestExpiry.points.toLocaleString() + 'P) — 포인트는 취득일로부터 30일 후 소멸됩니다.</div>'
-        : '<div class="expiry-note">포인트는 취득일로부터 30일 후 소멸됩니다.</div>'
+        ? '<div class="expiry-note">가장 빠른 소멸 예정: <b>' + new Date(nearestExpiry.expiresAt).toLocaleDateString('ko-KR') + '</b> (' + nearestExpiry.points.toLocaleString() + 'P) — 비회원 포인트는 취득일로부터 30일 후 소멸됩니다.</div>'
+        : (isGuest
+            ? '<div class="expiry-note">비회원 포인트는 취득일로부터 30일 후 소멸됩니다.</div>'
+            : '<div class="expiry-note">회원 포인트는 소멸되지 않습니다.</div>'
+          )
       ) +
       '<div class="action-row">' +
         '<a class="action-btn primary" href="' + withAuthParams(API + '/pay/category_select.html', state) + '">포인트 충전하러 가기</a>' +
         '<a class="action-btn secondary" href="main_page.html">메인으로</a>' +
+      '</div>' +
+      '<div style="margin-top:10px;text-align:center;">' +
+        '<span onclick="if(confirm(\'로그아웃 하시겠습니까?\'))MLL.logout();" style="font-size:11.5px;color:var(--text-faint);cursor:pointer;text-decoration:underline;">🚪 로그아웃</span>' +
       '</div>' +
     '</div>' +
     '<div class="lots-card">' +
