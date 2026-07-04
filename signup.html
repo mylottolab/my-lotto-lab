@@ -159,6 +159,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
             placeholder="이메일 주소 입력">
           <div class="field-err" id="emailErr"></div>
         </div>
+        <div class="field">
+          <label for="signupPhone" data-i18n-kr="전화번호 (선택)" data-i18n-en="Phone (optional)">전화번호 (선택)</label>
+          <input type="tel" id="signupPhone" autocomplete="tel"
+            data-i18n-placeholder-kr="010-1234-5678" data-i18n-placeholder-en="e.g. 010-1234-5678"
+            placeholder="010-1234-5678">
+        </div>
         <div class="field-row">
           <div class="field">
             <label for="pw1" data-i18n-kr="비밀번호" data-i18n-en="Password">비밀번호</label>
@@ -383,6 +389,7 @@ async function handleSignup(){
         email:document.getElementById('signupEmail').value.trim(),
         password:document.getElementById('pw1').value,
         nickname:document.getElementById('nickname').value.trim(),
+        phone:document.getElementById('signupPhone').value.trim(),
         country:document.getElementById('country').value
       })
     });
