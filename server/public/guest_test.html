@@ -51,6 +51,7 @@ h1{font-size:18px;font-weight:700;margin-bottom:6px;}
 
     <div class="field"><label>닉네임 (2~20자)</label><input type="text" id="reg_nickname" placeholder="예: 로또사냥꾼"></div>
     <div class="field"><label>이메일</label><input type="email" id="reg_email" placeholder="test@example.com"></div>
+    <div class="field"><label>전화번호 (선택)</label><input type="tel" id="reg_phone" placeholder="010-1234-5678"></div>
     <button class="btn" id="btnRequestOtp" onclick="requestOtp()">인증 메일 받기</button>
   </div>
 
@@ -90,13 +91,14 @@ function showMsg(id, text, isError){
 async function requestOtp(){
   var nickname = document.getElementById('reg_nickname').value.trim();
   var email = document.getElementById('reg_email').value.trim();
+  var phone = document.getElementById('reg_phone').value.trim();
   if(!nickname || !email){ showMsg('regMsg', '닉네임과 이메일을 입력해 주세요.', true); return; }
 
   try {
     var res = await fetch(API + '/api/guest/register-request', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ nickname: nickname, email: email })
+      body: JSON.stringify({ nickname: nickname, email: email, phone: phone })
     });
     var data = await res.json();
     if(!res.ok){ showMsg('regMsg', data.error || '요청 실패', true); return; }
