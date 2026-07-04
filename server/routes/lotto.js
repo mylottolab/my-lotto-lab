@@ -59,10 +59,17 @@ function calcPrize(grade, result) {
 // DB row(kr_lotto_entries) + 회차별 당첨결과(kr_lotto_results)를 조합해
 // 프론트가 바로 쓸 수 있는 형태로 변환. status/grade/prizeMoney를 매 조회시
 // 서버가 새로 계산해서 내려주므로, 프론트에서 별도로 "즉시확인"할 필요가 없다.
+// status 3단계:
+//  - '추첨전'  : 해당 회차 결과가 아직 없음
+//  - '미확인'  : 결과는 나왔지만 사용자가 아직 "즉시확인"을 안 누름 (등수/당첨금 비공개)
+//  - '추첨후'  : 결과가 나왔고 사용자가 확인함 (등수/당첨금 공개)
+// ⚠ "결과가 나오자마자 자동으로 바로 보여주면, 정작 본인이 뭘 등록했는지 인식할 새도 없이
+//   결과부터 보게 되어 오히려 혼란스럽다"는 UX 이유로 confirmed 단계를 의도적으로 둔다.
 function attachResult(row, resultsByRound) {
   const res = resultsByRound[row.round];
   const hasResult = !!res;
-  const grade = hasResult ? calcGrade(row.nums, res.nums, res.bonus) : null;
+  const revealed = hasResult && row.confirmed;
+  const grade = revealed ? calcGrade(row.nums, res.nums, res.bonus) : null;
   return {
     id: row.id,
     round: row.round,
@@ -74,9 +81,9 @@ function attachResult(row, resultsByRound) {
     sessionTag: row.session_tag,
     memo: row.memo || '',
     createdAt: new Date(row.created_at).getTime(),
-    status: hasResult ? '추첨후' : '추첨전',
+    status: !hasResult ? '추첨전' : (row.confirmed ? '추첨후' : '미확인'),
     grade: grade,
-    prizeMoney: hasResult ? calcPrize(grade, res) : 0
+    prizeMoney: revealed ? calcPrize(grade, res) : 0
   };
 }
 
@@ -264,6 +271,59 @@ router.delete('/entries/:id', async (req, res) => {
   } catch (err) {
     console.error('[lotto] entries DELETE 오류:', err);
     return res.status(500).json({ error: '삭제 중 오류가 발생했습니다.' });
+  }
+});
+
+// ─── POST /api/lotto/entries/confirm ─── "즉시확인" — 미확인 항목을 확인완료로 전환
+// body: { all: true } → 내 미확인 항목 전체 확인
+//       { sessionTag: 'xxx' } → 그 세션(지금 입력분)에 한해서만 확인
+// 결과가 아직 없는 회차(진짜 추첨전)는 애초에 대상이 아니므로 자동 제외된다.
+router.post('/entries/confirm', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req);
+    if (!userId) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
+
+    const { sessionTag } = req.body;
+
+    let query = supabase
+      .from('kr_lotto_entries')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('confirmed', false);
+    if (sessionTag) query = query.eq('session_tag', sessionTag);
+
+    const { data: pending, error: pendErr } = await query;
+    if (pendErr) {
+      console.error('[lotto] confirm 대상 조회 오류:', pendErr);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+    if (!pending.length) return res.json({ updated: 0, items: [] });
+
+    const rounds = [...new Set(pending.map(e => e.round))];
+    const resultsByRound = await fetchResultsByRound(rounds);
+
+    // 결과가 실제로 나와있는 것들만 확인 대상 (결과 없는 진짜 추첨전은 그대로 둠)
+    const targetIds = pending.filter(e => resultsByRound[e.round]).map(e => e.id);
+    if (!targetIds.length) return res.json({ updated: 0, items: [] });
+
+    const { data: updated, error: updErr } = await supabase
+      .from('kr_lotto_entries')
+      .update({ confirmed: true })
+      .in('id', targetIds)
+      .select('*');
+
+    if (updErr) {
+      console.error('[lotto] confirm 업데이트 오류:', updErr);
+      return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+    }
+
+    return res.json({
+      updated: updated.length,
+      items: updated.map(e => attachResult(e, resultsByRound))
+    });
+  } catch (err) {
+    console.error('[lotto] entries confirm 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
   }
 });
 
