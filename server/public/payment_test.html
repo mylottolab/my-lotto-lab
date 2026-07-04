@@ -187,6 +187,15 @@ function setLang(lang){ LANG=lang; localStorage.setItem('mll_lang',lang); applyL
 })();
 function getPrice(){ return Number(document.getElementById('priceDisplay').value.replace(/[^0-9]/g, '')); }
 
+// 결과 메시지(성공/실패)를 표시하고 화면에 보이도록 스크롤한다.
+// (폼이 길어서 버튼은 맨 아래, 메시지는 위쪽에 뜨다보니 "눌러도 반응이 없다"고
+//  느껴지는 문제가 있었음)
+function showResultMsg(el, text){
+  el.textContent = text;
+  el.classList.add('show');
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 // ── 결제방식 전환 ──
 function switchMode(mode){
   document.getElementById('cardPanel').classList.toggle('show', mode==='card');
@@ -218,15 +227,15 @@ async function submitBankTransfer(){
 
   var price = getPrice();
   if (!price || price < 1000) {
-    err.textContent = LANG==='en' ? 'Amount must be at least 1,000 KRW.' : '충전금액은 1,000원 이상이어야 합니다.';
-    err.classList.add('show'); return;
+    showResultMsg(err, LANG==='en' ? 'Amount must be at least 1,000 KRW.' : '충전금액은 1,000원 이상이어야 합니다.');
+    return;
   }
   var depositorName = document.getElementById('depositorName').value.trim();
   var nickname = document.getElementById('depositorNickname').value.trim();
   var email = document.getElementById('depositorEmail').value.trim();
   if (!depositorName || !nickname || !email) {
-    err.textContent = LANG==='en' ? 'Please fill in depositor name, nickname, and email.' : '입금자명, 닉네임, 이메일을 모두 입력해 주세요.';
-    err.classList.add('show'); return;
+    showResultMsg(err, LANG==='en' ? 'Please fill in depositor name, nickname, and email.' : '입금자명, 닉네임, 이메일을 모두 입력해 주세요.');
+    return;
   }
 
   btn.classList.add('loading'); btn.disabled = true;
@@ -237,12 +246,13 @@ async function submitBankTransfer(){
       body: JSON.stringify({ depositorName: depositorName, nickname: nickname, email: email, amount: price })
     });
     var data = await res.json();
-    if (!res.ok) { err.textContent = (LANG==='en' ? data.errorEn : data.error) || data.error || '오류가 발생했습니다.'; err.classList.add('show'); return; }
-    ok.textContent = LANG==='en' ? (data.messageEn || data.message) : data.message;
-    ok.classList.add('show');
+    if (!res.ok) {
+      showResultMsg(err, (LANG==='en' ? data.errorEn : data.error) || data.error || '오류가 발생했습니다.');
+      return;
+    }
+    showResultMsg(ok, LANG==='en' ? (data.messageEn || data.message) : data.message);
   } catch(e){
-    err.textContent = LANG==='en' ? 'An error occurred.' : '오류가 발생했습니다.';
-    err.classList.add('show');
+    showResultMsg(err, LANG==='en' ? 'An error occurred.' : '오류가 발생했습니다.');
   } finally {
     btn.classList.remove('loading'); btn.disabled = false;
   }
@@ -290,8 +300,7 @@ async function startPayment(){
 
   var priceVal = getPrice();
   if (!priceVal || priceVal < 1000) {
-    err.textContent = LANG==='en' ? 'Amount must be at least 1,000 KRW.' : '충전금액은 1,000원 이상이어야 합니다.';
-    err.classList.add('show');
+    showResultMsg(err, LANG==='en' ? 'Amount must be at least 1,000 KRW.' : '충전금액은 1,000원 이상이어야 합니다.');
     return;
   }
 
@@ -344,8 +353,7 @@ async function startPayment(){
 
     INIStdPay.pay('inicisForm');
   } catch(e) {
-    err.textContent = e.message||'오류가 발생했습니다.';
-    err.classList.add('show');
+    showResultMsg(err, e.message||'오류가 발생했습니다.');
   } finally {
     btn.classList.remove('loading'); btn.disabled=false;
   }
