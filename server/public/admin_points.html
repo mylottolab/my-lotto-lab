@@ -79,13 +79,24 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <div class="card">
-    <h2>👥 회원/비회원 포인트 현황</h2>
-    <p class="desc" style="margin-bottom:12px;">최근 가입순 상위 200명. 만료되지 않은 잔여 포인트만 집계됩니다.</p>
+    <h2>👤 회원 명단</h2>
+    <p class="desc" style="margin-bottom:12px;">최근 가입순 상위 200명(전체 목록 중 회원만). 전화번호는 아직 수집하는 곳이 없어 비어있습니다.</p>
     <table>
       <thead>
-        <tr><th>닉네임</th><th>구분</th><th>입금포인트</th><th>활동포인트</th><th>합계</th></tr>
+        <tr><th>닉네임</th><th>이메일</th><th>전화번호</th><th>누적입금P</th><th>잔여입금P</th><th>잔여활동P</th><th>가입일</th></tr>
       </thead>
-      <tbody id="usersBody"></tbody>
+      <tbody id="memberUsersBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>🕶️ 비회원 명단</h2>
+    <p class="desc" style="margin-bottom:12px;">최근 가입순 상위 200명(전체 목록 중 비회원만). 잔여 포인트는 취득일로부터 30일 후 소멸됩니다.</p>
+    <table>
+      <thead>
+        <tr><th>닉네임</th><th>이메일</th><th>전화번호</th><th>누적입금P</th><th>잔여입금P</th><th>잔여활동P</th><th>가입일</th></tr>
+      </thead>
+      <tbody id="guestUsersBody"></tbody>
     </table>
   </div>
 
@@ -283,26 +294,36 @@ function renderDeposits(items){
   }).join('');
 }
 
+function renderUserRow(u){
+  var d = new Date(u.createdAt);
+  var dateStr = d.toLocaleDateString('ko-KR');
+  return (
+    '<tr>' +
+      '<td>' + u.nickname + '</td>' +
+      '<td>' + u.email + '</td>' +
+      '<td>' + (u.phone || '<span style="color:var(--text-dim);">미수집</span>') + '</td>' +
+      '<td>' + u.depositCumulative.toLocaleString() + 'P</td>' +
+      '<td>' + u.deposit.toLocaleString() + 'P</td>' +
+      '<td>' + u.activity.toLocaleString() + 'P</td>' +
+      '<td style="font-size:11px;color:var(--text-dim);">' + dateStr + '</td>' +
+    '</tr>'
+  );
+}
+
 function renderUsers(items){
-  var body = document.getElementById('usersBody');
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">가입자가 없습니다.</td></tr>';
-    return;
-  }
-  body.innerHTML = items.map(function(u){
-    var typeBadge = u.isGuest
-      ? '<span class="badge activity_reward">비회원</span>'
-      : '<span class="badge free">회원</span>';
-    return (
-      '<tr>' +
-        '<td>' + u.nickname + '</td>' +
-        '<td>' + typeBadge + '</td>' +
-        '<td>' + u.deposit.toLocaleString() + 'P</td>' +
-        '<td>' + u.activity.toLocaleString() + 'P</td>' +
-        '<td><b>' + u.total.toLocaleString() + 'P</b></td>' +
-      '</tr>'
-    );
-  }).join('');
+  var memberBody = document.getElementById('memberUsersBody');
+  var guestBody = document.getElementById('guestUsersBody');
+
+  var members = items.filter(function(u){ return !u.isGuest; });
+  var guests = items.filter(function(u){ return u.isGuest; });
+
+  memberBody.innerHTML = members.length
+    ? members.map(renderUserRow).join('')
+    : '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:20px;">회원이 없습니다.</td></tr>';
+
+  guestBody.innerHTML = guests.length
+    ? guests.map(renderUserRow).join('')
+    : '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:20px;">비회원이 없습니다.</td></tr>';
 }
 
 function renderRevenue(items, grandTotal){
