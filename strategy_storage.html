@@ -1066,13 +1066,14 @@ document.addEventListener('click',function(e){
 var currentTab='fav';
 var STORAGE_TABS=['fav','battle','etc'];
 
-function switchTab(tab, btn){
+async function switchTab(tab, btn){
   currentTab=tab;
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
   btn.classList.add('active');
   ['fav','strategy','battle','etc'].forEach(function(t){
     document.getElementById('tab-'+t).style.display=t===tab?'block':'none';
   });
+  if (STORAGE_TABS.indexOf(tab) >= 0) await refreshTabData(tab);
   renderCurrentTab();
 }
 
@@ -1081,11 +1082,73 @@ function toggleAddForm(tab){
   el.style.display=el.style.display==='none'?'block':'none';
 }
 
-function loadTabData(tab){
-  try{return JSON.parse(localStorage.getItem('mll_storage_'+tab)||'[]');}catch(e){return[];}
+// ⚠ 2026-07-06: '빠른저장'/'Battle·Game번호'/'기타 저장소' 3개 탭도 예전엔 브라우저
+//   localStorage였는데, 서버 DB(kr_scratchpad)로 이전했다. 카테고리 이름만 다르게
+//   써서 테이블 하나를 공유한다. (전략DATA 탭은 strategy_compare.html이 만드는
+//   mll_strategy_results를 그대로 보여주기만 하는 화면이라, 그쪽을 먼저 서버로
+//   옮겨야 의미가 있어 이번엔 그대로 둠)
+var TAB_TO_CATEGORY = { fav: 'quick_favorite', battle: 'battle_game', etc: 'etc' };
+var _tabDataCache = { fav: [], battle: [], etc: [] };
+
+async function refreshTabData(tab) {
+  var state = _mllAuthState();
+  if (!state.type) { _tabDataCache[tab] = []; return []; }
+  var qs = '?category=' + TAB_TO_CATEGORY[tab];
+  if (state.type === 'guest') qs += '&nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/scratchpad' + qs, { headers: _mllHeaders(state) });
+    var data = await resp.json();
+    if (!resp.ok) { console.error('[scratchpad] 조회 오류:', data.error); _tabDataCache[tab] = []; return []; }
+    _tabDataCache[tab] = (data.items || []).map(function(it){
+      return { id: it.id, name: it.title, title: it.title, content: it.memo, nums: it.nums || [], memo: it.memo, createdAt: it.createdAt };
+    });
+    return _tabDataCache[tab];
+  } catch (e) {
+    console.error('[scratchpad] 네트워크 오류:', e);
+    _tabDataCache[tab] = [];
+    return [];
+  }
 }
-function saveTabData(tab,data){
-  localStorage.setItem('mll_storage_'+tab,JSON.stringify(data));
+
+function loadTabData(tab){ return _tabDataCache[tab] || []; }
+
+// 항목 1개 저장 (예전엔 배열 전체를 다시 저장하는 방식이었지만, 서버는 항목 단위로 저장)
+async function saveTabItem(tab, item) {
+  var state = _mllAuthState();
+  if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return null; }
+  var body = _mllAuthBody(state, {
+    category: TAB_TO_CATEGORY[tab],
+    title: item.name || item.title || '',
+    nums: item.nums || null,
+    memo: item.memo || item.content || ''
+  });
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/scratchpad', {
+      method: 'POST', headers: _mllHeaders(state), body: JSON.stringify(body)
+    });
+    var data = await resp.json();
+    if (!resp.ok) { alert('저장 실패: ' + (data.error || '')); return null; }
+    await refreshTabData(tab);
+    return data.item;
+  } catch (e) {
+    console.error('[scratchpad] 저장 오류:', e);
+    alert('네트워크 오류가 발생했습니다.');
+    return null;
+  }
+}
+
+async function deleteTabItem(tab, id) {
+  var state = _mllAuthState();
+  if (!state.type) return false;
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/scratchpad/' + id, { method: 'DELETE', headers: _mllHeaders(state) });
+    if (!resp.ok) return false;
+    await refreshTabData(tab);
+    return true;
+  } catch (e) {
+    console.error('[scratchpad] 삭제 오류:', e);
+    return false;
+  }
 }
 
 function renderBalls(nums){
@@ -1155,9 +1218,8 @@ async function addFav(){
   if(nums.length!==6){alert('번호 6개를 모두 입력해주세요!');return;}
   if(new Set(nums).size!==6){alert('중복된 번호가 있습니다!');return;}
   var memo=document.getElementById('fav-memo').value.trim();
-  var data=loadTabData('fav');
-  data.unshift({id:MLL.uuid(),name:name,nums:nums,memo:memo,createdAt:Date.now()});
-  saveTabData('fav',data);
+  var saved = await saveTabItem('fav', { name: name, nums: nums, memo: memo });
+  if (!saved) return;
   toggleAddForm('fav');
   [1,2,3,4,5,6].forEach(function(i){document.getElementById('fb'+i).value='';});
   document.getElementById('fav-name').value='';
@@ -1194,7 +1256,7 @@ function RS_computeUpcomingRoundLocal(){
   return MLL.getLottoInfo().saleRound;
 }
 
-function addBattle(){
+async function addBattle(){
   var name=document.getElementById('battle-name').value.trim();
   if(!name){alert('별명을 입력해주세요!');return;}
   var nums=[1,2,3,4,5,6].map(function(i){
@@ -1204,9 +1266,8 @@ function addBattle(){
   if(nums.length!==6){alert('번호 6개를 모두 입력해주세요!');return;}
   if(new Set(nums).size!==6){alert('중복된 번호가 있습니다!');return;}
   var memo=document.getElementById('battle-memo').value.trim();
-  var data=loadTabData('battle');
-  data.unshift({id:MLL.uuid(),name:name,nums:nums,memo:memo,createdAt:Date.now()});
-  saveTabData('battle',data);
+  var saved = await saveTabItem('battle', { name: name, nums: nums, memo: memo });
+  if (!saved) return;
   toggleAddForm('battle');
   [1,2,3,4,5,6].forEach(function(i){document.getElementById('bb'+i).value='';});
   document.getElementById('battle-name').value='';
@@ -1217,24 +1278,22 @@ function addBattle(){
   if(list) list.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
-function addEtc(){
+async function addEtc(){
   var title=document.getElementById('etc-title').value.trim();
   var content=document.getElementById('etc-content').value.trim();
   if(!title){alert('제목을 입력해주세요!');return;}
-  var data=loadTabData('etc');
-  data.unshift({id:MLL.uuid(),title:title,content:content,createdAt:Date.now()});
-  saveTabData('etc',data);
+  var saved = await saveTabItem('etc', { title: title, content: content });
+  if (!saved) return;
   toggleAddForm('etc');
   document.getElementById('etc-title').value='';
   document.getElementById('etc-content').value='';
   renderEtc();
 }
 
-function delItem(tab,id){
+async function delItem(tab,id){
   if(!confirm('삭제하시겠습니까?')) return;
-  var data=loadTabData(tab).filter(function(d){return d.id!==id;});
-  saveTabData(tab,data);
-  renderCurrentTab();
+  var ok = await deleteTabItem(tab, id);
+  if (ok) renderCurrentTab();
 }
 
 function renderFav(){
@@ -1289,11 +1348,7 @@ function renderBattle(){
   el.innerHTML=data.map(function(d){
     var dt=new Date(d.createdAt);
     return '<div class="item-card">'+
-      '<button class="item-del" data-tab="fav" data-did="'+d.id+'" onclick="delItem(this.dataset.tab,this.dataset.did)">✕</button>'+
-      '<div class="item-name">'+d.name+'</div>'+
-      '<div class="item-balls">'+renderBalls(d.nums)+'</div>'+
-      (d.memo?'<div class="item-memo">'+d.memo+'</div>':'')+
-      '<div class="item-date">'+(dt.getMonth()+1)+'/'+dt.getDate()+'</div>'+
+      '<button class="item-del" data-tab="battle" data-did="'+d.id+'" onclick="delItem(this.dataset.tab,this.dataset.did)">✕</button>'+
       '</div>';
   }).join('');
 }
@@ -1622,6 +1677,7 @@ FSync.makeMarkingSlip = function() {
 (async function(){
   await MLL.refreshResults();
   await MLL.refreshEntries();
+  await refreshTabData('fav');
   renderFav();
 })();
 </script>
