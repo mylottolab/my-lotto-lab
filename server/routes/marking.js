@@ -28,21 +28,20 @@ const CHUNK_SIZE = 15;
 // 문구: admin_points.html에서 app_settings.marking_footer_text로 저장/조회.
 // 이미지: server/public/marking_footer.png 파일이 있으면 자동으로 사용 (PNG만 지원).
 // 둘 다 없으면 아무것도 그리지 않고 원본 그대로 반환한다.
-// ⚠ 아래 좌표는 사용자가 제공한 makinglotto.com 원본 PDF(전표 1장 분량, 폭 233.86pt)를
-//   픽셀 단위로 직접 측정해서 구한 값이다:
-//   - 기존 광고문구(990원으로 OK! + URL): 하단 기준 7~21pt
-//   - 절취용 점선: 31~35pt (실제로 자르는 기준선 — 절대 지우면 안 됨)
-//   - 좌우 검정 사각형(정렬 마크로 추정): 좌측 x=10.1~17.3pt, 우측 x=217.4~224.2pt
-//     → 우리 문구/이미지는 반드시 이 두 사각형 "안쪽"(17.3~217.4pt)에만 들어가야 함
-//   실제 makinglotto.com 결과물은 이 폭(233.86pt)짜리 전표가 한 페이지에 3개씩
-//   나란히 반복되는 구조이므로(청크당 15게임=전표 3장), 광고 교체도 열마다 반복 적용한다.
-const REFERENCE_COLUMN_WIDTH = 233.86; // 실측한 전표 1장의 폭(pt)
-const SAFE_ZONE_LEFT = 17.5;   // 왼쪽 검정 사각형 안쪽 경계(컬럼 왼쪽 기준, pt) — 이보다 왼쪽으로 넘어가면 안 됨
-const SAFE_ZONE_RIGHT = 217.0; // 오른쪽 검정 사각형 안쪽 경계(컬럼 왼쪽 기준, pt) — 이보다 오른쪽으로 넘어가면 안 됨
-const FOOTER_MARGIN_BOTTOM = 5;     // 페이지 하단에서부터의 여백(pt) — 원본 문구가 있던 자리
-const FOOTER_ZONE_HEIGHT = 24;      // 지우고 다시 그릴 범위 높이(pt) — 이 위의 절취선은 안 건드림
-const FOOTER_IMAGE_MAX_HEIGHT = 14; // 광고 이미지 최대 높이(pt) — 좁은 자리라 작게 제한
-const FOOTER_TEXT_SIZE = 7;
+// ⚠ 아래 좌표는 우리 서버가 실제로 생성한 PDF 결과물(842×595pt, A4 가로)을 직접
+//   받아서 픽셀 단위로 측정한 값이다 (이전엔 다른 참조 PDF 기준으로 잘못 잡았었음):
+//   - 페이지 전체 폭 842pt에 전표(컬럼) 3개가 나란히 배치, 컬럼 간격(pitch) = 255.1pt
+//   - 컬럼 1의 좌측 정렬마크(검정 사각형) x=54.1~61.5pt, 우측 마크 x=261.1~268.1pt
+//     → 안전영역(두 마크 사이) = 61.5~261.1pt (폭 199.6pt), 컬럼마다 255.1pt씩 밀려서 반복
+//   - 기존 광고문구("OO사장 요님비 yonumber" + URL 2줄)는 하단 기준 약 29~44pt 위치
+//     (그 아래 0~29pt는 원래도 빈 여백이었음 — 지워도 안전)
+const COLUMN_PITCH = 255.1;         // 컬럼(전표)마다 반복되는 간격(pt)
+const SAFE_ZONE_X_BASE = 61.5;      // 첫 번째 컬럼의 안전영역 시작 x좌표(pt, 정렬마크 안쪽)
+const SAFE_ZONE_WIDTH = 199.6;      // 안전영역 폭(pt) — 좌우 정렬마크를 넘지 않는 범위
+const FOOTER_ZONE_HEIGHT = 60;      // 지우고 다시 그릴 범위 높이(pt, 하단 0~60) — 원본 광고문구(29~44pt)를 넉넉히 포함
+const FOOTER_MARGIN_BOTTOM = 5;     // 이미지/문구를 그리기 시작하는 바닥 여백(pt)
+const FOOTER_IMAGE_MAX_HEIGHT = 20; // 광고 이미지 최대 높이(pt)
+const FOOTER_TEXT_SIZE = 8;
 // ⚠ 로또 판매점 스캐너(OMR)는 특정 붉은색을 "안 보이는 것"으로 처리해서 마킹 인식에
 //   영향을 안 주도록 되어있다. 그래서 광고 문구는 반드시 그 순수한 빨강이어야 한다는
 //   요청 — rgb(1,0,0)(#FF0000, 다른 색 섞임 없는 순수 빨강)으로 맞춤.
@@ -108,17 +107,15 @@ async function applyFooter(mergedDoc) {
   mergedDoc.getPages().forEach(page => {
     const { width } = page.getSize();
 
-    // 페이지 폭을 기준 컬럼폭으로 나눠서 실제 몇 개의 전표가 나란히 있는지 추정.
-    // (makinglotto.com이 청크당 최대 3장을 나란히 배치하는 것으로 확인됨)
-    const numColumns = Math.max(1, Math.round(width / REFERENCE_COLUMN_WIDTH));
-    const columnWidth = width / numColumns;
+    // 페이지 폭을 실측한 컬럼 간격(COLUMN_PITCH)으로 나눠서 몇 개의 전표가
+    // 나란히 있는지 계산 (실측 기준 3개 나옴: 842 / 255.1 ≈ 3.3 → 반올림 3).
+    const numColumns = Math.max(1, Math.round(width / COLUMN_PITCH));
 
     for (let c = 0; c < numColumns; c++) {
-      const colX0 = c * columnWidth;
-      const zoneX = colX0 + SAFE_ZONE_LEFT;
-      const zoneWidth = SAFE_ZONE_RIGHT - SAFE_ZONE_LEFT;
+      const zoneX = SAFE_ZONE_X_BASE + c * COLUMN_PITCH;
+      const zoneWidth = SAFE_ZONE_WIDTH;
 
-      // 이 컬럼의 기존 광고문구만 정확히 지운다 (좌우 검정 사각형과 절취선은 안 건드림).
+      // 이 컬럼의 기존 광고문구만 정확히 지운다 (좌우 검정 사각형은 안 건드림).
       page.drawRectangle({
         x: zoneX, y: 0, width: zoneWidth, height: FOOTER_ZONE_HEIGHT,
         color: rgb(1, 1, 1)
