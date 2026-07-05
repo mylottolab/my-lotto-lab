@@ -80,6 +80,7 @@ function attachResult(row, resultsByRound) {
     inputMethod: row.input_method,
     sessionTag: row.session_tag,
     memo: row.memo || '',
+    isFavorite: !!row.is_favorite,
     createdAt: new Date(row.created_at).getTime(),
     status: !hasResult ? '추첨전' : (row.confirmed ? '추첨후' : '미확인'),
     grade: grade,
@@ -278,6 +279,39 @@ router.delete('/entries/:id', async (req, res) => {
 // body: { all: true } → 내 미확인 항목 전체 확인
 //       { sessionTag: 'xxx' } → 그 세션(지금 입력분)에 한해서만 확인
 // 결과가 아직 없는 회차(진짜 추첨전)는 애초에 대상이 아니므로 자동 제외된다.
+// ─── PATCH /api/lotto/entries/:id/favorite ─── 최애번호(즐겨찾기) 토글
+router.patch('/entries/:id/favorite', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req);
+    if (!userId) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
+
+    const { data: row, error: getErr } = await supabase
+      .from('kr_lotto_entries')
+      .select('id, is_favorite')
+      .eq('id', req.params.id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (getErr || !row) return res.status(404).json({ error: '항목을 찾을 수 없습니다.' });
+
+    const newValue = !row.is_favorite;
+    const { error: updErr } = await supabase
+      .from('kr_lotto_entries')
+      .update({ is_favorite: newValue })
+      .eq('id', req.params.id)
+      .eq('user_id', userId);
+
+    if (updErr) {
+      console.error('[lotto] 즐겨찾기 토글 오류:', updErr);
+      return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+    }
+    return res.json({ id: req.params.id, isFavorite: newValue });
+  } catch (err) {
+    console.error('[lotto] favorite 토글 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
 router.post('/entries/confirm', async (req, res) => {
   try {
     const userId = await resolveUserId(req);
