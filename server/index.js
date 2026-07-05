@@ -17,7 +17,7 @@ app.use(cors({ origin: '*' }));
 // (admin.html의 "당첨결과 엑셀 업로드" 기능이 대상) → 넉넉하게 늘림
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
+app.use('/api/scratchpad', require('./routes/scratchpad'));
 // ─── 정적 파일 서빙 (결제 관련 HTML) ─────────────────────────────────────────
 app.use('/pay', express.static(path.join(__dirname, 'public')));
 
