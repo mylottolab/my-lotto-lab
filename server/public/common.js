@@ -530,7 +530,7 @@ MLL.renderRow = function(entry, sessionTag, opts) {
 
   return '<tr id="slip_row_'+entry.id+'" style="'+rowStyle+'">' +
     '<td style="text-align:center;padding:4px 4px;">'+slipCheckHtml+'</td>' +
-    '<td style="text-align:center;padding:4px 4px;"><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">'+entry.round+'회</span></td>' +
+    '<td style="text-align:center;padding:4px 4px;"><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;white-space:nowrap;display:inline-block;">'+entry.round+'회</span></td>' +
     '<td style="padding:4px 6px;"><div style="display:flex;gap:1px;align-items:center;flex-wrap:nowrap;">'+ballsHTML+'</div></td>' +
     '<td style="text-align:left;padding:4px 5px;font-size:9px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(entry.memo||'')+'</td>' +
     '<td style="text-align:center;padding:4px 4px;">'+typeHTML+'</td>' +
@@ -669,8 +669,8 @@ MLL.showCheckResultBubble = function(touched) {
 
 // 전체 테이블 렌더 (추첨전 / 미확인 / 추첨후 3단계)
 MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
-  var entries = MLL.loadEntries();
-  if (filterRound) entries = entries.filter(function(e){ return e.round == filterRound; });
+  var allEntries = MLL.loadEntries();
+  var entries = filterRound ? allEntries.filter(function(e){ return e.round == filterRound; }) : allEntries;
   var sorted  = MLL.sortEntries(entries);
   var tbody   = document.getElementById(tbodyId);
   if (!tbody) return;
@@ -695,11 +695,11 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
     badgeEl.innerHTML = badgeHtml;
   }
 
-  // 카운트 업데이트
+  // 카운트 업데이트 (회차 필터와 무관하게 항상 전체 개수를 보여줌 — "저장된 번호"는 총량이라는 뜻이므로)
   var tcEl = document.getElementById('totalCount');
-  if (tcEl) tcEl.textContent = entries.length;
+  if (tcEl) tcEl.textContent = allEntries.length;
   var realEl = document.getElementById('realCount');
-  if (realEl) realEl.textContent = entries.filter(function(e){return e.isReal;}).length;
+  if (realEl) realEl.textContent = allEntries.filter(function(e){return e.isReal;}).length;
 
   var html = '';
   if (!sorted.length) {
