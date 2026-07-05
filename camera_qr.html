@@ -6,6 +6,8 @@
 <title>My Lotto Lab - 실구매 등록</title>
 <script src="https://my-lotto-lab-api.onrender.com/pay/common.js"></script>
 <style>
+.sh{cursor:pointer;user-select:none;} .sh:hover{background:#eef2ff;color:#1a7ad4;} .sa{font-size:8px;margin-left:2px;color:#1a7ad4;}
+
 *{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
 body{background:#f3f4f6;font-size:13px;}
 .header-inner{max-width:1000px;margin:0 auto;padding:0 14px;height:44px;display:flex;align-items:center;justify-content:space-between;background:#1c1c2e;border-radius:0 0 8px 8px;}
@@ -229,13 +231,14 @@ document.addEventListener('click',function(e){
     <table>
       <thead><tr>
         <th style="width:28px;"><input type="checkbox" id="checkAllSlip" onclick="toggleAllSlipCheck(this.checked)" title="전표작성용 체크"></th>
-        <th style="width:52px;">회차</th>
-        <th style="width:155px;">번호</th>
-        <th style="width:54px;">구매형태</th>
+        <th class="sh" style="width:52px;" onclick="MLL.setSort('round')">회차<span class="sa" id="sa-round"></span></th>
+        <th style="width:140px;">번호</th>
+        <th class="sh" style="width:70px;" onclick="MLL.setSort('memo')">메모<span class="sa" id="sa-memo"></span></th>
+        <th class="sh" style="width:54px;" onclick="MLL.setSort('type')">구매형태<span class="sa" id="sa-type"></span></th>
         <th style="width:50px;">구분</th>
-        <th style="width:50px;">추첨</th>
-        <th style="width:40px;">결과</th>
-        <th style="width:75px;">당첨금</th>
+        <th class="sh" style="width:50px;" onclick="MLL.setSort('status')">추첨<span class="sa" id="sa-status"></span></th>
+        <th class="sh" style="width:40px;" onclick="MLL.setSort('grade')">결과<span class="sa" id="sa-grade"></span></th>
+        <th class="sh" style="width:75px;" onclick="MLL.setSort('prizeMoney')">당첨금<span class="sa" id="sa-prizeMoney"></span></th>
         <th style="width:28px;">삭제</th>
       </tr></thead>
       <tbody id="tb"></tbody>

@@ -541,7 +541,9 @@ function showResult(type,msg){
 }
 
 // ── 정렬 ──
-var sortCol='round',sortDir=-1;
+// ⚠ 기본을 회차순으로 두면 과거 회차를 새로 입력했을 때 목록 맨 아래로 숨어버려서
+//   방금 입력한 걸 찾기 어려운 문제가 있었다. 기본값을 "최근 입력순"으로 변경.
+var sortCol='createdAt',sortDir=-1;
 function sortBy(col){
   if(sortCol===col) sortDir*=-1; else {sortCol=col;sortDir=-1;}
   ['round','memo','type','status','grade','prizeMoney'].forEach(function(c){
@@ -566,14 +568,15 @@ function refreshTable(){
     else if(sortCol==='status'){av=a.status||'';bv=b.status||'';}
     else if(sortCol==='grade'){av=a.grade==null?-1:a.grade;bv=b.grade==null?-1:b.grade;}
     else if(sortCol==='prizeMoney'){av=a.prizeMoney||0;bv=b.prizeMoney||0;}
-    else{av=a.round;bv=b.round;}
+    else{av=a.createdAt;bv=b.createdAt;} // 기본: 최근 입력순
     return av<bv?sortDir:av>bv?-sortDir:0;
   });
 
   // 서버는 결과가 나온 회차라도 사용자가 "즉시확인"을 누르기 전까지 status를 '미확인'으로
   // 내려준다 (등수/당첨금 비공개) — 결과가 나오자마자 자동으로 보여주면 본인이 뭘 등록했는지
   // 인식할 새도 없이 결과부터 보게 되는 문제를 막기 위한 의도적인 장치.
-  var useSections=(sortCol==='round');
+  // 정렬 기준과 무관하게 이 3단계 구분은 항상 유지한다.
+  var useSections=true;
   var preDraw     =useSections?entries.filter(function(e){return e.status==='추첨전';}):[];
   var unconfirmed =useSections?entries.filter(function(e){return e.status==='미확인';}):[];
   var postDraw    =useSections?entries.filter(function(e){return e.status==='추첨후';}):entries;

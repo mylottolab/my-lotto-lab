@@ -42,10 +42,7 @@ body{background:#f3f4f6;font-size:14px;}
 .rsel{width:100%;border:1px solid #ddd;border-radius:5px;padding:5px 8px;font-size:12px;margin-bottom:6px;}
 .sh{cursor:pointer;user-select:none;}
 .sh:hover{background:#eef2ff;color:#1a7ad4;}
-.sa{font-size:8px;margin-left:2px;}
-.sa.asc::after{content:'^';color:#1a7ad4;}
-.sa.desc::after{content:'v';color:#1a7ad4;}
-.sa:not(.asc):not(.desc)::after{content:'-';color:#ccc;}
+.sa{font-size:8px;margin-left:2px;color:#1a7ad4;}
 .sdiv td{background:#f0f0f0!important;padding:3px 6px;font-size:9px;font-weight:700;color:#888;text-align:left;}
 
 .rph{padding:11px 15px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #eee;flex-wrap:wrap;}
@@ -162,14 +159,14 @@ document.addEventListener('click',function(e){
       <thead>
         <tr>
           <th><input type="checkbox" id="checkAllSlip" onclick="toggleAllSlipCheck(this.checked)" title="전표작성용 체크"></th>
-          <th class="sh" onclick="sortBy('round')">회차<span class="sa" id="sa-round"></span></th>
+          <th class="sh" onclick="MLL.setSort('round')">회차<span class="sa" id="sa-round"></span></th>
           <th>번호</th>
-          <th class="sh" onclick="sortBy('memo')">메모<span class="sa" id="sa-memo"></span></th>
-          <th class="sh" onclick="sortBy('type')">구매형태<span class="sa" id="sa-type"></span></th>
+          <th class="sh" onclick="MLL.setSort('memo')">메모<span class="sa" id="sa-memo"></span></th>
+          <th class="sh" onclick="MLL.setSort('type')">구매형태<span class="sa" id="sa-type"></span></th>
           <th>구분</th>
-          <th class="sh" onclick="sortBy('status')">추첨<span class="sa" id="sa-status"></span></th>
-          <th class="sh" onclick="sortBy('grade')">결과<span class="sa" id="sa-grade"></span></th>
-          <th class="sh" onclick="sortBy('prizeMoney')">당첨금<span class="sa" id="sa-prizeMoney"></span></th>
+          <th class="sh" onclick="MLL.setSort('status')">추첨<span class="sa" id="sa-status"></span></th>
+          <th class="sh" onclick="MLL.setSort('grade')">결과<span class="sa" id="sa-grade"></span></th>
+          <th class="sh" onclick="MLL.setSort('prizeMoney')">당첨금<span class="sa" id="sa-prizeMoney"></span></th>
           <th>삭제</th>
         </tr>
       </thead>
@@ -384,55 +381,12 @@ async function sv(p){
   if (cnt > 1 && !(s.sel.length>0)) alert('✅ '+cnt+'개 자동번호 저장 완료!');
 }
 
-// ── 정렬 상태 ──
-var sortCol = 'round', sortDir = -1;
-
 function refreshTable(){
   var fv = document.getElementById('fs').value;
-  // 기본 정렬(회차)일 때는 MLL.renderTable 사용 (3단계 섹션 자동처리)
-  if(sortCol === 'round'){
-    MLL.renderTable('tb', SESSION_TAG, fv||null);
-    return;
-  }
-  // 다른 컬럼 정렬시 직접 처리
-  var entries = MLL.loadEntries();
-  if(fv) entries = entries.filter(function(e){return String(e.round)===fv;});
-  document.getElementById('totalCount').textContent = MLL.loadEntries().length;
-  entries.sort(function(a,b){
-    var av,bv;
-    if(sortCol==='memo')       { av=a.memo||'';      bv=b.memo||''; }
-    else if(sortCol==='type')  { av=a.type||'';      bv=b.type||''; }
-    else if(sortCol==='status'){ av=a.status||'';    bv=b.status||''; }
-    else if(sortCol==='grade') { av=a.grade==null?-1:a.grade; bv=b.grade==null?-1:b.grade; }
-    else if(sortCol==='prizeMoney'){ av=a.prizeMoney||0; bv=b.prizeMoney||0; }
-    else { av=a.round; bv=b.round; }
-    return av<bv?sortDir:av>bv?-sortDir:0;
-  });
-  var badge=document.getElementById('sectionBadge');
-  if(badge) badge.textContent='';
-  var tb=document.getElementById('tb');
-  if(!entries.length){
-    tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:30px;color:#bbb;font-size:12px;">저장된 번호가 없습니다.</td></tr>';
-    return;
-  }
-  tb.innerHTML = entries.map(function(entry){
-    return MLL.renderRow(entry, SESSION_TAG);
-  }).join('');
+  MLL.renderTable('tb', SESSION_TAG, fv||null);
 }
 async function delEntry(id){
   if(confirm('삭제하시겠습니까?')){ await MLL.deleteEntry(id); refreshTable(); }
-}
-
-function sortBy(col){
-  if(sortCol===col){ sortDir*=-1; }
-  else { sortCol=col; sortDir=-1; }
-  ['round','memo','type','status','grade','prizeMoney'].forEach(function(c){
-    var el=document.getElementById('sa-'+c);
-    if(!el) return;
-    el.className='sa';
-    if(c===sortCol) el.classList.add(sortDir===-1?'desc':'asc');
-  });
-  refreshTable();
 }
 
 // =====================================================
