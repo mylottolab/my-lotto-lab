@@ -689,13 +689,19 @@ async function mllInit() {
   }
 
   // 회차 드롭다운 (보정된 값 기준으로 채움)
+  // ⚠ innerHTML을 통째로 비우면 원래 있던 "전체" 옵션도 같이 사라져서, 브라우저가
+  //   자동으로 첫 번째 회차 옵션을 선택된 상태로 만들어버리는 문제가 있었다
+  //   (그러면 "저장된 번호" 배지가 그 회차만 필터링된 개수로 보여서 훨씬 적게 나옴).
+  //   "전체" 옵션은 남기고 회차 옵션들만 새로 채운다.
   var sel = document.getElementById('fs');
-  sel.innerHTML = '';
+  var keepAll = sel.value; // 사용자가 이미 특정 회차를 골라둔 상태였다면 유지
+  sel.innerHTML = '<option value="">전체</option>';
   for (var r = NEXT_ROUND; r >= Math.max(1, NEXT_ROUND - 19); r--) {
     var o = document.createElement('option');
     o.value = r; o.textContent = r + '회';
     sel.appendChild(o);
   }
+  sel.value = keepAll || '';
   renderNoticeBox();
 
   refreshTable();
@@ -752,15 +758,6 @@ function makeSlipFromChecked(){
   var rows = selected.map(function(e){ return e.nums.slice().sort(function(a,b){ return a-b; }); });
   MLL.openMarkingModal(rows, '로또구매전표_' + selected.length + '매');
 }
-
-// 회차 드롭다운
-(function() {
-  var info = MLL.getLottoInfo();
-  var sel  = document.getElementById('fs');
-  for (var r=info.nextRound; r>=Math.max(1,info.nextRound-19); r--) {
-    var o=document.createElement('option'); o.value=r; o.textContent=r+'회'; sel.appendChild(o);
-  }
-})();
 
 </script>
 
