@@ -363,13 +363,58 @@ MLL.calcPrize = function(grade, result) {
 // 막기 위한 의도적인 장치다.
 // =====================================================
 
+// ── 정렬 상태 (컬럼 헤더 클릭으로 바뀜, 기본은 "최근 입력순") ──
+// ⚠ 기본을 회차순으로 두면, 과거 회차를 새로 입력했을 때 그 항목이 목록 맨 아래로
+//   숨어버려서 방금 뭘 넣었는지 찾기 어려운 문제가 있었다. 그래서 기본값을
+//   "최근 입력순(createdAt)"으로 바꾸고, 회차 등 다른 기준은 헤더를 눌러서 쓰게 한다.
+MLL._sortCol = 'createdAt';
+MLL._sortDir = -1; // -1: 내림차순(최신/큰 값 먼저), 1: 오름차순
+
+function _mllCompareEntries(a, b, col) {
+  var av, bv;
+  switch (col) {
+    case 'round':      av = a.round; bv = b.round; break;
+    case 'memo':       av = (a.memo||'').toLowerCase(); bv = (b.memo||'').toLowerCase(); break;
+    case 'type':       av = a.type || ''; bv = b.type || ''; break;
+    case 'status':     av = a.status || ''; bv = b.status || ''; break;
+    case 'grade':      av = (a.grade==null ? -1 : a.grade); bv = (b.grade==null ? -1 : b.grade); break;
+    case 'prizeMoney': av = a.prizeMoney || 0; bv = b.prizeMoney || 0; break;
+    case 'createdAt':  default: av = a.createdAt; bv = b.createdAt; break;
+  }
+  if (av < bv) return -1;
+  if (av > bv) return 1;
+  return b.createdAt - a.createdAt; // 동점이면 항상 최근 입력이 위로
+}
+
+// 헤더 클릭 시 호출 — 같은 컬럼 다시 누르면 방향 반전, 다른 컬럼이면 그 컬럼의 기본 방향으로.
+MLL.setSort = function(col) {
+  if (MLL._sortCol === col) {
+    MLL._sortDir *= -1;
+  } else {
+    MLL._sortCol = col;
+    MLL._sortDir = (col === 'round' || col === 'createdAt') ? -1 : 1;
+  }
+  MLL._updateSortArrows();
+  if (window.refreshTable) refreshTable();
+};
+
+MLL._updateSortArrows = function() {
+  ['round','memo','type','status','grade','prizeMoney'].forEach(function(c) {
+    var el = document.getElementById('sa-' + c);
+    if (!el) return;
+    el.textContent = (c === MLL._sortCol) ? (MLL._sortDir === -1 ? ' ▼' : ' ▲') : '';
+  });
+};
+
 MLL.sortEntries = function(entries) {
-  var preDraw     = entries.filter(function(e){ return e.status === '추첨전'; })
-                            .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  var unconfirmed = entries.filter(function(e){ return e.status === '미확인'; })
-                            .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  var post        = entries.filter(function(e){ return e.status === '추첨후'; })
-                            .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  var col = MLL._sortCol || 'createdAt';
+  var dir = MLL._sortDir || -1;
+  function sortGroup(list) {
+    return list.slice().sort(function(a, b){ return dir * _mllCompareEntries(a, b, col); });
+  }
+  var preDraw     = sortGroup(entries.filter(function(e){ return e.status === '추첨전'; }));
+  var unconfirmed = sortGroup(entries.filter(function(e){ return e.status === '미확인'; }));
+  var post        = sortGroup(entries.filter(function(e){ return e.status === '추첨후'; }));
   return preDraw.concat(unconfirmed).concat(post);
 };
 
