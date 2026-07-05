@@ -549,6 +549,28 @@ MLL.renderDivider = function(label, count, extra) {
 };
 
 // 삭제 버튼 클릭 핸들러 (deleteEntry가 비동기이므로 완료 후 테이블을 다시 그린다)
+// 최애번호(즐겨찾기) 토글 — 서버에 저장되어 로그인한 계정 기준으로 어디서든 동일하게 보임.
+// (예전엔 브라우저에만 저장되는 별도 mll_favorites 목록이었으나, 서버 DB 컬럼으로 전환)
+MLL.toggleFavorite = async function(id) {
+  var state = _mllAuthOrNull();
+  if (!state) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return null; }
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/' + id + '/favorite', {
+      method: 'PATCH', headers: _mllHeaders(state)
+    });
+    var data = await resp.json();
+    if (!resp.ok) { console.error('[MLL] toggleFavorite 오류:', data.error); return null; }
+    // 캐시에도 즉시 반영 (재조회 없이 바로 화면 갱신 가능하도록)
+    var entries = MLL.loadEntries();
+    var e = entries.find(function(x){ return x.id === id; });
+    if (e) e.isFavorite = data.isFavorite;
+    return data.isFavorite;
+  } catch (err) {
+    console.error('[MLL] toggleFavorite 네트워크 오류:', err);
+    return null;
+  }
+};
+
 MLL.handleDeleteClick = async function(id) {
   var ok = await MLL.deleteEntry(id);
   if (ok && window.refreshTable) refreshTable();
