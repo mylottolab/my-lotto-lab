@@ -39,7 +39,8 @@ const COLUMN_PITCH = 255.1;         // 컬럼(전표)마다 반복되는 간격(
 const SAFE_ZONE_X_BASE = 61.5;      // 첫 번째 컬럼의 안전영역 시작 x좌표(pt, 정렬마크 안쪽)
 const SAFE_ZONE_WIDTH = 199.6;      // 안전영역 폭(pt) — 좌우 정렬마크를 넘지 않는 범위
 const FOOTER_ZONE_HEIGHT = 60;      // 지우고 다시 그릴 범위 높이(pt, 하단 0~60) — 원본 광고문구(29~44pt)를 넉넉히 포함
-const FOOTER_MARGIN_BOTTOM = 5;     // 이미지/문구를 그리기 시작하는 바닥 여백(pt)
+const FOOTER_TEXT_Y = 32;           // 문구를 그릴 y좌표(pt) — 실측한 정렬마크(사각형) 줄과 같은 높이
+const FOOTER_IMAGE_Y = 5;           // 이미지를 그릴 y좌표(pt) — 문구 줄 아래의 빈 공간
 const FOOTER_IMAGE_MAX_HEIGHT = 20; // 광고 이미지 최대 높이(pt)
 const FOOTER_TEXT_SIZE = 8;
 // ⚠ 로또 판매점 스캐너(OMR)는 특정 붉은색을 "안 보이는 것"으로 처리해서 마킹 인식에
@@ -121,20 +122,17 @@ async function applyFooter(mergedDoc) {
         color: rgb(1, 1, 1)
       });
 
-      let cursorY = FOOTER_MARGIN_BOTTOM;
-
       if (footerImage) {
         const dims = footerImage.scale(1);
         const scale = Math.min(zoneWidth / dims.width, FOOTER_IMAGE_MAX_HEIGHT / dims.height, 1);
         const w = dims.width * scale, h = dims.height * scale;
-        page.drawImage(footerImage, { x: zoneX + (zoneWidth - w) / 2, y: cursorY, width: w, height: h });
-        cursorY += h + 2;
+        page.drawImage(footerImage, { x: zoneX + (zoneWidth - w) / 2, y: FOOTER_IMAGE_Y, width: w, height: h });
       }
       if (canDrawText) {
         const textWidth = font.widthOfTextAtSize(footerText, FOOTER_TEXT_SIZE);
         page.drawText(footerText, {
           x: zoneX + (zoneWidth - textWidth) / 2,
-          y: cursorY,
+          y: FOOTER_TEXT_Y,
           size: FOOTER_TEXT_SIZE,
           font,
           color: FOOTER_TEXT_COLOR
