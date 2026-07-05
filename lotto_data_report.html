@@ -293,10 +293,11 @@ SLIP._fromMockEntries = function(){
   });
 };
 
-// 관심번호/최애번호 저장소(mll_favorites)를 공통 행 형식으로 변환 (중복 표시 허용)
+// 최애번호로 표시된 항목(서버의 kr_lotto_entries.is_favorite=true)을 공통 행 형식으로 변환
+// ⚠ 예전엔 mll_favorites라는 별도 로컬 저장소(원본 삭제와 무관하게 남는 복제본)였으나,
+//   서버 이전 후에는 "내 번호조합에 최애 표시를 해둔 것"이라는 더 단순한 모델로 바뀌었다.
 SLIP._fromFavorites = function(){
-  if (!MLL.loadFavorites) return [];
-  return MLL.loadFavorites().map(function(f){
+  return MLL.loadEntries().filter(function(e){ return e.isFavorite; }).map(function(f){
     return {
       rowKey: 'fav_'+f.id, refId: f.id, source: 'favorite',
       round: f.round, nums: f.nums, type: f.type, isReal: !!f.isReal, memo: f.memo || '',
@@ -513,10 +514,12 @@ SLIP.toggleAll = function(checked){
 };
 
 // 최애번호(관심번호 저장소) 토글 — results_stats.html의 MLL.toggleFavorite 재사용 (mll_entries 기준 소스만 지원)
-SLIP.toggleFavorite = function(refId, checkboxEl){
-  var nowFav = MLL.toggleFavorite(refId);
-  if (nowFav === null) { alert('항목을 찾을 수 없습니다.'); return; }
+SLIP.toggleFavorite = async function(refId, checkboxEl){
+  var nowFav = await MLL.toggleFavorite(refId);
+  if (nowFav === null) { return; } // 로그인 필요 모달이 이미 떴거나, 실패 로그가 이미 콘솔에 남음
   if (checkboxEl) checkboxEl.checked = nowFav;
+  await MLL.refreshEntries();
+  SLIP.render();
 };
 
 SLIP.updateCheckedDisplay = function(){

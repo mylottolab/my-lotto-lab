@@ -223,6 +223,8 @@ table.habittbl td.sub-confirmed{color:#888;font-size:9px;}
 if (typeof window.MLL === 'undefined') { window.MLL = {}; }
 var MLL = window.MLL;
 
+MLL.API_BASE = MLL.API_BASE || 'https://my-lotto-lab-api.onrender.com';
+
 MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
 MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
 MLL.STORAGE_KEY  = 'mll_entries';
@@ -298,119 +300,128 @@ MLL.uuid = function() {
 };
 
 // =====================================================
-// 데이터 CRUD
+// 데이터 CRUD — 서버 DB(kr_lotto_entries) 기반
+// ⚠ 2026-07-06: 이 페이지만 예전 localStorage(mll_entries) 방식이 그대로 남아있어서
+//   "Data 등록과 관리"에서 실제 등록한 개수(예: 46개)와 여기서 보이는 통계(예: 1365개,
+//   브라우저에 남아있던 옛날 테스트 데이터)가 다르게 나오는 문제가 있었다. 서버 기준으로
+//   통일한다. loadEntries()/loadResults()는 예전처럼 "즉시 동기적으로" 쓸 수 있도록
+//   캐시 방식을 유지하되, 그 캐시를 채우는 refreshEntries()/refreshResults()를
+//   페이지 시작 시 반드시 먼저 호출해야 한다(맨 아래 mllInit 참고).
 // =====================================================
 
-MLL.loadEntries = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.STORAGE_KEY) || '[]'); }
-  catch(e) { return []; }
-};
+function _mllAuthState() { return (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type: null }; }
+function _mllHeaders(state) {
+  var h = { 'Content-Type': 'application/json' };
+  if (state.type === 'member') h['Authorization'] = 'Bearer ' + state.token;
+  return h;
+}
+function _mllAuthBody(state, body) {
+  body = body || {};
+  if (state.type === 'guest') { body.nickname = state.nickname; body.email = state.email; }
+  return body;
+}
 
-MLL.saveEntries = function(entries) {
-  localStorage.setItem(MLL.STORAGE_KEY, JSON.stringify(entries));
-};
+MLL._entriesCache = [];
+MLL._resultsCache = {};
 
-MLL.addEntry = function(item) {
-  var entries = MLL.loadEntries();
-  if (!item.id)          item.id          = MLL.uuid();
-  if (!item.createdAt)   item.createdAt   = Date.now();
-  if (!item.grade)       item.grade       = null;
-  if (!item.prizeMoney)  item.prizeMoney  = 0;
-  if (!item.sessionTag)  item.sessionTag  = '';
-  if (item.isFavorite === undefined) item.isFavorite = false;
-  item.status = MLL.getRoundStatus(item.round);
-  entries.push(item);
-  MLL.saveEntries(entries);
-  return item;
-};
+MLL.loadEntries = function() { return MLL._entriesCache; };
+MLL.loadResults = function() { return MLL._resultsCache; };
 
-MLL.addEntries = function(items) {
-  var entries = MLL.loadEntries();
-  items.forEach(function(item) {
-    if (!item.id)         item.id         = MLL.uuid();
-    if (!item.createdAt)  item.createdAt  = Date.now();
-    if (!item.grade)      item.grade      = null;
-    if (!item.prizeMoney) item.prizeMoney = 0;
-    if (!item.sessionTag) item.sessionTag = '';
-    if (item.isFavorite === undefined) item.isFavorite = false;
-    item.status = MLL.getRoundStatus(item.round);
-    entries.push(item);
-  });
-  MLL.saveEntries(entries);
-  return items;
-};
-
-MLL.deleteEntry = function(id) {
-  var entries = MLL.loadEntries().filter(function(e){ return e.id !== id; });
-  MLL.saveEntries(entries);
-};
-
-// =====================================================
-// 관심번호/재구매 최애번호 저장소 (완전 별도 파일, mll_entries와 무관)
-// "결과 및 통계"의 ⭐ 클릭 시 자동으로 이 저장소에도 복사되고,
-// "추가입력"(AI/일반/이미지/QR) 4가지 입력경로는 여기에만 직접 저장된다.
-// 전체 통계(나의 구매 성향 등)에는 절대 포함되지 않는다.
-// =====================================================
-MLL.FAVORITES_KEY = 'mll_favorites';
-
-MLL.loadFavorites = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.FAVORITES_KEY) || '[]'); }
-  catch(e) { return []; }
-};
-
-MLL.saveFavorites = function(list) {
-  localStorage.setItem(MLL.FAVORITES_KEY, JSON.stringify(list));
-};
-
-// mll_entries 항목 하나를 mll_favorites 저장소용 레코드로 복제
-MLL.cloneAsFavoriteRecord = function(entry) {
-  return {
-    id: MLL.uuid(),
-    sourceEntryId: entry.id || null,   // 원본 entries의 id (역추적용, 없어도 무방)
-    round: entry.round,
-    nums: entry.nums.slice(),
-    type: entry.type,
-    isReal: !!entry.isReal,
-    memo: entry.memo || '',
-    inputMethod: entry.inputMethod || 'general',
-    status: entry.status,
-    grade: entry.grade,
-    prizeMoney: entry.prizeMoney || 0,
-    isFavorite: true,
-    createdAt: Date.now()
-  };
-};
-
-// 관심(즐겨찾기) 토글 — mll_entries의 플래그 + mll_favorites 저장소 동기화
-MLL.toggleFavorite = function(id) {
-  var entries = MLL.loadEntries();
-  var e = entries.find(function(x){ return x.id === id; });
-  if (!e) return null;
-  e.isFavorite = !e.isFavorite;
-  MLL.saveEntries(entries);
-
-  var favs = MLL.loadFavorites();
-  if (e.isFavorite) {
-    // 이미 같은 원본에서 복사된 게 있으면 중복 추가하지 않음
-    var exists = favs.some(function(f){ return f.sourceEntryId === e.id; });
-    if (!exists) {
-      favs.push(MLL.cloneAsFavoriteRecord(e));
-      MLL.saveFavorites(favs);
-    }
-  } else {
-    favs = favs.filter(function(f){ return f.sourceEntryId !== e.id; });
-    MLL.saveFavorites(favs);
+MLL.refreshEntries = async function() {
+  var state = _mllAuthState();
+  if (!state.type) { MLL._entriesCache = []; return []; }
+  var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/entries' + qs, { headers: _mllHeaders(state) });
+    var data = await resp.json();
+    if (!resp.ok) { console.error('[MLL] entries 조회 오류:', data.error); MLL._entriesCache = []; return []; }
+    MLL._entriesCache = data.items || [];
+    return MLL._entriesCache;
+  } catch (e) {
+    console.error('[MLL] entries 네트워크 오류:', e);
+    MLL._entriesCache = [];
+    return [];
   }
-  return e.isFavorite;
 };
 
-// 추가입력(AI/일반/이미지/QR) 경로 전용
-// → mll_entries에 정식으로 등록(= 전체 통계에도 반영됨) + 동시에 mll_favorites에도 자동 동기화
-// → 메모에 "최애번호로 별도 추가"를 자동으로 남겨 입력경로를 구분할 수 있게 한다
-MLL.addFavoriteDirect = function(item) {
+MLL.refreshResults = async function() {
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/results');
+    var data = await resp.json();
+    MLL._resultsCache = data.results || {};
+    return MLL._resultsCache;
+  } catch (e) {
+    console.error('[MLL] results 네트워크 오류:', e);
+    return MLL._resultsCache;
+  }
+};
+
+MLL.addEntry = async function(item) { return MLL.addEntries([item]); };
+
+MLL.addEntries = async function(items) {
+  var state = _mllAuthState();
+  if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return { id: null, _failed: true }; }
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/entries', {
+      method: 'POST', headers: _mllHeaders(state),
+      body: JSON.stringify(_mllAuthBody(state, { entries: items }))
+    });
+    var data = await resp.json();
+    if (!resp.ok) { console.error('[MLL] entries 등록 오류:', data.error); return { id: null, _failed: true, message: data.error }; }
+    await MLL.refreshEntries();
+    if (data.deducted !== undefined && MLL._showPointToast) MLL._showPointToast(data.deducted, data.balanceAfter, data.freeCount, data.chargedCount);
+    // addFavoriteDirect 등 기존 코드가 "등록된 항목 1건"을 기대하므로 첫 번째 항목을 돌려준다.
+    return (data.items && data.items[0]) || { id: null, _failed: true };
+  } catch (e) {
+    console.error('[MLL] entries 네트워크 오류:', e);
+    return { id: null, _failed: true };
+  }
+};
+
+MLL.deleteEntry = async function(id) {
+  var state = _mllAuthState();
+  if (!state.type) return false;
+  try {
+    var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/' + id + qs, { method: 'DELETE', headers: _mllHeaders(state) });
+    if (!resp.ok) return false;
+    await MLL.refreshEntries();
+    return true;
+  } catch (e) {
+    console.error('[MLL] entries 삭제 오류:', e);
+    return false;
+  }
+};
+
+// =====================================================
+// 최애번호(즐겨찾기) — 서버의 kr_lotto_entries.is_favorite 플래그로 전환
+// ⚠ 예전엔 mll_favorites라는 완전히 별도인 로컬 저장소(원본 삭제와 무관하게 남는 복제본)
+//   였으나, 서버 DB로 옮기면서 "내 번호조합에 최애 표시를 해둔다"는 더 단순한 모델로
+//   바뀌었다. addFavoriteDirect(AI/일반/이미지/QR 입력)는 그대로 "새 항목 등록 + 최애
+//   표시"로 동작해서 사용자 입장에서는 차이가 없다.
+// =====================================================
+
+MLL.toggleFavorite = async function(id) {
+  var state = _mllAuthState();
+  if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return null; }
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/' + id + '/favorite', { method: 'PATCH', headers: _mllHeaders(state) });
+    var data = await resp.json();
+    if (!resp.ok) { console.error('[MLL] favorite 토글 오류:', data.error); return null; }
+    var e = MLL._entriesCache.find(function(x){ return x.id === id; });
+    if (e) e.isFavorite = data.isFavorite;
+    return data.isFavorite;
+  } catch (e) {
+    console.error('[MLL] favorite 네트워크 오류:', e);
+    return null;
+  }
+};
+
+// 추가입력(AI/일반/이미지/QR) 경로 전용 — 새 항목을 정식 등록하고 곧바로 최애 표시한다.
+MLL.addFavoriteDirect = async function(item) {
   var tagNote = '[최애번호로 별도 추가]';
   var memo = item.memo ? (tagNote + ' ' + item.memo) : tagNote;
-  var entry = MLL.addEntry({
+  var entry = await MLL.addEntry({
     round: item.round,
     nums: item.nums.slice(),
     type: item.type || '수동',
@@ -419,47 +430,16 @@ MLL.addFavoriteDirect = function(item) {
     inputMethod: item.inputMethod || 'general',
     sessionTag: item.sessionTag || ''
   });
-  // mll_entries 등록 직후 즉시 즐겨찾기로 동기화 (toggleFavorite은 entries를 다시 불러오므로 순서 안전)
-  MLL.toggleFavorite(entry.id);
+  if (entry._failed) return entry;
+  await MLL.toggleFavorite(entry.id);
+  await MLL.refreshEntries();
   return entry;
 };
 
-MLL.addFavoritesDirect = function(items) {
-  return items.map(function(item){ return MLL.addFavoriteDirect(item); });
-};
-
-MLL.deleteFavorite = function(id) {
-  var favs = MLL.loadFavorites().filter(function(f){ return f.id !== id; });
-  MLL.saveFavorites(favs);
-};
-
-// mll_favorites 항목들의 결과(등수/당첨금)를 results 기준으로 갱신
-MLL.refreshFavoritesResults = function() {
-  var favs = MLL.loadFavorites();
-  var results = MLL.loadResults();
-  favs.forEach(function(f){
-    var res = results[f.round] || results[Number(f.round)] || results[String(f.round)];
-    if (res) {
-      f.status = '추첨후';
-      f.grade = MLL.calcGrade(f.nums, res.nums, res.bonus);
-      f.prizeMoney = MLL.calcPrize(f.grade, res);
-    }
-  });
-  MLL.saveFavorites(favs);
-};
-
-
-// =====================================================
-// 당첨결과 데이터
-// =====================================================
-
-MLL.loadResults = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }
-  catch(e) { return {}; }
-};
-
-MLL.saveResults = function(results) {
-  localStorage.setItem(MLL.RESULTS_KEY, JSON.stringify(results));
+MLL.addFavoritesDirect = async function(items) {
+  var out = [];
+  for (var i = 0; i < items.length; i++) out.push(await MLL.addFavoriteDirect(items[i]));
+  return out;
 };
 
 MLL.getResult = function(round) {
@@ -505,22 +485,9 @@ MLL.calcPrize = function(grade, result) {
   return 0;
 };
 
-MLL.applyResults = function(resultsObj) {
-  MLL.saveResults(resultsObj);
-  var entries = MLL.loadEntries();
-  var updated = 0;
-  entries.forEach(function(entry) {
-    var res = resultsObj[entry.round] || resultsObj[String(entry.round)] || resultsObj[parseInt(entry.round)];
-    if (res) {
-      entry.status     = '추첨후';
-      entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
-      entry.prizeMoney = MLL.calcPrize(entry.grade, res);
-      updated++;
-    }
-  });
-  MLL.saveEntries(entries);
-  return updated;
-};
+// ⚠ MLL.applyResults(예전에 당첨결과 업로드 시 전체 로컬 entries를 일괄 재채점하던 함수)는
+//   이제 서버가 조회 시점마다 자동으로 계산해서 내려주므로 필요 없어져 제거함 (이 페이지에서
+//   호출하는 곳도 없었음 — admin.html 쪽 로직이 서버에서 대신 처리).
 
 MLL.GRADE_LABEL_KR = ['낙첨','1등','2등','3등','4등','5등'];
 MLL.GRADE_LABEL_EN = ['No Win','1st','2nd','3rd','4th','5th'];
@@ -745,29 +712,23 @@ MLL._waitImagesLoaded = function(container) {
 
 
 // ── 미확인건(추첨일 경과 + 결과 미반영) 자동매칭 ──
-MLL.applyCheck = function(onDone) {
-  var results = MLL.loadResults();
-  var resultRounds = Object.keys(results).map(Number);
-  if (!resultRounds.length) {
-    alert('당첨결과가 없습니다.\nadmin.html에서 엑셀을 업로드해주세요.');
-    return;
+MLL.applyCheck = async function(onDone) {
+  var state = _mllAuthState();
+  if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return; }
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/confirm', {
+      method: 'POST', headers: _mllHeaders(state),
+      body: JSON.stringify(_mllAuthBody(state, {}))
+    });
+    var data = await resp.json();
+    if (!resp.ok) { alert('확인 처리 실패: ' + (data.error || '')); return; }
+    await MLL.refreshEntries();
+    alert('✅ ' + data.updated + '개 항목 확인 완료!');
+    if (typeof onDone === 'function') onDone(data.updated);
+  } catch (e) {
+    console.error('[MLL] applyCheck 오류:', e);
+    alert('네트워크 오류가 발생했습니다.');
   }
-  var entries = MLL.loadEntries();
-  var updated = 0;
-  entries.forEach(function(entry) {
-    var res = results[entry.round] || results[Number(entry.round)] || results[String(entry.round)];
-    var isUnconfirmed =
-      (entry.status === '추첨전' && !!res) ||
-      (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
-    if (!isUnconfirmed || !res) return;
-    entry.status     = '추첨후';
-    entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
-    entry.prizeMoney = MLL.calcPrize(entry.grade, res);
-    updated++;
-  });
-  MLL.saveEntries(entries);
-  alert('✅ ' + updated + '개 항목 확인 완료!');
-  if (typeof onDone === 'function') onDone(updated);
 };
 
 // =====================================================
@@ -1582,8 +1543,9 @@ RS.toggleSort = function(key) {
 };
 
 // ── 관심(즐겨찾기) 토글 ──
-RS.toggleFav = function(id, el) {
-  var nowOn = MLL.toggleFavorite(id);
+RS.toggleFav = async function(id, el) {
+  var nowOn = await MLL.toggleFavorite(id);
+  if (nowOn === null) return; // 로그인 필요 모달이 이미 떴거나 실패
   if (el) {
     el.classList.toggle('on', !!nowOn);
     el.textContent = nowOn ? '★' : '☆';
@@ -2015,26 +1977,17 @@ RS.SECTION_RENDERERS.habit = RS.renderHabit;
 
 RS.favRoundState = 'all';
 
-// ── 관심번호 List 본문에서 별표 클릭 시: 저장소에서 제거 + 연결된 entries의 isFavorite도 false로 ──
-RS.unfavoriteFromList = function(favId, el) {
+// ── 관심번호 List 본문에서 별표 클릭 시: 최애 표시 해제 ──
+// (예전엔 mll_favorites라는 별도 저장소에서 제거하는 개념이었으나, 이제는 그냥
+//  entries의 isFavorite 플래그를 끄는 것 — favId는 곧 entry의 id다)
+RS.unfavoriteFromList = async function(favId, el) {
   if (!confirm('관심번호 저장소에서 제거하시겠습니까?')) return;
-  var favs = MLL.loadFavorites();
-  var fav = favs.find(function(f){ return f.id === favId; });
-  if (!fav) return;
-
-  // 원본 entries와 연결되어 있다면 그쪽의 isFavorite도 false로 되돌림
-  if (fav.sourceEntryId) {
-    var entries = MLL.loadEntries();
-    var src = entries.find(function(e){ return e.id === fav.sourceEntryId; });
-    if (src) { src.isFavorite = false; MLL.saveEntries(entries); }
-  }
-  favs = favs.filter(function(f){ return f.id !== favId; });
-  MLL.saveFavorites(favs);
+  await MLL.toggleFavorite(favId);
   RS.renderFavoritesBody();
 };
 
 RS.buildFavRoundOptions = function() {
-  var favs = MLL.loadFavorites();
+  var favs = MLL.loadEntries().filter(function(e){ return e.isFavorite; });
   var counts = {};
   favs.forEach(function(f){ counts[f.round] = (counts[f.round]||0) + 1; });
   var rounds = Object.keys(counts).map(Number).sort(function(a,b){ return b-a; });
@@ -2048,7 +2001,6 @@ RS.onFavRoundChange = function(val) {
 };
 
 RS.renderFavorites = function(container) {
-  MLL.refreshFavoritesResults(); // 화면 진입 시 최신 당첨결과 반영
   var ro = RS.buildFavRoundOptions();
   var sel = RS.favRoundState || 'all';
   var optionsHtml = '<option value="all">⭐ 모든회차</option>' +
@@ -2088,8 +2040,7 @@ RS.renderFavoritesBody = function() {
   // "결과 보기"나 회차 필터 변경 시에도 최신 당첨결과를 다시 반영해야 한다.
   // (이전에는 이 함수가 단순히 화면만 다시 그려서, 새로 추가된 항목이나
   // 그 사이 새로 들어온 당첨결과가 "결과 보기"를 눌러도 갱신되지 않는 문제가 있었다.)
-  MLL.refreshFavoritesResults();
-  var favs = MLL.loadFavorites();
+  var favs = MLL.loadEntries().filter(function(e){ return e.isFavorite; });
   var results = MLL.loadResults();
   var ro = RS.buildFavRoundOptions();
   function getRes(round){ return results[round]||results[Number(round)]||results[String(round)]||null; }
@@ -2192,7 +2143,7 @@ RS.renderFavTable = function(rows, getRes, roundsDesc) {
 
 // ── 엑셀 다운로드 (CSV, 외부 라이브러리 없이 엑셀에서 바로 열림) ──
 RS.printFavorites = async function() {
-  var favs = MLL.loadFavorites();
+  var favs = MLL.loadEntries().filter(function(e){ return e.isFavorite; });
   if (!favs.length) { alert('등록된 관심번호가 없습니다.'); return; }
   var results = MLL.loadResults();
   function getRes(round){ return results[round]||results[Number(round)]||results[String(round)]||null; }
@@ -2305,7 +2256,7 @@ RS.printFavorites = async function() {
 };
 
 RS.openMarkingForFavorites = function() {
-  var favs = MLL.loadFavorites();
+  var favs = MLL.loadEntries().filter(function(e){ return e.isFavorite; });
   if (!favs.length) { alert('등록된 관심번호가 없습니다.'); return; }
   var rows = favs.map(function(f){ return f.nums.slice().sort(function(a,b){ return a-b; }); });
   MLL.openMarkingModal(rows, '나의관심번호');
@@ -2316,7 +2267,7 @@ RS.exportFavoritesExcel = function() {
     alert('엑셀 라이브러리를 불러오지 못했습니다. 네트워크 연결을 확인하고 다시 시도해주세요.');
     return;
   }
-  var favs = MLL.loadFavorites();
+  var favs = MLL.loadEntries().filter(function(e){ return e.isFavorite; });
   var results = MLL.loadResults();
   function getRes(round){ return results[round]||results[Number(round)]||results[String(round)]||null; }
 
@@ -2422,7 +2373,7 @@ RS.renderGeneralInputBody = function() {
     '<button class="gen-save-btn" onclick="RS.saveGeneralInput()">⭐ 최애번호로 저장</button>';
 };
 
-RS.saveGeneralInput = function() {
+RS.saveGeneralInput = async function() {
   var round = parseInt(document.getElementById('gen-round').value);
   var type = document.getElementById('gen-type').value;
   var memo = document.getElementById('gen-memo').value;
@@ -2438,7 +2389,8 @@ RS.saveGeneralInput = function() {
   if (nums.some(function(n){ return n<1 || n>45; })) return RS.showAccMsg(msgEl, 'error', '번호는 1~45 사이여야 합니다.');
   if (new Set(nums).size !== 6) return RS.showAccMsg(msgEl, 'error', '중복된 번호가 있습니다.');
 
-  MLL.addFavoriteDirect({ round:round, nums:nums, type:type, isReal:false, memo:memo, inputMethod:'general' });
+  var result = await MLL.addFavoriteDirect({ round:round, nums:nums, type:type, isReal:false, memo:memo, inputMethod:'general' });
+  if (result._failed) { if (!result.message) return; return RS.showAccMsg(msgEl, 'error', '저장 실패: ' + result.message); }
   RS.showAccMsg(msgEl, 'success', '✅ 최애번호로 저장되었습니다! 우측 목록에서 확인하세요.');
   for (var i=1;i<=6;i++) document.getElementById('gen-num-'+i).value = '';
   document.getElementById('gen-memo').value = '';
@@ -2547,7 +2499,7 @@ RS.submitAiText = function() {
   if (input) input.value = '';
 };
 
-RS.processAiInput = function(text) {
+RS.processAiInput = async function(text) {
   RS.aiChatHistory.push({ role:'user', text:text });
   var parsed = RS.parseAiText(text);
   var replyParts = [];
@@ -2569,7 +2521,13 @@ RS.processAiInput = function(text) {
   }
   var type = parsed.type || '수동';
 
-  MLL.addFavoriteDirect({ round:parsed.round, nums:parsed.nums, type:type, isReal:false, memo:parsed.memo, inputMethod:'ai' });
+  var result = await MLL.addFavoriteDirect({ round:parsed.round, nums:parsed.nums, type:type, isReal:false, memo:parsed.memo, inputMethod:'ai' });
+  if (result._failed) {
+    if (!result.message) return; // 로그인 필요 모달이 이미 떴음
+    RS.aiChatHistory.push({ role:'ai', text: '⛔ 저장 실패: ' + result.message });
+    RS.refreshAiChatUI();
+    return;
+  }
 
   replyParts.push('✅ '+parsed.round+'회 ['+parsed.nums.join(', ')+'] ('+type+') 번호를 최애번호로 저장했어요! 우측 목록에서 확인하실 수 있어요.');
   RS.aiChatHistory.push({ role:'ai', text: replyParts.join(' ') });
@@ -2996,10 +2954,12 @@ RS.tryDecodeImage = async function(img, w, h) {
 };
 
 // 인식된 회차/조합을 결과로 저장 (camera_qr.html과 동일하게 확인 단계 없이 즉시 저장)
-RS.saveQrCombos = function(round, combos, sourceTag) {
-  combos.forEach(function(c) {
-    MLL.addFavoriteDirect({ round: round, nums: c.nums.slice(), type: c.type, isReal: true, memo: 'QR인식', inputMethod: sourceTag === 'qr' ? 'camera' : 'image' });
-  });
+RS.saveQrCombos = async function(round, combos, sourceTag) {
+  for (var i = 0; i < combos.length; i++) {
+    var c = combos[i];
+    var result = await MLL.addFavoriteDirect({ round: round, nums: c.nums.slice(), type: c.type, isReal: true, memo: 'QR인식', inputMethod: sourceTag === 'qr' ? 'camera' : 'image' });
+    if (result._failed && !result.message) return; // 로그인 필요 모달이 이미 떴음 — 더 이상 진행하지 않음
+  }
   RS.renderFavoritesBody();
 };
 
@@ -3245,7 +3205,9 @@ RS.SECTION_RENDERERS.favorites = RS.renderFavorites;
 
 
 <script>
-window.addEventListener('DOMContentLoaded', function(){
+window.addEventListener('DOMContentLoaded', async function(){
+  await MLL.refreshResults();
+  await MLL.refreshEntries();
   RS.switchSection('byRound', document.querySelector('.rs-menu-btn[data-sec="byRound"]'));
 });
 </script>
@@ -3451,5 +3413,6 @@ MLL._runMarkingPipeline = async function(rows, cids, fileBase){
 
 
 </script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 </body>
 </html>
