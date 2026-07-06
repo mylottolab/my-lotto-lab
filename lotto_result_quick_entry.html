@@ -62,6 +62,20 @@ textarea{resize:vertical;min-height:64px;font-family:inherit;}
 
 .round-badge{display:inline-flex;align-items:center;gap:6px;background:#0f1330;border:1px solid #2a2a40;
   border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;color:#e0b341;margin-bottom:4px;}
+
+/* 과거 회차 조회 */
+.history-toggle{width:100%;background:#0f1330;border:1px solid #2a2a40;color:#c7cbe0;border-radius:10px;
+  padding:12px 14px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:space-between;}
+.history-body{display:none;margin-top:10px;}
+.history-body.open{display:block;}
+.history-search{width:100%;background:#0f0f1a;border:1px solid #333;border-radius:8px;padding:9px 12px;font-size:13px;color:#fff;margin-bottom:10px;}
+.res-wrap{overflow-x:auto;border:1px solid #2a2a40;border-radius:8px;max-height:360px;overflow-y:auto;}
+.res-table{width:100%;border-collapse:collapse;font-size:10.5px;white-space:nowrap;}
+.res-table th{background:#0f0f1a;padding:7px 8px;color:#888;font-weight:600;border-bottom:1px solid #2a2a40;position:sticky;top:0;}
+.res-table td{padding:6px 8px;border-bottom:1px solid #1a1a2e;color:#ccc;}
+.res-table tr:hover td{background:#1a1a30;}
+.ball-sm{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;margin:1px;}
+.btn-del-round{background:none;border:1px solid #3a1a1a;color:#e03131;border-radius:4px;padding:2px 7px;font-size:9px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -93,6 +107,26 @@ textarea{resize:vertical;min-height:64px;font-family:inherit;}
       <label>회차</label>
       <input type="number" id="f-round" inputmode="numeric" placeholder="예: 1232">
       <div class="hint">보통 자동으로 채워지는 다음 회차 그대로 쓰시면 됩니다. 지난 회차를 고치고 싶으면 숫자만 바꾸세요.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <button class="history-toggle" onclick="toggleHistory()">
+      <span>📋 과거 회차 조회</span>
+      <span id="historyArrow">▼</span>
+    </button>
+    <div class="history-body" id="historyBody">
+      <input type="text" class="history-search" id="historySearch" placeholder="회차 검색 (예: 1230)" oninput="renderHistory()">
+      <div class="res-wrap">
+        <table class="res-table">
+          <thead><tr>
+            <th>회차</th><th>추첨일</th><th>당첨번호</th><th>보너스</th>
+            <th>1등</th><th>자/반/수</th><th>1등금액</th><th>2등</th><th>3등</th><th>삭제</th>
+          </tr></thead>
+          <tbody id="resTbody"></tbody>
+        </table>
+      </div>
+      <button onclick="loadHistory()" style="margin-top:8px;background:#333;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:11px;cursor:pointer;">🔄 새로고침</button>
     </div>
   </div>
 
@@ -184,7 +218,10 @@ var ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
 var WEEK_MS = 7*24*60*60*1000;
 
 function computeExpectedRound(){
-  return Math.floor((Date.now() - ROUND1_TS) / WEEK_MS) + 1;
+  // ⚠ 이 화면은 "다음에 입력하실 회차"를 미리 보여주는 용도다.
+  //   (아직 추첨 전인 회차 = 가장 최근 완료된 회차 + 1)
+  var lastCompletedRound = Math.floor((Date.now() - ROUND1_TS) / WEEK_MS) + 1;
+  return lastCompletedRound + 1;
 }
 
 function doLogin(){
@@ -207,14 +244,118 @@ function enterAdmin(){
   document.getElementById('adminContent').style.display = 'block';
   document.getElementById('btnLogout').style.display = 'block';
   var r = computeExpectedRound();
-  document.getElementById('roundBadge').textContent = '💡 예상 회차: 제' + r + '회';
+  document.getElementById('roundBadge').textContent = '💡 다음 입력할 회차: 제' + r + '회';
   document.getElementById('f-round').value = r;
+  loadHistory();
 }
 
 (function(){
   var saved = sessionStorage.getItem('mll_admin_key');
   if(saved){ adminKey = saved; enterAdmin(); }
 })();
+
+// ── 볼 색상 (common.js MLL.BC/TC와 동일 규칙, 이 페이지는 가볍게 유지하려고 직접 포함) ──
+function ballBg(n){ return n<=10?'#f5c518':n<=20?'#1a7ad4':n<=30?'#e03131':n<=40?'#888888':'#2f9e44'; }
+function ballTc(n){ return n<=10?'#7a5e00':'#ffffff'; }
+function drawDateOf(round){
+  var d = new Date(ROUND1_TS + (round-1)*WEEK_MS);
+  return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0');
+}
+
+var _historyCache = {};
+
+function toggleHistory(){
+  var body = document.getElementById('historyBody');
+  var arrow = document.getElementById('historyArrow');
+  var opening = !body.classList.contains('open');
+  body.classList.toggle('open');
+  arrow.textContent = opening ? '▲' : '▼';
+  if(opening && !Object.keys(_historyCache).length) loadHistory();
+}
+
+async function loadHistory(){
+  var tbody = document.getElementById('resTbody');
+  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:16px;color:#666;">불러오는 중...</td></tr>';
+  try {
+    var data = await fetch(API + '/api/lotto/results').then(function(r){ return r.json(); });
+    _historyCache = data.results || {};
+    renderHistory();
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:16px;color:#e03131;">조회 실패: '+e.message+'</td></tr>';
+  }
+}
+
+function renderHistory(){
+  var tbody = document.getElementById('resTbody');
+  var keyword = document.getElementById('historySearch').value.trim();
+  var rounds = Object.keys(_historyCache).map(Number).sort(function(a,b){return b-a;});
+  if(keyword) rounds = rounds.filter(function(r){ return String(r).indexOf(keyword) >= 0; });
+
+  if(!rounds.length){
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:16px;color:#555;">데이터가 없습니다.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rounds.map(function(round){
+    var r = _historyCache[round];
+    var balls = r.nums.map(function(n){
+      return '<span class="ball-sm" style="background:'+ballBg(n)+';color:'+ballTc(n)+';">'+n+'</span>';
+    }).join('');
+    return '<tr style="cursor:pointer;" onclick="loadForEdit('+round+')">' +
+      '<td style="color:#e0b341;font-weight:700;">'+round+'회</td>' +
+      '<td style="color:#888;">'+drawDateOf(round)+'</td>' +
+      '<td>'+balls+'</td>' +
+      '<td><span class="ball-sm" style="background:#fff;color:#555;border:1px solid #555;">'+r.bonus+'</span></td>' +
+      '<td style="color:#f5c518;">'+(r.winners1||0)+'건</td>' +
+      '<td style="font-size:9px;">'+(r.autoWin||0)+'/'+(r.semiWin||0)+'/'+(r.manualWin||0)+'</td>' +
+      '<td style="color:#f5c518;">'+(r.prize1?r.prize1.toLocaleString():'-')+'</td>' +
+      '<td>'+(r.winners2||0)+'건</td>' +
+      '<td>'+(r.winners3||0)+'건</td>' +
+      '<td><button class="btn-del-round" onclick="event.stopPropagation();deleteRound('+round+')">삭제</button></td>' +
+      '</tr>';
+  }).join('');
+}
+
+// 표에서 회차를 클릭하면 그 회차의 기존 데이터를 위 입력폼에 그대로 불러온다.
+// (잘못 입력된 회차를 고칠 때 사용 — 고친 뒤 저장하면 같은 회차라 자동으로 덮어써짐)
+function loadForEdit(round){
+  var r = _historyCache[round];
+  if(!r) return;
+  document.getElementById('f-round').value = round;
+  document.getElementById('n1').value = r.nums[0];
+  document.getElementById('n2').value = r.nums[1];
+  document.getElementById('n3').value = r.nums[2];
+  document.getElementById('n4').value = r.nums[3];
+  document.getElementById('n5').value = r.nums[4];
+  document.getElementById('n6').value = r.nums[5];
+  document.getElementById('f-bonus').value = r.bonus;
+  document.getElementById('f-winners1').value = r.winners1 || 0;
+  document.getElementById('f-prize1').value = r.prize1 || 0;
+  document.getElementById('f-auto').value = r.autoWin || 0;
+  document.getElementById('f-semi').value = r.semiWin || 0;
+  document.getElementById('f-manual').value = r.manualWin || 0;
+  document.getElementById('f-shops').value = r.winnerShops || '';
+  document.getElementById('f-winners2').value = r.winners2 || 0;
+  document.getElementById('f-prize2').value = r.prize2 || 0;
+  document.getElementById('f-winners3').value = r.winners3 || 0;
+  document.getElementById('f-prize3').value = r.prize3 || 0;
+  document.getElementById('f-note').value = r.note || '';
+  showMsg('info', '✏️ 제' + round + '회 데이터를 불러왔습니다. 수정 후 "이 회차 저장하기"를 누르면 덮어써집니다.');
+  document.getElementById('f-round').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+async function deleteRound(round){
+  if(!confirm(round+'회 당첨결과를 삭제하시겠습니까?')) return;
+  try {
+    var resp = await fetch(API + '/api/lotto/results/' + round, { method:'DELETE', headers:{ 'x-admin-key': adminKey } });
+    var data = await resp.json();
+    if(!resp.ok){ alert('삭제 실패: ' + (data.error||'')); return; }
+    delete _historyCache[round];
+    renderHistory();
+  } catch(e){
+    alert('네트워크 오류: ' + e.message);
+  }
+}
 
 function num(id){
   var v = document.getElementById(id).value;
@@ -262,6 +403,7 @@ async function submitResult(){
     if(resp.status === 403){ showMsg('error', '⛔ 관리자 키가 올바르지 않습니다.'); btn.disabled = false; return; }
     if(!resp.ok){ showMsg('error', '⛔ 저장 실패: ' + (data.error || '')); btn.disabled = false; return; }
     showMsg('success', '✅ 제' + round + '회 저장 완료! (다른 회차는 그대로 유지됩니다)');
+    loadHistory();
   } catch(e){
     showMsg('error', '⛔ 네트워크 오류: ' + e.message);
   }
