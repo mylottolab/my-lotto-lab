@@ -413,6 +413,26 @@ router.get('/results', async (req, res) => {
 // ─── POST /api/lotto/results ─── 당첨결과 업로드/갱신 (관리자 전용, x-admin-key 필요)
 // body: { results: { "1227": { nums:[..], bonus:.., winners1:.., prize1:.., ... }, ... } }
 // admin.html의 엑셀 업로드 결과가 여기로 들어오는 것을 전제로 함.
+// ─── POST /api/lotto/results/auto-fetch ─── 동행복권 자동수집을 지금 즉시 1회 실행
+// (관리자 전용) 토요일 20:45~23:00 스케줄을 놓쳤을 때 admin.html에서 수동으로 누르는 버튼용.
+// round를 안 주면 예상 최신회차를 자동으로 계산해서 시도한다.
+router.post('/results/auto-fetch', async (req, res) => {
+  const adminKey = req.headers['x-admin-key'];
+  if (!adminKey || adminKey !== process.env.ADMIN_API_KEY) {
+    return res.status(403).json({ error: '관리자 인증이 필요합니다.' });
+  }
+  try {
+    const { fetchAndSaveRound } = require('../jobs/lottoAutoFetch');
+    const round = req.body.round ? Number(req.body.round) : null;
+    const overwrite = !!req.body.overwrite; // true면 이미 있어도 다시 덮어씀
+    const result = await fetchAndSaveRound(round, overwrite);
+    return res.json(result);
+  } catch (err) {
+    console.error('[lotto] auto-fetch 수동실행 오류:', err);
+    return res.status(500).json({ error: '자동수집 실행 중 오류: ' + err.message });
+  }
+});
+
 router.post('/results', async (req, res) => {
   try {
     const adminKey = req.headers['x-admin-key'];
