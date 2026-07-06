@@ -49,11 +49,30 @@ async function roundExists(round) {
   return !!data;
 }
 
+// 동행복권은 브라우저가 아닌 요청(User-Agent 없는 서버간 요청 등)을 차단하는 경우가 있어,
+// 실제 브라우저처럼 보이는 헤더를 붙여서 요청한다.
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept': 'application/json, text/html, */*',
+  'Referer': 'https://www.dhlottery.co.kr/gameResult.do?method=byWin'
+};
+
 // ─── 1) 기본 정보 (JSON API — 안정적) ───────────────────────────────────────
 async function fetchBasicResult(round) {
-  const resp = await fetch(`https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${round}`);
+  const resp = await fetch(`https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${round}`, {
+    headers: BROWSER_HEADERS
+  });
   if (!resp.ok) throw new Error(`동행복권 API 응답 오류 (코드 ${resp.status})`);
-  const data = await resp.json();
+
+  const rawText = await resp.text();
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch (e) {
+    // JSON이 아닌 응답(대부분 차단 안내 HTML 페이지)이 온 경우 — 진단을 위해 앞부분을 로그에 남긴다
+    console.error(`[lottoAutoFetch] ${round}회 JSON 파싱 실패, 실제 응답(앞 300자):`, rawText.slice(0, 300));
+    throw new Error('동행복권이 JSON이 아닌 응답을 반환했습니다 (차단/점검 가능성). 서버 로그에서 실제 응답 내용을 확인해주세요.');
+  }
   if (data.returnValue !== 'success') return null; // 아직 추첨 전이거나 존재하지 않는 회차
 
   return {
@@ -68,7 +87,9 @@ async function fetchBasicResult(round) {
 // ─── 2) 상세 정보 (당첨결과 페이지 스크래핑 — 최선 추정, 실패해도 무방) ──────────
 async function fetchDetailedResult(round) {
   try {
-    const resp = await fetch(`https://www.dhlottery.co.kr/gameResult.do?method=byWin&drwNo=${round}`);
+    const resp = await fetch(`https://www.dhlottery.co.kr/gameResult.do?method=byWin&drwNo=${round}`, {
+      headers: BROWSER_HEADERS
+    });
     if (!resp.ok) throw new Error(`상세페이지 응답 오류 (코드 ${resp.status})`);
     const html = await resp.text();
     const $ = cheerio.load(html);
