@@ -259,9 +259,14 @@ async function main() {
   console.log('Job A (NY Open Data 확정결과 수집) 완료');
 }
 
-main().catch((err) => {
-  console.error('Job A 실행 중 오류:', err);
-  process.exit(1);
-});
+// 이 파일을 `node jobA_ny_open_data.js`로 직접 실행했을 때만 main()을 돌린다.
+// (routes/global_admin.js 등 다른 파일이 require()로 함수만 가져다 쓸 때는
+//  이 블록이 실행되지 않음 - 서버 기동 시 의도치 않게 Job A가 도는 것을 방지)
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('Job A 실행 중 오류:', err);
+    process.exit(1);
+  });
+}
 
 module.exports = { determinePrize, checkTicketsForSchedule };
