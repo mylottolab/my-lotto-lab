@@ -216,3 +216,7 @@ app.listen(PORT, () => {
 
 // ─── 한국로또 당첨결과 자동수집 스케줄러 (매주 토요일 20:45~23:00 KST) ─────────────
 require('./jobs/lottoAutoFetch').startScheduler();
+
+// ─── 해외복권 관리자 수동입력 (비상 안전장치) ─────────────────────────────
+const globalAdminRouter = require('./routes/global_admin');
+app.use('/api/admin/global', globalAdminRouter);
