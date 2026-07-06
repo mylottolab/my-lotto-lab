@@ -29,9 +29,16 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
+// 이 파일은 두 곳에서 쓰입니다:
+//  1) 별도 Render Cron Job(Job A) - 환경변수 SUPABASE_SERVICE_ROLE_KEY 사용
+//  2) 메인 웹서버(my-lotto-lab-api)의 routes/global_admin.js가 require() -
+//     이쪽은 기존 서버 관례상 SUPABASE_SERVICE_KEY를 씀
+// 어느 이름으로 설정되어 있든 동작하도록 폴백 처리 (createClient는 모듈
+// require 시점에 즉시 실행되므로, 여기서 키가 없으면 require하는 즉시
+// 서버 전체가 죽는다 - 반드시 두 이름 다 대응해야 함)
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
 );
 
 const NY_OPEN_DATA_BASE = 'https://data.ny.gov/resource';
