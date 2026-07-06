@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>My Lotto Lab - 당첨결과 빠른입력</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif;}
+body{background:#0f0f1a;color:#fff;font-size:14px;min-height:100vh;padding-bottom:40px;}
+.header{background:#1c1c2e;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+.header .title{font-size:15px;font-weight:700;}
+.header .sub{font-size:10px;color:#888;margin-top:2px;}
+.btn-logout{background:none;border:1px solid #444;color:#aaa;padding:5px 10px;border-radius:6px;font-size:11px;}
+
+.main{max-width:480px;margin:0 auto;padding:14px;}
+
+/* 로그인 */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:80vh;}
+.login-box{background:#1c1c2e;border:1px solid #2a2a40;border-radius:14px;padding:30px 26px;width:100%;max-width:340px;text-align:center;}
+.login-icon{font-size:36px;margin-bottom:10px;}
+.login-title{font-size:16px;font-weight:700;margin-bottom:6px;}
+.login-sub{font-size:11px;color:#888;margin-bottom:18px;}
+.pw-input{width:100%;background:#0f0f1a;border:1px solid #333;border-radius:8px;padding:12px 14px;font-size:15px;color:#fff;margin-bottom:10px;text-align:center;}
+.pw-input:focus{border-color:#e03131;outline:none;}
+.btn-login{width:100%;background:#e03131;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;}
+.login-err{color:#ff8a8a;font-size:11px;margin-top:8px;display:none;}
+
+.admin-content{display:none;}
+
+.section{background:#1c1c2e;border:1px solid #2a2a40;border-radius:12px;padding:16px;margin-bottom:14px;}
+.section-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11.5px;color:#9aa0c0;margin-bottom:6px;font-weight:600;}
+.field .hint{font-size:10px;color:#666;margin-top:4px;}
+input[type=number], input[type=text], textarea{
+  width:100%;background:#0f0f1a;border:1px solid #333;border-radius:8px;
+  padding:12px 14px;font-size:15px;color:#fff;
+}
+input:focus, textarea:focus{border-color:#e03131;outline:none;}
+textarea{resize:vertical;min-height:64px;font-family:inherit;}
+
+.balls-row{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;}
+.balls-row input{padding:12px 4px;text-align:center;font-weight:700;}
+.bonus-row{margin-top:8px;}
+.bonus-row input{max-width:110px;}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.three-col .field label{font-size:10.5px;}
+
+.btn-submit{width:100%;background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;border:none;border-radius:10px;
+  padding:15px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(224,49,49,.35);margin-top:6px;}
+.btn-submit:active{transform:translateY(1px);}
+.btn-submit:disabled{background:#444;box-shadow:none;}
+
+.msg{padding:11px 14px;border-radius:8px;font-size:12.5px;margin-top:12px;line-height:1.6;display:none;}
+.msg.show{display:block;}
+.msg-success{background:#0d2b1a;border:1px solid #2f9e44;color:#6fcf97;}
+.msg-error{background:#2b0d0d;border:1px solid #e03131;color:#ff8a8a;}
+.msg-info{background:#0d1a2b;border:1px solid #1a7ad4;color:#74b9ff;}
+
+.round-badge{display:inline-flex;align-items:center;gap:6px;background:#0f1330;border:1px solid #2a2a40;
+  border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;color:#e0b341;margin-bottom:4px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="title">📝 당첨결과 빠른입력</div>
+    <div class="sub">회차 1건만 등록 · 나머지 데이터는 그대로 유지</div>
+  </div>
+  <button class="btn-logout" id="btnLogout" style="display:none;" onclick="doLogout()">로그아웃</button>
+</div>
+
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-icon">🔒</div>
+    <div class="login-title">관리자 로그인</div>
+    <div class="login-sub">Render ADMIN_API_KEY를 입력하세요</div>
+    <input type="text" class="pw-input" id="pwInput" placeholder="관리자 키" autocomplete="off">
+    <button class="btn-login" onclick="doLogin()">로그인</button>
+    <div class="login-err" id="loginErr">키가 올바르지 않을 수 있습니다.</div>
+  </div>
+</div>
+
+<div class="main admin-content" id="adminContent">
+
+  <div class="section">
+    <div class="round-badge" id="roundBadge">회차 계산 중...</div>
+    <div class="field" style="margin-top:10px;">
+      <label>회차</label>
+      <input type="number" id="f-round" inputmode="numeric" placeholder="예: 1232">
+      <div class="hint">보통 자동으로 채워지는 다음 회차 그대로 쓰시면 됩니다. 지난 회차를 고치고 싶으면 숫자만 바꾸세요.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">🎱 당첨번호</div>
+    <div class="field">
+      <label>번호 6개</label>
+      <div class="balls-row">
+        <input type="number" id="n1" inputmode="numeric" min="1" max="45">
+        <input type="number" id="n2" inputmode="numeric" min="1" max="45">
+        <input type="number" id="n3" inputmode="numeric" min="1" max="45">
+        <input type="number" id="n4" inputmode="numeric" min="1" max="45">
+        <input type="number" id="n5" inputmode="numeric" min="1" max="45">
+        <input type="number" id="n6" inputmode="numeric" min="1" max="45">
+      </div>
+    </div>
+    <div class="field bonus-row">
+      <label>보너스번호</label>
+      <input type="number" id="f-bonus" inputmode="numeric" min="1" max="45">
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">🥇 1등</div>
+    <div class="two-col">
+      <div class="field">
+        <label>당첨게임수</label>
+        <input type="number" id="f-winners1" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>1게임당 당첨금액(원)</label>
+        <input type="number" id="f-prize1" inputmode="numeric">
+      </div>
+    </div>
+    <div class="field">
+      <label>구매형태별 당첨게임수</label>
+      <div class="three-col">
+        <div class="field"><label>자동</label><input type="number" id="f-auto" inputmode="numeric"></div>
+        <div class="field"><label>반자동</label><input type="number" id="f-semi" inputmode="numeric"></div>
+        <div class="field"><label>수동</label><input type="number" id="f-manual" inputmode="numeric"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label>당첨점</label>
+      <textarea id="f-shops" placeholder="(서울)OO복권방, (부산)OO마트 ..."></textarea>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">🥈 2등 / 🥉 3등</div>
+    <div class="two-col">
+      <div class="field">
+        <label>2등 당첨게임수</label>
+        <input type="number" id="f-winners2" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>2등 1게임당 당첨금액(원)</label>
+        <input type="number" id="f-prize2" inputmode="numeric">
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>3등 당첨게임수</label>
+        <input type="number" id="f-winners3" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>3등 1게임당 당첨금액(원)</label>
+        <input type="number" id="f-prize3" inputmode="numeric">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📌 특이사항 (선택)</div>
+    <div class="field">
+      <textarea id="f-note" placeholder="예: 서울 지역 1등 당첨 없음"></textarea>
+    </div>
+  </div>
+
+  <button class="btn-submit" id="btnSubmit" onclick="submitResult()">💾 이 회차 저장하기</button>
+  <div class="msg" id="resultMsg"></div>
+
+</div>
+
+<script>
+var API = 'https://my-lotto-lab-api.onrender.com';
+var adminKey = '';
+var ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
+var WEEK_MS = 7*24*60*60*1000;
+
+function computeExpectedRound(){
+  return Math.floor((Date.now() - ROUND1_TS) / WEEK_MS) + 1;
+}
+
+function doLogin(){
+  var key = document.getElementById('pwInput').value.trim();
+  if(!key) return;
+  adminKey = key;
+  sessionStorage.setItem('mll_admin_key', key);
+  enterAdmin();
+}
+function doLogout(){
+  sessionStorage.removeItem('mll_admin_key');
+  location.reload();
+}
+document.getElementById('pwInput').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') doLogin();
+});
+
+function enterAdmin(){
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('adminContent').style.display = 'block';
+  document.getElementById('btnLogout').style.display = 'block';
+  var r = computeExpectedRound();
+  document.getElementById('roundBadge').textContent = '💡 예상 회차: 제' + r + '회';
+  document.getElementById('f-round').value = r;
+}
+
+(function(){
+  var saved = sessionStorage.getItem('mll_admin_key');
+  if(saved){ adminKey = saved; enterAdmin(); }
+})();
+
+function num(id){
+  var v = document.getElementById(id).value;
+  return v === '' ? 0 : Number(v);
+}
+
+async function submitResult(){
+  var round = num('f-round');
+  var nums = [num('n1'),num('n2'),num('n3'),num('n4'),num('n5'),num('n6')];
+  var bonus = num('f-bonus');
+
+  if(!round){ showMsg('error', '회차를 입력해주세요.'); return; }
+  if(nums.some(function(n){return n<1 || n>45;})){ showMsg('error', '당첨번호 6개는 1~45 사이여야 합니다.'); return; }
+  if(new Set(nums).size !== 6){ showMsg('error', '당첨번호 6개가 중복되지 않아야 합니다.'); return; }
+  if(bonus<1 || bonus>45){ showMsg('error', '보너스번호를 확인해주세요.'); return; }
+
+  var resultObj = {};
+  resultObj[round] = {
+    nums: nums,
+    bonus: bonus,
+    winners1: num('f-winners1'),
+    prize1: num('f-prize1'),
+    autoWin: num('f-auto'),
+    semiWin: num('f-semi'),
+    manualWin: num('f-manual'),
+    winnerShops: document.getElementById('f-shops').value.trim(),
+    winners2: num('f-winners2'),
+    prize2: num('f-prize2'),
+    winners3: num('f-winners3'),
+    prize3: num('f-prize3'),
+    note: document.getElementById('f-note').value.trim()
+  };
+
+  var btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  showMsg('info', '⏳ 저장 중입니다...');
+
+  try {
+    var resp = await fetch(API + '/api/lotto/results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+      body: JSON.stringify({ results: resultObj })
+    });
+    var data = await resp.json();
+    if(resp.status === 403){ showMsg('error', '⛔ 관리자 키가 올바르지 않습니다.'); btn.disabled = false; return; }
+    if(!resp.ok){ showMsg('error', '⛔ 저장 실패: ' + (data.error || '')); btn.disabled = false; return; }
+    showMsg('success', '✅ 제' + round + '회 저장 완료! (다른 회차는 그대로 유지됩니다)');
+  } catch(e){
+    showMsg('error', '⛔ 네트워크 오류: ' + e.message);
+  }
+  btn.disabled = false;
+}
+
+function showMsg(type, text){
+  var el = document.getElementById('resultMsg');
+  el.className = 'msg show msg-' + type;
+  el.textContent = text;
+  el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+</script>
+
+</body>
+</html>
