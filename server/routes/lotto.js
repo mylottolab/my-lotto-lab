@@ -1,4 +1,15 @@
 const express = require('express');
+
+// ⚠ 관리자가 수년간 수작업으로 채워온 엑셀이라, 당첨금 컬럼이 회차마다 형식이 섞여있다
+// (예: "1652990074" 처럼 순수 숫자인 회차도 있고, "1,771,357,196원" 처럼 쉼표+"원"이
+// 붙은 회차도 있음). 어떤 형식이 와도 안전하게 순수 정수로 뽑아낸다.
+function safeInt(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return Math.round(val);
+  const cleaned = String(val).replace(/[^0-9-]/g, ''); // 쉼표, "원", 공백 등 숫자 아닌 문자 전부 제거
+  const n = parseInt(cleaned, 10);
+  return isNaN(n) ? 0 : n;
+}
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 const { deductPoints } = require('./points');
@@ -418,19 +429,19 @@ router.post('/results', async (req, res) => {
       const r = resultsObj[roundKey];
       return {
         round: Number(roundKey),
-        nums: r.nums,
-        bonus: r.bonus,
-        winners1: r.winners1 || 0,
-        prize1: r.prize1 || 0,
-        auto_win: r.autoWin || 0,
-        semi_win: r.semiWin || 0,
-        manual_win: r.manualWin || 0,
-        winner_shops: r.winnerShops || '',
-        winners2: r.winners2 || 0,
-        prize2: r.prize2 || 0,
-        winners3: r.winners3 || 0,
-        prize3: r.prize3 || 0,
-        note: r.note || '',
+        nums: (r.nums || []).map(safeInt),
+        bonus: safeInt(r.bonus),
+        winners1: safeInt(r.winners1),
+        prize1: safeInt(r.prize1),
+        auto_win: safeInt(r.autoWin),
+        semi_win: safeInt(r.semiWin),
+        manual_win: safeInt(r.manualWin),
+        winner_shops: (r.winnerShops || '').toString().trim(),
+        winners2: safeInt(r.winners2),
+        prize2: safeInt(r.prize2),
+        winners3: safeInt(r.winners3),
+        prize3: safeInt(r.prize3),
+        note: (r.note || '').toString().trim(),
         updated_at: new Date().toISOString()
       };
     });
