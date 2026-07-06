@@ -54,13 +54,37 @@ async function roundExists(round) {
 const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Accept': 'application/json, text/html, */*',
+  'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
   'Referer': 'https://www.dhlottery.co.kr/gameResult.do?method=byWin'
 };
 
-// ─── 1) 기본 정보 (JSON API — 안정적) ───────────────────────────────────────
+// 동행복권 메인페이지를 먼저 방문해서 정상 세션(쿠키)을 받아온다.
+// (세션 없이 API를 바로 호출하면 자동화 요청으로 간주되어 차단(rsaModulus 보안페이지)될 수 있음)
+let _cachedCookie = null;
+let _cookieFetchedAt = 0;
+async function getSessionCookie() {
+  // 세션은 짧은 시간(10분) 재사용 — 매번 새로 받을 필요 없음
+  if (_cachedCookie && Date.now() - _cookieFetchedAt < 10 * 60 * 1000) return _cachedCookie;
+  try {
+    const resp = await fetch('https://www.dhlottery.co.kr/gameResult.do?method=byWin', { headers: BROWSER_HEADERS });
+    const setCookie = resp.headers.get('set-cookie');
+    _cachedCookie = setCookie || null;
+    _cookieFetchedAt = Date.now();
+    console.log('[lottoAutoFetch] 세션 쿠키 확보:', _cachedCookie ? '성공' : '실패(쿠키 없음)');
+    return _cachedCookie;
+  } catch (e) {
+    console.error('[lottoAutoFetch] 세션 쿠키 요청 오류:', e.message);
+    return null;
+  }
+}
+
 async function fetchBasicResult(round) {
+  const cookie = await getSessionCookie();
+  const headers = Object.assign({}, BROWSER_HEADERS);
+  if (cookie) headers['Cookie'] = cookie;
+
   const resp = await fetch(`https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${round}`, {
-    headers: BROWSER_HEADERS
+    headers: headers
   });
   if (!resp.ok) throw new Error(`동행복권 API 응답 오류 (코드 ${resp.status})`);
 
@@ -87,8 +111,12 @@ async function fetchBasicResult(round) {
 // ─── 2) 상세 정보 (당첨결과 페이지 스크래핑 — 최선 추정, 실패해도 무방) ──────────
 async function fetchDetailedResult(round) {
   try {
+    const cookie = await getSessionCookie();
+    const headers = Object.assign({}, BROWSER_HEADERS);
+    if (cookie) headers['Cookie'] = cookie;
+
     const resp = await fetch(`https://www.dhlottery.co.kr/gameResult.do?method=byWin&drwNo=${round}`, {
-      headers: BROWSER_HEADERS
+      headers: headers
     });
     if (!resp.ok) throw new Error(`상세페이지 응답 오류 (코드 ${resp.status})`);
     const html = await resp.text();
