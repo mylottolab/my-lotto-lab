@@ -67,6 +67,8 @@ body{background:#f3f4f6;font-size:13px;}
 if (typeof window.MLL === 'undefined') { window.MLL = {}; }
 var MLL = window.MLL;
 
+MLL.API_BASE = MLL.API_BASE || 'https://my-lotto-lab-api.onrender.com';
+
 MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
 MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
 MLL.STORAGE_KEY       = 'mll_entries';      // 등록번호
@@ -149,68 +151,101 @@ MLL.uuid = function() {
 // 데이터 CRUD
 // =====================================================
 
-MLL.loadEntries = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.STORAGE_KEY) || '[]'); }
-  catch(e) { return []; }
-};
-
-MLL.saveEntries = function(entries) {
-  localStorage.setItem(MLL.STORAGE_KEY, JSON.stringify(entries));
-};
-
-// 단일 항목 추가
-MLL.addEntry = function(item) {
-  var entries = MLL.loadEntries();
-  if (!item.id)          item.id          = MLL.uuid();
-  if (!item.createdAt)   item.createdAt   = Date.now();
-  if (!item.grade)       item.grade       = null;
-  if (!item.prizeMoney)  item.prizeMoney  = 0;
-  if (!item.sessionTag)  item.sessionTag  = '';
-  // 항상 추첨전으로 저장 → 미확인 섹션에서 사용자가 확인하도록
-  item.status = '추첨전';
-  entries.push(item);
-  MLL.saveEntries(entries);
-  return item;
-};
-
-// 여러 항목 추가
-MLL.addEntries = function(items) {
-  var entries = MLL.loadEntries();
-  items.forEach(function(item) {
-    if (!item.id)         item.id         = MLL.uuid();
-    if (!item.createdAt)  item.createdAt  = Date.now();
-    if (!item.grade)      item.grade      = null;
-    if (!item.prizeMoney) item.prizeMoney = 0;
-    if (!item.sessionTag) item.sessionTag = '';
-    // 항상 추첨전으로 저장 → 미확인 섹션에서 사용자가 확인하도록
-    item.status = '추첨전';
-    entries.push(item);
-  });
-  MLL.saveEntries(entries);
-  return items;
-};
-
-// 항목 삭제
-MLL.deleteEntry = function(id) {
-  var entries = MLL.loadEntries().filter(function(e){ return e.id !== id; });
-  MLL.saveEntries(entries);
-};
-
 // =====================================================
-// 당첨결과 데이터
+// 데이터 CRUD — 서버 DB(kr_lotto_entries) 기반
 // =====================================================
 
-MLL.loadResults = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }
-  catch(e) { return {}; }
+function _mllAuthState() { return (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type: null }; }
+function _mllHeaders(state) {
+  var h = { 'Content-Type': 'application/json' };
+  if (state.type === 'member') h['Authorization'] = 'Bearer ' + state.token;
+  return h;
+}
+function _mllAuthBody(state, body) {
+  body = body || {};
+  if (state.type === 'guest') { body.nickname = state.nickname; body.email = state.email; }
+  return body;
+}
+
+MLL._entriesCache = [];
+MLL._resultsCache = {};
+
+MLL.loadEntries = function() { return MLL._entriesCache; };
+MLL.loadResults = function() { return MLL._resultsCache; };
+
+MLL.refreshEntries = async function() {
+  var state = _mllAuthState();
+  if (!state.type) { MLL._entriesCache = []; return []; }
+  var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/entries' + qs, { headers: _mllHeaders(state) });
+    var data = await resp.json();
+    if (!resp.ok) { console.error('[MLL] entries 조회 오류:', data.error); MLL._entriesCache = []; return []; }
+    MLL._entriesCache = data.items || [];
+    return MLL._entriesCache;
+  } catch (e) {
+    console.error('[MLL] entries 네트워크 오류:', e);
+    MLL._entriesCache = [];
+    return [];
+  }
 };
 
-MLL.saveResults = function(results) {
-  localStorage.setItem(MLL.RESULTS_KEY, JSON.stringify(results));
+MLL.refreshResults = async function() {
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/results');
+    var data = await resp.json();
+    MLL._resultsCache = data.results || {};
+    return MLL._resultsCache;
+  } catch (e) {
+    console.error('[MLL] results 네트워크 오류:', e);
+    return MLL._resultsCache;
+  }
+};
+
+MLL.addEntry = async function(item) { var r = await MLL.addEntries([item]); return r[0]; };
+
+MLL.addEntries = async function(items) {
+  var state = _mllAuthState();
+  if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return items.map(function(){ return { id:null, _failed:true }; }); }
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/entries', {
+      method: 'POST', headers: _mllHeaders(state),
+      body: JSON.stringify(_mllAuthBody(state, { entries: items }))
+    });
+    var data = await resp.json();
+    if (!resp.ok) { console.error('[MLL] entries 등록 오류:', data.error); return items.map(function(){ return { id:null, _failed:true, message:data.error }; }); }
+    await MLL.refreshEntries();
+    if (data.deducted !== undefined && MLL._showPointToast) MLL._showPointToast(data.deducted, data.balanceAfter, data.freeCount, data.chargedCount);
+    return data.items || [];
+  } catch (e) {
+    console.error('[MLL] entries 네트워크 오류:', e);
+    return items.map(function(){ return { id:null, _failed:true }; });
+  }
+};
+
+MLL.deleteEntry = async function(id) {
+  var state = _mllAuthState();
+  if (!state.type) return false;
+  try {
+    var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/' + id + qs, { method: 'DELETE', headers: _mllHeaders(state) });
+    if (!resp.ok) return false;
+    await MLL.refreshEntries();
+    return true;
+  } catch (e) {
+    console.error('[MLL] entries 삭제 오류:', e);
+    return false;
+  }
+};
+
+MLL.handleDeleteClick = async function(id) {
+  var ok = await MLL.deleteEntry(id);
+  if (ok && window.refreshTable) refreshTable();
 };
 
 MLL.getResult = function(round) {
-  return MLL.loadResults()[round] || null;
+  var r = MLL.loadResults();
+  return r[round] || r[Number(round)] || r[String(round)] || null;
 };
 
 // ── 당첨 등수 계산 ──
@@ -256,54 +291,20 @@ MLL.calcPrize = function(grade, result) {
 //     note: "..."                 // 특이사항 (옵션)
 //   }
 // }
-MLL.applyResults = function(resultsObj) {
-  MLL.saveResults(resultsObj);
-  var entries = MLL.loadEntries();
-  var updated = 0;
-  entries.forEach(function(entry) {
-    // round가 숫자/문자열 둘 다 처리
-    var res = resultsObj[entry.round] || resultsObj[String(entry.round)] || resultsObj[parseInt(entry.round)];
-    if (res) {
-      entry.status     = '추첨후';
-      entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
-      entry.prizeMoney = MLL.calcPrize(entry.grade, res);
-      updated++;
-    }
-  });
-  MLL.saveEntries(entries);
-  return updated;
-};
+// ⚠ MLL.applyResults(예전에 당첨결과 업로드시 로컬 entries를 일괄 재채점하던 함수)는
+//   이제 서버가 조회 시점마다 자동 계산해서 내려주므로 필요 없어져 제거함 (호출하는 곳도 없었음).
 
 // =====================================================
 // 정렬 (추첨전 상단, 추첨후 하단, 각각 회차 내림차순)
 // =====================================================
 
 MLL.sortEntries = function(entries) {
-  var info    = MLL.getLottoInfo();
-  var results = MLL.loadResults();
-
-  function isConfirmed(entry) {
-    // 당첨결과가 있고 grade가 계산된 경우
-    return entry.status === '추첨후' && entry.grade !== null && entry.grade !== undefined;
-  }
-  function isUnconfirmed(entry) {
-    // 추첨됐는데 아직 결과 미반영: 당첨결과가 있는 회차인데 grade=null
-    var hasResult = !!(results[entry.round] || results[Number(entry.round)] || results[String(entry.round)]);
-    return (entry.status === '추첨전' && hasResult) ||
-           (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
-  }
-  function isPreDraw(entry) {
-    // 진짜 추첨전: 당첨결과가 없는 회차
-    var hasResult = !!(results[entry.round] || results[Number(entry.round)] || results[String(entry.round)]);
-    return entry.status === '추첨전' && !hasResult;
-  }
-
-  var preDraw     = entries.filter(isPreDraw)
-                           .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  var unconfirmed = entries.filter(isUnconfirmed)
-                           .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  var post        = entries.filter(isConfirmed)
-                           .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  // ⚠ 서버가 조회 시점마다 status를 이미 '추첨전'/'미확인'/'추첨후' 3단계로 정확히
+  //   계산해서 내려주므로, 예전처럼 grade/결과유무로 재판단할 필요가 없다.
+  function cmp(a, b) { return b.round - a.round || b.createdAt - a.createdAt; }
+  var preDraw     = entries.filter(function(e){ return e.status === '추첨전'; }).sort(cmp);
+  var unconfirmed = entries.filter(function(e){ return e.status === '미확인'; }).sort(cmp);
+  var post        = entries.filter(function(e){ return e.status === '추첨후'; }).sort(cmp);
 
   return preDraw.concat(unconfirmed).concat(post);
 };
@@ -333,13 +334,11 @@ MLL.renderBalls = function(nums, bonusNums, small) {
 MLL.renderRow = function(entry, sessionTag, opts) {
   opts = opts || {};
   var isSession = sessionTag && entry.sessionTag === sessionTag;
-  var result    = MLL.getResult(entry.round);
+  // 서버가 이미 확정한 status(추첨전/미확인/추첨후)를 그대로 신뢰한다.
+  var actualStatus = entry.status;
+  var result = (actualStatus === '추첨후') ? MLL.getResult(entry.round) : null;
   var winNums   = result ? result.nums  : [];
   var bonusNum  = result ? result.bonus : null;
-
-  // status 실시간 재판단 (당첨결과 적용 후 반영)
-  var actualStatus = entry.status;
-  if (result && entry.status === '추첨전') actualStatus = '추첨후';
 
   // 반자동: autoNums 필드(시스템 채운 번호) 저장되어 있으면 사용
   var autoNums = entry.autoNums || [];
@@ -372,10 +371,11 @@ MLL.renderRow = function(entry, sessionTag, opts) {
     ? '<span style="background:#f5c518;color:#7a5e00;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;">실구매</span>'
     : '<span style="background:#eee;color:#999;font-size:8px;padding:1px 4px;border-radius:3px;">가상</span>';
 
-  // 추첨상태 (실시간 재판단 적용)
-  var statusHTML = actualStatus==='추첨전'
-    ? '<span style="color:#e03131;font-weight:700;font-size:9px;">추첨전</span>'
-    : '<span style="color:#999;font-size:9px;">추첨후</span>';
+  // 추첨상태 (3단계)
+  var statusHTML;
+  if (actualStatus === '추첨전') statusHTML = '<span style="color:#e03131;font-weight:700;font-size:9px;">추첨전</span>';
+  else if (actualStatus === '미확인') statusHTML = '<span style="color:#e67700;font-weight:700;font-size:9px;">미확인</span>';
+  else statusHTML = '<span style="color:#999;font-size:9px;">추첨후</span>';
 
   // 당첨결과
   var gradeHTML = '<span style="color:#ddd;">-</span>';
@@ -386,24 +386,29 @@ MLL.renderRow = function(entry, sessionTag, opts) {
       gradeHTML = '<span style="color:'+MLL.GRADE_COLOR[entry.grade]+';font-weight:700;font-size:9px;">' +
         MLL.GRADE_LABEL[entry.grade]+'</span>';
     }
+  } else if (actualStatus === '미확인') {
+    gradeHTML = '<span style="color:#e67700;font-size:9px;">?</span>';
   }
 
   // 당첨금
   var prizeHTML = '<span style="color:#ddd;">-</span>';
-  if (entry.prizeMoney && entry.prizeMoney > 0) {
+  if (actualStatus === '추첨후' && entry.prizeMoney && entry.prizeMoney > 0) {
     prizeHTML = '<span style="color:#e03131;font-weight:700;font-size:9px;">' +
       entry.prizeMoney.toLocaleString()+'원</span>';
+  } else if (actualStatus === '미확인') {
+    prizeHTML = '<span style="color:#e67700;font-size:9px;">?</span>';
   }
 
-  // 세션 하이라이트
+  // 세션 하이라이트 / 상태별 배경
+  var bg2 = actualStatus==='추첨전' ? '#fff8e1' : (actualStatus==='미확인' ? '#fff3e0' : '');
   var rowStyle = isSession
     ? 'border-left:3px solid #1a7ad4;background:#f0f8ff;'
-    : (actualStatus==='추첨전' ? 'background:#fff8e1;' : '');
+    : (bg2 ? 'background:'+bg2+';' : '');
 
-  var rcColor = actualStatus==='추첨전' ? '#e03131' : '#555';
+  var rcColor = actualStatus==='추첨전' ? '#e03131' : (actualStatus==='미확인' ? '#e67700' : '#555');
 
   var delBtn = opts.noDelete ? '' :
-    '<button onclick="MLL.deleteEntry(\''+entry.id+'\');if(window.refreshTable)refreshTable();" ' +
+    '<button onclick="MLL.handleDeleteClick(\''+entry.id+'\')" ' +
     'style="background:none;border:1px solid #fcc;border-radius:3px;padding:1px 4px;color:#e03131;cursor:pointer;font-size:9px;">🗑</button>';
 
   return '<tr style="'+rowStyle+'">' +
@@ -437,14 +442,11 @@ MLL.renderCheckBtn = function(sessionTag) {
     '<style>@keyframes pulse-btn{0%,100%{opacity:1;}50%{opacity:0.7;}}</style>';
 };
 
-// 즉시확인 실행
+// 즉시확인 실행 — 서버의 /api/lotto/entries/confirm 호출
 MLL.applyCheck = function(sessionTag) {
-  var results = MLL.loadResults();
-  var resultRounds = Object.keys(results).map(Number);
-  if (!resultRounds.length) {
-    alert('당첨결과가 없습니다.\nadmin.html에서 엑셀을 업로드해주세요.');
-    return;
-  }
+  var entries = MLL.loadEntries();
+  var pendingCount = entries.filter(function(e){ return e.status === '미확인'; }).length;
+  if (!pendingCount) { alert('확인할 미확인 항목이 없습니다.'); return; }
 
   // 커스텀 팝업 생성
   var overlay = document.createElement('div');
@@ -462,28 +464,24 @@ MLL.applyCheck = function(sessionTag) {
     '</div>';
   document.body.appendChild(overlay);
 
-  function doCheck(allItems) {
+  async function doCheck(allItems) {
     document.body.removeChild(overlay);
-    var entries = MLL.loadEntries();
-    var info    = MLL.getLottoInfo();
-    var updated = 0;
-    entries.forEach(function(entry) {
-      var res = results[entry.round] || results[Number(entry.round)] || results[String(entry.round)];
-      var isUnconfirmed =
-        (entry.status === '추첨전' && !!res) ||
-        (entry.status === '추첨후' && (entry.grade === null || entry.grade === undefined));
-      if (!isUnconfirmed) return;
-      if (!allItems && entry.sessionTag !== sessionTag) return;
-      if (res) {
-        entry.status     = '추첨후';
-        entry.grade      = MLL.calcGrade(entry.nums, res.nums, res.bonus);
-        entry.prizeMoney = MLL.calcPrize(entry.grade, res);
-        updated++;
-      }
-    });
-    MLL.saveEntries(entries);
-    alert('✅ ' + updated + '개 항목 확인 완료!');
-    if (window.refreshTable) refreshTable();
+    var state = _mllAuthState();
+    var body = allItems ? {} : { sessionTag: sessionTag };
+    body = _mllAuthBody(state, body);
+    try {
+      var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/confirm', {
+        method: 'POST', headers: _mllHeaders(state), body: JSON.stringify(body)
+      });
+      var data = await resp.json();
+      if (!resp.ok) { alert('확인 처리 실패: ' + (data.error || '')); return; }
+      await MLL.refreshEntries();
+      if (window.refreshTable) refreshTable();
+      alert('✅ ' + (data.updated || 0) + '개 항목 확인 완료!');
+    } catch (e) {
+      console.error('[MLL] applyCheck 오류:', e);
+      alert('네트워크 오류가 발생했습니다.');
+    }
   }
 
   document.getElementById('mll-check-all').onclick    = function(){ doCheck(true); };
@@ -661,11 +659,38 @@ MLL.loadStrategies = function() {
 MLL.saveStrategies = function(list) {
   localStorage.setItem(MLL.STRATEGY_KEY, JSON.stringify(list));
 };
-MLL.loadStrategyResults = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.STRATEGY_RESULT_KEY)||'[]'); } catch(e){ return []; }
+MLL._strategyResultsCache = [];
+MLL.loadStrategyResults = function() { return MLL._strategyResultsCache; };
+
+MLL.refreshStrategyResults = async function() {
+  var state = _mllAuthState();
+  if (!state.type) { MLL._strategyResultsCache = []; return []; }
+  var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/strategy/results' + qs, { headers: _mllHeaders(state) });
+    var data = await resp.json();
+    if (!resp.ok) { console.error('[MLL] strategy results 조회 오류:', data.error); MLL._strategyResultsCache = []; return []; }
+    MLL._strategyResultsCache = data.items || [];
+    return MLL._strategyResultsCache;
+  } catch (e) {
+    console.error('[MLL] strategy results 네트워크 오류:', e);
+    MLL._strategyResultsCache = [];
+    return [];
+  }
 };
-MLL.saveStrategyResults = function(list) {
-  localStorage.setItem(MLL.STRATEGY_RESULT_KEY, JSON.stringify(list));
+
+MLL.deleteStrategyResult = async function(id) {
+  var state = _mllAuthState();
+  if (!state.type) return false;
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/strategy/results/' + id, { method: 'DELETE', headers: _mllHeaders(state) });
+    if (!resp.ok) return false;
+    await MLL.refreshStrategyResults();
+    return true;
+  } catch (e) {
+    console.error('[MLL] strategy result 삭제 오류:', e);
+    return false;
+  }
 };
 
 // 전략 저장 (최신순 - 맨앞에 추가)
@@ -1569,8 +1594,13 @@ window.setFilter=setFilter; window.showDetail=showDetail;
 window.sortSummary=sortSummary; window.toggleSectionDetail=toggleSectionDetail;
 window.downloadItemExcel=downloadItemExcel; window.downloadItemPDF=downloadItemPDF;
 window.downloadSummaryExcel=downloadSummaryExcel; window.downloadSummaryPDF=downloadSummaryPDF;
-renderList();
-showAllSummary();
+(async function(){
+  await MLL.refreshResults();
+  await MLL.refreshEntries();
+  await MLL.refreshStrategyResults();
+  renderList();
+  showAllSummary();
+})();
 </script>
 
 <script>
@@ -1773,5 +1803,6 @@ MLL._runMarkingPipeline = async function(rows, cids, fileBase){
 
 
 </script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 </body>
 </html>

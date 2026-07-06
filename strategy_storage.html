@@ -707,11 +707,24 @@ MLL.loadStrategies = function() {
 MLL.saveStrategies = function(list) {
   localStorage.setItem(MLL.STRATEGY_KEY, JSON.stringify(list));
 };
-MLL.loadStrategyResults = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.STRATEGY_RESULT_KEY)||'[]'); } catch(e){ return []; }
-};
-MLL.saveStrategyResults = function(list) {
-  localStorage.setItem(MLL.STRATEGY_RESULT_KEY, JSON.stringify(list));
+MLL._strategyResultsCache = [];
+MLL.loadStrategyResults = function() { return MLL._strategyResultsCache; };
+
+MLL.refreshStrategyResults = async function() {
+  var state = _mllAuthState();
+  if (!state.type) { MLL._strategyResultsCache = []; return []; }
+  var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/strategy/results' + qs, { headers: _mllHeaders(state) });
+    var data = await resp.json();
+    if (!resp.ok) { console.error('[MLL] strategy results 조회 오류:', data.error); MLL._strategyResultsCache = []; return []; }
+    MLL._strategyResultsCache = data.items || [];
+    return MLL._strategyResultsCache;
+  } catch (e) {
+    console.error('[MLL] strategy results 네트워크 오류:', e);
+    MLL._strategyResultsCache = [];
+    return [];
+  }
 };
 
 // 전략 저장 (최신순 - 맨앞에 추가)
@@ -1074,6 +1087,7 @@ async function switchTab(tab, btn){
     document.getElementById('tab-'+t).style.display=t===tab?'block':'none';
   });
   if (STORAGE_TABS.indexOf(tab) >= 0) await refreshTabData(tab);
+  if (tab === 'strategy') await MLL.refreshStrategyResults();
   renderCurrentTab();
 }
 
