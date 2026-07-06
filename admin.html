@@ -189,9 +189,23 @@ document.addEventListener('click',function(e){
   <!-- 탭2: 당첨결과 업로드 -->
   <div class="panel" id="tab2">
     <div class="section">
+      <div class="section-title"><span>🤖</span> 자동수집 (동행복권)</div>
+      <div class="msg msg-info">
+        매주 토요일 20:45~23:00 사이 서버가 5분마다 자동으로 동행복권에서 결과를 가져와 저장합니다.<br>
+        <b style="color:#e0b341;">그 시간을 놓쳤거나 자동수집이 실패했을 때</b>, 아래 버튼으로 지금 바로 수동 실행할 수 있습니다.
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="number" id="autoFetchRound" placeholder="회차(비우면 최신 예상회차)" style="width:220px;background:#0f1330;border:1px solid #2a2a40;border-radius:6px;padding:8px 10px;color:#eee;font-size:12px;">
+        <button class="btn" onclick="runAutoFetch(false)" style="background:#2FBFA3;">🔍 지금 확인하기</button>
+        <button class="btn" onclick="runAutoFetch(true)" style="background:#e67700;" title="이미 저장된 회차도 다시 덮어씁니다">♻️ 강제로 다시 가져오기</button>
+      </div>
+      <div id="autoFetchMsg" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="section">
       <div class="section-title"><span>🏆</span> 당첨결과 엑셀 업로드</div>
       <div class="msg msg-info">
-        📌 매주 토요일 20:50~24:00 사이에 업로드해주세요.<br>
+        📌 자동수집이 안 되거나 대량으로 과거 데이터를 올릴 때 이 방법을 쓰세요.<br>
         업로드 시 서버(kr_lotto_results)에 저장되고, 모든 사용자의 번호조합은 다음 조회부터 자동으로 재채점됩니다.<br>
         파일 형식: lotto_details1.xlsx (기존 형식 유지)
       </div>
@@ -337,6 +351,27 @@ async function adminDelete(path) {
   if (res.status === 403) { alert('관리자 키가 올바르지 않습니다. 다시 로그인해 주세요.'); doLogout(); throw new Error('403'); }
   if (!res.ok) throw new Error(data.error || '요청 실패');
   return data;
+}
+
+// ── 동행복권 자동수집 수동 실행 ──
+async function runAutoFetch(overwrite) {
+  var msgEl = document.getElementById('autoFetchMsg');
+  var roundInput = document.getElementById('autoFetchRound').value.trim();
+  var round = roundInput ? Number(roundInput) : null;
+
+  msgEl.innerHTML = '<div class="msg msg-info">⏳ 동행복권에서 가져오는 중입니다...</div>';
+  try {
+    var result = await adminPost('/api/lotto/results/auto-fetch', { round: round, overwrite: !!overwrite });
+    if (result.skipped) {
+      msgEl.innerHTML = '<div class="msg msg-info">ℹ️ ' + result.message + ' ("강제로 다시 가져오기"를 누르면 덮어씁니다)</div>';
+    } else if (result.success) {
+      msgEl.innerHTML = '<div class="msg msg-success">✅ ' + result.message + '</div>';
+    } else {
+      msgEl.innerHTML = '<div class="msg msg-error">⚠️ ' + result.message + '</div>';
+    }
+  } catch (e) {
+    msgEl.innerHTML = '<div class="msg msg-error">⛔ 오류: ' + e.message + '</div>';
+  }
 }
 
 // ── 탭 전환 ──
