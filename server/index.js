@@ -20,7 +20,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api/scratchpad', require('./routes/scratchpad'));
 // ─── 정적 파일 서빙 (결제 관련 HTML) ─────────────────────────────────────────
 app.use('/pay', express.static(path.join(__dirname, 'public')));
-
+app.use('/api/strategy', require('./routes/strategy'));
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'My Lotto Lab API' });
