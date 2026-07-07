@@ -59,11 +59,33 @@ function moneyStrToNumber(str) {
 }
 
 async function fetchResultsPage() {
-  const res = await fetch(RESULTS_URL, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MyLottoLabBot/1.0)' },
-  });
-  if (!res.ok) throw new Error(`euro-millions.com 요청 실패: HTTP ${res.status}`);
-  return res.text();
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+  };
+
+  const MAX_RETRIES = 3;
+  let lastErr;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25초로 연장
+
+      const res = await fetch(RESULTS_URL, { headers, signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.text();
+    } catch (err) {
+      lastErr = err;
+      console.warn(`euro-millions.com 요청 실패 (시도 ${attempt}/${MAX_RETRIES}):`, err.message);
+      if (attempt < MAX_RETRIES) await new Promise((r) => setTimeout(r, 3000)); // 3초 대기 후 재시도
+    }
+  }
+
+  throw new Error(`euro-millions.com 요청 ${MAX_RETRIES}회 모두 실패: ${lastErr.message}`);
 }
 
 /**
