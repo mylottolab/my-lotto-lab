@@ -120,6 +120,12 @@ APP._pointsCache = { balance: 0 };
 APP._entriesCache = [];
 APP._jackpotCache = {}; // { POWERBALL: {...}, MEGAMILLIONS: {...}, EUROMILLIONS: {...} }
 APP._scheduleCache = {}; // { POWERBALL: {draw_date, registration_deadline_utc, ...}, ... }
+// 잭팟 "카운트업" 연출용 상태 - 실제 스크래핑은 몇 시간에 한 번뿐이지만,
+// 화면에서는 이전 값 -> 새 값까지 매초 조금씩 올라가는 것처럼 보간해서 보여준다
+// (실제 복권사 홈페이지들이 쓰는 "생동감" 연출과 동일한 방식 - 상업적으로
+// 판매를 자극하려는 의도임을 감안해 우리도 같은 효과를 재현)
+APP._jackpotAnim = {}; // { POWERBALL: { value, ratePerMs }, ... }
+APP._JACKPOT_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // refreshJackpot 호출 주기와 반드시 일치시킬 것
 
 function _appAuthHeaders(state){
   var headers = { 'Content-Type': 'application/json' };
@@ -170,9 +176,47 @@ APP.refreshJackpot = async function(){
     var results = await Promise.all(codes.map(function(code){
       return fetch(MLL.API_BASE + '/api/global/jackpot/' + code).then(function(r){ return r.json(); }).catch(function(){ return null; });
     }));
-    codes.forEach(function(code, i){ APP._jackpotCache[code] = results[i]; });
+    codes.forEach(function(code, i){
+      APP._jackpotCache[code] = results[i];
+      APP._updateJackpotAnimState(code, results[i]);
+    });
     return APP._jackpotCache;
   } catch(e){ console.error('[APP] 잭팟 조회 오류:', e); return APP._jackpotCache; }
+};
+
+// 새로 받아온 실제 값(newData.jackpot_estimate)을 목표로, "현재 화면에 보이던 값"에서부터
+// 다음 갱신 주기(5분) 동안 매초 조금씩 올라가도록 속도(ratePerMs)를 계산해둔다.
+// 매초 그 속도만큼 더해서 표시하면, 실제로는 5분에 한 번만 값이 바뀌어도
+// 화면에서는 계속 살아있는 것처럼 보인다 (실제 목표값을 넘어서지 않게 도착 시 고정).
+APP._updateJackpotAnimState = function(gameCode, newData){
+  var newVal = newData && newData.jackpot_estimate ? Number(newData.jackpot_estimate) : null;
+  if (newVal === null) return; // 값이 없으면(아직 스크래핑 전 등) 애니메이션 갱신 안 함
+
+  var prevAnim = APP._jackpotAnim[gameCode];
+  var startVal = prevAnim ? prevAnim.value : newVal; // 처음이면 바로 실제값에서 시작
+
+  var rate = (newVal - startVal) / APP._JACKPOT_REFRESH_INTERVAL_MS;
+  // 값이 줄어드는 경우(추첨 직후 리셋 등)는 애니메이션 없이 바로 새 값으로 스냅
+  if (rate < 0) { startVal = newVal; rate = 0; }
+
+  APP._jackpotAnim[gameCode] = { value: startVal, target: newVal, ratePerMs: rate };
+};
+
+// 매초 호출 - 애니메이션 값을 목표치를 넘지 않는 선에서 조금씩 증가시킨다
+APP._tickJackpotAnim = function(){
+  Object.keys(APP._jackpotAnim).forEach(function(code){
+    var anim = APP._jackpotAnim[code];
+    if (!anim || anim.ratePerMs <= 0) return;
+    anim.value = Math.min(anim.target, anim.value + anim.ratePerMs * 1000);
+  });
+};
+
+// 화면 표시용 현재 애니메이션 값 (없으면 캐시의 원본값으로 폴백)
+APP._getAnimatedJackpotValue = function(gameCode){
+  var anim = APP._jackpotAnim[gameCode];
+  if (anim) return anim.value;
+  var raw = APP._jackpotCache[gameCode];
+  return raw && raw.jackpot_estimate ? Number(raw.jackpot_estimate) : null;
 };
 
 // 등록 가능한 다음 회차 정보 서버에서 갱신
@@ -295,12 +339,12 @@ APP.renderGameTabs = function(){
     var name = lang === 'en' ? g.nameEn : g.nameKr;
     var drawLabel = lang === 'en' ? g.drawDaysLabelEn : g.drawDaysLabelKr;
     var live = APP.gameLiveStats(g.code);
-    var jp = live.jackpot;
-    var jpLabel = jp.jackpot_estimate ? ('$' + Number(jp.jackpot_estimate).toLocaleString()) : '-';
+    var animVal = APP._getAnimatedJackpotValue(g.code);
+    var jpLabel = animVal ? ('$' + Math.round(animVal).toLocaleString()) : '-';
     return '<div class="game-tab' + (active ? ' active' : '') + '" style="--tab-accent:' + g.accent + ';" onclick="APP.selectGame(\'' + g.code + '\')">' +
       '<div class="gname"><span class="dot"></span>' + name + '<button class="help-btn" onclick="event.stopPropagation();APP.openHelp(\'' + g.code + '\')" title="?">?</button></div>' +
       '<div class="gsub">' + g.mainPickCount + '/' + g.mainPoolSize + ' + ' + g.subPickCount + '/' + g.subPoolSize + ' · ' + drawLabel + '</div>' +
-      '<div class="gtab-live"><span class="gtl-dot"></span><span class="font-num gtab-jackpot">' + jpLabel + '</span> · <span class="font-num" data-live-cd="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</span></div>' +
+      '<div class="gtab-live"><span class="gtl-dot"></span><span class="font-num gtab-jackpot" data-live-jackpot="' + g.code + '">' + jpLabel + '</span> · <span class="font-num" data-live-cd="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</span></div>' +
     '</div>';
   }).join('');
   document.getElementById('gameTabs').innerHTML = html;
@@ -325,14 +369,15 @@ APP.renderInfoCard = function(){
     '<div class="info-item"><div class="k">' + APP.t('info_next') + '</div><div class="v accent">' + nextDrawDisplay + '</div></div>';
 
   var deadlineBi = live.deadlineMs ? GLOBAL.formatDeadlineBilingual(live.deadlineMs, g.cutoffTz, lang) : { local:'-', kst:'-' };
-  var jpAmountLabel = jp.jackpot_estimate ? ('$' + Number(jp.jackpot_estimate).toLocaleString()) : '-';
+  var animVal = APP._getAnimatedJackpotValue(g.code);
+  var jpAmountLabel = animVal ? ('$' + Math.round(animVal).toLocaleString()) : '-';
   var cashLine = jp.cash_value ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': $' + Number(jp.cash_value).toLocaleString() + '</div>') : '';
   var asOfLine = jp.fetched_at ? new Date(jp.fetched_at).toLocaleString(lang==='en'?'en-US':'ko-KR') : '-';
 
   document.getElementById('liveBar').innerHTML =
     '<div class="live-stat live-stat-wide">' +
       '<div class="ls-label"><span class="ls-dot"></span>' + APP.t('live_real_jackpot') + ' (' + (lang==='en'?g.nameEn:g.nameKr) + ')</div>' +
-      '<div class="ls-val font-num">' + jpAmountLabel + '</div>' +
+      '<div class="ls-val font-num jackpot-counting" data-live-jackpot-big="' + g.code + '">' + jpAmountLabel + '</div>' +
       cashLine +
       '<div class="ls-asof">' + APP.t('live_as_of') + ': ' + asOfLine + '</div>' +
     '</div>' +
@@ -344,17 +389,26 @@ APP.renderInfoCard = function(){
     '</div>';
 };
 
-// ── 실시간 카운트다운 1초마다 갱신 ──
+// ── 실시간 카운트다운 + 잭팟 카운트업 1초마다 갱신 ──
 APP.startLiveTicker = function(){
   if (APP._liveTickerStarted) return;
   APP._liveTickerStarted = true;
   setInterval(function(){
+    APP._tickJackpotAnim();
     GLOBAL.gameList().forEach(function(g){
       var live = APP.gameLiveStats(g.code);
       var cdStr = APP.formatCountdown(live.deadlineMs - Date.now());
       document.querySelectorAll('[data-live-cd="' + g.code + '"]').forEach(function(el){ el.textContent = cdStr; });
       var bigCd = document.querySelector('[data-live-cd-big="' + g.code + '"]');
       if (bigCd) bigCd.textContent = cdStr;
+
+      var animVal = APP._getAnimatedJackpotValue(g.code);
+      if (animVal) {
+        var jpStr = '$' + Math.round(animVal).toLocaleString();
+        document.querySelectorAll('[data-live-jackpot="' + g.code + '"]').forEach(function(el){ el.textContent = jpStr; });
+        var bigJp = document.querySelector('[data-live-jackpot-big="' + g.code + '"]');
+        if (bigJp) bigJp.textContent = jpStr;
+      }
     });
   }, 1000);
   // 서버 데이터(잭팟/스케줄)는 5분마다 재조회 (실시간에 가깝게, 과도한 호출은 피함)
