@@ -2,8 +2,11 @@
  * Job C — 유로밀리언스 확정결과 + 실시간 잭팟 자동수집
  *
  * 소스: euro-millions.com/results
- * 이 사이트는 서버에서 이미 완성된 HTML을 보내주는 방식(SSR)이라, 파워볼/메가밀리언스
- * 때와 달리 Puppeteer 없이 가벼운 fetch() + cheerio만으로 충분하다. (2026-07-08 확인)
+ * 이 사이트 자체는 서버에서 이미 완성된 HTML을 보내주는 방식(SSR)이지만,
+ * 일반 fetch()로 접속하면 계속 타임아웃(연결 자체가 응답 없음)이 발생함 -
+ * Render의 클라우드 IP 대역 또는 단순 HTTP 클라이언트를 봇으로 인식해 차단하는
+ * 것으로 추정됨. 그래서 파워볼과 마찬가지로 Puppeteer(실제 브라우저)로 접속해서
+ * 우회한다 (2026-07-08 확인). 페이지 자체는 SSR이라 접속만 되면 파싱은 간단함.
  *
  * 확인된 HTML 구조 (변경될 수 있으므로 실패 시 이 부분부터 재확인):
  *   - 최근 2개 회차가 카드 형태로 상단에 노출됨 (예: "Friday's Result - 3rd July 2026")
@@ -21,14 +24,15 @@
  * 문구 근처에서 정규식으로 찾는다 (정확한 마크업 미확인 - 실패 시 로그에 원인 남김).
  *
  * 실행 방식: Render Cron Job, **15분 간격 권장** (예: schedule "0,15,30,45 * * * *")
- *  - 확정결과 저장은 이미 저장된 회차를 건너뛰는 방식(idempotent)이라 자주 돌려도
- *    안전함. 잭팟 예상액은 "실시간으로 계속 자라나는 느낌"이 서비스 목적상 중요하므로,
- *    Puppeteer 없이 가벼운 fetch() 방식인 만큼 짧은 주기로 자주 갱신해 프론트엔드
- *    카운트업 애니메이션(app.js)이 실제 값 변화를 촘촘하게 반영하도록 한다.
- * 필요 패키지: cheerio, @supabase/supabase-js (puppeteer 불필요)
+ *  - Puppeteer를 쓰므로 Job B와 마찬가지로 **Instance Type을 Standard 이상**으로
+ *    설정할 것 (Starter로는 버거울 수 있음). Build Command도 Job B와 동일하게
+ *    `npm install && npx puppeteer browsers install chrome` 필요,
+ *    환경변수 `PUPPETEER_CACHE_DIR=/opt/render/project/.cache/puppeteer` 필요.
+ * 필요 패키지: cheerio, puppeteer, @supabase/supabase-js
  */
 
 const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
 const { createClient } = require('@supabase/supabase-js');
 const { checkTicketsForSchedule } = require('./jobA_ny_open_data'); // 대조 로직 공유
 
@@ -59,33 +63,27 @@ function moneyStrToNumber(str) {
 }
 
 async function fetchResultsPage() {
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9',
-  };
+  // 일반 fetch()가 계속 타임아웃되는 것으로 보아, euro-millions.com이 Render의
+  // 클라우드 IP 대역 또는 단순 HTTP 클라이언트(TLS 지문)를 봇으로 인식해
+  // 차단하고 있을 가능성이 높다. 실제 브라우저(Puppeteer)로 접속하면 우회되는
+  // 경우가 많아 이 방식으로 전환함 (2026-07-08).
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+  });
 
-  const MAX_RETRIES = 3;
-  let lastErr;
-
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25초로 연장
-
-      const res = await fetch(RESULTS_URL, { headers, signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.text();
-    } catch (err) {
-      lastErr = err;
-      console.warn(`euro-millions.com 요청 실패 (시도 ${attempt}/${MAX_RETRIES}):`, err.message);
-      if (attempt < MAX_RETRIES) await new Promise((r) => setTimeout(r, 3000)); // 3초 대기 후 재시도
-    }
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    );
+    await page.goto(RESULTS_URL, { waitUntil: 'networkidle2', timeout: 30000 });
+    // 사이트 자체는 SSR이지만, 혹시 모를 지연 렌더링 대비 짧게 대기
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return await page.content();
+  } finally {
+    await browser.close();
   }
-
-  throw new Error(`euro-millions.com 요청 ${MAX_RETRIES}회 모두 실패: ${lastErr.message}`);
 }
 
 /**
