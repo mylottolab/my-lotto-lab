@@ -12,6 +12,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+const globalRouter = require('./routes/global');
+app.use('/api/global', globalRouter);
+
 app.use(cors({ origin: '*' }));
 // 기본 100kb 제한으로는 당첨결과 전체 회차(1000회 이상) 일괄 업로드가 거절됨
 // (admin.html의 "당첨결과 엑셀 업로드" 기능이 대상) → 넉넉하게 늘림
