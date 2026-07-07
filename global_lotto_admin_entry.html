@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>해외복권 관리자 수동입력</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 720px; margin: 30px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 20px; }
+  h2 { font-size: 16px; margin-top: 36px; border-bottom: 2px solid #333; padding-bottom: 6px; }
+  label { display: block; margin-top: 12px; font-size: 13px; font-weight: bold; color: #444; }
+  input, select { width: 100%; box-sizing: border-box; padding: 8px; margin-top: 4px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  button { margin-top: 18px; padding: 10px 20px; font-size: 14px; background: #222; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+  button:hover { background: #444; }
+  .result { margin-top: 14px; padding: 10px; border-radius: 4px; font-size: 13px; white-space: pre-wrap; }
+  .result.ok { background: #e6f4ea; color: #1e7e34; }
+  .result.err { background: #fbe8e8; color: #c0392b; }
+  .hint { font-size: 12px; color: #888; margin-top: 2px; }
+  .adminkey-box { background: #fafafa; border: 1px solid #ddd; padding: 12px; border-radius: 6px; }
+  .ref-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding: 10px; background: #eef3fb; border-radius: 6px; }
+  .ref-btn { margin-top: 0; padding: 6px 12px; font-size: 13px; background: #2a5db0; }
+  .ref-btn:hover { background: #1e4685; }
+</style>
+</head>
+<body>
+
+<h1>🌍 해외복권 관리자 수동입력</h1>
+<p class="hint">자동수집(NY Open Data / 스크래핑) 실패 시, 또는 유로밀리언스처럼 아직 자동화가 안 된 게임의 비상 입력용 화면입니다.</p>
+
+<div class="adminkey-box">
+  <label>관리자 키 (ADMIN_API_KEY)</label>
+  <input type="password" id="adminKey" placeholder="관리자 키 입력 (이 브라우저에만 기억됨)">
+</div>
+
+<div class="ref-toolbar">
+  <span class="hint" style="margin:0;">📌 공식 사이트 참고창 열기 (화면 오른쪽에 자동 배치):</span>
+  <button type="button" class="ref-btn" onclick="openReferenceWindow('POWERBALL')">파워볼/메가밀리언스</button>
+  <button type="button" class="ref-btn" onclick="openReferenceWindow('EUROMILLIONS')">유로밀리언스</button>
+</div>
+
+<!-- ───────────── 1. 확정 추첨결과 입력 ───────────── -->
+<h2>① 확정 추첨결과 입력</h2>
+
+<label>게임</label>
+<select id="drawGameCode">
+  <option value="POWERBALL">파워볼</option>
+  <option value="MEGAMILLIONS">메가밀리언스</option>
+  <option value="EUROMILLIONS" selected>유로밀리언스</option>
+</select>
+
+<label>추첨일 (YYYY-MM-DD)</label>
+<input type="date" id="drawDate">
+
+<label>메인번호 (쉼표로 구분, 예: 3,12,28,34,45)</label>
+<input type="text" id="mainNumbers" placeholder="3,12,28,34,45">
+
+<label>보너스번호 (유로밀리언스는 럭키스타 2개, 예: 4,9)</label>
+<input type="text" id="bonusNumbers" placeholder="4,9">
+
+<div class="row">
+  <div>
+    <label>1등 당첨금 (jackpot_won)</label>
+    <input type="number" id="jackpotWon" placeholder="130000000">
+  </div>
+  <div>
+    <label>현금가치 (cash_value)</label>
+    <input type="number" id="cashValue" placeholder="65000000">
+  </div>
+  <div>
+    <label>1등 당첨자 수</label>
+    <input type="number" id="winnersCount" placeholder="0">
+  </div>
+</div>
+
+<label>등수별 상금표 (유로밀리언스 전용, JSON 형식 - 없으면 비워두세요)</label>
+<input type="text" id="prizeTiers" placeholder='[{"tier":2,"main_match":5,"bonus_match":1,"prize":500000}]'>
+<p class="hint">형식: tier(등수), main_match(메인 일치수), bonus_match(보너스 일치수), prize(상금) 배열</p>
+
+<button onclick="submitDraw()">확정결과 저장</button>
+<div id="drawResult"></div>
+
+<!-- ───────────── 2. 잭팟 스냅샷 입력 ───────────── -->
+<h2>② 실시간 잭팟(예상액) 입력</h2>
+
+<label>게임</label>
+<select id="jpGameCode">
+  <option value="POWERBALL">파워볼</option>
+  <option value="MEGAMILLIONS">메가밀리언스</option>
+  <option value="EUROMILLIONS" selected>유로밀리언스</option>
+</select>
+
+<div class="row">
+  <div>
+    <label>잭팟 예상액</label>
+    <input type="number" id="jpEstimate" placeholder="130000000">
+  </div>
+  <div>
+    <label>현금가치</label>
+    <input type="number" id="jpCashValue" placeholder="65000000">
+  </div>
+</div>
+
+<label>다음 추첨일 (YYYY-MM-DD)</label>
+<input type="date" id="jpNextDrawDate">
+
+<button onclick="submitJackpot()">잭팟 저장</button>
+<div id="jackpotResult"></div>
+
+<script>
+const API_BASE = 'https://my-lotto-lab-api.onrender.com';
+
+// 공식/참고 사이트 URL - EuroMillions는 국가마다 공식사이트가 달라 대표적으로
+// 많이 참조되는 결과 사이트를 기본값으로 둠. 원하시는 사이트로 바꾸셔도 됩니다.
+const REFERENCE_URLS = {
+  POWERBALL: 'https://nylottery.ny.gov/',
+  MEGAMILLIONS: 'https://nylottery.ny.gov/',
+  EUROMILLIONS: 'https://www.euro-millions.com/results',
+};
+
+// 참고용 사이트를 화면 오른쪽 절반에 맞춰 새 창으로 연다.
+// (iframe으로 끼워넣는 방식은 대부분의 공식 복권 사이트가 보안설정으로
+//  막아놔서 안 열리는 경우가 많아, 별도 브라우저 창을 자동 배치하는 방식 사용)
+function openReferenceWindow(gameCode) {
+  const url = REFERENCE_URLS[gameCode];
+  const w = Math.round(screen.availWidth * 0.45);
+  const h = screen.availHeight - 80;
+  const left = screen.availWidth - w;
+  const top = 0;
+  window.open(
+    url,
+    'lotteryRefWindow',
+    `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`
+  );
+}
+
+function getAdminKey() {
+  const key = document.getElementById('adminKey').value.trim();
+  if (!key) alert('관리자 키를 입력해주세요.');
+  return key;
+}
+
+function parseNumberList(str) {
+  return str.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
+}
+
+function showResult(elId, ok, message) {
+  const el = document.getElementById(elId);
+  el.className = 'result ' + (ok ? 'ok' : 'err');
+  el.textContent = message;
+}
+
+async function submitDraw() {
+  const adminKey = getAdminKey();
+  if (!adminKey) return;
+
+  const gameCode = document.getElementById('drawGameCode').value;
+  const drawDate = document.getElementById('drawDate').value;
+  const mainNumbers = parseNumberList(document.getElementById('mainNumbers').value);
+  const bonusNumbers = parseNumberList(document.getElementById('bonusNumbers').value);
+  const jackpotWon = document.getElementById('jackpotWon').value;
+  const cashValue = document.getElementById('cashValue').value;
+  const winnersCount = document.getElementById('winnersCount').value;
+  const prizeTiersRaw = document.getElementById('prizeTiers').value.trim();
+
+  if (!drawDate || mainNumbers.length === 0 || bonusNumbers.length === 0) {
+    showResult('drawResult', false, '추첨일, 메인번호, 보너스번호는 필수입니다.');
+    return;
+  }
+
+  let prizeTiers = null;
+  if (prizeTiersRaw) {
+    try {
+      prizeTiers = JSON.parse(prizeTiersRaw);
+    } catch (e) {
+      showResult('drawResult', false, '등수별 상금표 JSON 형식이 올바르지 않습니다: ' + e.message);
+      return;
+    }
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/global/draws`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+      body: JSON.stringify({
+        game_code: gameCode,
+        draw_date: drawDate,
+        main_numbers: mainNumbers,
+        bonus_numbers: bonusNumbers,
+        jackpot_won: jackpotWon ? Number(jackpotWon) : null,
+        jackpot_winners_count: winnersCount ? Number(winnersCount) : null,
+        cash_value: cashValue ? Number(cashValue) : null,
+        prize_tiers: prizeTiers,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showResult('drawResult', false, '실패: ' + (data.error || res.status));
+    } else {
+      showResult('drawResult', true, '저장 완료!\n' + JSON.stringify(data.draw, null, 2));
+    }
+  } catch (err) {
+    showResult('drawResult', false, '네트워크 오류: ' + err.message);
+  }
+}
+
+async function submitJackpot() {
+  const adminKey = getAdminKey();
+  if (!adminKey) return;
+
+  const gameCode = document.getElementById('jpGameCode').value;
+  const jackpotEstimate = document.getElementById('jpEstimate').value;
+  const cashValue = document.getElementById('jpCashValue').value;
+  const nextDrawDate = document.getElementById('jpNextDrawDate').value;
+
+  if (!jackpotEstimate) {
+    showResult('jackpotResult', false, '잭팟 예상액은 필수입니다.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/global/jackpot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+      body: JSON.stringify({
+        game_code: gameCode,
+        jackpot_estimate: Number(jackpotEstimate),
+        cash_value: cashValue ? Number(cashValue) : null,
+        next_draw_date: nextDrawDate || null,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showResult('jackpotResult', false, '실패: ' + (data.error || res.status));
+    } else {
+      showResult('jackpotResult', true, '저장 완료!\n' + JSON.stringify(data.jackpot, null, 2));
+    }
+  } catch (err) {
+    showResult('jackpotResult', false, '네트워크 오류: ' + err.message);
+  }
+}
+</script>
+
+</body>
+</html>
