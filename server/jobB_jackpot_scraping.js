@@ -36,19 +36,35 @@ const JACKPOT_PAGE_URLS = {
 function parseJackpotFromPageText(bodyText) {
   const result = { jackpot_estimate: null, cash_value: null, next_draw_date: null };
 
-  // 1) 잭팟 예상액: "숫자 (줄바꿈/공백) MILLION|BILLION" 패턴 중 첫 번째
-  const jackpotMatch = bodyText.match(/([\d]{1,4}(?:\.\d+)?)\s*\n?\s*(MILLION|BILLION)/i);
-  if (jackpotMatch) {
-    result.jackpot_estimate = unitToNumber(jackpotMatch[1], jackpotMatch[2]);
+  // "Estimated Cash Value"를 기준점으로 삼는다. 이 문구는 페이지에 딱 한 번,
+  // 실제 잭팟/현금가치 영역에만 나오므로, 엉뚱한 배너(예: "공교육에 $89.7 Billion
+  // 기부" 같은 문구)와 헷갈릴 위험이 없다.
+  const cashLabelIndex = bodyText.search(/Estimated Cash Value/i);
+
+  if (cashLabelIndex === -1) {
+    console.warn('페이지에서 "Estimated Cash Value" 문구를 찾지 못함 - 구조가 바뀌었을 수 있음');
+    return result;
   }
 
-  // 2) 현금가치: "Estimated Cash Value" 뒤에 나오는 "$숫자 Million/Billion"
-  const cashSection = bodyText.match(/Estimated Cash Value[^$]*\$?\s*([\d,.]+)\s*(Million|Billion)?/i);
-  if (cashSection) {
-    result.cash_value = unitToNumber(cashSection[1], cashSection[2] || 'Million');
+  // 1) 잭팟 예상액: "Estimated Cash Value" 바로 앞 300자 안에서만 찾는다
+  //    (이 범위 안에 있는 숫자+MILLION/BILLION은 잭팟일 수밖에 없음 - 배너 문구는
+  //    보통 이 범위 밖 다른 곳에 위치)
+  const jackpotWindow = bodyText.slice(Math.max(0, cashLabelIndex - 300), cashLabelIndex);
+  const jackpotMatches = [...jackpotWindow.matchAll(/([\d]{1,4}(?:\.\d+)?)\s*\n?\s*(MILLION|BILLION)/gi)];
+  if (jackpotMatches.length > 0) {
+    // 가장 마지막(= Estimated Cash Value에 가장 가까운) 매치를 사용
+    const last = jackpotMatches[jackpotMatches.length - 1];
+    result.jackpot_estimate = unitToNumber(last[1], last[2]);
   }
 
-  // 3) 다음 추첨일: "Next Drawing: Wed 07/08/26" 형태
+  // 2) 현금가치: "Estimated Cash Value" 뒤 100자 안에서 찾는다
+  const cashWindow = bodyText.slice(cashLabelIndex, cashLabelIndex + 150);
+  const cashMatch = cashWindow.match(/\$?\s*([\d,.]+)\s*(Million|Billion)/i);
+  if (cashMatch) {
+    result.cash_value = unitToNumber(cashMatch[1], cashMatch[2]);
+  }
+
+  // 3) 다음 추첨일: "Next Drawing: Wed 07/08/26" 형태 (전체 텍스트 어디서 찾아도 안전)
   const drawMatch = bodyText.match(/Next Drawing:\s*\w+\s*(\d{2}\/\d{2}\/\d{2})/i);
   if (drawMatch) {
     const [mm, dd, yy] = drawMatch[1].split('/');
