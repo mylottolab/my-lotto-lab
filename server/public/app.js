@@ -4,15 +4,8 @@
 var APP = {};
 
 APP.STORAGE = {
-  POINTS: 'mll_global_points',
-  LEDGER: 'mll_global_points_ledger',
-  ENTRIES: 'mll_global_entries',
-  DRAWS: 'mll_global_draws',
-  LANG: 'mll_global_lang',
-  ADMIN_SESSION: 'mll_global_admin_session'
+  LANG: 'mll_global_lang'
 };
-APP.ADMIN_PW = 'global2026!';
-APP.STARTING_POINTS = 1000;
 
 APP.state = {
   lang: 'kr',
@@ -80,6 +73,9 @@ APP.STR = {
   insufficient_points: { kr: '포인트가 부족합니다.', en: 'Not enough points.' },
   select_all_numbers: { kr: '번호를 모두 선택해주세요.', en: 'Please select all required numbers.' },
   register_success: { kr: '등록되었습니다!', en: 'Registered!' },
+  need_login: { kr: '번호를 등록하려면 먼저 로그인(또는 비회원 등록)이 필요합니다.', en: 'Please log in (or register as guest) to submit an entry.' },
+  need_login_title: { kr: '로그인이 필요합니다', en: 'Login Required' },
+  go_to_login: { kr: '로그인하러 가기', en: 'Go to Login' },
   my_filter_all: { kr: '전체 종목', en: 'All Games' },
   my_filter_this: { kr: '이 종목만', en: 'This Game Only' },
   th_draw: { kr: '추첨일', en: 'Draw Date' },
@@ -98,26 +94,9 @@ APP.STR = {
   stat_points_used: { kr: '사용 포인트', en: 'Points Used' },
   compare_title: { kr: '종목간 당첨율 비교', en: 'Win Rate Comparison Across Games' },
   compare_note: { kr: '같은 100건을 등록해도 종목마다 당첨율이 얼마나 다른지 직접 체감해보세요.', en: 'See how differently each game pays out, even with the same number of entries.' },
-  admin_pw_label: { kr: '관리자 비밀번호', en: 'Admin Password' },
-  admin_logged_in_as: { kr: '🔓 관리자로 로그인됨', en: '🔓 Logged in as Admin' },
-  admin_logout: { kr: '로그아웃', en: 'Log Out' },
-  admin_jackpot_title: { kr: '잭폿/현금가치 수정', en: 'Edit Jackpot / Cash Value' },
-  admin_jackpot_amount: { kr: '잭폿 금액', en: 'Jackpot Amount' },
-  admin_jackpot_cash: { kr: '현금가치 (표시문구 / 숫자)', en: 'Cash Value (label / number)' },
-  admin_jackpot_asof: { kr: '기준 시각', en: 'As Of' },
-  admin_save_jackpot: { kr: '잭폿 정보 저장', en: 'Save Jackpot Info' },
-  admin_jackpot_saved: { kr: '저장했습니다. 화면에 바로 반영됩니다.', en: 'Saved. Reflected immediately on screen.' },
-  admin_jackpot_hint: { kr: '왼쪽 칸은 화면에 보이는 문구("$348 Million"), 오른쪽 칸은 한화 환산용 실제 숫자(348000000)예요. 둘 다 채워주세요.', en: 'Left field is the display text ("$348 Million"); right field is the actual number used for KRW conversion (348000000). Fill both.' },
-  admin_fx_title: { kr: '환율 수정 (한화 환산 기준)', en: 'Edit Exchange Rate (for KRW conversion)' },
-  admin_save_fx: { kr: '환율 저장', en: 'Save Exchange Rate' },
-  admin_fx_hint: { kr: '여기서 저장한 환율은 3종 모든 복권의 "한화 상당" 표시에 공통으로 쓰여요. 고시환율(예: 한국은행, 시중은행 매매기준율)을 확인 후 입력해주세요.', en: 'This rate is shared across all 3 lotteries for KRW-equivalent display. Check an official source (e.g. central bank rate) before entering.' },
-  admin_login: { kr: '입장', en: 'Enter' },
-  admin_wrong_pw: { kr: '비밀번호가 올바르지 않습니다.', en: 'Incorrect password.' },
-  admin_draw_date: { kr: '결과를 입력할 추첨일', en: 'Draw Date to Enter Results' },
-  admin_save_result: { kr: '추첨결과 저장 및 자동채점', en: 'Save Result & Auto-Grade' },
-  admin_already: { kr: '이미 입력된 결과가 있습니다. 덮어쓸까요?', en: 'A result already exists for this date. Overwrite?' },
-  admin_graded: { kr: '건의 등록을 채점했습니다.', en: ' entries graded.' },
-  admin_history: { kr: '입력된 추첨결과', en: 'Entered Draw Results' },
+  admin_moved_title: { kr: '관리자 기능은 별도 화면으로 이동했습니다', en: 'Admin tools have moved' },
+  admin_moved_body: { kr: '추첨결과·잭팟 수동입력은 이제 전용 관리자 화면에서 처리합니다.', en: 'Manual draw results and jackpot entry are now handled in a dedicated admin screen.' },
+  admin_moved_link: { kr: '관리자 입력화면 열기 →', en: 'Open Admin Entry Screen →' },
 };
 
 APP.t = function(key){
@@ -134,71 +113,78 @@ APP.setLang = function(lang){
   APP.renderAll();
 };
 
-// ── 포인트 ──
-APP.getPoints = function(){
-  try {
-    var v = JSON.parse(localStorage.getItem(APP.STORAGE.POINTS) || 'null');
-    if (v && typeof v.balance === 'number') return v;
-  } catch(e){}
-  var fresh = { balance: APP.STARTING_POINTS };
-  localStorage.setItem(APP.STORAGE.POINTS, JSON.stringify(fresh));
-  return fresh;
-};
-APP.loadLedger = function(){
-  try { return JSON.parse(localStorage.getItem(APP.STORAGE.LEDGER) || '[]'); } catch(e){ return []; }
-};
-APP.deductPoints = function(amount, memo){
-  var pt = APP.getPoints();
-  if (pt.balance < amount) return false;
-  pt.balance -= amount;
-  localStorage.setItem(APP.STORAGE.POINTS, JSON.stringify(pt));
-  var ledger = APP.loadLedger();
-  ledger.push({ type:'REGISTER_DEDUCT', amount:-amount, balanceAfter:pt.balance, memo:memo, at:Date.now() });
-  localStorage.setItem(APP.STORAGE.LEDGER, JSON.stringify(ledger));
-  return true;
-};
+// =====================================================
+// 서버 연동 (common.js의 MLL.getAuthState / MLL.API_BASE 재사용)
+// =====================================================
+APP._pointsCache = { balance: 0 };
+APP._entriesCache = [];
+APP._jackpotCache = {}; // { POWERBALL: {...}, MEGAMILLIONS: {...}, EUROMILLIONS: {...} }
+APP._scheduleCache = {}; // { POWERBALL: {draw_date, registration_deadline_utc, ...}, ... }
 
-// ── 엔트리/추첨결과 저장 ──
-APP.loadEntries = function(){
-  try { return JSON.parse(localStorage.getItem(APP.STORAGE.ENTRIES) || '[]'); } catch(e){ return []; }
-};
-APP.saveEntries = function(list){ localStorage.setItem(APP.STORAGE.ENTRIES, JSON.stringify(list)); };
-APP.addEntry = function(entry){
-  var list = APP.loadEntries();
-  entry.id = 'e_' + Date.now() + '_' + Math.floor(Math.random()*100000);
-  entry.grade = null;
-  entry.prizeAmount = 0;
-  entry.graded = false;
-  list.push(entry);
-  APP.saveEntries(list);
-  return entry;
-};
-
-APP.loadDraws = function(){
-  try { return JSON.parse(localStorage.getItem(APP.STORAGE.DRAWS) || '{}'); } catch(e){ return {}; }
-};
-APP.saveDraws = function(obj){ localStorage.setItem(APP.STORAGE.DRAWS, JSON.stringify(obj)); };
-APP.drawKey = function(gameCode, drawDate){ return gameCode + '_' + drawDate; };
-
-// ── 실제 서버 포인트 잔액 조회 (activity+deposit 합산) ──
-APP.refreshPointsBalance = async function(){
-  var el = document.getElementById('pointsBalance');
-  if (!el || typeof MLL === 'undefined') return;
-  var state = MLL.getAuthState();
-  if (!state.type) { el.textContent = '0'; return; }
-
-  var headers = {};
-  var qs = '';
-  if (state.type === 'member') {
-    headers['Authorization'] = 'Bearer ' + state.token;
-  } else {
-    qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+function _appAuthHeaders(state){
+  var headers = { 'Content-Type': 'application/json' };
+  if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
+  return headers;
+}
+function _appQuerySuffix(state, extra){
+  var parts = extra ? extra.slice() : [];
+  if (state.type === 'guest') {
+    parts.push('nickname=' + encodeURIComponent(state.nickname));
+    parts.push('email=' + encodeURIComponent(state.email));
   }
+  return parts.length ? ('?' + parts.join('&')) : '';
+}
+
+// 포인트 잔액 서버에서 갱신
+APP.refreshPoints = async function(){
+  var state = MLL.getAuthState();
+  if (!state.type) { APP._pointsCache = { balance: 0 }; return APP._pointsCache; }
   try {
-    var res = await fetch('https://my-lotto-lab-api.onrender.com/api/points/balance' + qs, { headers: headers });
-    var data = await res.json();
-    if (res.ok) el.textContent = data.total.toLocaleString();
-  } catch(e){ console.error('[APP] 포인트 잔액 조회 오류:', e); }
+    var qs = _appQuerySuffix(state);
+    var resp = await fetch(MLL.API_BASE + '/api/points/balance' + qs, { headers: _appAuthHeaders(state) });
+    var data = await resp.json();
+    if (!resp.ok) { console.error('[APP] 포인트 조회 실패:', data.error); return APP._pointsCache; }
+    APP._pointsCache = { balance: data.total || 0, activity: data.activity, deposit: data.deposit };
+    return APP._pointsCache;
+  } catch(e){ console.error('[APP] 포인트 조회 오류:', e); return APP._pointsCache; }
+};
+
+// 내 등록현황(HISTORY) 서버에서 갱신
+APP.refreshEntries = async function(){
+  var state = MLL.getAuthState();
+  if (!state.type) { APP._entriesCache = []; return []; }
+  try {
+    var qs = _appQuerySuffix(state);
+    var resp = await fetch(MLL.API_BASE + '/api/global/tickets' + qs, { headers: _appAuthHeaders(state) });
+    var data = await resp.json();
+    if (!resp.ok) { console.error('[APP] 등록현황 조회 실패:', data.error); APP._entriesCache = []; return []; }
+    APP._entriesCache = data.items || [];
+    return APP._entriesCache;
+  } catch(e){ console.error('[APP] 등록현황 조회 오류:', e); APP._entriesCache = []; return []; }
+};
+
+// 실시간 잭팟 서버에서 갱신 (인증 불필요, 3종 동시 조회)
+APP.refreshJackpot = async function(){
+  try {
+    var codes = ['POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
+    var results = await Promise.all(codes.map(function(code){
+      return fetch(MLL.API_BASE + '/api/global/jackpot/' + code).then(function(r){ return r.json(); }).catch(function(){ return null; });
+    }));
+    codes.forEach(function(code, i){ APP._jackpotCache[code] = results[i]; });
+    return APP._jackpotCache;
+  } catch(e){ console.error('[APP] 잭팟 조회 오류:', e); return APP._jackpotCache; }
+};
+
+// 등록 가능한 다음 회차 정보 서버에서 갱신
+APP.refreshSchedule = async function(){
+  try {
+    var codes = ['POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
+    var results = await Promise.all(codes.map(function(code){
+      return fetch(MLL.API_BASE + '/api/global/schedule/' + code).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+    }));
+    codes.forEach(function(code, i){ APP._scheduleCache[code] = results[i]; });
+    return APP._scheduleCache;
+  } catch(e){ console.error('[APP] 스케줄 조회 오류:', e); return APP._scheduleCache; }
 };
 
 document.addEventListener('DOMContentLoaded', function(){ APP.init(); });
@@ -206,28 +192,28 @@ document.addEventListener('DOMContentLoaded', function(){ APP.init(); });
 // =====================================================
 // 렌더링
 // =====================================================
-APP.init = function(){
-  APP.syncFxToEngine(); // 관리자가 저장해둔 환율이 있으면 엔진에 동기화
-
+APP.init = async function(){
   var savedLang = localStorage.getItem(APP.STORAGE.LANG);
   if (savedLang) APP.state.lang = savedLang;
   document.getElementById('langKrBtn').classList.toggle('active', APP.state.lang==='kr');
   document.getElementById('langEnBtn').classList.toggle('active', APP.state.lang==='en');
 
-  // 다른 페이지(메인 메뉴의 로또 전환 드롭다운 등)에서 ?game=POWERBALL 식으로 들어오면 해당 게임을 바로 선택
   var params = new URLSearchParams(window.location.search);
   var requestedGame = (params.get('game') || '').toUpperCase();
   if (GLOBAL.GAMES[requestedGame]) APP.state.gameCode = requestedGame;
 
+  // 서버 데이터 먼저 불러온 뒤 렌더링 (깜빡임 방지를 위해 로딩 표시 후 교체)
+  document.getElementById('gameTabs').innerHTML = '<div class="empty-state">불러오는 중...</div>';
+  await Promise.all([APP.refreshPoints(), APP.refreshEntries(), APP.refreshJackpot(), APP.refreshSchedule()]);
+
   APP.renderAll();
-  APP.refreshPointsBalance();
 };
 
 APP.renderAll = function(){
   document.getElementById('t_brandName').textContent = APP.t('brandName');
   document.getElementById('t_brandSub').textContent = APP.t('brandSub');
   document.getElementById('t_pointsLabel').textContent = APP.t('pointsLabel');
-  document.getElementById('pointsBalance').textContent = APP.getPoints().balance.toLocaleString();
+  document.getElementById('pointsBalance').textContent = (APP._pointsCache.balance || 0).toLocaleString();
   document.getElementById('t_cancelBtn').textContent = APP.t('cancel_btn');
   document.getElementById('t_confirmBtn').textContent = APP.t('confirm_btn');
   APP.renderLottoDropdown();
@@ -243,12 +229,10 @@ APP.renderLottoDropdown = function(){
   var lang = APP.state.lang;
   var current = GLOBAL.GAMES[APP.state.gameCode];
 
-  // 트리거 버튼: 현재 보고 있는 게임의 국기+이름
   document.getElementById('lottoBtnFlag').className = 'flag-ic flag-us';
   if (APP.state.gameCode === 'EUROMILLIONS') document.getElementById('lottoBtnFlag').className = 'flag-ic flag-eu';
   document.getElementById('lottoBtnLabel').textContent = lang === 'en' ? current.nameEn : current.nameKr;
 
-  // 메뉴 항목들: 이름은 언어에 맞게, 현재 게임만 "이용중", 한국 로또는 항상 GLOBAL 태그(여기서 나가는 곳이므로)
   document.querySelectorAll('#lottoMenu [data-lotto-name-kr]').forEach(function(el){
     el.textContent = lang === 'en' ? el.dataset.lottoNameEn : el.dataset.lottoNameKr;
   });
@@ -279,54 +263,23 @@ APP.selectGame = function(code){
   APP.renderAll();
 };
 
-// ── 잭폿/현금가치: 관리자가 수정한 값이 있으면 그걸 우선 쓰고, 없으면 engine.js의 기본 스냅샷 사용 ──
-APP.JACKPOT_OVERRIDE_KEY = 'mll_global_jackpot_override';
-APP.loadJackpotOverrides = function(){
-  try { return JSON.parse(localStorage.getItem(APP.JACKPOT_OVERRIDE_KEY) || '{}'); } catch(e){ return {}; }
-};
+// ── 잭팟/스케줄: 서버 캐시에서 조회 (없으면 안전한 기본값) ──
 APP.getJackpot = function(gameCode){
-  var overrides = APP.loadJackpotOverrides();
-  var base = GLOBAL.JACKPOT_SNAPSHOT[gameCode];
-  var ov = overrides[gameCode];
-  if (!ov) return base;
-  return Object.assign({}, base, ov); // override에 있는 필드만 덮어씀(없는 필드는 기본값 유지)
+  return APP._jackpotCache[gameCode] || { jackpot_estimate: 0, cash_value: null, next_draw_date: null, fetched_at: null };
 };
-APP.saveJackpotOverride = function(gameCode, data){
-  var overrides = APP.loadJackpotOverrides();
-  overrides[gameCode] = data;
-  localStorage.setItem(APP.JACKPOT_OVERRIDE_KEY, JSON.stringify(overrides));
-};
-
-// ── 환율: 관리자가 수정한 값이 있으면 우선 사용, 없으면 engine.js의 기본 스냅샷 ──
-APP.FX_OVERRIDE_KEY = 'mll_global_fx_override';
-APP.getFx = function(){
-  try {
-    var ov = JSON.parse(localStorage.getItem(APP.FX_OVERRIDE_KEY) || 'null');
-    if (ov) return ov;
-  } catch(e){}
-  return GLOBAL.FX_SNAPSHOT;
-};
-APP.saveFxOverride = function(data){
-  localStorage.setItem(APP.FX_OVERRIDE_KEY, JSON.stringify(data));
-};
-// GLOBAL.toKrw/fmtKrw는 GLOBAL.FX_SNAPSHOT을 직접 참조하므로, override가 있으면 그 값을 GLOBAL.FX_SNAPSHOT에 덮어써서
-// 엔진의 모든 환산 로직이 자동으로 최신 환율을 쓰게 한다 (페이지 시작 시 1회 동기화).
-APP.syncFxToEngine = function(){
-  var fx = APP.getFx();
-  GLOBAL.FX_SNAPSHOT.USD_KRW = fx.USD_KRW;
-  GLOBAL.FX_SNAPSHOT.EUR_KRW = fx.EUR_KRW;
-  GLOBAL.FX_SNAPSHOT.asOf = fx.asOf;
+APP.getSchedule = function(gameCode){
+  return APP._scheduleCache[gameCode] || null;
 };
 
 APP.gameLiveStats = function(gameCode){
-  var deadline = GLOBAL.getRealDeadlineMs(gameCode);
-  var reopen = GLOBAL.getRealReopenMs(gameCode);
+  var schedule = APP.getSchedule(gameCode);
+  var deadlineMs = schedule ? new Date(schedule.registration_deadline_utc).getTime() : null;
   var jackpot = APP.getJackpot(gameCode);
-  return { deadlineMs: deadline, reopenMs: reopen, jackpot: jackpot };
+  return { deadlineMs: deadlineMs, jackpot: jackpot, schedule: schedule };
 };
 
 APP.formatCountdown = function(ms){
-  if (ms <= 0) return '00:00:00';
+  if (ms === null || ms === undefined || ms <= 0) return '00:00:00';
   var totalSec = Math.floor(ms/1000);
   var hh = Math.floor(totalSec/3600);
   var mm = Math.floor((totalSec%3600)/60);
@@ -343,10 +296,11 @@ APP.renderGameTabs = function(){
     var drawLabel = lang === 'en' ? g.drawDaysLabelEn : g.drawDaysLabelKr;
     var live = APP.gameLiveStats(g.code);
     var jp = live.jackpot;
+    var jpLabel = jp.jackpot_estimate ? ('$' + Number(jp.jackpot_estimate).toLocaleString()) : '-';
     return '<div class="game-tab' + (active ? ' active' : '') + '" style="--tab-accent:' + g.accent + ';" onclick="APP.selectGame(\'' + g.code + '\')">' +
       '<div class="gname"><span class="dot"></span>' + name + '<button class="help-btn" onclick="event.stopPropagation();APP.openHelp(\'' + g.code + '\')" title="?">?</button></div>' +
       '<div class="gsub">' + g.mainPickCount + '/' + g.mainPoolSize + ' + ' + g.subPickCount + '/' + g.subPoolSize + ' · ' + drawLabel + '</div>' +
-      '<div class="gtab-live"><span class="gtl-dot"></span><span class="font-num gtab-jackpot">' + jp.amountLabel + '</span> · <span class="font-num" data-live-cd="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</span></div>' +
+      '<div class="gtab-live"><span class="gtl-dot"></span><span class="font-num gtab-jackpot">' + jpLabel + '</span> · <span class="font-num" data-live-cd="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</span></div>' +
     '</div>';
   }).join('');
   document.getElementById('gameTabs').innerHTML = html;
@@ -358,44 +312,39 @@ APP.renderInfoCard = function(){
   var lang = APP.state.lang;
   var subLabel = lang === 'en' ? g.subLabelEn : g.subLabelKr;
   var drawLabel = lang === 'en' ? g.drawDaysLabelEn : g.drawDaysLabelKr;
-  var nextDraw = GLOBAL.getNextDrawDate(g.code);
   var matrixStr = g.mainPickCount + '/' + g.mainPoolSize + ' + ' + g.subPickCount + '/' + g.subPoolSize + ' (' + subLabel + ')';
   var live = APP.gameLiveStats(g.code);
   var jp = live.jackpot;
+  var nextDrawDisplay = live.schedule ? live.schedule.draw_date : '-';
 
   document.getElementById('infoCard').innerHTML =
     '<div class="info-item"><div class="k">' + APP.t('info_matrix') + '</div><div class="v accent">' + matrixStr + '</div></div>' +
     '<div class="info-item"><div class="k">' + APP.t('info_draw') + '</div><div class="v">' + drawLabel + '</div></div>' +
     '<div class="info-item"><div class="k">' + APP.t('info_grades') + '</div><div class="v">' + g.grades.length + '</div></div>' +
     '<div class="info-item"><div class="k">' + APP.t('info_odds') + '</div><div class="v">' + g.jackpotOdds + '</div></div>' +
-    '<div class="info-item"><div class="k">' + APP.t('info_next') + '</div><div class="v accent">' + nextDraw + '</div></div>';
+    '<div class="info-item"><div class="k">' + APP.t('info_next') + '</div><div class="v accent">' + nextDrawDisplay + '</div></div>';
 
-  var deadlineBi = GLOBAL.formatDeadlineBilingual(live.deadlineMs, g.cutoffTz, lang);
-  var reopenBi = GLOBAL.formatDeadlineBilingual(live.reopenMs, g.cutoffTz, lang);
-  var krwAmount = GLOBAL.fmtKrw(jp.amountValue, jp.currency);
-  var cashLine = jp.cashLabel ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': ' + jp.cashLabel + ' (' + GLOBAL.fmtKrw(jp.cashValue, jp.currency) + ' ' + APP.t('krw_equiv') + ')</div>') : '';
+  var deadlineBi = live.deadlineMs ? GLOBAL.formatDeadlineBilingual(live.deadlineMs, g.cutoffTz, lang) : { local:'-', kst:'-' };
+  var jpAmountLabel = jp.jackpot_estimate ? ('$' + Number(jp.jackpot_estimate).toLocaleString()) : '-';
+  var cashLine = jp.cash_value ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': $' + Number(jp.cash_value).toLocaleString() + '</div>') : '';
+  var asOfLine = jp.fetched_at ? new Date(jp.fetched_at).toLocaleString(lang==='en'?'en-US':'ko-KR') : '-';
 
   document.getElementById('liveBar').innerHTML =
     '<div class="live-stat live-stat-wide">' +
       '<div class="ls-label"><span class="ls-dot"></span>' + APP.t('live_real_jackpot') + ' (' + (lang==='en'?g.nameEn:g.nameKr) + ')</div>' +
-      '<div class="ls-val font-num">' + jp.amountLabel + '<span class="ls-unit">(' + krwAmount + ' ' + APP.t('krw_equiv') + ')</span></div>' +
+      '<div class="ls-val font-num">' + jpAmountLabel + '</div>' +
       cashLine +
-      '<div class="ls-asof">' + APP.t('live_as_of') + ': ' + jp.asOf + ' · FX ' + APP.t('live_as_of') + ' ' + GLOBAL.FX_SNAPSHOT.asOf + '</div>' +
+      '<div class="ls-asof">' + APP.t('live_as_of') + ': ' + asOfLine + '</div>' +
     '</div>' +
     '<div class="live-stat">' +
       '<div class="ls-label">' + APP.t('live_deadline') + '</div>' +
       '<div class="ls-val cd font-num" data-live-cd-big="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</div>' +
       '<div class="ls-sub">' + APP.t('live_local') + ': ' + deadlineBi.local + '</div>' +
       '<div class="ls-sub">' + APP.t('live_kst') + ': ' + deadlineBi.kst + '</div>' +
-    '</div>' +
-    '<div class="live-stat">' +
-      '<div class="ls-label">' + APP.t('live_reopen') + ' (' + APP.t('live_approx') + ')</div>' +
-      '<div class="ls-sub">' + APP.t('live_local') + ': ' + reopenBi.local + '</div>' +
-      '<div class="ls-sub">' + APP.t('live_kst') + ': ' + reopenBi.kst + '</div>' +
     '</div>';
 };
 
-// ── 실시간 카운트다운 1초마다 갱신 (전체 리렌더 없이 텍스트만 갱신해 깜빡임 방지) ──
+// ── 실시간 카운트다운 1초마다 갱신 ──
 APP.startLiveTicker = function(){
   if (APP._liveTickerStarted) return;
   APP._liveTickerStarted = true;
@@ -408,6 +357,12 @@ APP.startLiveTicker = function(){
       if (bigCd) bigCd.textContent = cdStr;
     });
   }, 1000);
+  // 서버 데이터(잭팟/스케줄)는 5분마다 재조회 (실시간에 가깝게, 과도한 호출은 피함)
+  setInterval(async function(){
+    await Promise.all([APP.refreshJackpot(), APP.refreshSchedule()]);
+    APP.renderGameTabs();
+    APP.renderInfoCard();
+  }, 5 * 60 * 1000);
 };
 
 APP.renderSectionTabs = function(){
@@ -430,7 +385,7 @@ APP.renderSectionBody = function(){
   if (APP.state.section === 'register') body.innerHTML = APP.registerHtml();
   else if (APP.state.section === 'my') body.innerHTML = APP.myEntriesHtml();
   else if (APP.state.section === 'stats') body.innerHTML = APP.statsHtml();
-  else if (APP.state.section === 'admin') body.innerHTML = APP.adminHtml();
+  else if (APP.state.section === 'admin') body.innerHTML = APP.adminMovedHtml();
 
   if (APP.state.section === 'register') APP.bindRegisterEvents();
 };
@@ -497,7 +452,7 @@ APP.registerHtml = function(){
       '<input type="number" class="cnt-in" id="autoCount" value="1" min="1" max="100">' +
       '<button class="btn btn-auto" id="autoBtn">✦ ' + APP.t('auto_btn') + '</button>' +
       '<button class="btn btn-outline" id="resetBtn">↺ ' + APP.t('reset_btn') + '</button>' +
-      '<button class="btn btn-gold" id="registerBtn" style="margin-left:auto;" ' + (canRegister?'':'disabled') + '>' + APP.t('register_btn') + ' (' + g.pricePerGame + 'P)</button>' +
+      '<button class="btn btn-gold" id="registerBtn" style="margin-left:auto;" ' + (canRegister?'':'disabled') + '>' + APP.t('register_btn') + '</button>' +
     '</div>' +
   '</div>';
 };
@@ -554,8 +509,30 @@ APP.shuffle = function(arr){
   return a;
 };
 
+// ── 미로그인 상태에서 등록 시도 시: 안내 + "로그인하러 가기" 버튼으로 유도 ──
+// (등록확인 모달을 재사용 - 버튼 텍스트/동작만 이 경우에 맞게 바꿔치기)
+APP.promptLogin = function(){
+  document.getElementById('confirmTitle').textContent = APP.t('need_login_title');
+  document.getElementById('confirmBody').textContent = APP.t('need_login');
+
+  var confirmBtn = document.getElementById('t_confirmBtn');
+  confirmBtn.textContent = APP.t('go_to_login');
+  confirmBtn.onclick = function(){
+    var returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = 'login.html?redirect=' + returnTo;
+  };
+  document.getElementById('t_cancelBtn').textContent = APP.t('cancel_btn');
+  document.getElementById('confirmModal').classList.add('show');
+};
+
 // ── 등록 확인 모달 ──
 APP.openConfirm = function(){
+  var state = MLL.getAuthState();
+  if (!state.type) {
+    APP.promptLogin();
+    return;
+  }
+
   var g = GLOBAL.GAMES[APP.state.gameCode];
   var s = APP.state;
   var mainAll = s.mainSel.concat(s.mainAuto);
@@ -564,20 +541,31 @@ APP.openConfirm = function(){
     alert(APP.t('select_all_numbers'));
     return;
   }
-  var pt = APP.getPoints();
-  if (pt.balance < g.pricePerGame) {
+  if ((APP._pointsCache.balance || 0) < 1) {
     alert(APP.t('insufficient_points'));
     return;
   }
+
+  var schedule = APP.getSchedule(g.code);
+  if (!schedule) {
+    alert(APP.t('select_all_numbers')); // 등록 가능 회차 없음 - 별도 문구 STR에 추가 가능
+    return;
+  }
+
+  // 이 모달이 promptLogin()에 의해 "로그인하러 가기"로 바뀌어 있었을 수 있으니,
+  // 정상 등록 확인 흐름으로 버튼 텍스트/동작을 원래대로 복원한다.
+  var confirmBtn = document.getElementById('t_confirmBtn');
+  confirmBtn.textContent = APP.t('confirm_btn');
+  confirmBtn.onclick = APP.confirmRegister;
+
   document.getElementById('confirmTitle').textContent = APP.t('confirm_title');
   var lang = APP.state.lang;
   var gname = lang === 'en' ? g.nameEn : g.nameKr;
-  var nextDraw = GLOBAL.getNextDrawDate(g.code);
   var mainStr = mainAll.slice().sort(function(a,b){return a-b;}).join(', ');
   var subStr = subAll.slice().sort(function(a,b){return a-b;}).join(', ');
   var bodyText = lang === 'en'
-    ? gname + ' \u2014 Draw ' + nextDraw + '\nMain: ' + mainStr + '\nBonus: ' + subStr + '\n\nThis will deduct ' + g.pricePerGame + ' point(s) from your balance.'
-    : gname + ' \u2014 ' + nextDraw + ' 추첨\n본번호: ' + mainStr + '\n보조번호: ' + subStr + '\n\n이 등록으로 ' + g.pricePerGame + '포인트가 차감됩니다.';
+    ? gname + ' \u2014 Draw ' + schedule.draw_date + '\nMain: ' + mainStr + '\nBonus: ' + subStr + '\n\nThis will deduct points from your balance.'
+    : gname + ' \u2014 ' + schedule.draw_date + ' 추첨\n본번호: ' + mainStr + '\n보조번호: ' + subStr + '\n\n등록 시 포인트가 차감됩니다.';
   document.getElementById('confirmBody').textContent = bodyText;
   document.getElementById('confirmModal').classList.add('show');
 };
@@ -591,11 +579,9 @@ APP.openHelp = function(gameCode){
   document.getElementById('helpTitle').textContent = name + APP.t('help_title_suffix');
   document.getElementById('helpBody').textContent = lang === 'en' ? g.helpEn : g.helpKr;
 
-  var priceKrw = GLOBAL.fmtKrw(g.ticketPriceValue, g.ticketPriceCurrency);
   document.getElementById('helpTicketPrice').innerHTML =
     '<span class="ls-label" style="display:inline;">' + APP.t('help_ticket_price') + '</span> ' +
-    '<span class="font-num" style="font-weight:700;color:var(--game-accent);">' + g.ticketPriceLabel + '</span>' +
-    ' <span style="color:var(--text-dim);font-size:11.5px;">(' + priceKrw + ' ' + APP.t('krw_equiv') + ')</span>';
+    '<span class="font-num" style="font-weight:700;color:var(--game-accent);">' + g.ticketPriceLabel + '</span>';
 
   var rows = g.grades.map(function(gr){
     var label = lang === 'en' ? gr.labelEn : gr.labelKr;
@@ -615,50 +601,79 @@ APP.openHelp = function(gameCode){
 };
 APP.closeHelp = function(){ document.getElementById('helpModal').classList.remove('show'); };
 
+// ── 등록 확정: 서버 API 호출 (POST /api/global/tickets) ──
 APP.confirmRegister = async function(){
   var g = GLOBAL.GAMES[APP.state.gameCode];
   var s = APP.state;
   var mainAll = s.mainSel.concat(s.mainAuto).sort(function(a,b){return a-b;});
   var subAll = s.subSel.concat(s.subAuto).sort(function(a,b){return a-b;});
   var inputMethod = (s.mainAuto.length===0 && s.subAuto.length===0) ? 'MANUAL' : (s.mainSel.length===0 && s.subSel.length===0) ? 'AUTO' : 'SEMI_AUTO';
-  var nextDraw = GLOBAL.getNextDrawDate(g.code);
 
-  // 실제 서버 포인트 차감 (미인증/포인트부족 시 공통 안내 모달은 자동으로 뜸)
-  var spendResult = await MLL.spendPoints('global_lotto_game', g.pricePerGame);
-  if (!spendResult.success) {
-    APP.closeConfirm();
-    if (!spendResult.needAuth && !spendResult.insufficientPoints) {
-      alert(spendResult.message || APP.t('insufficient_points'));
+  var state = MLL.getAuthState();
+  if (!state.type) { alert(APP.t('need_login')); APP.closeConfirm(); return; }
+
+  var confirmBtn = document.getElementById('t_confirmBtn');
+  var originalText = confirmBtn.textContent;
+  confirmBtn.textContent = '...';
+  confirmBtn.disabled = true;
+
+  try {
+    var body = {
+      game_code: g.code,
+      main_numbers: mainAll,
+      bonus_numbers: subAll,
+      input_method: inputMethod,
+      is_public: false
+    };
+    if (state.type === 'guest') { body.nickname = state.nickname; body.email = state.email; }
+
+    var resp = await fetch(MLL.API_BASE + '/api/global/tickets', {
+      method: 'POST',
+      headers: _appAuthHeaders(state),
+      body: JSON.stringify(body)
+    });
+    var data = await resp.json();
+
+    if (!resp.ok) {
+      if (resp.status === 402) {
+        alert(APP.t('insufficient_points'));
+      } else {
+        alert(data.error || APP.t('select_all_numbers'));
+      }
+      return;
     }
-    return;
+
+    APP.closeConfirm();
+    APP.resetSelection();
+    alert(APP.t('register_success'));
+    await Promise.all([APP.refreshPoints(), APP.refreshEntries()]);
+    APP.renderAll();
+  } catch(e) {
+    console.error('[APP] 등록 오류:', e);
+    alert(APP.t('select_all_numbers'));
+  } finally {
+    confirmBtn.textContent = originalText;
+    confirmBtn.disabled = false;
   }
-
-  APP.addEntry({
-    gameCode: g.code,
-    drawDate: nextDraw,
-    mainNumbers: mainAll,
-    subNumbers: subAll,
-    inputMethod: inputMethod,
-    registeredAt: Date.now()
-  });
-
-  APP.closeConfirm();
-  APP.resetSelection();
-  alert(APP.t('register_success'));
-  APP.renderAll();
-  APP.refreshPointsBalance();
 };
 
 // =====================================================
-// 내 등록현황
+// 내 등록현황 (서버 데이터 - 결과 채점은 서버가 이미 계산해서 내려줌)
 // =====================================================
 APP.myFilterGame = 'ALL';
 APP.setMyFilter = function(v){ APP.myFilterGame = v; APP.renderSectionBody(); };
 
 APP.myEntriesHtml = function(){
   var lang = APP.state.lang;
-  var entries = APP.loadEntries().slice().sort(function(a,b){ return b.registeredAt - a.registeredAt; });
-  if (APP.myFilterGame !== 'ALL') entries = entries.filter(function(e){ return e.gameCode === APP.myFilterGame; });
+  var state = MLL.getAuthState();
+  if (!state.type) {
+    var returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+    return '<div class="card"><div class="empty-state">' + APP.t('need_login') +
+      '<br><a href="login.html?redirect=' + returnTo + '" class="btn btn-gold" style="display:inline-block;margin-top:12px;">' + APP.t('go_to_login') + '</a></div></div>';
+  }
+
+  var entries = APP._entriesCache.slice();
+  if (APP.myFilterGame !== 'ALL') entries = entries.filter(function(e){ return e.game_code === APP.myFilterGame; });
 
   var filterHtml = '<div class="action-row" style="margin-bottom:14px;">' +
     '<select class="cnt-in" style="width:auto;padding:8px 12px;" onchange="APP.setMyFilter(this.value)">' +
@@ -675,22 +690,21 @@ APP.myEntriesHtml = function(){
   }
 
   var rows = entries.map(function(e){
-    var g = GLOBAL.GAMES[e.gameCode];
+    var g = GLOBAL.GAMES[e.game_code];
     var gname = lang==='en' ? g.nameEn : g.nameKr;
     var gradeHtml;
-    if (!e.graded) gradeHtml = '<span class="grade-tag lose">' + APP.t('pending') + '</span>';
-    else if (e.grade > 0) gradeHtml = '<span class="grade-tag win">' + GLOBAL.gradeLabel(e.gameCode, e.grade, lang) + '</span>';
-    else gradeHtml = '<span class="grade-tag lose">' + GLOBAL.gradeLabel(e.gameCode, 0, lang) + '</span>';
-    var d = new Date(e.registeredAt);
-    var regStr = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if (e.prize_tier === null || e.prize_tier === undefined) gradeHtml = '<span class="grade-tag lose">' + APP.t('pending') + '</span>';
+    else if (e.prize_tier > 0) gradeHtml = '<span class="grade-tag win">' + GLOBAL.gradeLabel(e.game_code, e.prize_tier, lang) + '</span>';
+    else gradeHtml = '<span class="grade-tag lose">' + GLOBAL.gradeLabel(e.game_code, 0, lang) + '</span>';
+    var regStr = e.registered_at ? e.registered_at.slice(0,10) : '-';
     return '<tr>' +
-      '<td class="font-num">' + e.drawDate + '</td>' +
+      '<td class="font-num">' + (e.draw_date || '-') + '</td>' +
       '<td>' + gname + '</td>' +
-      '<td class="font-num">' + e.mainNumbers.join(', ') + '</td>' +
-      '<td class="font-num">' + e.subNumbers.join(', ') + '</td>' +
-      '<td>' + e.inputMethod + '</td>' +
+      '<td class="font-num">' + (e.main_numbers||[]).join(', ') + '</td>' +
+      '<td class="font-num">' + (e.bonus_numbers||[]).join(', ') + '</td>' +
+      '<td>' + e.input_method + '</td>' +
       '<td>' + gradeHtml + '</td>' +
-      '<td class="font-num">' + (e.prizeAmount ? e.prizeAmount.toLocaleString() : '-') + '</td>' +
+      '<td class="font-num">' + (e.prize_amount ? Number(e.prize_amount).toLocaleString() : '-') + '</td>' +
       '<td class="font-num">' + regStr + '</td>' +
     '</tr>';
   }).join('');
@@ -705,19 +719,19 @@ APP.myEntriesHtml = function(){
 };
 
 // =====================================================
-// 통계
+// 통계 (서버에서 받은 entries 캐시 기반 집계)
 // =====================================================
 APP.statsHtml = function(){
   var lang = APP.state.lang;
-  var entries = APP.loadEntries();
+  var entries = APP._entriesCache;
   var byGame = {};
   GLOBAL.gameList().forEach(function(g){ byGame[g.code] = { total:0, win:0, pointsUsed:0 }; });
   entries.forEach(function(e){
-    var b = byGame[e.gameCode];
+    var b = byGame[e.game_code];
     if (!b) return;
     b.total++;
-    b.pointsUsed += GLOBAL.GAMES[e.gameCode].pricePerGame;
-    if (e.graded && e.grade > 0) b.win++;
+    b.pointsUsed += 1; // 등록 1건당 1P (관리자 설정에 따라 실제 값은 달라질 수 있음 - 통계는 근사치)
+    if (e.prize_tier && e.prize_tier > 0) b.win++;
   });
 
   var statBoxes = GLOBAL.gameList().map(function(g){
@@ -731,11 +745,10 @@ APP.statsHtml = function(){
     '</div>';
   }).join('');
 
-  var maxTotal = Math.max(1, Math.max.apply(null, GLOBAL.gameList().map(function(g){ return byGame[g.code].total; })));
   var compareRows = GLOBAL.gameList().map(function(g){
     var b = byGame[g.code];
     var rate = b.total ? (b.win / b.total * 100) : 0;
-    var widthPct = Math.max(4, rate); // 최소 보이도록
+    var widthPct = Math.max(4, rate);
     var nm = lang==='en' ? g.nameEn : g.nameKr;
     return '<div class="compare-row">' +
       '<div class="clabel">' + nm + '</div>' +
@@ -750,215 +763,15 @@ APP.statsHtml = function(){
 };
 
 // =====================================================
-// 관리자 - 추첨결과 입력 + 자동채점
+// 관리자 - 이제 별도 화면(global_lotto_admin_entry.html)으로 이동
 // =====================================================
-APP.adminLoggedIn = false;
-
-APP.adminHtml = function(){
-  if (!APP.adminLoggedIn) {
-    var savedSession = sessionStorage.getItem(APP.STORAGE.ADMIN_SESSION);
-    if (savedSession === '1') APP.adminLoggedIn = true;
-  }
-  if (!APP.adminLoggedIn) {
-    return '<div class="card"><div class="admin-lock">' +
-      '<div>' + APP.t('admin_pw_label') + '</div>' +
-      '<input type="password" id="adminPwInput" onkeydown="if(event.key===\'Enter\')APP.adminLogin();">' +
-      '<button class="btn btn-gold" onclick="APP.adminLogin()">' + APP.t('admin_login') + '</button>' +
-    '</div></div>';
-  }
-
-  var g = GLOBAL.GAMES[APP.state.gameCode];
-  var lang = APP.state.lang;
-  var nextDraw = GLOBAL.getNextDrawDate(g.code);
-  var jp = APP.getJackpot(g.code);
-  var fx = APP.getFx();
-
-  var mainInputs = '';
-  for (var i=0;i<g.mainPickCount;i++) mainInputs += '<input type="number" class="cnt-in admin-main-input" min="1" max="' + g.mainPoolSize + '" style="width:54px;">';
-  var subInputs = '';
-  for (var j=0;j<g.subPickCount;j++) subInputs += '<input type="number" class="cnt-in admin-sub-input" min="1" max="' + g.subPoolSize + '" style="width:54px;">';
-
-  var draws = APP.loadDraws();
-  var historyRows = Object.keys(draws).filter(function(k){ return k.indexOf(g.code+'_')===0; })
-    .sort().reverse().slice(0,10).map(function(k){
-      var d = draws[k];
-      return '<tr class="history-row" onclick="APP.openResultPopup(\'' + g.code + '\',\'' + d.drawDate + '\')"><td>' + d.drawDate + '</td><td class="font-num">' + d.mainNumbers.join(', ') + '</td><td class="font-num">' + d.subNumbers.join(', ') + '</td></tr>';
-    }).join('');
-
-  return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">' +
-    '<div style="font-size:12.5px;color:var(--text-dim);">' + APP.t('admin_logged_in_as') + '</div>' +
-    '<button class="btn btn-outline" onclick="APP.adminLogout()">' + APP.t('admin_logout') + '</button>' +
-  '</div>' +
-  '<div class="card">' +
-    '<h3>' + (lang==='en'?g.nameEn:g.nameKr) + ' \u2014 ' + APP.t('admin_jackpot_title') + '</h3>' +
-    '<div class="grid-label"><span class="glabel">' + APP.t('admin_jackpot_amount') + ' (' + jp.currency + ')</span></div>' +
-    '<div class="action-row" style="margin-bottom:12px;">' +
-      '<input type="text" class="cnt-in" id="adminJpAmountLabel" style="width:160px;" value="' + jp.amountLabel + '" placeholder="$348 Million">' +
-      '<input type="number" class="cnt-in" id="adminJpAmountValue" style="width:160px;" value="' + jp.amountValue + '" placeholder="348000000">' +
-    '</div>' +
-    '<div class="grid-label"><span class="glabel">' + APP.t('admin_jackpot_cash') + '</span></div>' +
-    '<div class="action-row" style="margin-bottom:12px;">' +
-      '<input type="text" class="cnt-in" id="adminJpCashLabel" style="width:160px;" value="' + (jp.cashLabel||'') + '" placeholder="$157.5 Million">' +
-      '<input type="number" class="cnt-in" id="adminJpCashValue" style="width:160px;" value="' + (jp.cashValue||'') + '" placeholder="157500000">' +
-    '</div>' +
-    '<div class="grid-label"><span class="glabel">' + APP.t('admin_jackpot_asof') + '</span></div>' +
-    '<div class="action-row" style="margin-bottom:16px;">' +
-      '<input type="text" class="cnt-in" id="adminJpAsOf" style="width:240px;" value="' + jp.asOf + '" placeholder="2026-06-28 09:00 (ET)">' +
-    '</div>' +
-    '<button class="btn btn-gold" onclick="APP.adminSaveJackpot()">' + APP.t('admin_save_jackpot') + '</button>' +
-    '<div class="ls-asof" style="margin-top:10px;">' + APP.t('admin_jackpot_hint') + '</div>' +
-  '</div>' +
-  '<div class="card">' +
-    '<h3>' + APP.t('admin_fx_title') + '</h3>' +
-    '<div class="grid-label"><span class="glabel">USD → KRW</span></div>' +
-    '<div class="action-row" style="margin-bottom:12px;">' +
-      '<input type="number" class="cnt-in" id="adminFxUsd" style="width:120px;" value="' + fx.USD_KRW + '" step="0.01">' +
-    '</div>' +
-    '<div class="grid-label"><span class="glabel">EUR → KRW</span></div>' +
-    '<div class="action-row" style="margin-bottom:12px;">' +
-      '<input type="number" class="cnt-in" id="adminFxEur" style="width:120px;" value="' + fx.EUR_KRW + '" step="0.01">' +
-    '</div>' +
-    '<div class="grid-label"><span class="glabel">' + APP.t('admin_jackpot_asof') + '</span></div>' +
-    '<div class="action-row" style="margin-bottom:16px;">' +
-      '<input type="text" class="cnt-in" id="adminFxAsOf" style="width:240px;" value="' + fx.asOf + '" placeholder="2026-06-28">' +
-    '</div>' +
-    '<button class="btn btn-gold" onclick="APP.adminSaveFx()">' + APP.t('admin_save_fx') + '</button>' +
-    '<div class="ls-asof" style="margin-top:10px;">' + APP.t('admin_fx_hint') + '</div>' +
-  '</div>' +
-  '<div class="card">' +
-    '<h3>' + (lang==='en'?g.nameEn:g.nameKr) + ' \u2014 ' + APP.t('admin_draw_date') + '</h3>' +
-    '<div class="action-row" style="margin-bottom:16px;">' +
-      '<input type="date" class="cnt-in" id="adminDrawDate" style="width:140px;" value="' + nextDraw + '">' +
-    '</div>' +
-    '<div class="grid-label"><span class="glabel">' + APP.t('main_label') + '</span></div>' +
-    '<div class="action-row" style="margin-bottom:16px;">' + mainInputs + '</div>' +
-    '<div class="grid-label"><span class="glabel">' + (lang==='en'?g.subLabelEn:g.subLabelKr) + '</span></div>' +
-    '<div class="action-row" style="margin-bottom:20px;">' + subInputs + '</div>' +
-    '<button class="btn btn-gold" onclick="APP.adminSaveResult()">' + APP.t('admin_save_result') + '</button>' +
-  '</div>' +
-  '<div class="card"><h3>' + APP.t('admin_history') + '</h3>' +
-    (historyRows ? '<table class="data-table"><thead><tr><th>' + APP.t('th_draw') + '</th><th>' + APP.t('th_main') + '</th><th>' + APP.t('th_sub') + '</th></tr></thead><tbody>' + historyRows + '</tbody></table>' : '<div class="empty-state">-</div>') +
+APP.adminMovedHtml = function(){
+  return '<div class="card">' +
+    '<h3>' + APP.t('admin_moved_title') + '</h3>' +
+    '<p style="font-size:13px;color:var(--text-dim);line-height:1.6;">' + APP.t('admin_moved_body') + '</p>' +
+    '<a href="global_lotto_admin_entry.html" target="_blank" class="btn btn-gold" style="display:inline-block;margin-top:10px;">' + APP.t('admin_moved_link') + '</a>' +
   '</div>';
 };
 
-APP.adminLogin = function(){
-  var pw = document.getElementById('adminPwInput').value;
-  if (pw !== APP.ADMIN_PW) { alert(APP.t('admin_wrong_pw')); return; }
-  APP.adminLoggedIn = true;
-  sessionStorage.setItem(APP.STORAGE.ADMIN_SESSION, '1');
-  APP.renderSectionBody();
-};
-
-APP.adminLogout = function(){
-  APP.adminLoggedIn = false;
-  sessionStorage.removeItem(APP.STORAGE.ADMIN_SESSION);
-  APP.renderSectionBody();
-};
-
-APP.adminSaveJackpot = function(){
-  var g = GLOBAL.GAMES[APP.state.gameCode];
-  var amountLabel = document.getElementById('adminJpAmountLabel').value.trim();
-  var amountValue = parseFloat(document.getElementById('adminJpAmountValue').value);
-  var cashLabel = document.getElementById('adminJpCashLabel').value.trim();
-  var cashValueRaw = document.getElementById('adminJpCashValue').value;
-  var asOf = document.getElementById('adminJpAsOf').value.trim();
-
-  if (!amountLabel || isNaN(amountValue) || !asOf) { alert(APP.t('select_all_numbers')); return; }
-
-  APP.saveJackpotOverride(g.code, {
-    amountLabel: amountLabel,
-    amountValue: amountValue,
-    cashLabel: cashLabel || null,
-    cashValue: cashValueRaw ? parseFloat(cashValueRaw) : null,
-    asOf: asOf,
-    currency: GLOBAL.JACKPOT_SNAPSHOT[g.code].currency
-  });
-  alert(APP.t('admin_jackpot_saved'));
-  APP.renderAll();
-};
-
-APP.adminSaveFx = function(){
-  var usd = parseFloat(document.getElementById('adminFxUsd').value);
-  var eur = parseFloat(document.getElementById('adminFxEur').value);
-  var asOf = document.getElementById('adminFxAsOf').value.trim();
-  if (isNaN(usd) || isNaN(eur) || !asOf) { alert(APP.t('select_all_numbers')); return; }
-
-  APP.saveFxOverride({ USD_KRW: usd, EUR_KRW: eur, asOf: asOf });
-  APP.syncFxToEngine();
-  alert(APP.t('admin_jackpot_saved'));
-  APP.renderAll();
-};
-
-APP.adminSaveResult = function(){
-  var g = GLOBAL.GAMES[APP.state.gameCode];
-  var drawDate = document.getElementById('adminDrawDate').value;
-  if (!drawDate) return;
-
-  var mainVals = Array.prototype.map.call(document.querySelectorAll('.admin-main-input'), function(el){ return parseInt(el.value); });
-  var subVals = Array.prototype.map.call(document.querySelectorAll('.admin-sub-input'), function(el){ return parseInt(el.value); });
-
-  if (mainVals.some(isNaN) || mainVals.length !== g.mainPickCount) { alert(APP.t('select_all_numbers')); return; }
-  if (subVals.some(isNaN) || subVals.length !== g.subPickCount) { alert(APP.t('select_all_numbers')); return; }
-
-  var draws = APP.loadDraws();
-  var key = APP.drawKey(g.code, drawDate);
-  if (draws[key] && !confirm(APP.t('admin_already'))) return;
-
-  draws[key] = { gameCode:g.code, drawDate:drawDate, mainNumbers:mainVals.slice().sort(function(a,b){return a-b;}), subNumbers:subVals.slice().sort(function(a,b){return a-b;}), enteredAt:Date.now() };
-  APP.saveDraws(draws);
-
-  // 자동채점: 해당 (게임, 추첨일)의 모든 entries 채점
-  var entries = APP.loadEntries();
-  var gradedCount = 0;
-  entries.forEach(function(e){
-    if (e.gameCode === g.code && e.drawDate === drawDate) {
-      var grade = GLOBAL.gradeEntry(g.code, e.mainNumbers, e.subNumbers, draws[key].mainNumbers, draws[key].subNumbers);
-      e.grade = grade;
-      e.graded = true;
-      e.prizeAmount = grade > 0 ? (g.grades.length - grade + 1) * 1000 : 0; // 가상 당첨금(등급이 높을수록 큰 금액) - 간단한 시뮬레이션용 산정
-      gradedCount++;
-    }
-  });
-  APP.saveEntries(entries);
-
-  APP.renderSectionBody();
-  APP.openResultPopup(g.code, drawDate, gradedCount); // 저장 즉시 한 장짜리 요약 팝업으로 표시 (history는 mll_global_draws에 이미 영구 저장됨)
-};
-
-// ── 추첨결과 한 장 요약 팝업 (저장 직후 자동으로 뜨거나, 히스토리 행 클릭으로 다시 열림) ──
-APP.openResultPopup = function(gameCode, drawDate, gradedCountOverride){
-  var g = GLOBAL.GAMES[gameCode];
-  var lang = APP.state.lang;
-  var draws = APP.loadDraws();
-  var d = draws[APP.drawKey(gameCode, drawDate)];
-  if (!d) return;
-
-  var gradedCount = gradedCountOverride;
-  if (gradedCount === undefined) {
-    gradedCount = APP.loadEntries().filter(function(e){ return e.gameCode===gameCode && e.drawDate===drawDate && e.graded; }).length;
-  }
-
-  function ballHtml(n, accent){ return '<span class="result-ball" style="background:' + accent + ';">' + n + '</span>'; }
-  var mainBalls = d.mainNumbers.map(function(n){ return ballHtml(n, '#444b6e'); }).join('');
-  var subBalls = d.subNumbers.map(function(n){ return ballHtml(n, g.accent); }).join('');
-  var savedAt = new Date(d.enteredAt).toLocaleString(lang==='en'?'en-US':'ko-KR');
-
-  document.getElementById('resultModalBox').innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">' +
-      '<h3>' + (lang==='en'?g.nameEn:g.nameKr) + ' \u2014 ' + APP.t('draw_result_title') + '</h3>' +
-      '<button onclick="APP.closeResultPopup()" style="background:none;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;">✕</button>' +
-    '</div>' +
-    '<p style="font-size:12px;color:var(--text-dim);margin:0 0 16px;">' + drawDate + '</p>' +
-    '<div class="result-section">' +
-      '<div class="ls-label">' + APP.t('draw_result_main') + '</div>' +
-      '<div class="result-balls">' + mainBalls + '</div>' +
-    '</div>' +
-    '<div class="result-section">' +
-      '<div class="ls-label">' + (lang==='en'?g.subLabelEn:g.subLabelKr) + '</div>' +
-      '<div class="result-balls">' + subBalls + '</div>' +
-    '</div>' +
-    '<div class="ls-asof" style="margin-top:14px;">' + gradedCount + ' ' + APP.t('draw_result_graded') + ' \u00b7 ' + savedAt + '</div>';
-
-  document.getElementById('resultModal').classList.add('show');
-};
+// ── 추첨결과 한 장 요약 팝업 (당첨자 공개리스트/히스토리 클릭 시 재사용 가능하도록 남겨둠) ──
 APP.closeResultPopup = function(){ document.getElementById('resultModal').classList.remove('show'); };
