@@ -1,37 +1,33 @@
 /**
- * Job C — 유로밀리언스 확정결과 + 실시간 잭팟 자동수집
+ * Job C — 유로밀리언스 확정결과 + 실시간 잭팟 자동수집 (v2: FDJ 프랑스 공식 사이트)
  *
- * 소스: euro-millions.com/results
- * 이 사이트 자체는 서버에서 이미 완성된 HTML을 보내주는 방식(SSR)이지만,
- * 일반 fetch()로 접속하면 계속 타임아웃(연결 자체가 응답 없음)이 발생함 -
- * Render의 클라우드 IP 대역 또는 단순 HTTP 클라이언트를 봇으로 인식해 차단하는
- * 것으로 추정됨. 그래서 파워볼과 마찬가지로 Puppeteer(실제 브라우저)로 접속해서
- * 우회한다 (2026-07-08 확인). 페이지 자체는 SSR이라 접속만 되면 파싱은 간단함.
+ * 배경: 처음 시도한 euro-millions.com은 Render 서버 IP에서의 접속 자체가 계속
+ * 막혀서(Puppeteer로도 Navigation Timeout) 포기하고, 프랑스 공식 운영사인
+ * FDJ(fdj.fr) 사이트로 전환함 (2026-07-08 확인, 접속/SSR 둘 다 정상 확인됨).
  *
- * 확인된 HTML 구조 (변경될 수 있으므로 실패 시 이 부분부터 재확인):
- *   - 최근 2개 회차가 카드 형태로 상단에 노출됨 (예: "Friday's Result - 3rd July 2026")
- *   - 메인번호: <li class="resultBall ball">2</li> x5
- *   - 럭키스타: <li class="resultBall lucky-star">1</li> x2
- *   - 확정 당첨금(그 회차 잭팟): "Jackpot:" 라벨 옆 <span class="raffle">80,220,498</span>
- *   - "Millionaire Maker" 래플 코드도 있으나 우리 스키마에 없어 저장하지 않음
+ * 소스: https://www.fdj.fr/jeux-de-tirage/euromillions-my-million/resultats
+ * 이 페이지는 SSR이라 접속만 되면 파싱은 fetch로도 충분할 수 있으나, 이전
+ * 사이트에서 겪은 IP 이슈 재발 가능성에 대비해 안전하게 Puppeteer를 그대로 사용.
  *
- * 주의: 등수별 상금표(prize_tiers, 파리뮤추얼)는 이 목록 페이지에는 없고
- * "Draw Details" 하위 페이지에 있는 것으로 보임 - 1차 버전에서는 잭팟(1등)만
- * 자동 반영하고, 2~13등 파리뮤추얼 상금표는 추후 상세페이지까지 파싱하도록
- * 확장하거나 당분간 관리자 수동입력으로 보완한다.
+ * ⚠️ FDJ는 결과를 "표"가 아니라 기사문(자연어) 형태로 제공한다. 예:
+ *   "La combinaison à laquelle a abouti ce tirage est composée des numéros
+ *    12-17-2-25-39 et les deux étoiles, le 2 et le 1."
+ *   "Pourquoi attendre ? Voici les résultats du tirage EuroMillions - My Million
+ *    du vendredi 3 juillet 2026."
+ * 그래서 CSS class가 아니라 문장 패턴(정규식)으로 번호를 추출한다 - 문구가
+ * 바뀌면 파싱이 깨질 수 있으니, 실패 시 로그에 원본 텍스트 일부를 남긴다.
  *
- * 실시간 잭팟(다음 추첨 예상액)은 같은 페이지의 "Tonight's estimated jackpot"류
- * 문구 근처에서 정규식으로 찾는다 (정확한 마크업 미확인 - 실패 시 로그에 원인 남김).
+ * 잭팟 처리 방식 (파워볼/메가밀리언스와 통일):
+ *   - FDJ 기사에서 "얼마가 당첨됐다"를 직접 파싱하지 않고, 대신 저희가 계속
+ *     쌓아온 global_lottery_jackpot_snapshot(실시간 예상액 이력)에서 "그 회차
+ *     추첨 직전 마지막 스냅샷 값"을 가져와 jackpot_won으로 채운다 (linkJackpot
+ *     함수, Job B와 동일한 방식). 이렇게 하면 복잡한 문장 파싱 없이도 안정적으로
+ *     확정 당첨금을 채울 수 있다.
+ *   - 현금가치(cash_value)는 유로밀리언스에 해당 개념이 없는 것으로 보여 null 고정.
  *
- * 실행 방식: Render Cron Job, **4시간 간격 권장** (예: schedule "0 (star)/4 * * *")
- *  - 파워볼/메가밀리언스(Job B)와 동일한 주기로 통일. 프론트엔드 카운트업
- *    애니메이션(app.js)은 "실제 갱신 사이의 진짜 경과시간" 기준으로 속도를
- *    계산하므로, 이 주기를 4시간으로 늘려도 화면에서는 계속 자연스럽게 증가함 -
- *    굳이 15분처럼 자주 돌릴 필요 없음 (비용/부하만 늘어남).
- *  - Puppeteer를 쓰므로 Job B와 마찬가지로 **Instance Type을 Standard 이상**으로
- *    설정할 것 (Starter로는 버거울 수 있음). Build Command도 Job B와 동일하게
- *    `npm install && npx puppeteer browsers install chrome` 필요,
- *    환경변수 `PUPPETEER_CACHE_DIR=/opt/render/project/.cache/puppeteer` 필요.
+ * 실행 방식: Render Cron Job, 4시간 간격 권장 (예: schedule "0 (star)/4 * * *")
+ *  - Puppeteer 사용 - Instance Type Standard 이상, Build Command/환경변수는
+ *    Job B와 동일하게 설정할 것.
  * 필요 패키지: cheerio, puppeteer, @supabase/supabase-js
  */
 
@@ -45,32 +41,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
 );
 
-const RESULTS_URL = 'https://www.euro-millions.com/results';
+const RESULTS_URL = 'https://www.fdj.fr/jeux-de-tirage/euromillions-my-million/resultats';
 
-const MONTHS = {
-  january: '01', february: '02', march: '03', april: '04', may: '05', june: '06',
-  july: '07', august: '08', september: '09', october: '10', november: '11', december: '12',
+const FRENCH_MONTHS = {
+  janvier: '01', février: '02', fevrier: '02', mars: '03', avril: '04', mai: '05',
+  juin: '06', juillet: '07', août: '08', aout: '08', septembre: '09',
+  octobre: '10', novembre: '11', décembre: '12', decembre: '12',
 };
 
-function parseOrdinalDate(text) {
-  // 예: "3rd July 2026" -> "2026-07-03"
-  const m = text.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})/i);
-  if (!m) return null;
-  const day = m[1].padStart(2, '0');
-  const month = MONTHS[m[2].toLowerCase()];
-  if (!month) return null;
-  return `${m[3]}-${month}-${day}`;
-}
-
-function moneyStrToNumber(str) {
-  return Math.round(parseFloat(String(str).replace(/,/g, '')));
-}
-
 async function fetchResultsPage() {
-  // 일반 fetch()가 계속 타임아웃되는 것으로 보아, euro-millions.com이 Render의
-  // 클라우드 IP 대역 또는 단순 HTTP 클라이언트(TLS 지문)를 봇으로 인식해
-  // 차단하고 있을 가능성이 높다. 실제 브라우저(Puppeteer)로 접속하면 우회되는
-  // 경우가 많아 이 방식으로 전환함 (2026-07-08).
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
@@ -81,11 +60,7 @@ async function fetchResultsPage() {
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
-    // SSR 사이트라 HTML 뼈대만 도착하면 필요한 데이터가 이미 다 있음.
-    // 'networkidle2'는 광고/트래킹 스크립트의 끊임없는 백그라운드 통신 때문에
-    // 영원히 만족되지 않을 수 있어, 더 가벼운 'domcontentloaded'로 완화함.
     await page.goto(RESULTS_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    // 사이트 자체는 SSR이지만, 혹시 모를 지연 렌더링 대비 짧게 대기
     await new Promise((resolve) => setTimeout(resolve, 2000));
     return await page.content();
   } finally {
@@ -94,136 +69,119 @@ async function fetchResultsPage() {
 }
 
 /**
- * 최근 결과 카드들(보통 2개, "Tuesday's Result" / "Friday's Result")을 파싱한다.
+ * 기사문에서 "확정 당첨번호"를 정규식으로 추출한다.
+ * 문장 예: "...des numéros 12-17-2-25-39 et les deux étoiles, le 2 et le 1."
  */
-function parseRecentDraws(html) {
+function parseConfirmedDraw(html) {
   const $ = cheerio.load(html);
-  const draws = [];
+  const text = $('body').text().replace(/\s+/g, ' ');
 
-  // 카드 헤딩(h2 등)에 "Result -" 텍스트가 들어간 블록을 찾아 그 부모에서 번호/잭팟 추출.
-  // 정확한 부모 구조가 사이트마다 다를 수 있어, "이 헤딩이 속한 가장 가까운 큰 블록"을
-  // 넉넉하게 잡기 위해 heading의 조상 중 resultBall을 포함하는 첫 블록을 사용한다.
-  $('*').each((_, el) => {
-    const text = $(el).text();
-    if (!/Result\s*-\s*\d{1,2}(st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4}/.test(text)) return;
-    if ($(el).find('.resultBall').length === 0) return; // 번호가 없는 상위 래퍼는 스킵
-    if ($(el).find('.resultBall').length > 20) return; // 너무 큰 블록(페이지 전체 등)은 스킵
+  // 1) 당첨번호 (메인 5개 + 스타 2개)
+  const numbersMatch = text.match(
+    /num[ée]ros?\s+([\d]{1,2}(?:-[\d]{1,2}){4})\s+et\s+les\s+deux\s+[ée]toiles,?\s*le\s+(\d{1,2})\s+et\s+le\s+(\d{1,2})/i
+  );
+  if (!numbersMatch) {
+    console.warn('[EUROMILLIONS] 당첨번호 패턴을 찾지 못함 - 페이지 텍스트 일부:', text.slice(0, 400));
+    return null;
+  }
+  const mainNumbers = numbersMatch[1].split('-').map(Number).sort((a, b) => a - b);
+  const bonusNumbers = [Number(numbersMatch[2]), Number(numbersMatch[3])].sort((a, b) => a - b);
 
-    const dateMatch = text.match(/Result\s*-\s*(\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4})/);
-    const drawDate = dateMatch ? parseOrdinalDate(dateMatch[1]) : null;
-    if (!drawDate) return;
+  // 2) 추첨일 - 기사 제목 패턴: "...du tirage EuroMillions - My Million du vendredi 3 juillet 2026."
+  const dateMatch = text.match(
+    /tirage\s+EuroMillions[^.]*?du\s+\w+\s+(\d{1,2})\s+([A-Za-zéû]+)\s+(\d{4})/i
+  );
+  if (!dateMatch) {
+    console.warn('[EUROMILLIONS] 추첨일 패턴을 찾지 못함 - 페이지 텍스트 일부:', text.slice(0, 400));
+    return null;
+  }
+  const day = dateMatch[1].padStart(2, '0');
+  const month = FRENCH_MONTHS[dateMatch[2].toLowerCase()];
+  if (!month) {
+    console.warn('[EUROMILLIONS] 월 이름 인식 실패:', dateMatch[2]);
+    return null;
+  }
+  const drawDate = `${dateMatch[3]}-${month}-${day}`;
 
-    const mainNumbers = [];
-    const bonusNumbers = [];
-    $(el).find('.resultBall').each((__, ball) => {
-      const num = parseInt($(ball).text().trim(), 10);
-      if (isNaN(num)) return;
-      if ($(ball).hasClass('lucky-star')) bonusNumbers.push(num);
-      else mainNumbers.push(num);
-    });
+  if (mainNumbers.length !== 5 || bonusNumbers.length !== 2) return null;
 
-    let jackpotWon = null;
-    const jackpotLabelEl = $(el).find('*').filter((__, e) => $(e).text().trim() === 'Jackpot:').first();
-    if (jackpotLabelEl.length) {
-      // "Jackpot:" 라벨의 부모 안에서 raffle 클래스(금액) 텍스트를 찾는다
-      const amountText = jackpotLabelEl.parent().find('.raffle').last().text();
-      const amountMatch = amountText.match(/([\d,]+)/);
-      if (amountMatch) jackpotWon = moneyStrToNumber(amountMatch[1]);
-    }
-
-    if (mainNumbers.length === 5 && bonusNumbers.length === 2) {
-      // 중복 방지 (같은 카드가 여러 상위 요소에서 중복 매칭될 수 있음)
-      if (!draws.find((d) => d.draw_date === drawDate)) {
-        draws.push({ draw_date: drawDate, main_numbers: mainNumbers.sort((a, b) => a - b), bonus_numbers: bonusNumbers.sort((a, b) => a - b), jackpot_won: jackpotWon });
-      }
-    }
-  });
-
-  return draws;
+  return { draw_date: drawDate, main_numbers: mainNumbers, bonus_numbers: bonusNumbers };
 }
 
 /**
- * "오늘의 예상 잭팟" 문구를 페이지 전체 텍스트에서 정규식으로 찾는다.
- * 정확한 마크업을 모르므로, "estimated jackpot" 주변에서 €숫자(Million/Billion) 패턴을 찾는 방식.
+ * "다음 추첨 예상 잭팟" 배너 텍스트에서 금액을 추출한다.
+ * 예: "Minimum 17 millions €" 또는 단순 "17 millions €"
  */
 function parseEstimatedJackpot(html) {
   const $ = cheerio.load(html);
-  const text = $('body').text();
+  const text = $('body').text().replace(/\s+/g, ' ');
 
-  const idx = text.search(/estimated\s+jackpot/i);
-  if (idx === -1) {
-    console.warn('"estimated jackpot" 문구를 찾지 못함 - 사이트 구조 확인 필요');
+  const match = text.match(/([\d]+(?:[.,]\d+)?)\s*(millions?|milliards?)\s*€/i);
+  if (!match) {
+    console.warn('[EUROMILLIONS] 예상 잭팟 패턴을 찾지 못함 - 페이지 텍스트 일부:', text.slice(0, 400));
     return null;
   }
 
-  const window = text.slice(idx, idx + 200);
-  const match = window.match(/[€$]?\s*([\d,.]+)\s*(Million|Billion)?/i);
-  if (!match) return null;
-
-  let value = parseFloat(match[1].replace(/,/g, ''));
-  if (/Billion/i.test(match[2] || '')) value *= 1_000_000_000;
-  else if (/Million/i.test(match[2] || '')) value *= 1_000_000;
-  else return null; // 단위 없이 숫자만 잡히면 오매칭 가능성이 높아 무시
+  let value = parseFloat(match[1].replace(',', '.'));
+  if (/milliards?/i.test(match[2])) value *= 1_000_000_000;
+  else value *= 1_000_000;
 
   return Math.round(value);
 }
 
-async function saveConfirmedDraws(draws) {
-  for (const draw of draws) {
-    // 이미 저장된 회차면 건드리지 않음 (덮어쓰기로 인한 중복 대조 방지)
-    const { data: existing } = await supabase
-      .from('global_lottery_draws')
-      .select('id')
-      .eq('game_code', 'EUROMILLIONS')
-      .eq('draw_date', draw.draw_date)
-      .maybeSingle();
+async function saveConfirmedDraw(draw) {
+  const { data: existing } = await supabase
+    .from('global_lottery_draws')
+    .select('id')
+    .eq('game_code', 'EUROMILLIONS')
+    .eq('draw_date', draw.draw_date)
+    .maybeSingle();
 
-    if (existing) {
-      console.log(`[EUROMILLIONS] ${draw.draw_date} 이미 저장됨 - 스킵`);
-      continue;
-    }
-
-    const { data: schedule } = await supabase
-      .from('global_lottery_draw_schedule')
-      .select('*')
-      .eq('game_code', 'EUROMILLIONS')
-      .eq('draw_date', draw.draw_date)
-      .maybeSingle();
-
-    if (!schedule) {
-      console.warn(`[EUROMILLIONS] ${draw.draw_date} 스케줄이 없음 - Job 0이 먼저 생성해야 함, 스킵`);
-      continue;
-    }
-
-    const { data: inserted, error: insertErr } = await supabase
-      .from('global_lottery_draws')
-      .insert({
-        game_code: 'EUROMILLIONS',
-        draw_date: draw.draw_date,
-        main_numbers: draw.main_numbers,
-        bonus_numbers: draw.bonus_numbers,
-        jackpot_won: draw.jackpot_won,
-        cash_value: null, // 유로밀리언스는 현금가치 개념 없음(전액 일시불 지급으로 추정)
-        prize_tiers: null, // 1차 버전 - 등수별 상금표는 추후 상세페이지 파싱으로 보완 예정
-        source: 'euro_millions_com',
-      })
-      .select()
-      .single();
-
-    if (insertErr) {
-      console.error(`[EUROMILLIONS] ${draw.draw_date} 저장 실패:`, insertErr.message);
-      continue;
-    }
-
-    await supabase
-      .from('global_lottery_draw_schedule')
-      .update({ status: 'COMPLETED', draw_id: inserted.id })
-      .eq('id', schedule.id);
-
-    console.log(`[EUROMILLIONS] ${draw.draw_date} 확정결과 저장 완료 (jackpot=€${(draw.jackpot_won || 0).toLocaleString()})`);
-
-    await checkTicketsForSchedule(schedule.id, inserted.id, 'EUROMILLIONS');
+  if (existing) {
+    console.log(`[EUROMILLIONS] ${draw.draw_date} 이미 저장됨 - 스킵`);
+    return;
   }
+
+  const { data: schedule } = await supabase
+    .from('global_lottery_draw_schedule')
+    .select('*')
+    .eq('game_code', 'EUROMILLIONS')
+    .eq('draw_date', draw.draw_date)
+    .maybeSingle();
+
+  if (!schedule) {
+    console.warn(`[EUROMILLIONS] ${draw.draw_date} 스케줄이 없음 - Job 0이 먼저 생성해야 함, 스킵`);
+    return;
+  }
+
+  const { data: inserted, error: insertErr } = await supabase
+    .from('global_lottery_draws')
+    .insert({
+      game_code: 'EUROMILLIONS',
+      draw_date: draw.draw_date,
+      main_numbers: draw.main_numbers,
+      bonus_numbers: draw.bonus_numbers,
+      jackpot_won: null, // linkJackpotToCompletedDraws가 나중에 채움
+      cash_value: null,  // 유로밀리언스는 현금가치 개념 없음(전액 일시불로 추정)
+      prize_tiers: null, // 2~13등 파리뮤추얼 상금표는 추후 확장 또는 관리자 수동입력
+      source: 'fdj_fr',
+    })
+    .select()
+    .single();
+
+  if (insertErr) {
+    console.error(`[EUROMILLIONS] ${draw.draw_date} 저장 실패:`, insertErr.message);
+    return;
+  }
+
+  await supabase
+    .from('global_lottery_draw_schedule')
+    .update({ status: 'COMPLETED', draw_id: inserted.id })
+    .eq('id', schedule.id);
+
+  console.log(`[EUROMILLIONS] ${draw.draw_date} 확정결과 저장 완료 (번호: ${draw.main_numbers.join(',')} + ${draw.bonus_numbers.join(',')})`);
+
+  await checkTicketsForSchedule(schedule.id, inserted.id, 'EUROMILLIONS');
 }
 
 async function saveJackpotSnapshot(estimatedValue) {
@@ -245,20 +203,70 @@ async function saveJackpotSnapshot(estimatedValue) {
   }
 }
 
+/**
+ * jackpot_won이 비어있는 확정 회차에, 추첨 직전 마지막 스냅샷 값을 연결한다.
+ * (파워볼 Job B의 linkJackpotToCompletedDraws와 동일한 로직 - 문장 파싱 대신
+ *  우리가 쌓아온 잭팟 이력에서 가져오는 방식이 훨씬 안정적임)
+ */
+async function linkJackpotToCompletedDraws() {
+  const { data: draws, error } = await supabase
+    .from('global_lottery_draws')
+    .select('id, draw_date')
+    .eq('game_code', 'EUROMILLIONS')
+    .is('jackpot_won', null);
+
+  if (error) {
+    console.error('[EUROMILLIONS] 확정회차 조회 실패:', error.message);
+    return;
+  }
+  if (!draws || draws.length === 0) return;
+
+  for (const draw of draws) {
+    const { data: schedule } = await supabase
+      .from('global_lottery_draw_schedule')
+      .select('draw_datetime_utc')
+      .eq('game_code', 'EUROMILLIONS')
+      .eq('draw_date', draw.draw_date)
+      .single();
+
+    if (!schedule) continue;
+
+    const { data: lastSnapshot } = await supabase
+      .from('global_lottery_jackpot_snapshot')
+      .select('jackpot_estimate')
+      .eq('game_code', 'EUROMILLIONS')
+      .lte('fetched_at', schedule.draw_datetime_utc)
+      .order('fetched_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!lastSnapshot) continue;
+
+    await supabase
+      .from('global_lottery_draws')
+      .update({ jackpot_won: lastSnapshot.jackpot_estimate })
+      .eq('id', draw.id);
+
+    console.log(`[EUROMILLIONS] ${draw.draw_date} 잭팟 연결 완료: €${lastSnapshot.jackpot_estimate.toLocaleString()}`);
+  }
+}
+
 async function main() {
   const html = await fetchResultsPage();
 
-  const draws = parseRecentDraws(html);
-  if (draws.length === 0) {
-    console.warn('[EUROMILLIONS] 확정결과 파싱 실패 - 사이트 구조가 바뀌었을 수 있음 (관리자 수동입력으로 보완 필요)');
+  const draw = parseConfirmedDraw(html);
+  if (draw) {
+    await saveConfirmedDraw(draw);
   } else {
-    await saveConfirmedDraws(draws);
+    console.warn('[EUROMILLIONS] 확정결과 파싱 실패 - 관리자 수동입력으로 보완 필요');
   }
 
   const estimated = parseEstimatedJackpot(html);
   await saveJackpotSnapshot(estimated);
 
-  console.log('Job C (유로밀리언스 자동수집) 완료');
+  await linkJackpotToCompletedDraws();
+
+  console.log('Job C (유로밀리언스 자동수집, FDJ) 완료');
 }
 
 main().catch((err) => {
