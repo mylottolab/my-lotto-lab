@@ -171,8 +171,23 @@ router.post('/tickets', async (req, res) => {
       return res.status(409).json({ error: '지금은 등록 가능한 회차가 없습니다 (마감되었거나 준비 중입니다).' });
     }
 
-    // ── 포인트 차감 (기존 공통 로직 재사용) ──
-    const pointResult = await deductPoints(userId, 1, { actionKey: 'global_lotto_entry', refId: null });
+    // ── 포인트 차감 (point_costs 테이블에서 현재 단가를 조회 - 관리자가 admin.html에서
+    //    바꾼 값이 항상 즉시 반영되도록. 하드코딩 금지) ──
+    const { data: costRow, error: costErr } = await supabase
+      .from('point_costs')
+      .select('cost_points')
+      .eq('action_key', 'global_lotto_entry')
+      .maybeSingle();
+
+    if (costErr || !costRow) {
+      console.error('[global] point_costs 조회 오류 (global_lotto_entry):', costErr);
+      return res.status(500).json({ error: '포인트 단가 설정을 불러올 수 없습니다. 관리자에게 문의해주세요.' });
+    }
+
+    const pointResult = await deductPoints(userId, Number(costRow.cost_points), {
+      actionKey: 'global_lotto_entry',
+      refId: null,
+    });
     if (!pointResult.success) {
       return res.status(402).json({
         error: '포인트가 부족합니다. 충전해주세요.',
