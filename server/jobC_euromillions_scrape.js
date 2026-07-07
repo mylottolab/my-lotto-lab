@@ -81,9 +81,12 @@ async function fetchResultsPage() {
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
-    await page.goto(RESULTS_URL, { waitUntil: 'networkidle2', timeout: 30000 });
+    // SSR 사이트라 HTML 뼈대만 도착하면 필요한 데이터가 이미 다 있음.
+    // 'networkidle2'는 광고/트래킹 스크립트의 끊임없는 백그라운드 통신 때문에
+    // 영원히 만족되지 않을 수 있어, 더 가벼운 'domcontentloaded'로 완화함.
+    await page.goto(RESULTS_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
     // 사이트 자체는 SSR이지만, 혹시 모를 지연 렌더링 대비 짧게 대기
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     return await page.content();
   } finally {
     await browser.close();
