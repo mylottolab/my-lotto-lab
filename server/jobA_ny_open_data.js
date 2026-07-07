@@ -75,18 +75,26 @@ async function fetchConfirmedDraw(gameCode, drawDateISO) {
 
   const row = rows[0];
 
-  // ---- 2026-07-07 실제 데이터셋(d6yy-54nr) 확인 완료 ----
-  // 컬럼: draw_date, winning_numbers ("17 38 46 50 69 20" - 메인5개+파워볼 1개가
-  //       한 문자열에 공백구분으로 전부 들어있음), multiplier, double_play_winning_numbers
-  // -> jackpot(당첨금), winners(당첨자수), cash_value(현금가치)는 이 데이터셋에 없음.
-  //    번호만 여기서 가져오고, 당첨금/현금가치는 Job B(스크래핑) 또는
-  //    관리자 수동입력(admin_manual_entry.js)으로 별도 채워야 한다.
-  const numbersRaw = (row.winning_numbers || '').trim().split(/\s+/).map(Number);
+  // ---- 2026-07-07 실제 데이터셋 확인 완료 ----
+  // [파워볼 d6yy-54nr] draw_date, winning_numbers("17 38 46 50 69 20" -
+  //   메인5개+파워볼 1개가 한 문자열에 공백구분으로 전부 포함), multiplier,
+  //   double_play_winning_numbers
+  // [메가밀리언스 5xaw-6ayf] draw_date, winning_numbers("05 09 29 47 57" -
+  //   메인 5개만), mega_ball(별도 컬럼, "16" 등), multiplier
+  // -> jackpot(당첨금), winners(당첨자수), cash_value(현금가치)는 두 데이터셋
+  //    모두에 없음. 번호만 여기서 가져오고, 당첨금/현금가치는 Job B(스크래핑)
+  //    또는 관리자 수동입력(admin_manual_entry.js)으로 별도 채워야 한다.
+  let mainNumbers, bonusNumbers;
 
-  // 메가밀리언스도 동일 포맷(메인5개+메가볼 1개, 총 6개 공백구분)일 가능성이 높으나
-  // 실제 데이터셋 확인 전까지는 가정임 - 확인 후 다르면 이 부분만 조정하면 됨.
-  const mainNumbers = numbersRaw.slice(0, 5);
-  const bonusNumbers = [numbersRaw[5]];
+  if (gameCode === 'MEGAMILLIONS') {
+    mainNumbers = (row.winning_numbers || '').trim().split(/\s+/).map(Number);
+    bonusNumbers = [Number(row.mega_ball)];
+  } else {
+    // POWERBALL: winning_numbers 안에 메인5개+파워볼 1개가 전부 들어있음
+    const numbersRaw = (row.winning_numbers || '').trim().split(/\s+/).map(Number);
+    mainNumbers = numbersRaw.slice(0, 5);
+    bonusNumbers = [numbersRaw[5]];
+  }
 
   return {
     main_numbers: mainNumbers,
