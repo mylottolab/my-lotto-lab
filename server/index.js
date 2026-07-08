@@ -12,14 +12,17 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-const globalRouter = require('./routes/global');
-app.use('/api/global', globalRouter);
-
+// ⚠️ cors()는 반드시 다른 모든 app.use(라우터) 등록보다 먼저 와야 합니다.
+// (Express 미들웨어는 등록 순서대로 실행되므로, 라우터가 먼저 등록되면
+//  그 라우터로 가는 요청은 cors를 거치지 않고 응답 헤더에 CORS 허용이 빠집니다.)
 app.use(cors({ origin: '*' }));
 // 기본 100kb 제한으로는 당첨결과 전체 회차(1000회 이상) 일괄 업로드가 거절됨
 // (admin.html의 "당첨결과 엑셀 업로드" 기능이 대상) → 넉넉하게 늘림
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+const globalRouter = require('./routes/global');
+app.use('/api/global', globalRouter);
 app.use('/api/scratchpad', require('./routes/scratchpad'));
 // ─── 정적 파일 서빙 (결제 관련 HTML) ─────────────────────────────────────────
 app.use('/pay', express.static(path.join(__dirname, 'public')));
