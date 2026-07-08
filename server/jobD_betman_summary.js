@@ -95,6 +95,27 @@ function parseTableWithRowspanCarry($, table, expectedCols) {
   return rows;
 }
 
+// 원문 셀에 아이콘 문자(원문자 등)가 일반 숫자로 깨져서 붙거나, 게임명 뒤에
+// 회차 정보가 중복으로 붙어오는 경우가 있어 보기 좋게 정리한다.
+function cleanSportKr(text) {
+  if (!text) return text;
+  return text.replace(/^\d+(?=[가-힣])/, '').trim(); // 맨 앞 "1축구" -> "축구"
+}
+function cleanGameName(text, roundLabel) {
+  if (!text) return text;
+  let cleaned = text;
+  if (roundLabel) {
+    // "축구매치13 회차" 처럼 뒤에 회차정보가 중복으로 붙은 경우 제거
+    const roundDigits = roundLabel.replace(/[^\d]/g, '');
+    if (roundDigits) {
+      cleaned = cleaned.replace(new RegExp(roundDigits + '\\s*회차\\s*$'), '');
+    }
+  }
+  // 그 외 일반적인 "숫자+회차" 패턴도 방어적으로 한 번 더 제거
+  cleaned = cleaned.replace(/\d+\s*회차\s*$/, '').trim();
+  return cleaned;
+}
+
 function parseTotoTable(html) {
   const $ = cheerio.load(html);
   const tables = $('table');
@@ -108,10 +129,12 @@ function parseTotoTable(html) {
 
   return rows.map((cols) => {
     const [sportKr, gameName, roundLabel, deadlineText, totalSalesText, estimatedFirstText] = cols;
+    const cleanedSport = cleanSportKr(sportKr);
+    const cleanedGame = cleanGameName(gameName, roundLabel);
     return {
       category: 'TOTO',
-      sport_kr: sportKr || null,
-      game_name: gameName || null,
+      sport_kr: cleanedSport || null,
+      game_name: cleanedGame || null,
       round_label: roundLabel || null,
       deadline_text: deadlineText || null,
       deadline_at: parseDeadlineText(deadlineText),
@@ -131,10 +154,12 @@ function parseProtoTable(html) {
 
   return rows.map((cols) => {
     const [sportKr, gameName, roundLabel, deadlineText] = cols;
+    const cleanedSport = cleanSportKr(sportKr);
+    const cleanedGame = cleanGameName(gameName, roundLabel);
     return {
       category: 'PROTO',
-      sport_kr: sportKr || null,
-      game_name: gameName || null,
+      sport_kr: cleanedSport || null,
+      game_name: cleanedGame || null,
       round_label: roundLabel || null,
       deadline_text: deadlineText || null,
       deadline_at: parseDeadlineText(deadlineText),
