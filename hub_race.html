@@ -2351,7 +2351,7 @@ MLL.chargeDownload = async function(payload){
       if (resp.status === 401) {
         alert(LANG==='en' ? 'Could not verify your account. Please log in again.' : '회원 정보를 확인할 수 없습니다. 다시 로그인해주세요.');
       } else if (resp.status === 402) {
-        alert((LANG==='en'?'Not enough points.\nBalance: ':'포인트가 부족합니다.\n현재 잔액: ')+(data.balance||0).toLocaleString()+(LANG==='en'?'\nShortfall: ':'\n부족한 포인트: ')+(data.shortfall||0).toLocaleString());
+        alert((LANG==='en'?'Not enough points.\nBalance: ':'포인트가 부족합니다.\n현재 잔액: ')+((data.balance&&data.balance.total)||0).toLocaleString()+(LANG==='en'?'\nShortfall: ':'\n부족한 포인트: ')+(data.shortfall||0).toLocaleString());
       } else {
         alert((LANG==='en'?'Charge failed: ':'차감 실패: ')+(data.error||resp.status));
       }
