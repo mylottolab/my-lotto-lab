@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab - 100 전략 레이스</title>
+<script src="common.js?v=20260708a"></script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 <script>
 // =====================================================
 // My Lotto Lab - 공통 모듈 (다른 페이지와 동일)
@@ -11,56 +13,10 @@
 if (typeof window.MLL === 'undefined') { window.MLL = {}; }
 var MLL = window.MLL;
 
-MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
-MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
-MLL.RESULTS_KEY = 'mll_results';
-
-// status: 'open'(접수중) / 'closing'(접수마감, 토요일20시~결과발표전) / 'waiting'(접수대기, 결과발표후~일요일06시)
-MLL.getLottoInfo = function() {
-  var now = new Date();
-  var ko  = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
-  var day = ko.getDay(), hour = ko.getHours(), min = ko.getMinutes();
-  var elapsed   = now.getTime() - MLL.ROUND1_TS;
-  var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
-  var nextRound = thisRound + 1;
-
-  var inClosedWindow = (day===6 && (hour>20||(hour===20&&min>=0))) || (day===0 && hour<6);
-
-  var results = MLL.loadResults ? MLL.loadResults() : {};
-  var thisRoundDrawn = !!(results[thisRound] && results[thisRound].nums);
-
-  var status, saleRound, soldOut;
-  if (!inClosedWindow) {
-    status = 'open';
-    saleRound = nextRound;
-    soldOut = false;
-  } else if (!thisRoundDrawn) {
-    status = 'closing';
-    saleRound = thisRound;
-    soldOut = true;
-  } else {
-    status = 'waiting';
-    saleRound = nextRound;
-    soldOut = true;
-  }
-
-  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound, status:status };
-};
-
-MLL.STATUS_LABEL = { open:'접수중', closing:'접수마감', waiting:'접수대기' };
-
-MLL.getDrawDate = function(round) {
-  var d = new Date(MLL.ROUND1_TS + (round - 1) * MLL.WEEK_MS);
-  return d.toLocaleDateString('ko-KR', {timeZone:'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit'});
-};
-
-MLL.loadResults = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }
-  catch(e) { return {}; }
-};
-
-MLL.BC = function(n) { return n<=10?'#e0b341':n<=20?'#5b6ee8':n<=30?'#d4537e':n<=40?'#8b91ab':'#3fb37f'; };
-MLL.TC = function(n) { return n<=10?'#1a1404':'#fff'; };
+// ⚠️ 2026-07-09: ROUND1_TS/WEEK_MS/RESULTS_KEY/getLottoInfo/getDrawDate/loadResults/BC/TC는
+// 이제 common.js가 제공합니다 (서버에서 실제 당첨결과를 받아오는 정상 버전).
+// 예전에 이 페이지 안에 있던 로컬(localStorage-only) 재구현은 삭제했습니다 —
+// 그 버전은 실제 당첨결과 없이 항상 빈 데이터만 보여주는 문제가 있었습니다.
 
 MLL.ADMIN_KEY_STORAGE = 'mll_admin_key'; // 관리자 키(x-admin-key 헤더값) 원문을 세션에만 저장 (탭 닫으면 사라짐)
 MLL.checkAdmin = function() { return !!sessionStorage.getItem(MLL.ADMIN_KEY_STORAGE); };
@@ -380,57 +336,9 @@ MLL.RACE_STRATEGY_SEED = [
 // =====================================================
 // 100 전략 레이스 - 시뮬레이션/채점 엔진
 // =====================================================
-// =====================================================
-// My Lotto Lab - 100 전략 레이스 전용 엔진
-// =====================================================
 if (typeof window.MLL === 'undefined') { window.MLL = {}; }
 var MLL = window.MLL;
-
-MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
-MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
-MLL.RESULTS_KEY = 'mll_results';
-
-// status: 'open'(접수중) / 'closing'(접수마감, 토요일20시~결과발표전) / 'waiting'(접수대기, 결과발표후~일요일06시)
-MLL.getLottoInfo = function() {
-  var now = new Date();
-  var ko  = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
-  var day = ko.getDay(), hour = ko.getHours(), min = ko.getMinutes();
-  var elapsed   = now.getTime() - MLL.ROUND1_TS;
-  var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
-  var nextRound = thisRound + 1;
-
-  var inClosedWindow = (day===6 && (hour>20||(hour===20&&min>=0))) || (day===0 && hour<6);
-
-  var results = MLL.loadResults ? MLL.loadResults() : {};
-  var thisRoundDrawn = !!(results[thisRound] && results[thisRound].nums);
-
-  var status, saleRound, soldOut;
-  if (!inClosedWindow) {
-    status = 'open';
-    saleRound = nextRound;
-    soldOut = false;
-  } else if (!thisRoundDrawn) {
-    status = 'closing';
-    saleRound = thisRound;
-    soldOut = true;
-  } else {
-    status = 'waiting';
-    saleRound = nextRound;
-    soldOut = true;
-  }
-
-  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound, status:status };
-};
-
-MLL.STATUS_LABEL = { open:'접수중', closing:'접수마감', waiting:'접수대기' };
-
-MLL.loadResults = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }
-  catch(e) { return {}; }
-};
-
-MLL.BC = function(n) { return n<=10?'#e0b341':n<=20?'#5b6ee8':n<=30?'#d4537e':n<=40?'#8b91ab':'#3fb37f'; };
-MLL.TC = function(n) { return n<=10?'#1a1404':'#fff'; };
+// (ROUND1_TS/WEEK_MS/getLottoInfo/getDrawDate/loadResults/BC/TC는 common.js가 제공 — 위와 동일한 이유로 중복 삭제)
 
 // ── 번호생성 엔진 (기존 generator_engine.py 포팅, 기존 페이지들과 동일 로직) ──
 
@@ -1028,6 +936,18 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
       <button class="btn btn-outline" style="border-color:var(--red);color:var(--red);" onclick="RACE.resetStrategiesToSeed()">⟲ <span data-i18n-kr="원본(엑셀) 조건으로 복원" data-i18n-en="Restore Original (Excel) Conditions">원본(엑셀) 조건으로 복원</span></button>
     </div>
     <div id="adminEditMsg" style="font-size:11.5px;margin-top:10px;"></div>
+
+    <hr style="border:none;border-top:1px solid var(--border-soft);margin:18px 0 14px;">
+    <h4 style="font-size:13px;margin-bottom:6px;">💰 <span data-i18n-kr="다운로드 가격설정" data-i18n-en="Download Pricing">다운로드 가격설정</span></h4>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px;" data-i18n-kr="저장하면 재배포 없이 다음 요청부터 바로 반영됩니다." data-i18n-en="Changes take effect immediately on the next request, no redeploy needed.">저장하면 재배포 없이 다음 요청부터 바로 반영됩니다.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;">
+      <div><div style="font-size:10.5px;color:var(--text-faint);margin-bottom:4px;" data-i18n-kr="엑셀 다운로드 - 조합 1개당(원)" data-i18n-en="Excel download - per combo (KRW)">엑셀 다운로드 - 조합 1개당(원)</div><input class="filter-input" id="priceCombo" type="number" min="0" style="width:100%;"></div>
+      <div><div style="font-size:10.5px;color:var(--text-faint);margin-bottom:4px;" data-i18n-kr="마킹용지 - 1매당(원)" data-i18n-en="Marking sheet - per sheet (KRW)">마킹용지 - 1매당(원)</div><input class="filter-input" id="priceSheet" type="number" min="0" style="width:100%;"></div>
+      <div><div style="font-size:10.5px;color:var(--text-faint);margin-bottom:4px;" data-i18n-kr="마킹용지 - 1매당 게임 수" data-i18n-en="Marking sheet - games per sheet">마킹용지 - 1매당 게임 수</div><input class="filter-input" id="priceGamesPerSheet" type="number" min="1" style="width:100%;"></div>
+      <div><div style="font-size:10.5px;color:var(--text-faint);margin-bottom:4px;" data-i18n-kr="마킹용지 - 이미지 추가 1개당(원)" data-i18n-en="Marking sheet - per extra image (KRW)">마킹용지 - 이미지 추가 1개당(원)</div><input class="filter-input" id="priceExtraImg" type="number" min="0" style="width:100%;"></div>
+    </div>
+    <button class="btn btn-gold" style="margin-top:12px;" onclick="RACE.savePricingAdmin()">💾 <span data-i18n-kr="가격설정 저장" data-i18n-en="Save Pricing">가격설정 저장</span></button>
+    <div id="pricingAdminMsg" style="font-size:11.5px;margin-top:8px;"></div>
   </div>
 </div>
 
@@ -1068,6 +988,7 @@ RACE.loadServerData = async function(){
     fetch(base + '/api/race/meta').then(function(r){ return r.json(); }),
     fetch(base + '/api/race/next-numbers/latest').then(function(r){ return r.json(); }),
     fetch(base + '/api/race/fixed-combos').then(function(r){ return r.json(); }),
+    fetch(base + '/api/race/pricing').then(function(r){ return r.json(); }),
   ]);
 
   var strategiesRes = results[0].status === 'fulfilled' ? results[0].value : { items: [] };
@@ -1075,6 +996,7 @@ RACE.loadServerData = async function(){
   var metaRes = results[2].status === 'fulfilled' ? results[2].value : { lastSimulatedRound: 0 };
   var nextRes = results[3].status === 'fulfilled' ? results[3].value : { round: null, items: [] };
   var fixedRes = results[4].status === 'fulfilled' ? results[4].value : { items: [] };
+  var pricingRes = results[5].status === 'fulfilled' ? results[5].value : null;
 
   RACE._data.strategies = (strategiesRes.items || []).map(RACE._strategyFromServerRow);
   RACE._data.overallSummary = overallRes.items || [];
@@ -1082,6 +1004,18 @@ RACE.loadServerData = async function(){
   RACE._data.nextNumbers = (nextRes && nextRes.round) ? nextRes : null;
   RACE._data.fixedCombos = {};
   (fixedRes.items || []).forEach(function(it){ RACE._data.fixedCombos[it.strategy_no] = it.combos; });
+
+  // 다운로드 가격설정 — 관리자가 바꾼 값을 화면 표시(확인창/가격박스)에 즉시 반영.
+  // 실제 차감 금액은 어차피 서버가 요청 시점에 다시 계산하므로, 여기서는 "보여주는 값"만 최신화합니다.
+  if (pricingRes) {
+    RACE._data.pricing = pricingRes;
+    RACE.PRICE_PER_COMBO = pricingRes.pricePerCombo;
+    if (typeof MLL.MARKING_CONFIG !== 'undefined') {
+      MLL.MARKING_CONFIG.pricePerSheet = pricingRes.pricePerSheet;
+      MLL.MARKING_CONFIG.gamesPerSheet = pricingRes.gamesPerSheet;
+      MLL.MARKING_CONFIG.extraImagePrice = pricingRes.extraImagePrice;
+    }
+  }
 };
 
 // 서버(snake_case) 행을 기존 코드 전반에서 쓰던 필드명(예: nameEn, isRandom, isFixedCombo)으로 변환
@@ -1286,8 +1220,50 @@ RACE.openAdminEdit = function(){
   }).join('');
   document.getElementById('adminEditModal').classList.add('show');
   RACE.loadEditForm();
+  RACE.loadPricingForm();
 };
 RACE.closeAdminEdit = function(){ document.getElementById('adminEditModal').classList.remove('show'); };
+
+// 가격설정 폼에 현재 값을 채운다 (이미 페이지 로드 시 불러온 RACE._data.pricing 사용, 없으면 기본값)
+RACE.loadPricingForm = function(){
+  var p = RACE._data.pricing || { pricePerCombo:50, pricePerSheet:300, gamesPerSheet:5, extraImagePrice:500 };
+  document.getElementById('priceCombo').value = p.pricePerCombo;
+  document.getElementById('priceSheet').value = p.pricePerSheet;
+  document.getElementById('priceGamesPerSheet').value = p.gamesPerSheet;
+  document.getElementById('priceExtraImg').value = p.extraImagePrice;
+  document.getElementById('pricingAdminMsg').innerHTML = '';
+};
+
+RACE.savePricingAdmin = async function(){
+  if (!MLL.checkAdmin()) { alert(T('admin_auth_required')); RACE.openAdminLogin(); return; }
+  var pricing = {
+    pricePerCombo: Number(document.getElementById('priceCombo').value),
+    pricePerSheet: Number(document.getElementById('priceSheet').value),
+    gamesPerSheet: Number(document.getElementById('priceGamesPerSheet').value),
+    extraImagePrice: Number(document.getElementById('priceExtraImg').value),
+  };
+  var msgEl = document.getElementById('pricingAdminMsg');
+  try {
+    var resp = await MLL.adminFetch('/api/admin/race/pricing', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(pricing)
+    });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || resp.status);
+
+    // 저장 성공 -> 이 브라우저(관리자 화면 포함)에도 즉시 반영
+    RACE._data.pricing = data.pricing;
+    RACE.PRICE_PER_COMBO = data.pricing.pricePerCombo;
+    if (typeof MLL.MARKING_CONFIG !== 'undefined') {
+      MLL.MARKING_CONFIG.pricePerSheet = data.pricing.pricePerSheet;
+      MLL.MARKING_CONFIG.gamesPerSheet = data.pricing.gamesPerSheet;
+      MLL.MARKING_CONFIG.extraImagePrice = data.pricing.extraImagePrice;
+    }
+    msgEl.innerHTML = '<span style="color:var(--green);">저장되었습니다. 다음 다운로드 요청부터 바로 반영됩니다.</span>';
+  } catch(e) {
+    msgEl.innerHTML = '<span style="color:var(--red);">저장 실패: '+e.message+'</span>';
+  }
+};
 
 RACE.EDIT_FIELDS = function(){
   return [
@@ -1731,14 +1707,16 @@ RACE.getOrGenerateCombos = function(strategyNo, count){
 
 RACE.PRICE_PER_COMBO = 50; // 엑셀 다운로드 1조합당 과금(원)
 
-RACE.downloadComboXLSX = function(strategyNo, count){
+RACE.downloadComboXLSX = async function(strategyNo, count){
   var totalFee = count * RACE.PRICE_PER_COMBO;
   var ok = confirm(
     '엑셀 다운로드는 추천번호조합 1개당 '+RACE.PRICE_PER_COMBO.toLocaleString()+'원이 과금됩니다.\n' +
-    count.toLocaleString()+'개 다운로드 시 총 '+totalFee.toLocaleString()+'원이 청구됩니다.\n' +
-    '(테스트 모드이므로 실제 차감되지 않습니다)\n\n계속 다운로드하시겠습니까?'
+    count.toLocaleString()+'개 다운로드 시 총 '+totalFee.toLocaleString()+'원이 청구됩니다.\n\n계속 다운로드하시겠습니까?'
   );
   if (!ok) return;
+
+  var charge = await MLL.chargeDownload({ type:'excel', count: count });
+  if (!charge.ok) return; // 인증 실패/포인트 부족/취소 시 여기서 중단 (안내는 chargeDownload 내부에서 이미 표시함)
 
   var combos = RACE.getOrGenerateCombos(strategyNo, count);
   if (!combos.length) { alert('번호 생성에 실패했습니다.'); return; }
@@ -1830,7 +1808,10 @@ RACE.init = async function(){
   RACE.updateAdminBar(); // 세션에 관리자 키가 이미 있으면(같은 탭에서 새로고침 등) 즉시 버튼 노출
   document.getElementById('sbTitle').textContent = LANG==='en' ? 'Loading data…' : '데이터를 불러오는 중…';
   document.getElementById('sbDesc').textContent = '';
-  await RACE.loadServerData();
+  await Promise.all([
+    MLL.refreshResults(),   // 한국로또 실제 당첨결과 (common.js 제공, 서버 /api/lotto/results)
+    RACE.loadServerData()   // 100전략 레이스 자체 데이터 (전략/집계/다음회차예상 등)
+  ]);
 
   var range = RACE.getRoundRange();
   if (!range) {
@@ -2332,7 +2313,56 @@ var MLL = window.MLL;
 // 비밀번호가 노출되는 심각한 문제였음). 이제는 서버(routes/marking.js, /api/marking/generate)가
 // 인증정보를 환경변수로 보관하고 makinglotto.com 호출·청크분할·PDF병합·광고문구 삽입까지
 // 전부 서버에서 처리합니다. 이 페이지는 완성된 PDF만 응답으로 받아 다운로드만 시켜줍니다.
-MLL.API_BASE = 'https://my-lotto-lab-api.onrender.com';
+// (MLL.API_BASE는 common.js가 이미 설정 — 여기서 다시 선언하지 않음)
+
+// ── 다운로드(엑셀/마킹용지) 포인트 차감용 사용자 식별 ──────────────────────────
+// common.js의 공용 로그인 상태(MLL.getAuthState)를 그대로 사용합니다.
+// 회원이면 로그인 토큰, 비회원이면 등록해둔 닉네임+이메일로 서버가 본인 확인을 합니다.
+// (더 이상 이 페이지에서 별도로 물어보지 않고, 사이트 어디서 로그인/비회원등록을 했든 그대로 인식됩니다)
+
+// 다운로드(엑셀/마킹용지) 전, 서버에 실제 포인트 차감을 요청한다.
+// payload 예: {type:'excel', count:100} 또는 {type:'marking', gameCount:100, imgCount:3}
+MLL.chargeDownload = async function(payload){
+  var state = MLL.getAuthState();
+  if (!state.type) {
+    if (window.MLL.requireAuth) {
+      MLL.requireAuth(function(){}); // 로그인/비회원등록 화면으로 안내 (auth_gate.js 제공)
+    } else {
+      alert(LANG==='en' ? 'Please log in or register as a guest first.' : '먼저 로그인하거나 비회원 등록을 해주세요.');
+    }
+    return { ok:false, cancelled:true };
+  }
+
+  var body = Object.assign({}, payload);
+  var headers = { 'Content-Type': 'application/json' };
+  if (state.type === 'member') {
+    headers['Authorization'] = 'Bearer ' + state.token;
+  } else {
+    body.nickname = state.nickname;
+    body.email = state.email;
+  }
+
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/race/charge-download', {
+      method: 'POST', headers: headers, body: JSON.stringify(body)
+    });
+    var data = await resp.json();
+    if (!resp.ok) {
+      if (resp.status === 401) {
+        alert(LANG==='en' ? 'Could not verify your account. Please log in again.' : '회원 정보를 확인할 수 없습니다. 다시 로그인해주세요.');
+      } else if (resp.status === 402) {
+        alert((LANG==='en'?'Not enough points.\nBalance: ':'포인트가 부족합니다.\n현재 잔액: ')+(data.balance||0).toLocaleString()+(LANG==='en'?'\nShortfall: ':'\n부족한 포인트: ')+(data.shortfall||0).toLocaleString());
+      } else {
+        alert((LANG==='en'?'Charge failed: ':'차감 실패: ')+(data.error||resp.status));
+      }
+      return { ok:false, error:data.error };
+    }
+    return { ok:true, charged:data.charged, balance:data.balance };
+  } catch(e) {
+    alert((LANG==='en'?'Network error: ':'네트워크 오류: ')+e.message);
+    return { ok:false, error:e.message };
+  }
+};
 
 MLL.MARKING_CONFIG = {
   defaultCid: '158',
@@ -2430,8 +2460,7 @@ MLL._updateMarkingPriceBox = function(){
   document.getElementById('mllMarkingPriceBox').innerHTML =
     gameCount+'게임 → 용지 '+sheetCount+'매('+cfg.gamesPerSheet+'게임/매) × '+cfg.pricePerSheet.toLocaleString()+'원 = '+sheetCost.toLocaleString()+'원' +
     (extraImgCost>0 ? ' + 이미지 추가 '+(imgCount-1)+'개 × '+cfg.extraImagePrice.toLocaleString()+'원 = '+extraImgCost.toLocaleString()+'원' : ' (이미지 1개는 무료)') +
-    '<br><b style="color:#2FBFA3;font-size:14px;">합계: '+total.toLocaleString()+'원</b>' +
-    '<div style="font-size:10px;color:var(--text-faint,#5a6080);margin-top:4px;">⚠️ 테스트 모드: 현재는 실제 포인트 차감 없이 동작만 확인합니다. (서버 구축 후 정식 차감 적용)</div>';
+    '<br><b style="color:#2FBFA3;font-size:14px;">합계: '+total.toLocaleString()+'원</b>';
 };
 
 MLL.closeMarkingModal = function(){
@@ -2449,9 +2478,14 @@ MLL._showMarkingResult = function(type, msg){
 };
 
 // ── makinglotto.com 연동 ──
-MLL.submitMarkingRequest = function(){
+MLL.submitMarkingRequest = async function(){
   var rows = MLL.markingState.pendingRows;
   if (!rows || !rows.length) { MLL._showMarkingResult('error','받을 번호조합이 없습니다.'); return; }
+
+  var imgCount = Math.max(1, MLL.markingState.selectedCids.length);
+  var charge = await MLL.chargeDownload({ type:'marking', gameCount: rows.length, imgCount: imgCount });
+  if (!charge.ok) return; // 인증 실패/포인트 부족/취소 시 중단 (안내는 chargeDownload 내부에서 이미 표시함)
+
   MLL._showMarkingResult('success', '⏳ PDF 생성 요청 중입니다... (여러 페이지인 경우 다소 시간이 걸려요)');
   MLL._runMarkingPipeline(rows, MLL.markingState.selectedCids, MLL.markingState.pendingFileBase);
 };
