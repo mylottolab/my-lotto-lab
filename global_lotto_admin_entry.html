@@ -44,7 +44,7 @@
 <h2>① 확정 추첨결과 입력</h2>
 
 <label>게임</label>
-<select id="drawGameCode">
+<select id="drawGameCode" onchange="toggleCashValueField('drawGameCode','cashValueBox')">
   <option value="POWERBALL">파워볼</option>
   <option value="MEGAMILLIONS">메가밀리언스</option>
   <option value="EUROMILLIONS" selected>유로밀리언스</option>
@@ -64,9 +64,10 @@
     <label>1등 당첨금 (jackpot_won)</label>
     <input type="number" id="jackpotWon" placeholder="130000000">
   </div>
-  <div>
+  <div id="cashValueBox" style="display:none;">
     <label>현금가치 (cash_value)</label>
     <input type="number" id="cashValue" placeholder="65000000">
+    <p class="hint">미국 복권(파워볼·메가밀리언스) 전용 - 일시불 수령 시 금액입니다. 유로밀리언스는 이 개념이 없어 자동으로 비워집니다.</p>
   </div>
   <div>
     <label>1등 당첨자 수</label>
@@ -75,8 +76,8 @@
 </div>
 
 <label>등수별 상금표 (유로밀리언스 전용, JSON 형식 - 없으면 비워두세요)</label>
-<input type="text" id="prizeTiers" placeholder='[{"tier":2,"main_match":5,"bonus_match":1,"prize":500000}]'>
-<p class="hint">형식: tier(등수), main_match(메인 일치수), bonus_match(보너스 일치수), prize(상금) 배열</p>
+<input type="text" id="prizeTiers" placeholder='[{"tier":2,"main_match":5,"bonus_match":1,"prize":500000,"winners":3}]'>
+<p class="hint">형식: tier(등수), main_match(메인 일치수), bonus_match(보너스 일치수), prize(당첨금액), winners(당첨건수 - 선택, 없으면 비워도 됨) 배열</p>
 
 <button onclick="submitDraw()">확정결과 저장</button>
 <div id="drawResult"></div>
@@ -85,7 +86,7 @@
 <h2>② 실시간 잭팟(예상액) 입력</h2>
 
 <label>게임</label>
-<select id="jpGameCode">
+<select id="jpGameCode" onchange="toggleCashValueField('jpGameCode','jpCashValueBox')">
   <option value="POWERBALL">파워볼</option>
   <option value="MEGAMILLIONS">메가밀리언스</option>
   <option value="EUROMILLIONS" selected>유로밀리언스</option>
@@ -96,9 +97,10 @@
     <label>잭팟 예상액</label>
     <input type="number" id="jpEstimate" placeholder="130000000">
   </div>
-  <div>
+  <div id="jpCashValueBox" style="display:none;">
     <label>현금가치</label>
     <input type="number" id="jpCashValue" placeholder="65000000">
+    <p class="hint">미국 복권 전용. 유로밀리언스는 자동으로 비워집니다.</p>
   </div>
 </div>
 
@@ -107,6 +109,7 @@
 
 <button onclick="submitJackpot()">잭팟 저장</button>
 <div id="jackpotResult"></div>
+
 
 <script>
 const API_BASE = 'https://my-lotto-lab-api.onrender.com';
@@ -151,6 +154,19 @@ function getAdminKey() {
   if (!key) alert('관리자 키를 입력해주세요.');
   return key;
 }
+
+// 유로밀리언스는 "현금가치(일시불 수령액)" 개념 자체가 없음(파리뮤추얼 상금풀 구조라
+// 잭팟 전액이 그대로 현금 상금임) - 미국 2종(파워볼/메가밀리언스)에서만 필드를 보여줌
+function toggleCashValueField(selectId, boxId) {
+  const gameCode = document.getElementById(selectId).value;
+  const box = document.getElementById(boxId);
+  box.style.display = (gameCode === 'EUROMILLIONS') ? 'none' : 'block';
+}
+document.addEventListener('DOMContentLoaded', function () {
+  toggleCashValueField('drawGameCode', 'cashValueBox');
+  toggleCashValueField('jpGameCode', 'jpCashValueBox');
+});
+
 
 function parseNumberList(str) {
   return str.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
@@ -201,7 +217,7 @@ async function submitDraw() {
         bonus_numbers: bonusNumbers,
         jackpot_won: jackpotWon ? Number(jackpotWon) : null,
         jackpot_winners_count: winnersCount ? Number(winnersCount) : null,
-        cash_value: cashValue ? Number(cashValue) : null,
+        cash_value: (gameCode === 'EUROMILLIONS') ? null : (cashValue ? Number(cashValue) : null),
         prize_tiers: prizeTiers,
       }),
     });
@@ -237,7 +253,7 @@ async function submitJackpot() {
       body: JSON.stringify({
         game_code: gameCode,
         jackpot_estimate: Number(jackpotEstimate),
-        cash_value: cashValue ? Number(cashValue) : null,
+        cash_value: (gameCode === 'EUROMILLIONS') ? null : (cashValue ? Number(cashValue) : null),
         next_draw_date: nextDrawDate || null,
       }),
     });
