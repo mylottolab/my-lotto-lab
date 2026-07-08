@@ -233,3 +233,10 @@ require('./jobs/lottoAutoFetch').startScheduler();
 // ─── 해외복권 관리자 수동입력 (비상 안전장치) ─────────────────────────────
 const globalAdminRouter = require('./routes/global_admin');
 app.use('/api/admin/global', globalAdminRouter);
+
+// ─── 100전략 레이스 ───────────────────────────────────────────────────────
+const raceRouter = require('./routes/race');
+app.use('/api/race', raceRouter);
+
+const raceAdminRouter = require('./routes/race_admin');
+app.use('/api/admin/race', raceAdminRouter);
