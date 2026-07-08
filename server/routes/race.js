@@ -1,11 +1,37 @@
 const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
+const { deductPoints } = require('./points'); // 기존 포인트 차감 공통 로직 재사용
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
+
+// ─── 요청자 식별 (routes/global.js의 resolveUserId와 동일한 규칙) ──────────────
+// 회원: Authorization 헤더 / 비회원: nickname+email
+async function resolveUserId(req) {
+  const authHeader = req.headers['authorization'];
+  if (authHeader) {
+    const token = authHeader.replace('Bearer ', '');
+    const { data, error } = await supabase.auth.getUser(token);
+    if (!error && data.user) return data.user.id;
+  }
+
+  const nickname = req.body?.nickname || req.query?.nickname;
+  const email = req.body?.email || req.query?.email;
+  if (nickname && email) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('nickname', nickname)
+      .eq('email', email)
+      .maybeSingle();
+    if (data) return data.id;
+  }
+
+  return null;
+}
 
 // ─── [공개] 전략 100개 정의 목록 ─────────────────────────────────────────────
 // GET /api/race/strategies
@@ -146,6 +172,32 @@ router.get('/fixed-combos', async (req, res) => {
   return res.json({ items: data });
 });
 
+// ─── 가격설정 조회 (DB에서 매번 읽음 — 관리자가 바꾸면 다음 요청부터 즉시 반영) ──
+const RACE_PRICING_DEFAULT = { pricePerCombo: 50, pricePerSheet: 300, gamesPerSheet: 5, extraImagePrice: 500 };
+
+async function getRacePricing() {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'race_pricing')
+    .maybeSingle();
+  if (error) {
+    console.error('[race] pricing 조회 오류:', error);
+    return RACE_PRICING_DEFAULT;
+  }
+  if (data && data.value) {
+    try { return Object.assign({}, RACE_PRICING_DEFAULT, JSON.parse(data.value)); } catch (e) { /* 기본값 사용 */ }
+  }
+  return RACE_PRICING_DEFAULT;
+}
+
+// ─── [공개] 다운로드 가격설정 조회 (화면에 표시되는 가격 = 실제 차감될 가격과 항상 일치시키기 위함) ──
+// GET /api/race/pricing
+router.get('/pricing', async (req, res) => {
+  const pricing = await getRacePricing();
+  return res.json(pricing);
+});
+
 // ─── [공개] 메타(마지막 시뮬레이션 회차) ─────────────────────────────────────
 // GET /api/race/meta
 router.get('/meta', async (req, res) => {
@@ -165,6 +217,54 @@ router.get('/meta', async (req, res) => {
     try { meta = JSON.parse(data.value); } catch (e) { /* 기본값 유지 */ }
   }
   return res.json(meta);
+});
+
+// ─── [인증 필요] 엑셀/마킹용지 다운로드 포인트 차감 ────────────────────────────
+// POST /api/race/charge-download
+// body: { type:'excel', count, nickname, email } 또는 { type:'marking', gameCount, imgCount, nickname, email }
+// 화면에 이미 표시되는 계산식과 정확히 동일한 금액을 서버에서 다시 계산해서 차감합니다.
+router.post('/charge-download', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req);
+    if (!userId) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
+
+    const pricing = await getRacePricing();
+    const type = req.body.type;
+    let amount, actionKey;
+
+    if (type === 'excel') {
+      const count = Number(req.body.count) || 0;
+      if (count <= 0) return res.status(400).json({ error: '올바른 조합 수가 아닙니다.' });
+      amount = count * pricing.pricePerCombo;
+      actionKey = 'race_excel_download';
+    } else if (type === 'marking') {
+      const gameCount = Number(req.body.gameCount) || 0;
+      const imgCount = Math.max(1, Number(req.body.imgCount) || 1);
+      if (gameCount <= 0) return res.status(400).json({ error: '올바른 게임 수가 아닙니다.' });
+      const sheetCount = Math.ceil(gameCount / pricing.gamesPerSheet);
+      const sheetCost = sheetCount * pricing.pricePerSheet;
+      const extraImgCost = Math.max(0, imgCount - 1) * pricing.extraImagePrice;
+      amount = sheetCost + extraImgCost;
+      actionKey = 'race_marking_download';
+    } else {
+      return res.status(400).json({ error: "type은 'excel' 또는 'marking'이어야 합니다." });
+    }
+
+    const pointResult = await deductPoints(userId, amount, { actionKey, refId: null });
+    if (!pointResult.success) {
+      return res.status(402).json({
+        error: '포인트가 부족합니다. 충전해주세요.',
+        shortfall: pointResult.shortfall,
+        balance: pointResult.balance,
+        chargeUrl: '/pay/category_select.html',
+      });
+    }
+
+    return res.json({ success: true, charged: amount, balance: pointResult.balance });
+  } catch (err) {
+    console.error('[race] charge-download 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
 });
 
 module.exports = router;
