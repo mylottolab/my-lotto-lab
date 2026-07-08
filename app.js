@@ -61,6 +61,7 @@ APP.STR = {
   dr_jackpot_won: { kr: '1등 당첨금', en: 'Jackpot Prize' },
   dr_winners: { kr: '1등 당첨자 수', en: 'Jackpot Winners' },
   dr_rollover: { kr: '이월 (당첨자 없음)', en: 'Rollover (no winner)' },
+  rollover_badge_suffix: { kr: '추첨 1등 당첨자 없음', en: 'No Jackpot Winner' },
   dr_cash_value: { kr: '현금가치', en: 'Cash Value' },
   dr_tiers_title: { kr: '등수별 상금', en: 'Prize Breakdown' },
   th_tier: { kr: '등수', en: 'Tier' },
@@ -400,7 +401,7 @@ APP.renderGameTabs = function(){
         '<span class="gld-label">' + APP.t('latest_draw_label') + ' (' + draw.draw_date + ')</span>' +
         '<span class="gld-nums font-num">' + numsStr + '</span>' +
         '<span class="gld-more">' + APP.t('view_detail_link') + ' →</span>' +
-      '</div>';
+      '</div>' + APP._rolloverBadgeHtml(g.code);
     } else {
       lastDrawHtml = '';
     }
@@ -436,7 +437,7 @@ APP.renderInfoCard = function(){
   var deadlineBi = live.deadlineMs ? GLOBAL.formatDeadlineBilingual(live.deadlineMs, g.cutoffTz, lang) : { local:'-', kst:'-' };
   var animVal = APP._getAnimatedJackpotValue(g.code);
   var jpAmountLabel = animVal ? ('$' + Math.round(animVal).toLocaleString()) : '-';
-  var cashLine = jp.cash_value ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': $' + Number(jp.cash_value).toLocaleString() + '</div>') : '';
+  var cashLine = (jp.cash_value && g.code !== 'EUROMILLIONS') ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': $' + Number(jp.cash_value).toLocaleString() + '</div>') : '';
   var asOfLine = jp.fetched_at ? new Date(jp.fetched_at).toLocaleString(lang==='en'?'en-US':'ko-KR') : '-';
 
   document.getElementById('liveBar').innerHTML =
@@ -898,6 +899,17 @@ APP.closeResultPopup = function(){ document.getElementById('resultModal').classL
 // 게임별 통화 기호 (파워볼/메가밀리언스는 USD, 유로밀리언스는 EUR)
 function _drCurrency(gameCode){ return gameCode === 'EUROMILLIONS' ? '€' : '$'; }
 
+// 가장 최근 회차가 "1등 당첨자 없음(이월)"이면 작은 말풍선 뱃지 HTML을 반환, 아니면 빈 문자열
+// (메인화면 게임카드 + 상세팝업 양쪽에서 재사용)
+APP._rolloverBadgeHtml = function(gameCode, extraClass){
+  var draw = APP._latestDrawCache[gameCode];
+  if (!draw || draw.jackpot_winners_count !== 0) return '';
+  var dateStr = (draw.draw_date || '').split('-').join('/');
+  return '<div class="rollover-badge' + (extraClass ? ' ' + extraClass : '') + '" onclick="event.stopPropagation();APP.openDrawResultPopup(\'' + gameCode + '\')">' +
+    '💬 ' + dateStr + ' ' + APP.t('rollover_badge_suffix') +
+  '</div>';
+};
+
 // 게임 카드에서 "최근 회차" 클릭 시 - 당첨번호/1등 당첨금/등수별 상금표를 한 장 팝업으로 표시
 APP.openDrawResultPopup = function(gameCode){
   var draw = APP._latestDrawCache[gameCode];
@@ -927,7 +939,9 @@ APP.openDrawResultPopup = function(gameCode){
     var winnersVal = draw.jackpot_winners_count > 0 ? String(draw.jackpot_winners_count) : APP.t('dr_rollover');
     rows += '<div class="dr-row"><span class="k">' + APP.t('dr_winners') + '</span><span class="v">' + winnersVal + '</span></div>';
   }
-  if (draw.cash_value != null) {
+  // 유로밀리언스는 "현금가치(일시불 수령액)" 개념이 없음(파리뮤추얼 구조라 잭팟 전액이
+  // 그대로 현금 상금) - 예전에 저장된 값이 0으로 남아있어도 이 게임에서는 아예 표시 안 함
+  if (draw.cash_value != null && gameCode !== 'EUROMILLIONS') {
     rows += '<div class="dr-row"><span class="k">' + APP.t('dr_cash_value') + '</span><span class="v">' + cur + Number(draw.cash_value).toLocaleString() + '</span></div>';
   }
 
@@ -949,6 +963,7 @@ APP.openDrawResultPopup = function(gameCode){
 
   box.innerHTML =
     '<h3>' + name + ' \u2014 ' + draw.draw_date + '</h3>' +
+    APP._rolloverBadgeHtml(gameCode, 'in-modal') +
     '<div class="dr-numbers">' + mainBalls + bonusBalls + '</div>' +
     rows +
     tiersHtml +
