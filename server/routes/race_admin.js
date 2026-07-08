@@ -240,4 +240,48 @@ router.post('/reset', requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * [7] 다운로드 가격설정 조회/수정 (엑셀 조합당 단가, 마킹용지 1매당 단가 등)
+ * GET  /api/admin/race/pricing  — 관리자 화면에서 현재 값 표시용
+ * POST /api/admin/race/pricing  — 저장, 즉시 다음 요청부터 반영
+ * body: { pricePerCombo, pricePerSheet, gamesPerSheet, extraImagePrice }
+ */
+router.get('/pricing', requireAdmin, async (req, res) => {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'race_pricing')
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+
+  const DEFAULT = { pricePerCombo: 50, pricePerSheet: 300, gamesPerSheet: 5, extraImagePrice: 500 };
+  let pricing = DEFAULT;
+  if (data && data.value) {
+    try { pricing = Object.assign({}, DEFAULT, JSON.parse(data.value)); } catch (e) { /* 기본값 사용 */ }
+  }
+  return res.json(pricing);
+});
+
+router.post('/pricing', requireAdmin, async (req, res) => {
+  const { pricePerCombo, pricePerSheet, gamesPerSheet, extraImagePrice } = req.body;
+  const pricing = {
+    pricePerCombo: Number(pricePerCombo),
+    pricePerSheet: Number(pricePerSheet),
+    gamesPerSheet: Number(gamesPerSheet),
+    extraImagePrice: Number(extraImagePrice),
+  };
+  for (const [key, val] of Object.entries(pricing)) {
+    if (!Number.isFinite(val) || val < 0) {
+      return res.status(400).json({ error: `${key} 값이 올바르지 않습니다.` });
+    }
+  }
+
+  const { error } = await supabase
+    .from('app_settings')
+    .upsert({ key: 'race_pricing', value: JSON.stringify(pricing) }, { onConflict: 'key' });
+  if (error) return res.status(500).json({ error: error.message });
+
+  return res.json({ success: true, pricing });
+});
+
 module.exports = router;
