@@ -96,6 +96,29 @@ router.get('/jackpot/:gameCode', async (req, res) => {
   return res.json(data || null);
 });
 
+// ─── [공개] 가장 최근 확정 추첨결과 조회 (당첨번호+상금, 메인화면 요약용) ────
+// GET /api/global/latest-draw/:gameCode
+router.get('/latest-draw/:gameCode', async (req, res) => {
+  const gameCode = req.params.gameCode?.toUpperCase();
+  if (!VALID_GAME_CODES.includes(gameCode)) {
+    return res.status(400).json({ error: '알 수 없는 게임입니다.' });
+  }
+
+  const { data, error } = await supabase
+    .from('global_lottery_draws')
+    .select('*')
+    .eq('game_code', gameCode)
+    .order('draw_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[global] latest-draw 조회 오류:', error);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+  return res.json(data || null);
+});
+
 // ─── [공개] 당첨자 공개 리스트 ──────────────────────────────────────────────
 // GET /api/global/winners?limit=50
 router.get('/winners', async (req, res) => {
