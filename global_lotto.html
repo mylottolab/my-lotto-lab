@@ -83,6 +83,13 @@ button{font-family:inherit;cursor:pointer;}
 .gtab-lastdraw .gld-nums{color:var(--text);font-weight:700;}
 .gtab-lastdraw .gld-more{color:var(--tab-accent);margin-left:5px;font-weight:600;white-space:nowrap;}
 
+/* 1등 당첨자 없음(이월) 말풍선 뱃지 */
+.rollover-badge{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:5px 10px;background:rgba(224,179,65,.14);border:1px solid var(--gold-dim);border-radius:12px;font-size:10.5px;font-weight:700;color:var(--gold);position:relative;cursor:pointer;}
+.rollover-badge:hover{background:rgba(224,179,65,.22);}
+.rollover-badge::after{content:'';position:absolute;left:14px;top:-5px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:5px solid var(--gold-dim);}
+.rollover-badge.in-modal{margin:2px 0 14px;cursor:default;}
+.rollover-badge.in-modal::after{display:none;}
+
 /* 추첨결과 상세 팝업(resultModal) 내부 콘텐츠 */
 .dr-numbers{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 16px;}
 .dr-ball{width:32px;height:32px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;font-family:inherit;color:var(--text);flex-shrink:0;}
