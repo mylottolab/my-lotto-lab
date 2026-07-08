@@ -162,6 +162,8 @@ var STR = {
   stat_100_total_wins: { kr: '100필 총 당첨건수', en: 'Total Wins (100 Horses)' },
   stat_round_top_horse: { kr: '이 회차 1위 말', en: '#1 Horse This Round' },
   th_horse_name_only: { kr: '말 이름', en: 'Horse Name' },
+  th_tendency: { kr: '성향', en: 'Type' },
+  th_name: { kr: '이름', en: 'Name' },
   th_prize: { kr: '당첨금', en: 'Prize' },
   combos_view_suffix: { kr: '개 보기', en: ' view' },
   th_submitted_combos: { kr: '제출한 번호조합', en: 'Submitted Combos' },
@@ -778,10 +780,10 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
 .rank-3{background:#c2854f;color:#1a1404;}
 .rank-etc{background:var(--surface-2);color:var(--text-dim);}
 .horse-name{font-weight:600;text-align:left;display:flex;align-items:center;gap:8px;}
-.horse-tag{font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:20px;flex-shrink:0;}
-.horse-tag.cond{background:rgba(91,110,232,.16);color:#9aa8f5;}
-.horse-tag.rand{background:rgba(139,145,171,.14);color:var(--text-dim);}
-.horse-tag.fixed{background:rgba(232,179,65,.16);color:#e8b341;}
+.horse-tag{font-size:9px;font-weight:700;padding:3px 7px;border-radius:20px;flex-shrink:0;letter-spacing:.02em;}
+.horse-tag.cond{background:rgba(91,110,232,.22);color:#b6c0ff;}
+.horse-tag.rand{background:rgba(200,205,224,.18);color:#e4e6f0;}
+.horse-tag.fixed{background:rgba(232,179,65,.22);color:#f3cd6f;}
 .combo-link{color:var(--gold);font-weight:700;text-decoration:underline;cursor:pointer;}
 .combo-link:hover{opacity:.8;}
 .combo-detail-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;background:var(--surface-2);}
@@ -2121,7 +2123,8 @@ RACE.renderRound = async function(){
     var rankPill = x.rank<=3 ? '<span class="rank-pill rank-'+x.rank+'">'+x.rank+'</span>' : '<span class="rank-pill rank-etc">'+x.rank+'</span>';
     return '<tr class="'+rankCls+'">' +
       '<td>'+rankPill+'</td>' +
-      '<td class="horse-name">'+RACE.horseTagHtml(x)+RACE.horseName(x)+'</td>' +
+      '<td>'+RACE.horseTagHtml(x)+'</td>' +
+      '<td class="horse-name">'+RACE.horseName(x)+'</td>' +
       '<td class="prize-val font-num">'+RACE.fmtMoney(x.totalPrize)+'</td>' +
       '<td class="win-val font-num">'+x.winCount+T('cases_unit_no_space')+'</td>' +
       '<td class="font-num">'+RACE.fmtPct(winRate)+'</td>' +
@@ -2131,8 +2134,8 @@ RACE.renderRound = async function(){
   }).join('');
 
   document.getElementById('roundTable').innerHTML =
-    '<thead><tr><th>'+T('th_rank')+'</th><th style="text-align:left;">'+T('th_horse_name_only')+'</th><th>'+T('th_prize')+'</th><th>'+T('th_win_count')+'</th><th>'+T('th_win_rate')+'</th><th>'+T('th_grades_1to5')+'</th><th>'+T('th_submitted_combos')+'</th></tr></thead>' +
-    '<tbody>'+(rowsHtml || '<tr><td colspan="7" style="padding:30px;color:var(--text-faint);">'+T('no_data_table')+'</td></tr>')+'</tbody>';
+    '<thead><tr><th>'+T('th_rank')+'</th><th>'+T('th_tendency')+'</th><th style="text-align:left;">'+T('th_name')+'</th><th>'+T('th_prize')+'</th><th>'+T('th_win_count')+'</th><th>'+T('th_win_rate')+'</th><th>'+T('th_grades_1to5')+'</th><th>'+T('th_submitted_combos')+'</th></tr></thead>' +
+    '<tbody>'+(rowsHtml || '<tr><td colspan="8" style="padding:30px;color:var(--text-faint);">'+T('no_data_table')+'</td></tr>')+'</tbody>';
 };
 
 // ── 기간별 통계 탭 ──
@@ -2159,7 +2162,8 @@ RACE.renderPeriod = async function(){
     var rankPill = x.rank<=3 ? '<span class="rank-pill rank-'+x.rank+'">'+x.rank+'</span>' : '<span class="rank-pill rank-etc">'+x.rank+'</span>';
     return '<tr class="'+rankCls+'">' +
       '<td>'+rankPill+'</td>' +
-      '<td class="horse-name">'+RACE.horseTagHtml(x)+RACE.horseName(x)+'</td>' +
+      '<td>'+RACE.horseTagHtml(x)+'</td>' +
+      '<td class="horse-name">'+RACE.horseName(x)+'</td>' +
       '<td class="prize-val font-num">'+RACE.fmtMoney(x.totalPrize)+'</td>' +
       '<td class="win-val font-num">'+x.winCount.toLocaleString()+T('cases_unit_no_space')+'</td>' +
       '<td class="font-num">'+RACE.fmtPct(winRate)+'</td>' +
@@ -2169,8 +2173,8 @@ RACE.renderPeriod = async function(){
   }).join('');
 
   document.getElementById('periodTable').innerHTML =
-    '<thead><tr><th>'+T('th_rank')+'</th><th style="text-align:left;">'+T('th_horse_name_only')+'</th><th>'+T('th_cum_prize')+'</th><th>'+T('th_win_count')+'</th><th>'+T('th_win_rate')+'</th><th>'+T('th_grades_1to5')+'</th><th>'+T('th_generated')+'</th></tr></thead>' +
-    '<tbody>'+(rows || '<tr><td colspan="7" style="padding:30px;color:var(--text-faint);">'+T('no_data_table')+'</td></tr>')+'</tbody>';
+    '<thead><tr><th>'+T('th_rank')+'</th><th>'+T('th_tendency')+'</th><th style="text-align:left;">'+T('th_name')+'</th><th>'+T('th_cum_prize')+'</th><th>'+T('th_win_count')+'</th><th>'+T('th_win_rate')+'</th><th>'+T('th_grades_1to5')+'</th><th>'+T('th_generated')+'</th></tr></thead>' +
+    '<tbody>'+(rows || '<tr><td colspan="8" style="padding:30px;color:var(--text-faint);">'+T('no_data_table')+'</td></tr>')+'</tbody>';
 };
 
 // ── 다음회차 예상번호 탭 ──
@@ -2187,7 +2191,8 @@ RACE.renderNext = function(){
   var rows = strategies.map(function(s){
     var combos = nextData[s.no] || [];
     return '<tr>' +
-      '<td class="horse-name">'+RACE.horseTagHtml(s)+RACE.horseName(s)+'</td>' +
+      '<td>'+RACE.horseTagHtml(s)+'</td>' +
+      '<td class="horse-name">'+RACE.horseName(s)+'</td>' +
       '<td class="font-num">'+combos.length+T('combos_stored_suffix')+'</td>' +
       '<td><button class="dl-btn" onclick="RACE.openDownloadPanel('+s.no+')">'+T('btn_download_custom')+'</button></td>' +
       '<td><button class="dl-btn" onclick="RACE.openDetail('+s.no+')">'+T('btn_detail_view')+'</button></td>' +
@@ -2195,7 +2200,7 @@ RACE.renderNext = function(){
   }).join('');
 
   document.getElementById('nextTable').innerHTML =
-    '<thead><tr><th style="text-align:left;">'+T('th_horse_name_only')+'</th><th>'+T('th_stored_combos')+'</th><th>'+T('th_instant_download')+'</th><th>'+T('th_detail')+'</th></tr></thead>' +
+    '<thead><tr><th>'+T('th_tendency')+'</th><th style="text-align:left;">'+T('th_name')+'</th><th>'+T('th_stored_combos')+'</th><th>'+T('th_instant_download')+'</th><th>'+T('th_detail')+'</th></tr></thead>' +
     '<tbody>'+rows+'</tbody>';
 };
 
