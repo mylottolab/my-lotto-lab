@@ -62,14 +62,32 @@ MLL.loadResults = function() {
 MLL.BC = function(n) { return n<=10?'#e0b341':n<=20?'#5b6ee8':n<=30?'#d4537e':n<=40?'#8b91ab':'#3fb37f'; };
 MLL.TC = function(n) { return n<=10?'#1a1404':'#fff'; };
 
-MLL.ADMIN_PW_KEY = 'mll_admin_auth';
-MLL.ADMIN_PW = 'lotto2024!';
-MLL.checkAdmin = function() { return sessionStorage.getItem(MLL.ADMIN_PW_KEY) === 'ok'; };
-MLL.loginAdmin = function(pw) {
-  if (pw === MLL.ADMIN_PW) { sessionStorage.setItem(MLL.ADMIN_PW_KEY, 'ok'); return true; }
-  return false;
+MLL.ADMIN_KEY_STORAGE = 'mll_admin_key'; // 관리자 키(x-admin-key 헤더값) 원문을 세션에만 저장 (탭 닫으면 사라짐)
+MLL.checkAdmin = function() { return !!sessionStorage.getItem(MLL.ADMIN_KEY_STORAGE); };
+MLL.getAdminKey = function() { return sessionStorage.getItem(MLL.ADMIN_KEY_STORAGE) || ''; };
+// 실제 유효성 검증은 서버가 관리자 API 호출마다 x-admin-key 헤더를 대조해서 수행합니다.
+// 여기서는 일단 세션에 저장만 해두고, 최초 관리자 동작 시 서버가 401을 주면 재입력을 안내합니다.
+MLL.loginAdmin = function(key) {
+  key = (key||'').trim();
+  if (!key) return false;
+  sessionStorage.setItem(MLL.ADMIN_KEY_STORAGE, key);
+  return true;
 };
-MLL.logoutAdmin = function() { sessionStorage.removeItem(MLL.ADMIN_PW_KEY); };
+MLL.logoutAdmin = function() { sessionStorage.removeItem(MLL.ADMIN_KEY_STORAGE); };
+
+// 관리자 전용 API 호출 공통 헬퍼 — x-admin-key 헤더 자동 첨부, 401이면 키를 지우고 재로그인 유도
+MLL.adminFetch = async function(path, options) {
+  options = options || {};
+  options.headers = Object.assign({}, options.headers, { 'x-admin-key': MLL.getAdminKey() });
+  var resp = await fetch(MLL.API_BASE + path, options);
+  if (resp.status === 401) {
+    MLL.logoutAdmin();
+    alert(LANG === 'en' ? 'Admin key is invalid. Please enter it again.' : '관리자 키가 올바르지 않습니다. 다시 입력해주세요.');
+    RACE.openAdminLogin();
+    throw new Error('admin_auth_failed');
+  }
+  return resp;
+};
 
 // =====================================================
 // 다국어(i18n) - main_page.html과 동일한 'mll_lang' 키 공유
@@ -102,7 +120,7 @@ var STR = {
   grade4: { kr: '4등', en: '4th' },
   grade5: { kr: '5등', en: '5th' },
   won_suffix: { kr: '원', en: ' KRW' },
-  admin_wrong_pw: { kr: '비밀번호가 올바르지 않습니다.', en: 'Incorrect password.' },
+  admin_wrong_pw: { kr: '관리자 키가 비어있습니다.', en: 'Admin key is empty.' },
   admin_login_required: { kr: '관리자 로그인이 필요합니다.', en: 'Admin login is required.' },
   saved: { kr: '저장되었습니다.', en: 'Saved.' },
   confirm_reset_seed: { kr: '원본(엑셀) 조건으로 모두 복원하시겠습니까? 기존 시뮬레이션 결과도 모두 초기화됩니다.', en: 'Restore all conditions to the original (Excel) values? This will also reset all existing simulation results.' },
@@ -207,7 +225,7 @@ var STR = {
   rounds_unit_no_space: { kr: '회', en: ' rounds' },
   cases_unit_no_space: { kr: '건', en: '' },
   combos_unit_no_space: { kr: '개', en: '' },
-  admin_pw_wrong: { kr: '비밀번호가 올바르지 않습니다.', en: 'Incorrect password.' },
+  admin_pw_wrong: { kr: '관리자 키가 비어있습니다.', en: 'Admin key is empty.' },
   no_results_data: { kr: '당첨결과 데이터(mll_results)가 없습니다.', en: 'No winning result data (mll_results) found.' },
   already_processed: { kr: '이미 모든 회차(최신 ', en: 'All rounds (up to the latest ' },
   already_processed_suffix: { kr: '회까지)가 처리되어 있습니다.\n다음회차 예상번호만 갱신했습니다.', en: ") have already been processed.\nOnly the next round's predicted numbers were refreshed." },
@@ -961,8 +979,8 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
       <h3>🛠 <span data-i18n-kr="관리자 인증" data-i18n-en="Admin Authentication">관리자 인증</span></h3>
       <button onclick="RACE.closeAdminLogin()" style="background:none;border:none;color:var(--text-faint);font-size:18px;cursor:pointer;line-height:1;">✕</button>
     </div>
-    <p style="font-size:11.5px;color:var(--text-dim);margin-bottom:14px;" data-i18n-kr="100필의 조건식을 편집하려면 관리자 비밀번호가 필요합니다." data-i18n-en="An admin password is required to edit the condition formulas for the 100 horses.">100필의 조건식을 편집하려면 관리자 비밀번호가 필요합니다.</p>
-    <input type="password" id="adminPwInput" placeholder="관리자 비밀번호" data-i18n-placeholder-kr="관리자 비밀번호" data-i18n-placeholder-en="Admin password" style="width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-size:13px;outline:none;margin-bottom:10px;" onkeydown="if(event.key==='Enter')RACE.submitAdminLogin();">
+    <p style="font-size:11.5px;color:var(--text-dim);margin-bottom:14px;" data-i18n-kr="100필의 조건식을 편집하려면 관리자 키가 필요합니다." data-i18n-en="An admin key is required to edit the condition formulas for the 100 horses.">100필의 조건식을 편집하려면 관리자 키가 필요합니다.</p>
+    <input type="password" id="adminPwInput" placeholder="관리자 키" data-i18n-placeholder-kr="관리자 키" data-i18n-placeholder-en="Admin key" style="width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-size:13px;outline:none;margin-bottom:10px;" onkeydown="if(event.key==='Enter')RACE.submitAdminLogin();">
     <div id="adminLoginMsg" style="font-size:11px;color:var(--red);margin-bottom:10px;min-height:14px;"></div>
     <button class="btn btn-gold" style="width:100%;" onclick="RACE.submitAdminLogin()" data-i18n-kr="로그인" data-i18n-en="Log In">로그인</button>
   </div>
@@ -1022,6 +1040,67 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
 // =====================================================
 var RACE = {};
 
+// ── 서버에서 불러온 데이터 캐시 (localStorage 대신 이 메모리 캐시를 사용) ──
+// 페이지 로드 시 한 번 서버에서 채워두고, 이후 각 render 함수는 이 캐시를 동기적으로 읽습니다.
+// (전략 100개, 누적집계, 메타, 다음회차예상, 고정조합은 크기가 작아 전체를 미리 불러와도 무방합니다.
+//  단, 회차별×전략 원본 성적(race_results)은 회차가 많아지면 커지므로 캐시하지 않고 그때그때 서버에서 조회합니다.)
+RACE._data = {
+  strategies: [],
+  overallSummary: [],       // [{strategy_no, total_generated, grade1_count..grade5_count, fail_count, win_count, total_prize, rounds_played}, ...]
+  meta: { lastSimulatedRound: 0, updatedAt: null },
+  nextNumbers: null,        // { round, items:[{strategy_no, combos}, ...] }
+  fixedCombos: {}           // { strategyNo: [[n1..n6], ...] }
+};
+
+// 서버에서 전략/누적집계/메타/다음회차예상/고정조합을 한 번에 병렬로 불러와 캐시에 채운다.
+RACE.loadServerData = async function(){
+  var base = MLL.API_BASE;
+  var results = await Promise.allSettled([
+    fetch(base + '/api/race/strategies').then(function(r){ return r.json(); }),
+    fetch(base + '/api/race/results/overall').then(function(r){ return r.json(); }),
+    fetch(base + '/api/race/meta').then(function(r){ return r.json(); }),
+    fetch(base + '/api/race/next-numbers/latest').then(function(r){ return r.json(); }),
+    fetch(base + '/api/race/fixed-combos').then(function(r){ return r.json(); }),
+  ]);
+
+  var strategiesRes = results[0].status === 'fulfilled' ? results[0].value : { items: [] };
+  var overallRes = results[1].status === 'fulfilled' ? results[1].value : { items: [] };
+  var metaRes = results[2].status === 'fulfilled' ? results[2].value : { lastSimulatedRound: 0 };
+  var nextRes = results[3].status === 'fulfilled' ? results[3].value : { round: null, items: [] };
+  var fixedRes = results[4].status === 'fulfilled' ? results[4].value : { items: [] };
+
+  RACE._data.strategies = (strategiesRes.items || []).map(RACE._strategyFromServerRow);
+  RACE._data.overallSummary = overallRes.items || [];
+  RACE._data.meta = metaRes || { lastSimulatedRound: 0 };
+  RACE._data.nextNumbers = (nextRes && nextRes.round) ? nextRes : null;
+  RACE._data.fixedCombos = {};
+  (fixedRes.items || []).forEach(function(it){ RACE._data.fixedCombos[it.strategy_no] = it.combos; });
+};
+
+// 서버(snake_case) 행을 기존 코드 전반에서 쓰던 필드명(예: nameEn, isRandom, isFixedCombo)으로 변환
+// (odd_even, consecutive_limit, sum_min 등 나머지는 기존에도 snake_case로 써왔으므로 그대로 유지)
+RACE._strategyFromServerRow = function(row){
+  return {
+    no: row.no, name: row.name, nameEn: row.name_en, isRandom: row.is_random,
+    odd_even: row.odd_even, consecutive_limit: row.consecutive_limit,
+    sum_min: row.sum_min, sum_max: row.sum_max, top_range: row.top_range, top_use: row.top_use,
+    recent_rounds: row.recent_rounds, bonus_include: row.bonus_include,
+    set_count: row.set_count, repeat_count: row.repeat_count, isFixedCombo: row.is_fixed_combo
+  };
+};
+
+// 반대방향 변환 (클라이언트 객체 -> 서버 저장용 payload 필드명은 라우터가 알아서 매핑하므로
+// 실제로는 클라이언트 객체를 거의 그대로 보내면 되지만, 명확성을 위해 헬퍼로 남겨둠)
+RACE._strategyToPayload = function(s){
+  return {
+    no: s.no, name: s.name, nameEn: s.nameEn, isRandom: s.isRandom,
+    oddEven: s.odd_even, consecutiveLimit: s.consecutive_limit,
+    sumMin: s.sum_min, sumMax: s.sum_max, topRange: s.top_range, topUse: s.top_use,
+    recentRounds: s.recent_rounds, bonusInclude: s.bonus_include,
+    setCount: s.set_count, repeatCount: s.repeat_count, isFixedCombo: s.isFixedCombo
+  };
+};
+
 // 회차 라벨: "제1234회" (한글) / "Round 1234" (영어)
 RACE.roundLabel = function(round){ return T('round_prefix') + round + T('round_suffix'); };
 
@@ -1038,23 +1117,31 @@ RACE.NEXTNUMS_KEY   = 'mll_race_next_numbers'; // { round, generatedAt, [strateg
 RACE.FIXED_COMBOS_KEY = 'mll_race_fixed_combos'; // { strategyNo: [[n1..n6], ...100개] } - isFixedCombo:true인 말 전용, 1회 생성 후 모든 회차에 영구 고정
 
 RACE.loadFixedCombos = function(){
-  try { return JSON.parse(localStorage.getItem(RACE.FIXED_COMBOS_KEY) || 'null'); } catch(e){ return null; }
+  return RACE._data.fixedCombos;
 };
-RACE.saveFixedCombos = function(map){ localStorage.setItem(RACE.FIXED_COMBOS_KEY, JSON.stringify(map)); };
-RACE.clearFixedCombos = function(){ localStorage.removeItem(RACE.FIXED_COMBOS_KEY); };
+// 관리자 전용: 고정조합 맵을 서버에 저장
+RACE._saveFixedCombosToServer = async function(map){
+  var items = Object.keys(map).map(function(no){ return { strategyNo: Number(no), combos: map[no] }; });
+  if (!items.length) return;
+  var resp = await MLL.adminFetch('/api/admin/race/fixed-combos', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items: items })
+  });
+  var data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || resp.status);
+};
 
 // 현재 strategies 중 isFixedCombo:true인 말들에게, 서로 중복 없는 100개씩을 1회 배분한다.
-// (이미 모든 대상 말에 배분이 끝나 있으면 그대로 재사용 — forceRegenerate가 true일 때만 전부 새로 뽑음)
-RACE.ensureFixedCombos = function(strategies, forceRegenerate){
+// (이미 서버에 배분이 끝나 있으면 그대로 재사용 — forceRegenerate가 true일 때만 전부 새로 뽑아 서버에 재저장.
+//  관리자 시뮬레이션 실행 흐름 안에서만 호출되므로 admin 인증이 이미 확보된 상태를 전제로 한다.)
+RACE.ensureFixedCombos = async function(strategies, forceRegenerate){
   var fixedHorses = strategies.filter(function(s){ return s.isRandom && s.isFixedCombo; });
   if (!forceRegenerate) {
-    var existing = RACE.loadFixedCombos();
-    if (existing) {
-      var allPresent = fixedHorses.every(function(s){ return Array.isArray(existing[s.no]) && existing[s.no].length>0; });
-      if (allPresent) return existing;
-    }
+    var existing = RACE._data.fixedCombos;
+    var allPresent = fixedHorses.every(function(s){ return Array.isArray(existing[s.no]) && existing[s.no].length>0; });
+    if (allPresent) return existing;
   }
-  if (!fixedHorses.length) { RACE.saveFixedCombos({}); return {}; }
+  if (!fixedHorses.length) { RACE._data.fixedCombos = {}; return {}; }
 
   var need = fixedHorses.length * 100;
   var pool45 = Array.from({length:45},function(_,i){return i+1;});
@@ -1074,7 +1161,8 @@ RACE.ensureFixedCombos = function(strategies, forceRegenerate){
 
   var map = {};
   fixedHorses.forEach(function(s, i){ map[s.no] = all.slice(i*100, i*100+100); });
-  RACE.saveFixedCombos(map);
+  await RACE._saveFixedCombosToServer(map);
+  RACE._data.fixedCombos = map;
   return map;
 };
 
@@ -1095,43 +1183,54 @@ RACE.unpackRoundResult = function(arr, generated){
   return { generated: generated || (winCount+gc.fail), gradeCounts: gc, winCount: winCount, bestGrade: bestGrade, totalPrize: arr[6]||0 };
 };
 
-// ── 저장소 헬퍼 ──
+// ── 저장소 헬퍼 (서버 캐시 기반 — RACE.loadServerData()가 미리 채워둔 RACE._data를 읽음) ──
 RACE.loadStrategies = function(){
-  try {
-    var raw = localStorage.getItem(RACE.STRATEGIES_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch(e){ return null; }
+  return RACE._data.strategies;
 };
-RACE.saveStrategies = function(list){ localStorage.setItem(RACE.STRATEGIES_KEY, JSON.stringify(list)); };
-
-RACE.loadResults = function(){
-  try { return JSON.parse(localStorage.getItem(RACE.RESULTS_KEY) || '{}'); } catch(e){ return {}; }
-};
-RACE.saveResults = function(obj){ localStorage.setItem(RACE.RESULTS_KEY, JSON.stringify(obj)); };
+// RACE.saveStrategies는 이제 직접 쓰이지 않고, 개별수정은 RACE.saveEditedStrategy,
+// 전체교체(시드복원)는 RACE.resetStrategiesToSeed가 각각 서버 admin API를 직접 호출합니다.
 
 RACE.loadMeta = function(){
-  try { return JSON.parse(localStorage.getItem(RACE.META_KEY) || 'null') || {lastSimulatedRound:0}; }
-  catch(e){ return {lastSimulatedRound:0}; }
+  return RACE._data.meta || { lastSimulatedRound: 0 };
 };
-RACE.saveMeta = function(meta){ localStorage.setItem(RACE.META_KEY, JSON.stringify(meta)); };
 
 RACE.loadNextNumbers = function(){
-  try { return JSON.parse(localStorage.getItem(RACE.NEXTNUMS_KEY) || 'null'); } catch(e){ return null; }
+  return RACE._data.nextNumbers;
 };
-RACE.saveNextNumbers = function(obj){ localStorage.setItem(RACE.NEXTNUMS_KEY, JSON.stringify(obj)); };
-
-RACE.clearSimulationData = function(){
-  localStorage.removeItem(RACE.RESULTS_KEY);
-  localStorage.removeItem(RACE.META_KEY);
-  localStorage.removeItem(RACE.NEXTNUMS_KEY);
-  RACE.clearFixedCombos();
+// 관리자 전용: 다음회차 예상번호를 서버에 저장
+RACE._saveNextNumbersToServer = async function(data){
+  var items = Object.keys(data)
+    .filter(function(k){ return k !== 'round' && k !== 'generatedAt'; })
+    .map(function(no){ return { strategyNo: Number(no), combos: data[no] }; });
+  if (!items.length) return;
+  var resp = await MLL.adminFetch('/api/admin/race/next-numbers', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ round: data.round, items: items })
+  });
+  var respData = await resp.json();
+  if (!resp.ok) throw new Error(respData.error || resp.status);
 };
 
-RACE.resetAll = function(){
+// 시뮬레이션 데이터(결과/다음회차예상/고정조합) 전체 초기화 — 관리자 전용, 전략 정의는 유지됨
+RACE.clearSimulationData = async function(){
+  var resp = await MLL.adminFetch('/api/admin/race/reset', { method: 'POST' });
+  var data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || resp.status);
+  RACE._data.overallSummary = [];
+  RACE._data.meta = { lastSimulatedRound: 0, updatedAt: null };
+  RACE._data.nextNumbers = null;
+  RACE._data.fixedCombos = {};
+};
+
+RACE.resetAll = async function(){
+  if (!MLL.checkAdmin()) { alert(T('admin_auth_required')); RACE.openAdminLogin(); return; }
   if (!confirm(T('confirm_reset_sim'))) return;
-  RACE.clearSimulationData();
-  location.reload();
+  try {
+    await RACE.clearSimulationData();
+    location.reload();
+  } catch(e) {
+    alert((LANG==='en' ? 'Reset failed: ' : '초기화 실패: ') + e.message);
+  }
 };
 
 // =====================================================
@@ -1229,20 +1328,21 @@ RACE.loadEditForm = function(){
   document.getElementById('adminEditForm').innerHTML = html;
 };
 
-RACE.saveEditedStrategy = function(){
-  if (!MLL.checkAdmin()) { alert(T('admin_auth_required')); return; }
+RACE.saveEditedStrategy = async function(){
+  if (!MLL.checkAdmin()) { alert(T('admin_auth_required')); RACE.openAdminLogin(); return; }
   var strategies = RACE.ensureStrategies();
   var no = parseInt(document.getElementById('adminEditSelect').value);
   var idx = strategies.findIndex(function(x){return x.no===no;});
   if (idx < 0) return;
   var s = strategies[idx];
+  var updated;
 
   if (s.isRandom) {
     var sc = parseInt(document.getElementById('edit_set_count').value) || 100;
     var isFixed = document.getElementById('edit_isFixedCombo').checked;
-    strategies[idx] = Object.assign({}, s, { set_count: sc, isFixedCombo: isFixed });
+    updated = Object.assign({}, s, { set_count: sc, isFixedCombo: isFixed });
   } else {
-    var updated = Object.assign({}, s);
+    updated = Object.assign({}, s);
     RACE.EDIT_FIELDS().forEach(function(f){
       var el = document.getElementById('edit_'+f.key);
       if (!el) return;
@@ -1265,24 +1365,45 @@ RACE.saveEditedStrategy = function(){
         return;
       }
     }
-    strategies[idx] = updated;
   }
 
-  RACE.saveStrategies(strategies);
-  RACE.clearSimulationData();
-  document.getElementById('adminEditMsg').innerHTML = '<span style="color:var(--green);">'+T('saved_sim_reset_note')+'</span>';
-  RACE.refreshUI();
+  try {
+    var resp = await MLL.adminFetch('/api/admin/race/strategies/'+no, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(RACE._strategyToPayload(updated))
+    });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || resp.status);
+
+    strategies[idx] = updated;
+    await RACE.clearSimulationData(); // 조건이 바뀌면 기존 시뮬레이션 결과는 더 이상 유효하지 않으므로 전체 초기화
+    document.getElementById('adminEditMsg').innerHTML = '<span style="color:var(--green);">'+T('saved_sim_reset_note')+'</span>';
+    RACE.refreshUI();
+  } catch(e) {
+    document.getElementById('adminEditMsg').innerHTML = '<span style="color:var(--red);">'+(LANG==='en'?'Save failed: ':'저장 실패: ')+e.message+'</span>';
+  }
 };
 
-RACE.resetStrategiesToSeed = function(){
-  if (!MLL.checkAdmin()) { alert(T('admin_auth_required')); return; }
+RACE.resetStrategiesToSeed = async function(){
+  if (!MLL.checkAdmin()) { alert(T('admin_auth_required')); RACE.openAdminLogin(); return; }
   if (!confirm(T('confirm_reset_to_seed'))) return;
   var seed = MLL.RACE_STRATEGY_SEED.map(function(s){ return Object.assign({}, s); });
-  RACE.saveStrategies(seed);
-  RACE.clearSimulationData();
-  document.getElementById('adminEditMsg').innerHTML = '<span style="color:var(--green);">'+T('restored_to_original')+'</span>';
-  RACE.openAdminEdit();
-  RACE.refreshUI();
+  try {
+    var resp = await MLL.adminFetch('/api/admin/race/strategies', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ strategies: seed.map(RACE._strategyToPayload) })
+    });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || resp.status);
+
+    RACE._data.strategies = seed;
+    await RACE.clearSimulationData();
+    document.getElementById('adminEditMsg').innerHTML = '<span style="color:var(--green);">'+T('restored_to_original')+'</span>';
+    RACE.openAdminEdit();
+    RACE.refreshUI();
+  } catch(e) {
+    document.getElementById('adminEditMsg').innerHTML = '<span style="color:var(--red);">'+(LANG==='en'?'Save failed: ':'저장 실패: ')+e.message+'</span>';
+  }
 };
 
 RACE.exportStrategiesJSON = function(){
@@ -1304,28 +1425,11 @@ RACE.buildHistoryBefore = function(allResults, beforeRound){
     .map(function(r){ return { round:r, nums:allResults[r].nums||[], bonus:allResults[r].bonus||null }; });
 };
 
-// ── 초기화: 전략목록이 없으면 시드로 채움 ──
+// ── 전략 목록 접근자 (서버에서 이미 불러와 캐시된 것을 그대로 반환) ──
+// 캐시가 비어있다면(서버에 아직 전략이 하나도 등록 안 된 최초 상태) 빈 배열을 반환합니다.
+// 이 경우 관리자가 "시드로 복원" 버튼(RACE.resetStrategiesToSeed)을 눌러 최초 100개를 서버에 등록해야 합니다.
 RACE.ensureStrategies = function(){
-  var existing = RACE.loadStrategies();
-  if (existing && existing.length === 100) {
-    // 예전 버전에서 저장된 데이터에 신규 필드(예: isFixedCombo)가 없으면, 시드 기본값으로 보충한다.
-    // (사용자가 직접 수정한 기존 조건들은 그대로 유지하고, "빠진 필드만" 채움 — 마이그레이션)
-    var seedByNo = {};
-    MLL.RACE_STRATEGY_SEED.forEach(function(s){ seedByNo[s.no] = s; });
-    var migrated = false;
-    existing.forEach(function(s){
-      var seedDefault = seedByNo[s.no];
-      if (seedDefault && s.isRandom && s.isFixedCombo === undefined) {
-        s.isFixedCombo = seedDefault.isFixedCombo;
-        migrated = true;
-      }
-    });
-    if (migrated) RACE.saveStrategies(existing);
-    return existing;
-  }
-  var seed = MLL.RACE_STRATEGY_SEED.map(function(s){ return Object.assign({}, s); });
-  RACE.saveStrategies(seed);
-  return seed;
+  return RACE._data.strategies || [];
 };
 
 // ── 시뮬레이션 가능한 회차 범위 파악 ──
@@ -1347,20 +1451,31 @@ RACE.stopCatchup = function(){
   document.getElementById('sbDesc').textContent = '중단 요청됨 - 현재까지 처리한 회차를 저장하는 중...';
 };
 
-RACE.runCatchup = function(){
+RACE.runCatchup = async function(){
+  if (!MLL.checkAdmin()) { alert(T('admin_auth_required')); RACE.openAdminLogin(); return; }
   if (RACE.isRunning) return;
   var range = RACE.getRoundRange();
   if (!range) { alert(T('no_results_data')); return; }
 
   var strategies = RACE.ensureStrategies();
+  if (!strategies.length) {
+    alert(LANG==='en' ? 'No strategies registered on the server yet. Please run "Restore to Seed" first.' : '서버에 등록된 전략이 아직 없습니다. 먼저 "시드로 복원"을 실행해주세요.');
+    return;
+  }
+
   var meta = RACE.loadMeta();
-  var raceResults = RACE.loadResults();
-  var fixedCombosMap = RACE.ensureFixedCombos(strategies);
+  var fixedCombosMap;
+  try {
+    fixedCombosMap = await RACE.ensureFixedCombos(strategies);
+  } catch(e) {
+    alert((LANG==='en'?'Failed to prepare fixed combos: ':'고정조합 준비 실패: ')+e.message);
+    return;
+  }
 
   // 처리해야 할 회차 목록: lastSimulatedRound 보다 큰 회차들 중 실제 결과가 존재하는 것
   var todo = range.all.filter(function(r){ return r > (meta.lastSimulatedRound||0); });
   if (!todo.length) {
-    RACE.computeNextNumbers(strategies, range);
+    await RACE.computeNextNumbers(strategies, range);
     RACE.refreshUI();
     alert(T('already_processed')+range.max+T('already_processed_suffix'));
     return;
@@ -1374,20 +1489,33 @@ RACE.runCatchup = function(){
   document.getElementById('sbProgressWrap').style.display = 'block';
   document.getElementById('sbTitle').textContent = T('sim_in_progress_title');
 
-  var CHUNK = 5;          // 한 번에 처리할 회차 수 (UI 양보를 위해)
-  var SAVE_EVERY = 100;   // 이만큼 처리할 때마다 중간 저장 (브라우저 강제종료/새로고침에도 보존)
+  var CHUNK = 5;          // 한 번에(양보 전까지) 계산할 회차 수
+  var SAVE_EVERY = 100;   // 이만큼 계산할 때마다 서버로 중간 저장 (네트워크 끊김/새로고침에도 진행분 보존)
   var idx = 0;
   var total = todo.length;
   var lastSavedIdx = 0;
+  var pendingBatch = []; // 계산은 끝났지만 아직 서버로 안 보낸 결과들
 
-  function safeSave(uptoMetaRound){
+  function stopUI(){
+    RACE.isRunning = false;
+    document.getElementById('btnRunCatchup').disabled = false;
+    document.getElementById('btnRunCatchup').innerHTML = T('btn_run_sim');
+    document.getElementById('btnStopCatchup').style.display = 'none';
+  }
+
+  async function safeSave(uptoMetaRound){
+    if (!pendingBatch.length) return true;
     try {
-      RACE.saveResults(raceResults);
-      if (uptoMetaRound != null) {
-        meta.lastSimulatedRound = uptoMetaRound;
-        meta.updatedAt = Date.now();
-        RACE.saveMeta(meta);
-      }
+      var resp = await MLL.adminFetch('/api/admin/race/results', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ results: pendingBatch, lastSimulatedRound: uptoMetaRound })
+      });
+      var data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || resp.status);
+      pendingBatch = [];
+      meta.lastSimulatedRound = uptoMetaRound;
+      meta.updatedAt = Date.now();
+      RACE._data.meta = meta;
       return true;
     } catch(e) {
       console.error('저장 실패:', e);
@@ -1395,48 +1523,20 @@ RACE.runCatchup = function(){
     }
   }
 
-  function finishUp(){
-    document.getElementById('sbDesc').textContent = T('saving_results');
-    setTimeout(function(){
-      var ok = safeSave(todo[idx-1]);
-      if (!ok) {
-        RACE.isRunning = false;
-        document.getElementById('btnRunCatchup').disabled = false;
-        document.getElementById('btnRunCatchup').innerHTML = T('btn_run_sim');
-        document.getElementById('btnStopCatchup').style.display = 'none';
-        alert(T('storage_save_failed'));
-        RACE.refreshUI();
-        return;
-      }
-      document.getElementById('sbDesc').textContent = T('generating_next_round');
-      setTimeout(function(){
-        RACE.computeNextNumbers(strategies, range);
-        document.getElementById('sbDesc').textContent = T('preparing_display');
-        setTimeout(function(){
-          RACE.isRunning = false;
-          document.getElementById('btnRunCatchup').disabled = false;
-          document.getElementById('btnRunCatchup').innerHTML = T('btn_run_sim');
-          document.getElementById('btnStopCatchup').style.display = 'none';
-          document.getElementById('sbProgressWrap').style.display = 'none';
-          RACE.refreshUI();
-        }, 0);
-      }, 0);
-    }, 0);
-  }
-
-  function step(){
+  while (idx < total) {
     var end = Math.min(idx + CHUNK, total);
     for (; idx < end; idx++){
       var round = todo[idx];
       var winData = range.resultsObj[round];
       if (!winData || !winData.nums) continue;
       var history = RACE.buildHistoryBefore(range.resultsObj, round);
-      var roundResult = {};
       strategies.forEach(function(s){
         var rd = MLL.raceSimulateOneRound(s, history, winData, round, fixedCombosMap);
-        roundResult[s.no] = RACE.packRoundResult(rd);
+        pendingBatch.push({
+          round: round, strategyNo: s.no, generated: rd.generated,
+          gradeCounts: rd.gradeCounts, winCount: rd.winCount, bestGrade: rd.bestGrade, totalPrize: rd.totalPrize
+        });
       });
-      raceResults[round] = roundResult;
     }
     var pct = Math.round((idx/total)*100);
     document.getElementById('sbProgressFill').style.width = pct+'%';
@@ -1444,86 +1544,121 @@ RACE.runCatchup = function(){
     document.getElementById('sbProgressPct').textContent = pct+'%';
     document.getElementById('sbDesc').textContent = T('processing_round_prefix')+todo[Math.min(idx,total-1)]+T('processing_round_suffix');
 
-    // 중단 요청 처리: 지금까지 처리한 만큼 저장하고 종료
+    // 중단 요청 처리: 지금까지 계산한 만큼 저장하고 종료
     if (RACE.stopRequested) {
-      var ok = safeSave(todo[idx-1]);
-      RACE.isRunning = false;
-      document.getElementById('btnRunCatchup').disabled = false;
-      document.getElementById('btnRunCatchup').innerHTML = T('btn_run_sim');
-      document.getElementById('btnStopCatchup').style.display = 'none';
+      var stopOk = await safeSave(todo[idx-1]);
+      stopUI();
       document.getElementById('sbProgressWrap').style.display = 'none';
-      if (!ok) alert(T('stop_save_failed'));
+      if (!stopOk) alert(T('stop_save_failed'));
       RACE.refreshUI();
       return;
     }
 
-    // 중간 자동저장 (새로고침/강제종료에도 진행분 보존)
+    // 중간 자동저장 (네트워크 끊김/새로고침에도 진행분 보존)
     if (idx - lastSavedIdx >= SAVE_EVERY && idx < total) {
-      var midOk = safeSave(todo[idx-1]);
+      document.getElementById('sbDesc').textContent = T('saving_results');
+      var midOk = await safeSave(todo[idx-1]);
       lastSavedIdx = idx;
       if (!midOk) {
-        RACE.isRunning = false;
-        document.getElementById('btnRunCatchup').disabled = false;
-        document.getElementById('btnRunCatchup').innerHTML = T('btn_run_sim');
-        document.getElementById('btnStopCatchup').style.display = 'none';
+        stopUI();
         alert(T('storage_low_stopped')+todo[idx-1]+T('storage_low_stopped_suffix'));
         RACE.refreshUI();
         return;
       }
     }
 
-    if (idx < total) {
-      setTimeout(step, 0);
-    } else {
-      finishUp();
-    }
+    // 브라우저 UI가 멈추지 않도록 한 틱 양보
+    await new Promise(function(r){ setTimeout(r, 0); });
   }
-  step();
+
+  // 마무리: 남은 배치 저장 + 다음회차 예상번호 생성
+  document.getElementById('sbDesc').textContent = T('saving_results');
+  var finalOk = await safeSave(todo[total-1]);
+  if (!finalOk) {
+    stopUI();
+    alert(T('storage_save_failed'));
+    RACE.refreshUI();
+    return;
+  }
+
+  document.getElementById('sbDesc').textContent = T('generating_next_round');
+  try { await RACE.computeNextNumbers(strategies, range); }
+  catch(e) { console.error('다음회차 예상번호 저장 오류:', e); }
+  document.getElementById('sbDesc').textContent = T('preparing_display');
+
+  // 누적집계는 서버(/api/admin/race/results)가 이미 재계산해뒀으므로, 최신값을 다시 받아온다
+  try {
+    var overallResp = await fetch(MLL.API_BASE + '/api/race/results/overall');
+    var overallData = await overallResp.json();
+    RACE._data.overallSummary = overallData.items || [];
+  } catch(e) { console.error('누적집계 재조회 오류:', e); }
+
+  stopUI();
+  document.getElementById('sbProgressWrap').style.display = 'none';
+  RACE.refreshUI();
 };
 
 // ── 다음회차 예상번호 생성 (각 전략이 "현재까지 전체"를 history로 사용) ──
-RACE.computeNextNumbers = function(strategies, range){
+RACE.computeNextNumbers = async function(strategies, range){
   var info = MLL.getLottoInfo();
   var nextRound = info.saleRound; // 다음에 판매중/판매될 회차
   var existing = RACE.loadNextNumbers();
   if (existing && existing.round === nextRound) return; // 이미 생성됨
 
   var history = RACE.buildHistoryBefore(range.resultsObj, nextRound);
-  var fixedCombosMap = RACE.ensureFixedCombos(strategies);
+  var fixedCombosMap = await RACE.ensureFixedCombos(strategies);
   var data = { round: nextRound, generatedAt: Date.now() };
   strategies.forEach(function(s){
     data[s.no] = MLL.raceResolveCombos(s, history, nextRound, fixedCombosMap);
   });
-  RACE.saveNextNumbers(data);
+  await RACE._saveNextNumbersToServer(data);
+  RACE._data.nextNumbers = data;
 };
 
 // ── 누적 통계 집계 (FROM~TO 범위, 기본은 전체) ──
-RACE.aggregate = function(fromRound, toRound){
-  var raceResults = RACE.loadResults();
-  var rounds = Object.keys(raceResults).map(Number).filter(function(r){
-    return (fromRound==null || r>=fromRound) && (toRound==null || r<=toRound);
-  });
+// fromRound/toRound가 둘 다 null이면 "전체"(서버에 미리 집계된 race_overall_summary 사용, 빠름),
+// 범위가 지정되면 그때그때 서버에 물어서 집계(/api/race/results/period)합니다.
+RACE.aggregate = async function(fromRound, toRound){
   var strategies = RACE.ensureStrategies();
+  var summaryRows;
+  var roundsUsedCount;
+
+  if (fromRound == null && toRound == null) {
+    summaryRows = RACE._data.overallSummary || [];
+    roundsUsedCount = summaryRows.length ? Math.max.apply(null, summaryRows.map(function(r){ return r.rounds_played||0; })) : 0;
+  } else {
+    try {
+      var resp = await fetch(MLL.API_BASE + '/api/race/results/period?from='+fromRound+'&to='+toRound);
+      var data = await resp.json();
+      summaryRows = (data.items||[]).map(function(x){
+        return {
+          strategy_no: x.strategyNo, total_generated: x.generated,
+          grade1_count: x.grade1_count, grade2_count: x.grade2_count, grade3_count: x.grade3_count,
+          grade4_count: x.grade4_count, grade5_count: x.grade5_count, fail_count: x.fail_count,
+          win_count: x.winCount, total_prize: x.totalPrize, rounds_played: x.roundsPlayed
+        };
+      });
+    } catch(e) {
+      console.error('[race] period 집계 조회 오류:', e);
+      summaryRows = [];
+    }
+    roundsUsedCount = (toRound - fromRound + 1);
+  }
+
+  var byNo = {};
+  summaryRows.forEach(function(r){ byNo[r.strategy_no] = r; });
+
   var agg = {};
   strategies.forEach(function(s){
-    agg[s.no] = { no:s.no, name:s.name, nameEn:s.nameEn, isRandom:s.isRandom, isFixedCombo:s.isFixedCombo,
-      totalPrize:0, winCount:0, generated:0, roundsPlayed:0,
-      gradeCounts:{1:0,2:0,3:0,4:0,5:0,fail:0} };
+    var r = byNo[s.no] || {};
+    agg[s.no] = {
+      no: s.no, name: s.name, nameEn: s.nameEn, isRandom: s.isRandom, isFixedCombo: s.isFixedCombo,
+      totalPrize: r.total_prize || 0, winCount: r.win_count || 0, generated: r.total_generated || 0,
+      roundsPlayed: r.rounds_played || 0,
+      gradeCounts: { 1: r.grade1_count||0, 2: r.grade2_count||0, 3: r.grade3_count||0, 4: r.grade4_count||0, 5: r.grade5_count||0, fail: r.fail_count||0 }
+    };
   });
-  rounds.forEach(function(r){
-    var roundData = raceResults[r];
-    if (!roundData) return;
-    strategies.forEach(function(s){
-      var rd = RACE.unpackRoundResult(roundData[s.no], parseInt(s.set_count)||100);
-      if (!rd) return;
-      var a = agg[s.no];
-      a.totalPrize += rd.totalPrize||0;
-      a.winCount += rd.winCount||0;
-      a.generated += rd.generated||0;
-      a.roundsPlayed += 1;
-      [1,2,3,4,5,'fail'].forEach(function(g){ a.gradeCounts[g] += (rd.gradeCounts && rd.gradeCounts[g]) || 0; });
-    });
-  });
+
   var list = Object.values(agg);
   // 순위: 누적당첨금 → 당첨건수 → 적은생성건수
   list.sort(function(a,b){
@@ -1532,7 +1667,9 @@ RACE.aggregate = function(fromRound, toRound){
     return a.generated - b.generated;
   });
   list.forEach(function(item,i){ item.rank = i+1; });
-  return { list: list, roundsUsed: rounds.sort(function(a,b){return a-b;}) };
+
+  var roundsUsed = { length: roundsUsedCount || 0 };
+  return { list: list, roundsUsed: roundsUsed };
 };
 
 // ── 개별 전략 즉석 다운로드: 회차/순위와 무관하게, 주문 시점에 그 전략 조건으로 새로 추첨 ──
@@ -1544,7 +1681,7 @@ RACE.generateOnDemand = function(strategyNo, count){
   var range = RACE.getRoundRange();
   var info = MLL.getLottoInfo();
   var history = range ? RACE.buildHistoryBefore(range.resultsObj, info.saleRound) : [];
-  var fixedCombosMap = RACE.ensureFixedCombos(strategies);
+  var fixedCombosMap = RACE.loadFixedCombos();
   var strategyForCount = Object.assign({}, s, { set_count: count });
   return MLL.raceResolveCombos(strategyForCount, history, info.saleRound, fixedCombosMap);
 };
@@ -1640,7 +1777,7 @@ RACE.openComboDetail = function(round, strategyNo){
   }
 
   var history = RACE.buildHistoryBefore(lottoResults, round);
-  var fixedCombosMap = RACE.loadFixedCombos() || RACE.ensureFixedCombos(strategies);
+  var fixedCombosMap = RACE.loadFixedCombos();
   var combos = MLL.raceResolveCombos(s, history, round, fixedCombosMap);
 
   var rows = combos.map(function(nums, i){
@@ -1672,7 +1809,11 @@ RACE.horseTagHtml = function(s){
 };
 
 // ── 진입점: 페이지 로드 시 상태 확인 후 UI 분기 ──
-RACE.init = function(){
+RACE.init = async function(){
+  document.getElementById('sbTitle').textContent = LANG==='en' ? 'Loading data…' : '데이터를 불러오는 중…';
+  document.getElementById('sbDesc').textContent = '';
+  await RACE.loadServerData();
+
   var range = RACE.getRoundRange();
   if (!range) {
     document.getElementById('emptyWrap').style.display = 'block';
@@ -1681,7 +1822,6 @@ RACE.init = function(){
     document.getElementById('btnRunCatchup').disabled = true;
     return;
   }
-  RACE.ensureStrategies();
   RACE.refreshUI();
 };
 
@@ -1725,13 +1865,15 @@ RACE.refreshUI = function(){
     RACE.renderPeriod();
     RACE.renderNext();
 
-    if (pending > 0 && !RACE.isRunning) {
+    // 새 회차 자동 시뮬레이션은 관리자에게만 안내합니다 (일반 방문자는 서버에 이미 저장된
+    // 결과를 조회만 하고, 계산은 관리자가 명시적으로 실행할 때만 일어나야 합니다).
+    if (pending > 0 && !RACE.isRunning && MLL.checkAdmin()) {
       RACE.maybeAutoRun(range);
     }
   }
 };
 
-// ── 새 회차 자동 처리: 처음 보는 대기상태면 안내 팝업 먼저, 이미 본 상태면 조용히 자동시작 ──
+// ── 새 회차 자동 처리(관리자 전용): 처음 보는 대기상태면 안내 팝업 먼저, 이미 본 상태면 조용히 자동시작 ──
 RACE.AUTORUN_SEEN_KEY = 'mll_race_autorun_seen_upto';
 RACE.pendingAutoRunRange = null;
 
@@ -1766,9 +1908,12 @@ RACE.switchTab = function(tab){
   document.querySelectorAll('.tabpanel-section').forEach(function(p){ p.classList.toggle('active', p.id==='panel-'+tab); });
 };
 
+// 회차 선택 드롭다운들: "이미 시뮬레이션된 회차" = range.min ~ meta.lastSimulatedRound
+// (runCatchup이 항상 순서대로, 빠짐없이 처리하기 때문에 이 구간엔 빈틈이 없습니다)
 RACE.populateRoundSelectors = function(){
-  var raceResults = RACE.loadResults();
-  var rounds = Object.keys(raceResults).map(Number).sort(function(a,b){return b-a;});
+  var range = RACE.getRoundRange();
+  var lastSim = (RACE._data.meta && RACE._data.meta.lastSimulatedRound) || 0;
+  var rounds = range.all.filter(function(r){ return r <= lastSim; }).sort(function(a,b){return b-a;});
   var roundSel = document.getElementById('roundSel');
   var fromSel = document.getElementById('periodFromSel');
   var toSel = document.getElementById('periodToSel');
@@ -1780,8 +1925,8 @@ RACE.populateRoundSelectors = function(){
 };
 
 // ── 전체 누적순위 탭 ──
-RACE.renderOverall = function(){
-  var agg = RACE.aggregate(null, null);
+RACE.renderOverall = async function(){
+  var agg = await RACE.aggregate(null, null);
   var filterKey = document.getElementById('overallFilterSel').value;
 
   var list = agg.list.filter(function(x){
@@ -1901,27 +2046,42 @@ RACE.statBox = function(label, val, colorCls){
 };
 
 // ── 회차별 결과 탭 ──
-RACE.renderRound = function(){
+RACE.renderRound = async function(){
   var roundSel = document.getElementById('roundSel');
   var round = parseInt(roundSel.value);
   if (!round) return;
-  var raceResults = RACE.loadResults();
-  var roundData = raceResults[round];
+
+  var strategies = RACE.ensureStrategies();
   var lottoResults = MLL.loadResults();
   var winData = lottoResults[round];
-  var strategies = RACE.ensureStrategies();
-
   document.getElementById('roundDateLabel').textContent = winData ? (T('draw_date_prefix')+MLL.getDrawDate(round)) : '';
 
-  if (!roundData) {
+  var rows;
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/race/results/round/' + round);
+    var data = await resp.json();
+    rows = data.items || [];
+  } catch(e) {
+    console.error('[race] round 결과 조회 오류:', e);
+    rows = [];
+  }
+
+  if (!rows.length) {
     document.getElementById('roundTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">'+T('round_not_simulated')+'</td></tr></tbody>';
     document.getElementById('roundStatGrid').innerHTML = '';
     return;
   }
 
+  var byNo = {};
+  rows.forEach(function(r){ byNo[r.strategy_no] = r; });
+
   var list = strategies.map(function(s){
-    var rd = RACE.unpackRoundResult(roundData[s.no], parseInt(s.set_count)||100);
-    return Object.assign({no:s.no, name:s.name, nameEn:s.nameEn, isRandom:s.isRandom}, rd);
+    var r = byNo[s.no] || {};
+    return {
+      no: s.no, name: s.name, nameEn: s.nameEn, isRandom: s.isRandom,
+      generated: r.generated||0, winCount: r.win_count||0, totalPrize: r.total_prize||0,
+      gradeCounts: { 1: r.grade1_count||0, 2: r.grade2_count||0, 3: r.grade3_count||0, 4: r.grade4_count||0, 5: r.grade5_count||0, fail: r.fail_count||0 }
+    };
   });
   list.sort(function(a,b){
     if (b.totalPrize !== a.totalPrize) return b.totalPrize - a.totalPrize;
@@ -1932,7 +2092,6 @@ RACE.renderRound = function(){
 
   var totalPrize = list.reduce(function(s,x){return s+x.totalPrize;},0);
   var totalWin = list.reduce(function(s,x){return s+x.winCount;},0);
-  var best1 = list.filter(function(x){return x.gradeCounts[1]>0;}).length;
 
   document.getElementById('roundStatGrid').innerHTML =
     RACE.statBox(T('stat_round_win_nums'), winData ? RACE.ballsHtml(winData.nums, winData.bonus) : '-', '') +
@@ -1940,7 +2099,7 @@ RACE.renderRound = function(){
     RACE.statBox(T('stat_100_total_wins'), totalWin.toLocaleString()+T('cases_unit_no_space'), 'green') +
     RACE.statBox(T('stat_round_top_horse'), list[0] ? RACE.horseName(list[0]) : '-', 'gold');
 
-  var rows = list.map(function(x){
+  var rowsHtml = list.map(function(x){
     var winRate = x.generated ? (x.winCount/x.generated*100) : 0;
     var rankCls = x.rank===1 ? 'top1' : '';
     var rankPill = x.rank<=3 ? '<span class="rank-pill rank-'+x.rank+'">'+x.rank+'</span>' : '<span class="rank-pill rank-etc">'+x.rank+'</span>';
@@ -1957,18 +2116,18 @@ RACE.renderRound = function(){
 
   document.getElementById('roundTable').innerHTML =
     '<thead><tr><th>'+T('th_rank')+'</th><th style="text-align:left;">'+T('th_horse_name_only')+'</th><th>'+T('th_prize')+'</th><th>'+T('th_win_count')+'</th><th>'+T('th_win_rate')+'</th><th>'+T('th_grades_1to5')+'</th><th>'+T('th_submitted_combos')+'</th></tr></thead>' +
-    '<tbody>'+(rows || '<tr><td colspan="7" style="padding:30px;color:var(--text-faint);">'+T('no_data_table')+'</td></tr>')+'</tbody>';
+    '<tbody>'+(rowsHtml || '<tr><td colspan="7" style="padding:30px;color:var(--text-faint);">'+T('no_data_table')+'</td></tr>')+'</tbody>';
 };
 
 // ── 기간별 통계 탭 ──
-RACE.renderPeriod = function(){
+RACE.renderPeriod = async function(){
   var fromSel = document.getElementById('periodFromSel');
   var toSel = document.getElementById('periodToSel');
   var from = parseInt(fromSel.value), to = parseInt(toSel.value);
   if (!from || !to) return;
   if (from > to) { var t=from; from=to; to=t; }
 
-  var agg = RACE.aggregate(from, to);
+  var agg = await RACE.aggregate(from, to);
   var totalPrize = agg.list.reduce(function(s,x){return s+x.totalPrize;},0);
   var totalWin = agg.list.reduce(function(s,x){return s+x.winCount;},0);
 
@@ -2025,11 +2184,11 @@ RACE.renderNext = function(){
 };
 
 // ── 전략 상세 모달 ──
-RACE.openDetail = function(strategyNo){
+RACE.openDetail = async function(strategyNo){
   var strategies = RACE.ensureStrategies();
   var s = strategies.find(function(x){return x.no===strategyNo;});
   if (!s) return;
-  var agg = RACE.aggregate(null, null);
+  var agg = await RACE.aggregate(null, null);
   var item = agg.list.find(function(x){return x.no===strategyNo;});
 
   var condHtml = s.isRandom ?
@@ -2116,7 +2275,12 @@ document.addEventListener('keydown', function(e){
   }
 });
 
-document.addEventListener('DOMContentLoaded', function(){ RACE.init(); });
+document.addEventListener('DOMContentLoaded', function(){
+  RACE.init().catch(function(e){
+    console.error('[RACE] 초기화 오류:', e);
+    document.getElementById('sbTitle').textContent = LANG==='en' ? 'Failed to load data. Please refresh.' : '데이터를 불러오지 못했습니다. 새로고침해주세요.';
+  });
+});
 </script>
 
 
