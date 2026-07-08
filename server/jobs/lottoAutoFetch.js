@@ -14,6 +14,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const cheerio = require('cheerio');
+const { runRaceCatchup } = require('./raceAutoRun');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -209,6 +210,16 @@ async function fetchAndSaveRound(round, alreadyExistsOk) {
 
   const detail = await fetchDetailedResult(round);
   const saved = await saveResult(basic, detail);
+
+  // 당첨결과 저장 성공 직후, 100전략 레이스도 자동으로 이어서 시뮬레이션합니다.
+  // (여기서 실패해도 당첨결과 저장 자체는 이미 끝났으므로 로그만 남기고 정상 응답을 계속 반환합니다.
+  //  관리자는 필요하면 hub_race.html에서 수동으로 "시뮬레이션 실행"을 눌러 보완할 수 있습니다.)
+  try {
+    const raceResult = await runRaceCatchup();
+    console.log('[lottoAutoFetch] 100전략 레이스 자동 시뮬레이션 결과:', raceResult);
+  } catch (e) {
+    console.error('[lottoAutoFetch] 100전략 레이스 자동 시뮬레이션 오류 (당첨결과 저장은 정상 완료됨):', e.message);
+  }
 
   return {
     success: true,
