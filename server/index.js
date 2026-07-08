@@ -212,6 +212,7 @@ app.use('/api/lotto', lottoRouter);
 const markingRouter = require('./routes/marking');
 app.use('/api/marking', markingRouter);
 
+// ─── 토토(등수제)+프로토 ─────────────────────────────────────────────────────
 const totoRouter = require('./routes/toto');
 app.use('/api/toto', totoRouter);
 
