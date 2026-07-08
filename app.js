@@ -66,7 +66,8 @@ APP.STR = {
   dr_tiers_title: { kr: '등수별 상금', en: 'Prize Breakdown' },
   th_tier: { kr: '등수', en: 'Tier' },
   th_tier_match: { kr: '일치조건', en: 'Match' },
-  th_tier_prize: { kr: '상금', en: 'Prize' },
+  th_tier_prize: { kr: '당첨금액', en: 'Prize' },
+  th_tier_winners: { kr: '당첨건수', en: 'Winners' },
   dr_no_tiers: { kr: '등수별 상금표 정보가 아직 없습니다.', en: 'No prize breakdown available yet.' },
   method_manual: { kr: '수동', en: 'Manual' },
   method_manual_d: { kr: '직접 선택', en: 'Pick yourself' },
@@ -950,12 +951,13 @@ APP.openDrawResultPopup = function(gameCode){
     var tierRows = draw.prize_tiers.map(function(t){
       var matchStr = t.main_match + (t.bonus_match ? ' + ' + t.bonus_match : (t.bonus_match === 0 ? ' + 0' : ''));
       var prizeStr = (t.prize != null) ? (cur + Number(t.prize).toLocaleString(undefined, {maximumFractionDigits: 2})) : '-';
-      return '<tr><td>' + t.tier + '</td><td>' + matchStr + '</td><td>' + prizeStr + '</td></tr>';
+      var winnersStr = (t.winners != null) ? Number(t.winners).toLocaleString() : '-';
+      return '<tr><td>' + t.tier + '</td><td>' + matchStr + '</td><td>' + prizeStr + '</td><td>' + winnersStr + '</td></tr>';
     }).join('');
     tiersHtml =
       '<div class="dr-tiers-title">' + APP.t('dr_tiers_title') + '</div>' +
       '<table class="dr-tiers-table"><thead><tr>' +
-        '<th>' + APP.t('th_tier') + '</th><th>' + APP.t('th_tier_match') + '</th><th>' + APP.t('th_tier_prize') + '</th>' +
+        '<th>' + APP.t('th_tier') + '</th><th>' + APP.t('th_tier_match') + '</th><th>' + APP.t('th_tier_prize') + '</th><th>' + APP.t('th_tier_winners') + '</th>' +
       '</tr></thead><tbody>' + tierRows + '</tbody></table>';
   } else {
     tiersHtml = '<div class="dr-tiers-title">' + APP.t('dr_tiers_title') + '</div><div class="dr-empty">' + APP.t('dr_no_tiers') + '</div>';
