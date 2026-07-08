@@ -25,6 +25,7 @@
 </head>
 <body>
 
+<a href="global_lotto.html" style="display:inline-block;margin-bottom:10px;font-size:13px;color:#2a5db0;text-decoration:none;">← 메인 화면으로 돌아가기</a>
 <h1>🌍 해외복권 관리자 수동입력</h1>
 <p class="hint">자동수집(NY Open Data / 스크래핑) 실패 시, 또는 유로밀리언스처럼 아직 자동화가 안 된 게임의 비상 입력용 화면입니다.</p>
 
@@ -115,19 +116,30 @@ const API_BASE = 'https://my-lotto-lab-api.onrender.com';
 const REFERENCE_URLS = {
   POWERBALL: 'https://nylottery.ny.gov/',
   MEGAMILLIONS: 'https://nylottery.ny.gov/',
-  EUROMILLIONS: 'https://www.euromillions.com/',
+  EUROMILLIONS: 'https://www.euro-millions.com/results',
 };
 
 // 참고용 사이트를 화면 오른쪽 절반에 맞춰 새 창으로 연다.
 // (iframe으로 끼워넣는 방식은 대부분의 공식 복권 사이트가 보안설정으로
 //  막아놔서 안 열리는 경우가 많아, 별도 브라우저 창을 자동 배치하는 방식 사용)
+let refWindowHandle = null;
+
 function openReferenceWindow(gameCode) {
   const url = REFERENCE_URLS[gameCode];
   const w = Math.round(screen.availWidth * 0.45);
   const h = screen.availHeight - 80;
   const left = screen.availWidth - w;
   const top = 0;
-  window.open(
+
+  // 이미 열려있는 참고창이 있으면 새로 열지 않고 그 창의 주소만 바꿔서 재사용
+  // (매번 새 창을 열면 위치가 초기화되고 깜빡여서 더 헷갈림)
+  if (refWindowHandle && !refWindowHandle.closed) {
+    refWindowHandle.location.href = url;
+    refWindowHandle.focus();
+    return;
+  }
+
+  refWindowHandle = window.open(
     url,
     'lotteryRefWindow',
     `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`
