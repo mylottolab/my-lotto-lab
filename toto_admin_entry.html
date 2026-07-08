@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>토토·프로토 관리자 입력</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 820px; margin: 30px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 20px; }
+  h2 { font-size: 16px; margin-top: 36px; border-bottom: 2px solid #333; padding-bottom: 6px; }
+  label { display: block; margin-top: 12px; font-size: 13px; font-weight: bold; color: #444; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 8px; margin-top: 4px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
+  textarea { font-family: monospace; min-height: 140px; }
+  button { margin-top: 18px; padding: 10px 20px; font-size: 14px; background: #222; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+  button:hover { background: #444; }
+  .result { margin-top: 14px; padding: 10px; border-radius: 4px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+  .result.ok { background: #e6f4ea; color: #1e7e34; }
+  .result.err { background: #fbe8e8; color: #c0392b; }
+  .hint { font-size: 12px; color: #888; margin-top: 2px; }
+  .adminkey-box { background: #fafafa; border: 1px solid #ddd; padding: 12px; border-radius: 6px; }
+  .ref-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding: 10px; background: #eef3fb; border-radius: 6px; }
+  .ref-btn { margin-top: 0; padding: 6px 12px; font-size: 13px; background: #2a5db0; }
+  .ref-btn:hover { background: #1e4685; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+</style>
+</head>
+<body>
+
+<h1>⚽⚾🏀 토토·프로토 관리자 입력</h1>
+<p class="hint">경기 대진표/배당률/결과는 베트맨에 자동화 소스가 마땅치 않아 수동입력으로 운영합니다. 판매현황·예상당첨금은 자동수집됩니다.</p>
+
+<div class="adminkey-box">
+  <label>관리자 키 (ADMIN_API_KEY)</label>
+  <input type="password" id="adminKey" placeholder="관리자 키 입력 (이 브라우저에만 기억됨)">
+</div>
+
+<div class="ref-toolbar">
+  <span class="hint" style="margin:0;">📌 베트맨 참고창 열기 (화면 오른쪽에 자동 배치):</span>
+  <button type="button" class="ref-btn" onclick="openReferenceWindow()">베트맨(betman.co.kr) 열기</button>
+</div>
+
+<!-- ============ 토토(등수제) ============ -->
+<h2>① 토토(등수제) — 회차 생성 (대상경기 등록)</h2>
+
+<label>종목</label>
+<select id="rankGameCode">
+  <option value="SOCCER">축구(승무패)</option>
+  <option value="BASEBALL">야구(승1패)</option>
+  <option value="BASKETBALL">농구(승5패)</option>
+</select>
+
+<label>회차 (숫자만)</label>
+<input type="number" id="rankRound" placeholder="83">
+
+<label>등록마감 시각 (한국시간 기준으로 입력)</label>
+<input type="datetime-local" id="rankDeadline">
+
+<label>대상경기 14개 (JSON 배열, 아래 형식 그대로 채워주세요)</label>
+<textarea id="rankMatches">[
+  {"no":1,"home":"홈팀A","away":"원정팀A"},
+  {"no":2,"home":"홈팀B","away":"원정팀B"}
+]</textarea>
+<p class="hint">실제로는 14개를 다 채워야 정상 등록됩니다. 위는 예시(2개)입니다.</p>
+
+<button onclick="submitRankRound()">토토 회차 생성</button>
+<div id="rankRoundResult"></div>
+
+<h2>② 토토(등수제) — 결과 입력 (자동채점 실행됨)</h2>
+
+<label>회차 ID (방금 생성 시 응답으로 받은 id, 또는 Supabase에서 확인)</label>
+<input type="number" id="rankResultRoundId" placeholder="12">
+
+<label>경기결과 14개 (JSON 배열, 예: ["승","무","패",...])</label>
+<textarea id="rankMatchResults">["승","무","패"]</textarea>
+
+<label>등급별 1인당 당첨금 (JSON, 베트맨에 발표된 실제 금액 그대로)</label>
+<input type="text" id="rankGradePayouts" placeholder='{"1":38332230,"2":210330,"3":8440,"4":2830}'>
+
+<div class="row">
+  <div>
+    <label>이월금 (1등 낙첨 시, 선택)</label>
+    <input type="number" id="rankCarryover">
+  </div>
+  <div>
+    <label>비고 (선택)</label>
+    <input type="text" id="rankNote">
+  </div>
+</div>
+
+<button onclick="submitRankResult()">토토 결과 저장 + 자동채점</button>
+<div id="rankResultOutput"></div>
+
+<!-- ============ 프로토 ============ -->
+<h2>③ 프로토 — 회차 생성 (대상경기+배당률 등록)</h2>
+
+<label>회차 (숫자만)</label>
+<input type="number" id="protoRound" placeholder="80">
+
+<label>등록마감 시각</label>
+<input type="datetime-local" id="protoDeadline">
+
+<label>대상경기 (JSON 배열, 아래 형식 참고)</label>
+<textarea id="protoMatches">[
+  {"matchId":1,"sport":"SOCCER","home":"홈팀A","away":"원정팀A",
+   "betTypes":[{"type":"GENERAL","outcomes":[{"outcome":"승","odds":1.85},{"outcome":"무","odds":3.2},{"outcome":"패","odds":4.1}]}]}
+]</textarea>
+
+<button onclick="submitProtoRound()">프로토 회차 생성</button>
+<div id="protoRoundResult"></div>
+
+<h2>④ 프로토 — 결과 입력 (자동채점 실행됨)</h2>
+
+<label>회차 ID</label>
+<input type="number" id="protoResultRoundId" placeholder="5">
+
+<label>실제결과 (JSON, matchId별 베팅유형-결과)</label>
+<textarea id="protoActualResults">{"1":{"GENERAL":"승"}}</textarea>
+
+<button onclick="submitProtoResult()">프로토 결과 저장 + 자동채점</button>
+<div id="protoResultOutput"></div>
+
+<script>
+const API_BASE = 'https://my-lotto-lab-api.onrender.com';
+
+function openReferenceWindow() {
+  const w = Math.round(screen.availWidth * 0.5);
+  const h = screen.availHeight;
+  const left = screen.availWidth - w;
+  window.open('https://www.betman.co.kr/main/mainPage/gamebuy/buyableGameList.do', 'betmanRef',
+    `width=${w},height=${h},left=${left},top=0,resizable=yes,scrollbars=yes`);
+}
+
+function getAdminKey() {
+  const key = document.getElementById('adminKey').value.trim();
+  if (!key) alert('관리자 키를 입력해주세요.');
+  return key;
+}
+
+function showResult(elId, ok, message) {
+  const el = document.getElementById(elId);
+  el.className = 'result ' + (ok ? 'ok' : 'err');
+  el.textContent = message;
+}
+
+function toUtcIso(datetimeLocalValue) {
+  // datetime-local 입력값은 브라우저 로컬시간대 기준 - 한국에서 접속한다는 전제로 KST로 해석
+  if (!datetimeLocalValue) return null;
+  return new Date(datetimeLocalValue + ':00+09:00').toISOString();
+}
+
+async function postJson(path, body, adminKey) {
+  const res = await fetch(API_BASE + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  return { ok: res.ok, data };
+}
+
+async function submitRankRound() {
+  const adminKey = getAdminKey(); if (!adminKey) return;
+  let matches;
+  try { matches = JSON.parse(document.getElementById('rankMatches').value); }
+  catch (e) { return showResult('rankRoundResult', false, 'JSON 형식 오류: ' + e.message); }
+
+  const body = {
+    game_code: document.getElementById('rankGameCode').value,
+    round: Number(document.getElementById('rankRound').value),
+    matches,
+    registration_deadline_utc: toUtcIso(document.getElementById('rankDeadline').value),
+  };
+
+  try {
+    const { ok, data } = await postJson('/api/admin/toto/rank/rounds', body, adminKey);
+    showResult('rankRoundResult', ok, ok ? '저장 완료! round.id = ' + data.round.id + '\n' + JSON.stringify(data.round, null, 2) : '실패: ' + data.error);
+  } catch (e) { showResult('rankRoundResult', false, '네트워크 오류: ' + e.message); }
+}
+
+async function submitRankResult() {
+  const adminKey = getAdminKey(); if (!adminKey) return;
+  let matchResults, gradePayouts;
+  try { matchResults = JSON.parse(document.getElementById('rankMatchResults').value); }
+  catch (e) { return showResult('rankResultOutput', false, '경기결과 JSON 오류: ' + e.message); }
+  try { gradePayouts = document.getElementById('rankGradePayouts').value.trim() ? JSON.parse(document.getElementById('rankGradePayouts').value) : null; }
+  catch (e) { return showResult('rankResultOutput', false, '당첨금 JSON 오류: ' + e.message); }
+
+  const roundId = document.getElementById('rankResultRoundId').value;
+  const body = {
+    match_results: matchResults,
+    grade_payouts: gradePayouts,
+    carryover_to_next: document.getElementById('rankCarryover').value ? Number(document.getElementById('rankCarryover').value) : null,
+    note: document.getElementById('rankNote').value || null,
+  };
+
+  try {
+    const { ok, data } = await postJson(`/api/admin/toto/rank/rounds/${roundId}/result`, body, adminKey);
+    showResult('rankResultOutput', ok, ok ? `저장 완료! ${data.gradedCount}건 채점됨` : '실패: ' + data.error);
+  } catch (e) { showResult('rankResultOutput', false, '네트워크 오류: ' + e.message); }
+}
+
+async function submitProtoRound() {
+  const adminKey = getAdminKey(); if (!adminKey) return;
+  let matches;
+  try { matches = JSON.parse(document.getElementById('protoMatches').value); }
+  catch (e) { return showResult('protoRoundResult', false, 'JSON 형식 오류: ' + e.message); }
+
+  const body = {
+    round: Number(document.getElementById('protoRound').value),
+    matches,
+    registration_deadline_utc: toUtcIso(document.getElementById('protoDeadline').value),
+  };
+
+  try {
+    const { ok, data } = await postJson('/api/admin/toto/proto/rounds', body, adminKey);
+    showResult('protoRoundResult', ok, ok ? '저장 완료! round.id = ' + data.round.id + '\n' + JSON.stringify(data.round, null, 2) : '실패: ' + data.error);
+  } catch (e) { showResult('protoRoundResult', false, '네트워크 오류: ' + e.message); }
+}
+
+async function submitProtoResult() {
+  const adminKey = getAdminKey(); if (!adminKey) return;
+  let actualResults;
+  try { actualResults = JSON.parse(document.getElementById('protoActualResults').value); }
+  catch (e) { return showResult('protoResultOutput', false, 'JSON 형식 오류: ' + e.message); }
+
+  const roundId = document.getElementById('protoResultRoundId').value;
+
+  try {
+    const { ok, data } = await postJson(`/api/admin/toto/proto/rounds/${roundId}/result`, { actual_results: actualResults }, adminKey);
+    showResult('protoResultOutput', ok, ok ? `저장 완료! ${data.gradedCount}건 채점됨` : '실패: ' + data.error);
+  } catch (e) { showResult('protoResultOutput', false, '네트워크 오류: ' + e.message); }
+}
+</script>
+
+</body>
+</html>
