@@ -75,6 +75,29 @@ button{font-family:inherit;cursor:pointer;}
 @keyframes gtlPulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 .gtab-live-count{color:var(--text);font-weight:700;}
 
+/* 최근 회차 당첨번호 요약 (게임 탭 카드 하단, 클릭 시 상세 팝업) */
+.gtab-lastdraw{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border-soft);font-size:11px;color:var(--text-dim);cursor:pointer;}
+.gtab-lastdraw:hover{color:var(--text);}
+.gtab-lastdraw:hover .gld-more{text-decoration:underline;}
+.gtab-lastdraw .gld-label{color:var(--text-faint);margin-right:4px;}
+.gtab-lastdraw .gld-nums{color:var(--text);font-weight:700;}
+.gtab-lastdraw .gld-more{color:var(--tab-accent);margin-left:5px;font-weight:600;white-space:nowrap;}
+
+/* 추첨결과 상세 팝업(resultModal) 내부 콘텐츠 */
+.dr-numbers{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 16px;}
+.dr-ball{width:32px;height:32px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;font-family:inherit;color:var(--text);flex-shrink:0;}
+.dr-ball.bonus{background:rgba(224,179,65,.15);border-color:var(--gold);color:var(--gold);}
+.dr-row{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid var(--border-soft);}
+.dr-row .k{color:var(--text-faint);}
+.dr-row .v{font-weight:700;color:var(--text);}
+.dr-tiers-title{font-size:12.5px;font-weight:700;color:var(--text-dim);margin:16px 0 8px;}
+.dr-tiers-table{width:100%;border-collapse:collapse;font-size:12px;}
+.dr-tiers-table th,.dr-tiers-table td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--border-soft);color:var(--text-dim);}
+.dr-tiers-table th{color:var(--text-faint);font-weight:600;}
+.dr-tiers-table th:first-child,.dr-tiers-table td:first-child{text-align:left;}
+.dr-empty{font-size:12.5px;color:var(--text-faint);padding:10px 0;}
+#resultModalBox{max-height:85vh;overflow-y:auto;}
+
 .live-bar{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
 .live-stat{flex:1;min-width:200px;background:var(--surface);border:1px solid var(--game-accent);border-radius:14px;padding:18px 22px;}
 .ls-label{font-size:11.5px;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
