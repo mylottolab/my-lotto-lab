@@ -723,6 +723,9 @@ a{color:inherit;}
 .btn-gold{background:var(--gold);color:#1a1404;}
 .btn-gold:hover{background:#eec25f;}
 .btn-outline{background:none;border:1px solid var(--border);color:var(--text-dim);}
+/* 관리자 진입 버튼 — 일반 방문자 눈에 크게 띄지 않도록 아이콘만, 옅은 색으로 */
+.admin-link-btn{background:none;border:none;color:var(--text-faint);font-size:15px;padding:6px 8px;cursor:pointer;opacity:.55;transition:opacity .15s;}
+.admin-link-btn:hover{opacity:1;color:var(--text-dim);}
 .btn-outline:hover{border-color:var(--gold-dim);color:var(--text);}
 .btn-indigo{background:var(--indigo);color:#fff;}
 .btn-indigo:hover{background:#6f80f0;}
@@ -865,10 +868,12 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
     <div class="page-sub" id="pageSubLine" data-i18n-kr="1회부터 직전 회차까지, 매 회차 직전 데이터만으로 100개 전략이 번호를 뽑고 실제 결과로 채점합니다." data-i18n-en="From round 1 to the most recent round, 100 strategies pick numbers using only data available before each draw, then get graded against the real results.">1회부터 직전 회차까지, 매 회차 직전 데이터만으로 100개 전략이 번호를 뽑고 실제 결과로 채점합니다.</div>
   </div>
   <div class="head-actions">
-    <button class="btn btn-outline" id="btnAdminToggle" onclick="RACE.openAdminLogin()">🛠 <span data-i18n-kr="관리자" data-i18n-en="Admin">관리자</span></button>
-    <button class="btn btn-outline" onclick="RACE.resetAll()">⟲ <span data-i18n-kr="초기화" data-i18n-en="Reset">초기화</span></button>
-    <button class="btn btn-gold" id="btnRunCatchup" onclick="RACE.runCatchup()">▶ <span data-i18n-kr="시뮬레이션 실행" data-i18n-en="Run Simulation">시뮬레이션 실행</span></button>
-    <button class="btn btn-outline" id="btnStopCatchup" onclick="RACE.stopCatchup()" style="display:none;border-color:var(--red);color:var(--red);">⏹ <span data-i18n-kr="중단" data-i18n-en="Stop">중단</span></button>
+    <button class="admin-link-btn" id="btnAdminToggle" onclick="RACE.openAdminLogin()" title="관리자">🛠</button>
+    <span id="adminActionBar" style="display:none;gap:10px;">
+      <button class="btn btn-outline" onclick="RACE.resetAll()">⟲ <span data-i18n-kr="초기화" data-i18n-en="Reset">초기화</span></button>
+      <button class="btn btn-gold" id="btnRunCatchup" onclick="RACE.runCatchup()">▶ <span data-i18n-kr="시뮬레이션 실행" data-i18n-en="Run Simulation">시뮬레이션 실행</span></button>
+      <button class="btn btn-outline" id="btnStopCatchup" onclick="RACE.stopCatchup()" style="display:none;border-color:var(--red);color:var(--red);">⏹ <span data-i18n-kr="중단" data-i18n-en="Stop">중단</span></button>
+    </span>
   </div>
 </div>
 
@@ -1236,6 +1241,14 @@ RACE.resetAll = async function(){
 // =====================================================
 // ── 관리자: 조건식 편집 ──
 // =====================================================
+// 관리자 로그인 상태에 따라 "초기화"/"시뮬레이션 실행" 버튼을 보이거나 숨긴다.
+// (일반 방문자에게는 이 버튼들 자체가 안 보여야 하므로, 로그인 성공 전까지는 DOM에서도 숨김)
+RACE.updateAdminBar = function(){
+  var bar = document.getElementById('adminActionBar');
+  if (!bar) return;
+  bar.style.display = MLL.checkAdmin() ? 'inline-flex' : 'none';
+};
+
 RACE.openAdminLogin = function(){
   if (MLL.checkAdmin()) { RACE.openAdminEdit(); return; }
   document.getElementById('adminPwInput').value = '';
@@ -1249,6 +1262,7 @@ RACE.submitAdminLogin = function(){
   var pw = document.getElementById('adminPwInput').value;
   if (MLL.loginAdmin(pw)) {
     RACE.closeAdminLogin();
+    RACE.updateAdminBar();
     RACE.openAdminEdit();
   } else {
     document.getElementById('adminLoginMsg').textContent = T('admin_pw_wrong');
@@ -1257,6 +1271,7 @@ RACE.submitAdminLogin = function(){
 
 RACE.logoutAdminMode = function(){
   MLL.logoutAdmin();
+  RACE.updateAdminBar();
   document.getElementById('adminEditModal').classList.remove('show');
 };
 
@@ -1810,6 +1825,7 @@ RACE.horseTagHtml = function(s){
 
 // ── 진입점: 페이지 로드 시 상태 확인 후 UI 분기 ──
 RACE.init = async function(){
+  RACE.updateAdminBar(); // 세션에 관리자 키가 이미 있으면(같은 탭에서 새로고침 등) 즉시 버튼 노출
   document.getElementById('sbTitle').textContent = LANG==='en' ? 'Loading data…' : '데이터를 불러오는 중…';
   document.getElementById('sbDesc').textContent = '';
   await RACE.loadServerData();
