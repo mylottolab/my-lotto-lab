@@ -212,6 +212,12 @@ app.use('/api/lotto', lottoRouter);
 const markingRouter = require('./routes/marking');
 app.use('/api/marking', markingRouter);
 
+const totoRouter = require('./routes/toto');
+app.use('/api/toto', totoRouter);
+
+const totoAdminRouter = require('./routes/toto_admin');
+app.use('/api/admin/toto', totoAdminRouter);
+
 // ─── 서버 시작 ────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`My Lotto Lab API running on port ${PORT}`);
