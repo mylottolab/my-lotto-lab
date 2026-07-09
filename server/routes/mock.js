@@ -136,18 +136,28 @@ router.get('/round-entries', async (req, res) => {
 router.get('/leaderboard', async (req, res) => {
   const { data, error } = await supabase
     .from('mock_entries')
-    .select('user_id, nickname, prize_money');
+    .select('user_id, nickname, prize_money, grade, created_at');
 
   if (error) {
     console.error('[mock] leaderboard 조회 오류:', error);
     return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
   }
 
+  // 사이트 전체에 채점된(추첨 완료된) 항목이 하나라도 있는지 — 없으면 "전체 추첨전" 상태로 간주
+  const hasResults = (data || []).some(e => e.grade !== null);
+
   const byUser = {};
   (data || []).forEach(e => {
-    if (!byUser[e.user_id]) byUser[e.user_id] = { userId: e.user_id, nickname: e.nickname, games: 0, prize: 0 };
-    byUser[e.user_id].games += 1;
-    byUser[e.user_id].prize += e.prize_money || 0;
+    if (!byUser[e.user_id]) {
+      byUser[e.user_id] = {
+        userId: e.user_id, nickname: e.nickname, games: 0, prize: 0,
+        earliestCreatedAt: e.created_at,
+      };
+    }
+    const u = byUser[e.user_id];
+    u.games += 1;
+    u.prize += e.prize_money || 0;
+    if (e.created_at < u.earliestCreatedAt) u.earliestCreatedAt = e.created_at;
   });
 
   const PRICE_PER_GAME = 1000;
@@ -155,10 +165,18 @@ router.get('/leaderboard', async (req, res) => {
     const cost = x.games * PRICE_PER_GAME;
     return { ...x, cost, roi: cost > 0 ? (x.prize / cost * 100) : 0 };
   });
-  list.sort((a, b) => b.prize - a.prize);
+
+  if (hasResults) {
+    // 추첨후: 당첨금 합계 내림차순 → 동액이면 등록 조합 수가 적은 쪽이 우선
+    list.sort((a, b) => (b.prize - a.prize) || (a.games - b.games));
+  } else {
+    // 전체 추첨전: 등록(참여) 시각이 빠른 순 — "누가 먼저 왔는지" 기준
+    // (지금 보고 있는 로그인 사용자를 1위로 올리는 건 프런트에서 처리)
+    list.sort((a, b) => new Date(a.earliestCreatedAt) - new Date(b.earliestCreatedAt));
+  }
   list.forEach((x, i) => { x.rank = i + 1; });
 
-  return res.json({ items: list });
+  return res.json({ items: list, hasResults });
 });
 
 // ─── [인증 필요] 다운로드(엑셀/마킹용지) 포인트 차감 ───────────────────────────
