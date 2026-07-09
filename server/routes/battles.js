@@ -88,7 +88,7 @@ function shapeRoom(room, participants, viewerUserId) {
 // GET /api/battles/rooms?status=waiting  (로그인 상태면 Authorization 헤더로 "내 참가여부"도 함께 판별)
 router.get('/rooms', async (req, res) => {
   const status = req.query.status;
-  let query = supabase.from('battle_rooms').select('*').eq('type', '1v1').order('created_at', { ascending: false });
+  let query = supabase.from('battle_rooms').select('*').eq('type', '1v1').order('created_at', { ascending: false }).limit(100);
   if (status) query = query.eq('status', status);
 
   const { data: rooms, error } = await query;
@@ -114,6 +114,35 @@ router.get('/rooms', async (req, res) => {
 
   const viewer = await resolveUser(req).catch(() => null);
   return res.json({ items: rooms.map(r => shapeRoom(r, byRoom[r.id] || [], viewer ? viewer.id : null)) });
+});
+
+// ─── [인증 필요] 내가 참가 중인(개설했든 도전했든) 모든 1:1 방 — "내 진행상황" 타임라인용 ──
+// GET /api/battles/my-rooms   (회원: Authorization 헤더 / 비회원: ?nickname=&email=)
+router.get('/my-rooms', async (req, res) => {
+  const user = await resolveUser(req);
+  if (!user) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
+
+  const { data: myRows, error: myErr } = await supabase
+    .from('battle_participants').select('room_id').eq('user_id', user.id);
+  if (myErr) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  const roomIds = [...new Set((myRows || []).map(r => r.room_id))];
+  if (!roomIds.length) return res.json({ items: [] });
+
+  const { data: rooms, error: roomsErr } = await supabase
+    .from('battle_rooms').select('*').in('id', roomIds).order('created_at', { ascending: false });
+  if (roomsErr) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+
+  const { data: allParticipants, error: pErr } = await supabase
+    .from('battle_participants').select('*').in('room_id', roomIds);
+  if (pErr) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+
+  const byRoom = {};
+  (allParticipants || []).forEach(p => {
+    if (!byRoom[p.room_id]) byRoom[p.room_id] = [];
+    byRoom[p.room_id].push(p);
+  });
+
+  return res.json({ items: rooms.map(r => shapeRoom(r, byRoom[r.id] || [], user.id)) });
 });
 
 // ─── [공개] 방 상세 (참가자 포함) ───────────────────────────────────────────────
