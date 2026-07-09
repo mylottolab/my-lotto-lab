@@ -522,7 +522,7 @@ function refreshMockStat(){
       window._mockTotalCount = totalMockCount;
 
       if (!document.getElementById('statMockCountNum')) {
-        statMockCountEl.innerHTML = '· <span class="flip-fade" id="statMockCountLabel">'+T('mock_total_label')+'</span> <span class="num font-num rolling flip-fade" id="statMockCountNum" style="font-size:13px;">0</span>'+T('game_suffix_unit');
+        statMockCountEl.innerHTML = '<span class="flip-fade" id="statMockCountLabel" style="color:#8be6b4;">'+T('mock_total_label')+'</span> <span class="num font-num flip-fade" id="statMockCountNum" style="font-size:13px;color:#5CF2A0;font-weight:700;">0</span><span style="color:#8be6b4;">'+T('game_suffix_unit')+'</span>';
         // 최초 진입 시 0에서 카운트업
         var numEl = document.getElementById('statMockCountNum');
         var startTs = performance.now();
@@ -535,14 +535,9 @@ function refreshMockStat(){
           else numEl.textContent = totalMockCount.toLocaleString();
         })();
       } else if (prevTotal !== undefined && prevTotal !== totalMockCount && window._mockShowingTotal !== false) {
-        // 값이 바뀐 경우에만 짧게 롤링 애니메이션 재생 (신규 등록 발생 시 눈에 띄게)
+        // 값이 바뀐 경우 텍스트만 조용히 갱신 (원형 튐 효과 없이)
         var numEl2 = document.getElementById('statMockCountNum');
-        if (numEl2) {
-          numEl2.classList.remove('rolling');
-          void numEl2.offsetWidth;
-          numEl2.classList.add('rolling');
-          numEl2.textContent = totalMockCount.toLocaleString();
-        }
+        if (numEl2) numEl2.textContent = totalMockCount.toLocaleString();
       }
 
       // 로그인한 사용자면 "내 등록" 수도 같이 조회해서 총등록↔내등록 반전표시에 사용
