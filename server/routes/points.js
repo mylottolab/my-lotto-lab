@@ -107,6 +107,39 @@ function sumByType(lots) {
   return lots.reduce((s, l) => s + l.remaining, 0);
 }
 
+/**
+ * 포인트 지급(적립) — 항상 "활동포인트(activity)"로 지급합니다 (배틀 우승 보상 등, 입금포인트 아님).
+ * @param {string} userId - profiles.id
+ * @param {number} amount - 지급할 포인트 수량 (양수)
+ * @param {object} meta - { reason, refId, expiresInDays }
+ * @returns {object} { success: true }
+ */
+async function creditPoints(userId, amount, meta) {
+  if (amount <= 0) return { success: true };
+
+  // ⚠ 다른 활동포인트 적립(가입축하 포인트 등)의 유효기간 정책과 다르면 알려주세요 — 바로 맞추겠습니다.
+  const expiresInDays = (meta && meta.expiresInDays) || 365;
+  const nowIso = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString();
+
+  const { error } = await supabase.from('point_ledger').insert({
+    user_id: userId,
+    point_type: 'activity',
+    remaining: amount,
+    earned_at: nowIso,
+    expires_at: expiresAt,
+    source: (meta && meta.reason) || 'reward',
+  });
+
+  if (error) {
+    console.error('[points] creditPoints 지급 오류:', error);
+    throw new Error('포인트 지급 중 오류가 발생했습니다.');
+  }
+
+  console.log(`[points] 지급 완료: user=${userId}, amount=${amount}, reason=${(meta && meta.reason) || '-'}`);
+  return { success: true };
+}
+
 // ─── 잔액 조회 (회원: accessToken / 비회원: nickname+email) ───────────────────
 router.get('/balance', async (req, res) => {
   try {
@@ -308,3 +341,4 @@ async function resolveUserId(req) {
 
 module.exports = router;
 module.exports.deductPoints = deductPoints;
+module.exports.creditPoints = creditPoints;
