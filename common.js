@@ -1144,3 +1144,77 @@ MLL._checkSum = function(nums, min, max) {
   if (max!==null && s>max) return false;
   return true;
 };
+
+// =====================================================
+// 공지/배너 시스템 — 관리자가 켜고 끄고 기간·크기·게시위치를 관리하는 공용 배너
+// 사용법: 각 페이지에서 DOMContentLoaded 시 MLL.renderAnnouncements('페이지키') 한 줄만 호출하면 됨.
+// 페이지키 예: 'main_page', 'hub_data', 'hub_race', 'mock_simulation' (자유롭게 새로 추가 가능,
+// 관리자 화면에서 그 키를 골라 게시위치로 지정하면 그 페이지에서만 뜨고, 안 고르면 전체 사이트에 뜸)
+// =====================================================
+
+MLL.ANN_DISMISS_PREFIX = 'mll_ann_dismissed_'; // sessionStorage — 이 브라우저 탭에서만 "닫기" 유지(새로 들어오면 다시 보임)
+
+MLL.renderAnnouncements = async function(pageKey){
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/announcements/active?page=' + encodeURIComponent(pageKey || ''));
+    if (!resp.ok) return;
+    var data = await resp.json();
+    var items = data.items || [];
+    if (!items.length) return;
+
+    var lang = (typeof LANG !== 'undefined') ? LANG : (localStorage.getItem('mll_lang') || 'kr');
+
+    var container = document.getElementById('mllAnnouncementsWrap');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'mllAnnouncementsWrap';
+      container.style.cssText = 'position:relative;z-index:9998;';
+      document.body.insertBefore(container, document.body.firstChild);
+    }
+
+    var sizeMap = {
+      small:  { pad:'7px 16px',  titleSize:'12.5px', bodySize:'11.5px' },
+      medium: { pad:'11px 20px', titleSize:'13.5px', bodySize:'12.5px' },
+      large:  { pad:'16px 26px', titleSize:'15.5px', bodySize:'13.5px' },
+    };
+    var toneMap = {
+      info:    { bg:'#16305c', border:'#2a4a8a', accent:'#7fa8ff', icon:'📘' },
+      warning: { bg:'#4a3a10', border:'#8a6f2f', accent:'#e0b341', icon:'⚠️' },
+      urgent:  { bg:'#4a1620', border:'#a13a4a', accent:'#ff6b7f', icon:'🚨' },
+    };
+
+    items.forEach(function(a){
+      var dismissKey = MLL.ANN_DISMISS_PREFIX + a.id;
+      if (sessionStorage.getItem(dismissKey)) return; // 이 탭에서 이미 닫은 공지
+
+      var title = (lang === 'en' && a.title_en) ? a.title_en : a.title_kr;
+      var body  = (lang === 'en' && a.body_en) ? a.body_en : a.body_kr;
+      var linkLabel = (lang === 'en' && a.link_label_en) ? a.link_label_en : (a.link_label_kr || (lang==='en' ? 'Learn more' : '자세히 보기'));
+      var sz = sizeMap[a.size] || sizeMap.medium;
+      var tn = toneMap[a.tone] || toneMap.info;
+
+      var el = document.createElement('div');
+      el.setAttribute('data-ann-id', a.id);
+      el.style.cssText =
+        'background:'+tn.bg+';border-bottom:1px solid '+tn.border+';padding:'+sz.pad+';' +
+        'display:flex;align-items:center;gap:12px;font-family:inherit;';
+      el.innerHTML =
+        '<span style="font-size:'+sz.titleSize+';flex-shrink:0;">'+tn.icon+'</span>' +
+        '<div style="flex:1;min-width:0;color:#eef0f6;">' +
+          '<span style="font-weight:700;font-size:'+sz.titleSize+';color:'+tn.accent+';">'+title+'</span>' +
+          '<span style="font-size:'+sz.bodySize+';color:#c8cce0;margin-left:8px;">'+body+'</span>' +
+        '</div>' +
+        (a.link_url ? '<a href="'+a.link_url+'" target="_blank" rel="noopener" style="flex-shrink:0;font-size:'+sz.bodySize+';font-weight:700;color:'+tn.accent+';border:1px solid '+tn.accent+';padding:4px 12px;border-radius:20px;text-decoration:none;white-space:nowrap;">'+linkLabel+' →</a>' : '') +
+        '<button type="button" aria-label="close" style="flex-shrink:0;background:none;border:none;color:#8b91ab;font-size:16px;cursor:pointer;padding:0 4px;">✕</button>';
+
+      el.querySelector('button').addEventListener('click', function(){
+        sessionStorage.setItem(dismissKey, '1');
+        el.remove();
+      });
+
+      container.appendChild(el);
+    });
+  } catch(e) {
+    console.error('[MLL] 공지 로드 오류:', e);
+  }
+};
