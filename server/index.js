@@ -251,3 +251,7 @@ app.use('/api/announcements', announcementsRouter);
 
 const announcementsAdminRouter = require('./routes/announcements_admin');
 app.use('/api/admin/announcements', announcementsAdminRouter);
+
+// ─── Battles (1:1 대결) ────────────────────────────────────────────────────
+const battlesRouter = require('./routes/battles');
+app.use('/api/battles', battlesRouter);
