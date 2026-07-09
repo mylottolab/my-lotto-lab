@@ -2364,7 +2364,10 @@ MOCKUI.renderLeaderboard = async function(){
     '<tbody>'+rows+'</tbody>';
 };
 
-document.addEventListener('DOMContentLoaded', function(){ MOCKUI.init(); });
+document.addEventListener('DOMContentLoaded', function(){
+  MOCKUI.init();
+  if (window.MLL && MLL.renderAnnouncements) MLL.renderAnnouncements('mock_simulation');
+});
 </script>
 
 
