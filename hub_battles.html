@@ -360,12 +360,30 @@ BUI.state = { view:'typeSelect', roomTab:'waiting', createType:null, selectedBal
 
 BUI.init = function(){ BUI.showTypeSelectView(); };
 
-BUI.renderSummary = function(){
+// 회원(로그인) 상태는 MLL.getAuthState()가 토큰만 주고 닉네임은 안 주기 때문에,
+// 화면표시용 닉네임은 서버(/api/auth/me)에서 한 번 받아와 캐시해둔다. 비회원은 이미 state.nickname이 있음.
+BATTLE._myNicknameCache = null;
+BATTLE.getMyNickname = async function(){
+  var state = MLL.getAuthState();
+  if (!state || !state.type) return null;
+  if (state.type === 'guest') return state.nickname;
+  if (BATTLE._myNicknameCache) return BATTLE._myNicknameCache;
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/auth/me', { headers: { 'Authorization': 'Bearer ' + state.token } });
+    if (!resp.ok) return null;
+    var data = await resp.json();
+    BATTLE._myNicknameCache = data.nickname;
+    return data.nickname;
+  } catch(e) { console.error('[BATTLE] 내 정보 조회 오류:', e); return null; }
+};
+
+BUI.renderSummary = async function(){
   var el = document.getElementById('battleSummary');
   if (!el) return;
   var state = MLL.getAuthState();
+  var nickname = (state && state.type) ? await BATTLE.getMyNickname() : null;
   el.innerHTML = '<div style="padding:14px 4px;font-size:12px;color:var(--text-dim);">' +
-    ((state && state.type) ? ('👤 <b style="color:var(--text);">' + state.nickname + '</b>' + (LANG==='en'?' is participating':'님으로 참여 중')) : (LANG==='en' ? 'Not logged in yet — we will guide you when you create/join a room.' : '아직 로그인하지 않으셨습니다. 방 생성/참가 시 로그인을 안내해드립니다.')) +
+    (nickname ? ('👤 <b style="color:var(--text);">' + nickname + '</b>' + (LANG==='en'?' is participating':'님으로 참여 중')) : (LANG==='en' ? 'Not logged in yet. We will guide you when you create/join a room.' : '아직 로그인하지 않으셨습니다. 방 생성/참가 시 로그인을 안내해드립니다.')) +
   '</div>';
 };
 
