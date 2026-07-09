@@ -84,19 +84,36 @@ function shapeRoom(room, participants, viewerUserId) {
   };
 }
 
-// ─── [공개] 참가 가능한(대기중) 1:1 방 목록 ────────────────────────────────────
-// GET /api/battles/rooms?status=waiting
+// ─── [공개] 1:1 방 목록 (참가자 포함) ───────────────────────────────────────────
+// GET /api/battles/rooms?status=waiting  (로그인 상태면 Authorization 헤더로 "내 참가여부"도 함께 판별)
 router.get('/rooms', async (req, res) => {
   const status = req.query.status;
   let query = supabase.from('battle_rooms').select('*').eq('type', '1v1').order('created_at', { ascending: false });
   if (status) query = query.eq('status', status);
 
-  const { data, error } = await query;
+  const { data: rooms, error } = await query;
   if (error) {
     console.error('[battles] rooms 조회 오류:', error);
     return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
   }
-  return res.json({ items: (data || []).map(r => shapeRoom(r, [], null)) });
+  if (!rooms || !rooms.length) return res.json({ items: [] });
+
+  const roomIds = rooms.map(r => r.id);
+  const { data: allParticipants, error: pErr } = await supabase
+    .from('battle_participants').select('*').in('room_id', roomIds);
+  if (pErr) {
+    console.error('[battles] rooms 참가자 조회 오류:', pErr);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+
+  const byRoom = {};
+  (allParticipants || []).forEach(p => {
+    if (!byRoom[p.room_id]) byRoom[p.room_id] = [];
+    byRoom[p.room_id].push(p);
+  });
+
+  const viewer = await resolveUser(req).catch(() => null);
+  return res.json({ items: rooms.map(r => shapeRoom(r, byRoom[r.id] || [], viewer ? viewer.id : null)) });
 });
 
 // ─── [공개] 방 상세 (참가자 포함) ───────────────────────────────────────────────
