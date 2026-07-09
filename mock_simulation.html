@@ -786,8 +786,8 @@ MOCK.getLeaderboard = async function(){
   try {
     var resp = await fetch(MLL.API_BASE + '/api/mock/leaderboard');
     var data = await resp.json();
-    return data.items || [];
-  } catch(e) { console.error('[MOCK] leaderboard 조회 오류:', e); return []; }
+    return { items: data.items || [], hasResults: !!data.hasResults };
+  } catch(e) { console.error('[MOCK] leaderboard 조회 오류:', e); return { items: [], hasResults: false }; }
 };
 
 // =====================================================
@@ -1125,6 +1125,7 @@ var STR = {
   stat_roi: { kr: '수익률(당첨금/구입비)', en: 'ROI (Prize / Cost)' },
   cases_unit: { kr: '건', en: '' },
   no_participants_yet: { kr: '아직 참여자가 없습니다.', en: 'No participants yet.' },
+  pre_draw_label: { kr: '추첨전', en: 'Before Draw' },
   me_suffix: { kr: ' (나)', en: ' (Me)' },
   th_rank2: { kr: '순위', en: 'Rank' },
   th_nickname: { kr: '닉네임', en: 'Nickname' },
@@ -2323,22 +2324,39 @@ MOCKUI.statBox = function(label, val, colorCls){
 };
 
 MOCKUI.renderLeaderboard = async function(){
-  var list = await MOCK.getLeaderboard();
+  var result = await MOCK.getLeaderboard();
+  var list = result.items;
   if (!list.length) {
     document.getElementById('leaderboardTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">'+T('no_participants_yet')+'</td></tr></tbody>';
     return;
   }
   var state = MLL.getAuthState();
   var myNick = (state && state.type) ? state.nickname : null;
+
+  if (!result.hasResults) {
+    // 전체 추첨전: 지금 보고 있는 로그인 사용자를 맨 위(1위)로, 나머지는 서버가 이미 등록시각 순으로 정렬해서 줌
+    if (myNick) {
+      var myIdx = list.findIndex(function(x){ return x.nickname === myNick; });
+      if (myIdx > 0) {
+        var mine = list.splice(myIdx, 1)[0];
+        list.unshift(mine);
+      }
+    }
+    list.forEach(function(x, i){ x.rank = i + 1; });
+  }
+
   var rows = list.map(function(x){
     var isMe = x.nickname === myNick;
+    var rightCols = !result.hasResults
+      ? '<td colspan="3" style="text-align:center;"><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(139,145,171,.15);color:var(--text-dim);">'+T('pre_draw_label')+'</span></td>'
+      : '<td class="font-num">'+x.cost.toLocaleString()+T('won_suffix')+'</td>' +
+        '<td class="font-num" style="color:var(--gold);">'+x.prize.toLocaleString()+T('won_suffix')+'</td>' +
+        '<td class="font-num">'+x.roi.toFixed(1)+'%</td>';
     return '<tr style="'+(isMe?'background:rgba(224,179,65,.06);':'')+'">' +
       '<td>'+x.rank+'</td>' +
       '<td style="text-align:left;font-weight:'+(isMe?'700':'400')+';">'+x.nickname+(isMe?T('me_suffix'):'')+'</td>' +
       '<td class="font-num">'+x.games.toLocaleString()+T('games_unit')+'</td>' +
-      '<td class="font-num">'+x.cost.toLocaleString()+T('won_suffix')+'</td>' +
-      '<td class="font-num" style="color:var(--gold);">'+x.prize.toLocaleString()+T('won_suffix')+'</td>' +
-      '<td class="font-num">'+x.roi.toFixed(1)+'%</td>' +
+      rightCols +
       '</tr>';
   }).join('');
   document.getElementById('leaderboardTable').innerHTML =
