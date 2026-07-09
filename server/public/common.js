@@ -40,19 +40,6 @@ MLL.getAuthState = function() {
 (function mllCrossOriginBootstrap() {
   try {
     var params = new URLSearchParams(window.location.search);
-
-    if (params.get('mll_logout') === '1') {
-      localStorage.removeItem('mll_token');
-      sessionStorage.removeItem('mll_token');
-      localStorage.removeItem('mll_guest_nickname');
-      localStorage.removeItem('mll_guest_email');
-      params.delete('mll_logout');
-      var qs0 = params.toString();
-      var newUrl0 = window.location.pathname + (qs0 ? '?' + qs0 : '') + window.location.hash;
-      window.history.replaceState({}, '', newUrl0);
-      return;
-    }
-
     var authType = params.get('mll_auth');
     var changed = false;
     if (authType === 'member' && params.get('mll_tok')) {
@@ -252,58 +239,16 @@ MLL.addEntries = async function(items) {
       method: 'POST', headers: _mllHeaders(state), body: JSON.stringify(body)
     });
     var data = await resp.json();
-
-    // 클라이언트는 "로그인된 것처럼" 보이는데 서버가 401을 준 경우 —
-    // 로컬에 남아있는 로그인정보(토큰/닉네임+이메일)가 더 이상 유효하지 않다는 뜻이므로
-    // 그걸 지우고 새로 로그인하도록 유도한다. (그대로 두면 "로그인 상태인데 계속 저장 실패"처럼
-    // 보이는 매우 헷갈리는 상황이 발생함)
-    if (resp.status === 401) {
-      localStorage.removeItem('mll_token');
-      sessionStorage.removeItem('mll_token');
-      localStorage.removeItem('mll_guest_nickname');
-      localStorage.removeItem('mll_guest_email');
-      if (window.MLL.requireAuth) MLL.requireAuth(function(){});
-      return { success:false, needAuth:true };
-    }
     if (resp.status === 402) {
       return { success:false, insufficientPoints:true, shortfall:data.shortfall, message:data.error };
     }
     if (!resp.ok) return { success:false, message: data.error || '등록 중 오류가 발생했습니다.' };
-
     await MLL.refreshEntries();
-    if (data.deducted !== undefined) MLL._showPointToast(data.deducted, data.balanceAfter, data.freeCount, data.chargedCount);
     return { success:true, items:data.items };
   } catch (e) {
     console.error('[MLL] addEntries 오류:', e);
     return { success:false, message:'네트워크 오류가 발생했습니다.' };
   }
-};
-
-// 저장 성공시 "N포인트 차감, 현재 잔액 M포인트" 작은 알림 배너 (몇 초 후 자동 소멸)
-// freeCount/chargedCount가 주어지면(예: 매월 무료한도 적용) 무료/유료 내역도 같이 보여준다.
-MLL._showPointToast = function(deducted, balanceAfter, freeCount, chargedCount) {
-  var old = document.getElementById('mll-point-toast');
-  if (old) old.remove();
-
-  var toast = document.createElement('div');
-  toast.id = 'mll-point-toast';
-  toast.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9998;background:#11152a;border:1px solid #252b48;' +
-    'border-radius:12px;padding:12px 18px;box-shadow:0 6px 20px rgba(0,0,0,0.3);font-size:12.5px;color:#eef0f6;' +
-    'max-width:260px;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
-
-  var line1;
-  if (freeCount !== undefined && chargedCount !== undefined && (freeCount > 0)) {
-    if (chargedCount > 0) {
-      line1 = '무료 '+freeCount+'개 + 유료 '+chargedCount+'개 → <b style="color:#e0b341;">'+deducted.toLocaleString()+'P</b> 차감';
-    } else {
-      line1 = '이번 달 무료한도로 <b style="color:#3fb37f;">'+freeCount+'개 전부 무료</b> 등록 (0P 차감)';
-    }
-  } else {
-    line1 = deducted > 0 ? ('<b style="color:#e0b341;">'+deducted.toLocaleString()+'P</b> 차감') : '무료 등록 (0P 차감)';
-  }
-  toast.innerHTML = line1 + '<br>현재 잔액 <b>'+balanceAfter.toLocaleString()+'P</b>';
-  document.body.appendChild(toast);
-  setTimeout(function(){ if (toast.parentNode) toast.remove(); }, 4000);
 };
 
 // 단건 등록 (내부적으로 addEntries 재사용)
@@ -356,66 +301,17 @@ MLL.calcPrize = function(grade, result) {
 };
 
 // =====================================================
-// 정렬 (추첨전 → 미확인 → 추첨후 순, 각각 회차 내림차순)
-// 서버는 결과가 나온 회차라도 사용자가 "즉시확인"을 누르기 전까지는 status를
-// '미확인'으로 내려준다 (등수/당첨금은 비공개). 이는 결과가 나오자마자 자동으로
-// 보여주면 정작 본인이 뭘 등록했는지 인식할 새도 없이 결과부터 보게 되는 문제를
-// 막기 위한 의도적인 장치다.
+// 정렬 (추첨전 상단, 추첨후 하단, 각각 회차 내림차순)
+// 서버가 조회 시점에 항상 최신 status/grade/prizeMoney를 계산해서 내려주므로
+// (구버전에 있던) "추첨됐으나 미확인" 중간 단계는 더 이상 존재하지 않는다.
 // =====================================================
 
-// ── 정렬 상태 (컬럼 헤더 클릭으로 바뀜, 기본은 "최근 입력순") ──
-// ⚠ 기본을 회차순으로 두면, 과거 회차를 새로 입력했을 때 그 항목이 목록 맨 아래로
-//   숨어버려서 방금 뭘 넣었는지 찾기 어려운 문제가 있었다. 그래서 기본값을
-//   "최근 입력순(createdAt)"으로 바꾸고, 회차 등 다른 기준은 헤더를 눌러서 쓰게 한다.
-MLL._sortCol = 'createdAt';
-MLL._sortDir = -1; // -1: 내림차순(최신/큰 값 먼저), 1: 오름차순
-
-function _mllCompareEntries(a, b, col) {
-  var av, bv;
-  switch (col) {
-    case 'round':      av = a.round; bv = b.round; break;
-    case 'memo':       av = (a.memo||'').toLowerCase(); bv = (b.memo||'').toLowerCase(); break;
-    case 'type':       av = a.type || ''; bv = b.type || ''; break;
-    case 'status':     av = a.status || ''; bv = b.status || ''; break;
-    case 'grade':      av = (a.grade==null ? -1 : a.grade); bv = (b.grade==null ? -1 : b.grade); break;
-    case 'prizeMoney': av = a.prizeMoney || 0; bv = b.prizeMoney || 0; break;
-    case 'createdAt':  default: av = a.createdAt; bv = b.createdAt; break;
-  }
-  if (av < bv) return -1;
-  if (av > bv) return 1;
-  return b.createdAt - a.createdAt; // 동점이면 항상 최근 입력이 위로
-}
-
-// 헤더 클릭 시 호출 — 같은 컬럼 다시 누르면 방향 반전, 다른 컬럼이면 그 컬럼의 기본 방향으로.
-MLL.setSort = function(col) {
-  if (MLL._sortCol === col) {
-    MLL._sortDir *= -1;
-  } else {
-    MLL._sortCol = col;
-    MLL._sortDir = (col === 'round' || col === 'createdAt') ? -1 : 1;
-  }
-  MLL._updateSortArrows();
-  if (window.refreshTable) refreshTable();
-};
-
-MLL._updateSortArrows = function() {
-  ['round','memo','type','status','grade','prizeMoney'].forEach(function(c) {
-    var el = document.getElementById('sa-' + c);
-    if (!el) return;
-    el.textContent = (c === MLL._sortCol) ? (MLL._sortDir === -1 ? ' ▼' : ' ▲') : '';
-  });
-};
-
 MLL.sortEntries = function(entries) {
-  var col = MLL._sortCol || 'createdAt';
-  var dir = MLL._sortDir || -1;
-  function sortGroup(list) {
-    return list.slice().sort(function(a, b){ return dir * _mllCompareEntries(a, b, col); });
-  }
-  var preDraw     = sortGroup(entries.filter(function(e){ return e.status === '추첨전'; }));
-  var unconfirmed = sortGroup(entries.filter(function(e){ return e.status === '미확인'; }));
-  var post        = sortGroup(entries.filter(function(e){ return e.status === '추첨후'; }));
-  return preDraw.concat(unconfirmed).concat(post);
+  var preDraw = entries.filter(function(e){ return e.status === '추첨전'; })
+                        .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  var post    = entries.filter(function(e){ return e.status === '추첨후'; })
+                        .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
+  return preDraw.concat(post);
 };
 
 // =====================================================
@@ -443,12 +339,13 @@ MLL.renderBalls = function(nums, bonusNums, small) {
 MLL.renderRow = function(entry, sessionTag, opts) {
   opts = opts || {};
   var isSession = sessionTag && entry.sessionTag === sessionTag;
-  // 서버가 이미 확정한 status(추첨전/미확인/추첨후)를 그대로 신뢰한다.
+  var result    = MLL.getResult(entry.round);
+  var winNums   = result ? result.nums  : [];
+  var bonusNum  = result ? result.bonus : null;
+
+  // status 실시간 재판단 (당첨결과 적용 후 반영)
   var actualStatus = entry.status;
-  // 결과 숫자는 "확인 완료"일 때만 공개되므로, 그때만 결과를 조회해서 볼공 표시에 사용한다.
-  var result   = (actualStatus === '추첨후') ? MLL.getResult(entry.round) : null;
-  var winNums  = result ? result.nums  : [];
-  var bonusNum = result ? result.bonus : null;
+  if (result && entry.status === '추첨전') actualStatus = '추첨후';
 
   // 반자동: autoNums 필드(시스템 채운 번호) 저장되어 있으면 사용
   var autoNums = entry.autoNums || [];
@@ -481,17 +378,12 @@ MLL.renderRow = function(entry, sessionTag, opts) {
     ? '<span style="background:#f5c518;color:#7a5e00;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700;">실구매</span>'
     : '<span style="background:#eee;color:#999;font-size:8px;padding:1px 4px;border-radius:3px;">가상</span>';
 
-  // 추첨상태 (3단계)
-  var statusHTML;
-  if (actualStatus === '추첨전') {
-    statusHTML = '<span style="color:#e03131;font-weight:700;font-size:9px;">추첨전</span>';
-  } else if (actualStatus === '미확인') {
-    statusHTML = '<span style="color:#e67700;font-weight:700;font-size:9px;">미확인</span>';
-  } else {
-    statusHTML = '<span style="color:#999;font-size:9px;">추첨후</span>';
-  }
+  // 추첨상태 (실시간 재판단 적용)
+  var statusHTML = actualStatus==='추첨전'
+    ? '<span style="color:#e03131;font-weight:700;font-size:9px;">추첨전</span>'
+    : '<span style="color:#999;font-size:9px;">추첨후</span>';
 
-  // 당첨결과 (확인 완료일 때만 공개)
+  // 당첨결과
   var gradeHTML = '<span style="color:#ddd;">-</span>';
   if (actualStatus==='추첨후' && entry.grade !== null) {
     if (entry.grade === 0) {
@@ -500,26 +392,21 @@ MLL.renderRow = function(entry, sessionTag, opts) {
       gradeHTML = '<span style="color:'+MLL.GRADE_COLOR[entry.grade]+';font-weight:700;font-size:9px;">' +
         MLL.GRADE_LABEL[entry.grade]+'</span>';
     }
-  } else if (actualStatus === '미확인') {
-    gradeHTML = '<span style="color:#e67700;font-size:9px;">?</span>';
   }
 
-  // 당첨금 (확인 완료일 때만 공개)
+  // 당첨금
   var prizeHTML = '<span style="color:#ddd;">-</span>';
-  if (actualStatus === '추첨후' && entry.prizeMoney && entry.prizeMoney > 0) {
+  if (entry.prizeMoney && entry.prizeMoney > 0) {
     prizeHTML = '<span style="color:#e03131;font-weight:700;font-size:9px;">' +
       entry.prizeMoney.toLocaleString()+'원</span>';
-  } else if (actualStatus === '미확인') {
-    prizeHTML = '<span style="color:#e67700;font-size:9px;">?</span>';
   }
 
-  // 세션 하이라이트 / 상태별 배경
-  var bg = actualStatus==='추첨전' ? '#fff8e1' : (actualStatus==='미확인' ? '#fff3e0' : '');
+  // 세션 하이라이트
   var rowStyle = isSession
     ? 'border-left:3px solid #1a7ad4;background:#f0f8ff;'
-    : (bg ? 'background:'+bg+';' : '');
+    : (actualStatus==='추첨전' ? 'background:#fff8e1;' : '');
 
-  var rcColor = actualStatus==='추첨전' ? '#e03131' : (actualStatus==='미확인' ? '#e67700' : '#555');
+  var rcColor = actualStatus==='추첨전' ? '#e03131' : '#555';
 
   var delBtn = opts.noDelete ? '' :
     '<button onclick="MLL.handleDeleteClick(\''+entry.id+'\')" ' +
@@ -530,7 +417,7 @@ MLL.renderRow = function(entry, sessionTag, opts) {
 
   return '<tr id="slip_row_'+entry.id+'" style="'+rowStyle+'">' +
     '<td style="text-align:center;padding:4px 4px;">'+slipCheckHtml+'</td>' +
-    '<td style="text-align:center;padding:4px 4px;"><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;white-space:nowrap;display:inline-block;">'+entry.round+'회</span></td>' +
+    '<td style="text-align:center;padding:4px 4px;"><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">'+entry.round+'회</span></td>' +
     '<td style="padding:4px 6px;"><div style="display:flex;gap:1px;align-items:center;flex-wrap:nowrap;">'+ballsHTML+'</div></td>' +
     '<td style="text-align:left;padding:4px 5px;font-size:9px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(entry.memo||'')+'</td>' +
     '<td style="text-align:center;padding:4px 4px;">'+typeHTML+'</td>' +
@@ -549,179 +436,36 @@ MLL.renderDivider = function(label, count, extra) {
 };
 
 // 삭제 버튼 클릭 핸들러 (deleteEntry가 비동기이므로 완료 후 테이블을 다시 그린다)
-// 최애번호(즐겨찾기) 토글 — 서버에 저장되어 로그인한 계정 기준으로 어디서든 동일하게 보임.
-// (예전엔 브라우저에만 저장되는 별도 mll_favorites 목록이었으나, 서버 DB 컬럼으로 전환)
-MLL.toggleFavorite = async function(id) {
-  var state = _mllAuthOrNull();
-  if (!state) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return null; }
-  try {
-    var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/' + id + '/favorite', {
-      method: 'PATCH', headers: _mllHeaders(state)
-    });
-    var data = await resp.json();
-    if (!resp.ok) { console.error('[MLL] toggleFavorite 오류:', data.error); return null; }
-    // 캐시에도 즉시 반영 (재조회 없이 바로 화면 갱신 가능하도록)
-    var entries = MLL.loadEntries();
-    var e = entries.find(function(x){ return x.id === id; });
-    if (e) e.isFavorite = data.isFavorite;
-    return data.isFavorite;
-  } catch (err) {
-    console.error('[MLL] toggleFavorite 네트워크 오류:', err);
-    return null;
-  }
-};
-
 MLL.handleDeleteClick = async function(id) {
   var ok = await MLL.deleteEntry(id);
   if (ok && window.refreshTable) refreshTable();
 };
 
-// ── 즉시확인 버튼 HTML ──
-MLL.renderCheckBtn = function(sessionTag) {
-  return '<span onclick="MLL.applyCheck(\''+(sessionTag||'')+'\')" ' +
-    'style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;' +
-    'background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;' +
-    'font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;' +
-    'cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2);' +
-    'animation:pulse-btn 1.5s infinite;">' +
-    '⚡ 즉시확인 Click!</span>' +
-    '<style>@keyframes pulse-btn{0%,100%{opacity:1;}50%{opacity:0.7;}}</style>';
-};
-
-// ── 즉시확인 실행 (서버에 확인 처리 요청) ──
-// sessionTag가 있으면 "전체" 또는 "지금 입력분만" 선택 팝업을 띄우고,
-// 없으면 바로 전체 확인 처리한다.
-MLL.applyCheck = function(sessionTag) {
-  var entries = MLL.loadEntries();
-  var pendingCount = entries.filter(function(e){ return e.status === '미확인'; }).length;
-  if (!pendingCount) { alert('확인할 미확인 항목이 없습니다.'); return; }
-
-  var overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
-  overlay.innerHTML =
-    '<div style="background:#fff;border-radius:16px;padding:28px 28px;max-width:340px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.25);">' +
-    '<div style="font-size:24px;margin-bottom:8px;">⚡</div>' +
-    '<div style="font-size:15px;font-weight:700;color:#222;margin-bottom:6px;">즉시확인</div>' +
-    '<div style="font-size:12px;color:#888;margin-bottom:22px;">어떤 범위를 확인하시겠습니까?</div>' +
-    '<div style="display:flex;gap:10px;margin-bottom:10px;">' +
-    '<button id="mll-check-all" style="flex:1;background:#e03131;color:#fff;border:none;border-radius:10px;padding:13px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(224,49,49,0.3);">📋 미확인분 전체</button>' +
-    '<button id="mll-check-cur" style="flex:1;background:#1a7ad4;color:#fff;border:none;border-radius:10px;padding:13px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(26,122,212,0.3);">✏️ 지금 입력분만</button>' +
-    '</div>' +
-    '<button id="mll-check-cancel" style="width:100%;background:#f5f5f5;border:none;border-radius:10px;padding:10px;font-size:12px;color:#888;cursor:pointer;font-weight:600;">✕ 취소 (나중에 확인)</button>' +
-    '</div>';
-  document.body.appendChild(overlay);
-
-  async function doCheck(allItems) {
-    document.body.removeChild(overlay);
-    var state = MLL.getAuthState();
-    var body = allItems ? {} : { sessionTag: sessionTag };
-    if (state.type === 'guest') { body.nickname = state.nickname; body.email = state.email; }
-
-    try {
-      var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/confirm', {
-        method: 'POST', headers: _mllHeaders(state), body: JSON.stringify(body)
-      });
-      var data = await resp.json();
-      if (!resp.ok) { alert('확인 처리 실패: ' + (data.error||'')); return; }
-
-      await MLL.refreshEntries();
-      if (window.refreshTable) refreshTable();
-      MLL.showCheckResultBubble(data.items || []);
-    } catch(e) {
-      console.error('[MLL] applyCheck 오류:', e);
-      alert('네트워크 오류가 발생했습니다.');
-    }
-  }
-
-  document.getElementById('mll-check-all').onclick    = function(){ doCheck(true); };
-  document.getElementById('mll-check-cur').onclick    = function(){ doCheck(false); };
-  document.getElementById('mll-check-cancel').onclick = function(){ document.body.removeChild(overlay); };
-  overlay.onclick = function(e){ if(e.target===overlay) document.body.removeChild(overlay); };
-};
-
-// ── 결과확인 통계 말풍선 ──
-// "즉시확인"으로 새로 갱신된 항목들(touched)을 바탕으로 안내 말풍선을 띄운다.
-// 30초가 지나면 자동으로 사라지고, X 버튼으로 바로 닫을 수도 있다.
-MLL.showCheckResultBubble = function(touched) {
-  var old = document.getElementById('mll-check-bubble');
-  if (old) old.remove();
-
-  if (!touched.length) {
-    var emptyBox = document.createElement('div');
-    emptyBox.id = 'mll-check-bubble';
-    emptyBox.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9998;background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px 18px;box-shadow:0 4px 16px rgba(0,0,0,0.15);font-size:12.5px;color:#555;max-width:280px;';
-    emptyBox.innerHTML = '✅ 새로 확인할 항목이 없어요. 이미 최신 상태예요.';
-    document.body.appendChild(emptyBox);
-    setTimeout(function(){ if(emptyBox.parentNode) emptyBox.remove(); }, 30000);
-    return;
-  }
-
-  var gradeCount = {1:0,2:0,3:0,4:0,5:0};
-  var totalPrize = 0;
-  touched.forEach(function(e){
-    if (e.grade >= 1 && e.grade <= 5) gradeCount[e.grade]++;
-    totalPrize += (e.prizeMoney || 0);
-  });
-
-  var gradeLabel = {1:'1등',2:'2등',3:'3등',4:'4등',5:'5등'};
-  var winParts = [];
-  [1,2,3,4,5].forEach(function(g){
-    if (gradeCount[g] > 0) winParts.push(gradeLabel[g]+' '+gradeCount[g]+'건');
-  });
-
-  var bodyText;
-  if (winParts.length) {
-    bodyText = '방금 <b>'+touched.length+'게임</b>을 확인했어요.<br>' +
-      '이중 '+winParts.join(', ')+'이 당첨되어 총 <b>'+totalPrize.toLocaleString()+'원</b>의 상금을 받게 되었어요.';
-  } else {
-    bodyText = '방금 <b>'+touched.length+'게임</b>을 확인했어요.<br>아쉽게도 이번엔 당첨된 게임이 없어요.';
-  }
-
-  var bubble = document.createElement('div');
-  bubble.id = 'mll-check-bubble';
-  bubble.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9998;background:#eef9ec;border:1px solid #b9e6ae;border-radius:14px;padding:16px 20px 16px 18px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:12.5px;color:#2e5c2a;max-width:300px;line-height:1.6;';
-  bubble.innerHTML =
-    '<span id="mll-check-bubble-x" style="position:absolute;top:8px;right:10px;cursor:pointer;color:#7a9c75;font-size:13px;font-weight:700;line-height:1;">✕</span>' +
-    '<div style="padding-right:14px;">'+bodyText+'</div>';
-  document.body.appendChild(bubble);
-
-  document.getElementById('mll-check-bubble-x').onclick = function(){ bubble.remove(); };
-  setTimeout(function(){ if(bubble.parentNode) bubble.remove(); }, 30000);
-};
-
-// 전체 테이블 렌더 (추첨전 / 미확인 / 추첨후 3단계)
+// 전체 테이블 렌더 (서버가 매 조회시 status/grade/prizeMoney를 이미 최신으로
+// 계산해서 내려주므로, 추첨전 / 추첨후 2단계만 있으면 된다)
 MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
-  var allEntries = MLL.loadEntries();
-  var entries = filterRound ? allEntries.filter(function(e){ return e.round == filterRound; }) : allEntries;
+  var entries = MLL.loadEntries();
+  if (filterRound) entries = entries.filter(function(e){ return e.round == filterRound; });
   var sorted  = MLL.sortEntries(entries);
   var tbody   = document.getElementById(tbodyId);
   if (!tbody) return;
 
-  var preDraw     = sorted.filter(function(e){ return e.status === '추첨전'; });
-  var unconfirmed = sorted.filter(function(e){ return e.status === '미확인'; });
-  var postDraw    = sorted.filter(function(e){ return e.status === '추첨후'; });
+  var preDraw  = sorted.filter(function(e){ return e.status === '추첨전'; });
+  var postDraw = sorted.filter(function(e){ return e.status === '추첨후'; });
 
   // 배지 업데이트
   var badgeEl = document.getElementById('sectionBadge');
   if (badgeEl) {
-    var badgeHtml =
+    badgeEl.innerHTML =
       '<span style="color:#e03131;font-weight:700;">🔴추첨전 '+preDraw.length+'개</span>' +
-      ' &nbsp;|&nbsp; ';
-    if (unconfirmed.length > 0) {
-      badgeHtml += '<span style="color:#e67700;font-weight:700;">🟡미확인 '+unconfirmed.length+'개</span>' +
-        MLL.renderCheckBtn(sessionTag);
-    } else {
-      badgeHtml += '<span style="color:#e67700;">🟡미확인 0개</span>';
-    }
-    badgeHtml += ' &nbsp;|&nbsp; <span style="color:#555;">✅확인완료 '+postDraw.length+'개</span>';
-    badgeEl.innerHTML = badgeHtml;
+      ' &nbsp;|&nbsp; <span style="color:#555;">✅추첨후 '+postDraw.length+'개</span>';
   }
 
-  // 카운트 업데이트 (회차 필터와 무관하게 항상 전체 개수를 보여줌 — "저장된 번호"는 총량이라는 뜻이므로)
+  // 카운트 업데이트
   var tcEl = document.getElementById('totalCount');
-  if (tcEl) tcEl.textContent = allEntries.length;
+  if (tcEl) tcEl.textContent = entries.length;
   var realEl = document.getElementById('realCount');
-  if (realEl) realEl.textContent = allEntries.filter(function(e){return e.isReal;}).length;
+  if (realEl) realEl.textContent = entries.filter(function(e){return e.isReal;}).length;
 
   var html = '';
   if (!sorted.length) {
@@ -731,13 +475,8 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
       html += MLL.renderDivider('🔴 추첨 전', preDraw.length);
       preDraw.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
     }
-    if (unconfirmed.length) {
-      html += '<tr><td colspan="10" style="background:#fff3e0;padding:4px 8px;font-size:9px;font-weight:700;color:#e67700;">' +
-        '🟡 추첨됐으나 미확인 (' + unconfirmed.length + '개)' + MLL.renderCheckBtn(sessionTag) + '</td></tr>';
-      unconfirmed.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
-    }
     if (postDraw.length) {
-      html += MLL.renderDivider('✅ 추첨후 확인분', postDraw.length);
+      html += MLL.renderDivider('✅ 추첨 후', postDraw.length);
       postDraw.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
     }
   }
@@ -1404,4 +1143,78 @@ MLL._checkSum = function(nums, min, max) {
   if (min!==null && s<min) return false;
   if (max!==null && s>max) return false;
   return true;
+};
+
+// =====================================================
+// 공지/배너 시스템 — 관리자가 켜고 끄고 기간·크기·게시위치를 관리하는 공용 배너
+// 사용법: 각 페이지에서 DOMContentLoaded 시 MLL.renderAnnouncements('페이지키') 한 줄만 호출하면 됨.
+// 페이지키 예: 'main_page', 'hub_data', 'hub_race', 'mock_simulation' (자유롭게 새로 추가 가능,
+// 관리자 화면에서 그 키를 골라 게시위치로 지정하면 그 페이지에서만 뜨고, 안 고르면 전체 사이트에 뜸)
+// =====================================================
+
+MLL.ANN_DISMISS_PREFIX = 'mll_ann_dismissed_'; // sessionStorage — 이 브라우저 탭에서만 "닫기" 유지(새로 들어오면 다시 보임)
+
+MLL.renderAnnouncements = async function(pageKey){
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/announcements/active?page=' + encodeURIComponent(pageKey || ''));
+    if (!resp.ok) return;
+    var data = await resp.json();
+    var items = data.items || [];
+    if (!items.length) return;
+
+    var lang = (typeof LANG !== 'undefined') ? LANG : (localStorage.getItem('mll_lang') || 'kr');
+
+    var container = document.getElementById('mllAnnouncementsWrap');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'mllAnnouncementsWrap';
+      container.style.cssText = 'position:relative;z-index:9998;';
+      document.body.insertBefore(container, document.body.firstChild);
+    }
+
+    var sizeMap = {
+      small:  { pad:'7px 16px',  titleSize:'12.5px', bodySize:'11.5px' },
+      medium: { pad:'11px 20px', titleSize:'13.5px', bodySize:'12.5px' },
+      large:  { pad:'16px 26px', titleSize:'15.5px', bodySize:'13.5px' },
+    };
+    var toneMap = {
+      info:    { bg:'#16305c', border:'#2a4a8a', accent:'#7fa8ff', icon:'📘' },
+      warning: { bg:'#4a3a10', border:'#8a6f2f', accent:'#e0b341', icon:'⚠️' },
+      urgent:  { bg:'#4a1620', border:'#a13a4a', accent:'#ff6b7f', icon:'🚨' },
+    };
+
+    items.forEach(function(a){
+      var dismissKey = MLL.ANN_DISMISS_PREFIX + a.id;
+      if (sessionStorage.getItem(dismissKey)) return; // 이 탭에서 이미 닫은 공지
+
+      var title = (lang === 'en' && a.title_en) ? a.title_en : a.title_kr;
+      var body  = (lang === 'en' && a.body_en) ? a.body_en : a.body_kr;
+      var linkLabel = (lang === 'en' && a.link_label_en) ? a.link_label_en : (a.link_label_kr || (lang==='en' ? 'Learn more' : '자세히 보기'));
+      var sz = sizeMap[a.size] || sizeMap.medium;
+      var tn = toneMap[a.tone] || toneMap.info;
+
+      var el = document.createElement('div');
+      el.setAttribute('data-ann-id', a.id);
+      el.style.cssText =
+        'background:'+tn.bg+';border-bottom:1px solid '+tn.border+';padding:'+sz.pad+';' +
+        'display:flex;align-items:center;gap:12px;font-family:inherit;';
+      el.innerHTML =
+        '<span style="font-size:'+sz.titleSize+';flex-shrink:0;">'+tn.icon+'</span>' +
+        '<div style="flex:1;min-width:0;color:#eef0f6;">' +
+          '<span style="font-weight:700;font-size:'+sz.titleSize+';color:'+tn.accent+';">'+title+'</span>' +
+          '<span style="font-size:'+sz.bodySize+';color:#c8cce0;margin-left:8px;">'+body+'</span>' +
+        '</div>' +
+        (a.link_url ? '<a href="'+a.link_url+'" target="_blank" rel="noopener" style="flex-shrink:0;font-size:'+sz.bodySize+';font-weight:700;color:'+tn.accent+';border:1px solid '+tn.accent+';padding:4px 12px;border-radius:20px;text-decoration:none;white-space:nowrap;">'+linkLabel+' →</a>' : '') +
+        '<button type="button" aria-label="close" style="flex-shrink:0;background:none;border:none;color:#8b91ab;font-size:16px;cursor:pointer;padding:0 4px;">✕</button>';
+
+      el.querySelector('button').addEventListener('click', function(){
+        sessionStorage.setItem(dismissKey, '1');
+        el.remove();
+      });
+
+      container.appendChild(el);
+    });
+  } catch(e) {
+    console.error('[MLL] 공지 로드 오류:', e);
+  }
 };
