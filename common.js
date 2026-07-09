@@ -1152,7 +1152,7 @@ MLL._checkSum = function(nums, min, max) {
 // 관리자 화면에서 그 키를 골라 게시위치로 지정하면 그 페이지에서만 뜨고, 안 고르면 전체 사이트에 뜸)
 // =====================================================
 
-MLL.ANN_DISMISS_PREFIX = 'mll_ann_dismissed_'; // sessionStorage — 이 브라우저 탭에서만 "닫기" 유지(새로 들어오면 다시 보임)
+// (닫기 버튼은 저장하지 않고 그 화면에서만 잠깐 숨깁니다 — 새로고침하면 다시 보임)
 
 MLL.renderAnnouncements = async function(pageKey){
   try {
@@ -1184,9 +1184,6 @@ MLL.renderAnnouncements = async function(pageKey){
     };
 
     items.forEach(function(a){
-      var dismissKey = MLL.ANN_DISMISS_PREFIX + a.id;
-      if (sessionStorage.getItem(dismissKey)) return; // 이 탭에서 이미 닫은 공지
-
       var title = (lang === 'en' && a.title_en) ? a.title_en : a.title_kr;
       var body  = (lang === 'en' && a.body_en) ? a.body_en : a.body_kr;
       var linkLabel = (lang === 'en' && a.link_label_en) ? a.link_label_en : (a.link_label_kr || (lang==='en' ? 'Learn more' : '자세히 보기'));
@@ -1207,8 +1204,9 @@ MLL.renderAnnouncements = async function(pageKey){
         (a.link_url ? '<a href="'+a.link_url+'" target="_blank" rel="noopener" style="flex-shrink:0;font-size:'+sz.bodySize+';font-weight:700;color:'+tn.accent+';border:1px solid '+tn.accent+';padding:4px 12px;border-radius:20px;text-decoration:none;white-space:nowrap;">'+linkLabel+' →</a>' : '') +
         '<button type="button" aria-label="close" style="flex-shrink:0;background:none;border:none;color:#8b91ab;font-size:16px;cursor:pointer;padding:0 4px;">✕</button>';
 
+      // 닫기는 "지금 이 화면에서만" 잠깐 안 보이게 할 뿐, 따로 저장하지 않습니다.
+      // 새로고침하거나 다른 페이지에서 다시 들어오면 (관리자가 게시중지하지 않는 한) 다시 보입니다 — 긴급공지 특성상 의도된 동작.
       el.querySelector('button').addEventListener('click', function(){
-        sessionStorage.setItem(dismissKey, '1');
         el.remove();
       });
 
