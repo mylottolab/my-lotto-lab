@@ -788,6 +788,11 @@ BUI.renderAllRoomsTable = async function(){
     var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/battles/rooms');
     var data = await resp.json();
     var rooms = data.items || [];
+    // 아직 모집 중(대기중)이면서 내가 안 낀 방은 "참가가능한 방"에서만 보여주면 되므로 여기서는 제외
+    rooms = rooms.filter(function(r){
+      if (r.status !== 'waiting') return true;
+      return r.participants.some(function(p){ return p.isMe; });
+    });
     countEl.textContent = rooms.length + '개';
     if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">아직 개설된 배틀이 없습니다.</div></div>'; return; }
 
