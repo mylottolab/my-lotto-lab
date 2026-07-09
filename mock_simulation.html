@@ -457,7 +457,7 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
   <div class="tabpanel-section" id="panel-my">
     <div class="card">
       <div class="section-title" style="justify-content:space-between;">
-        <span>📋 <span data-i18n-kr="내 등록현황" data-i18n-en="My Entries">내 등록현황</span> (<span id="myNickLabel">-</span>)</span>
+        <span>📋 <span data-i18n-kr="내 등록현황" data-i18n-en="My Entries">내 등록현황</span> (<span id="myNickLabel">0</span>)</span>
         <span style="display:flex;gap:8px;">
           <button class="btn btn-outline" onclick="MOCKUI.downloadMyEntriesExcel()">📊 <span data-i18n-kr="엑셀로 받기" data-i18n-en="Download as Excel">엑셀로 받기</span></button>
           <button class="btn btn-outline" style="background:rgba(47,191,163,.15);color:#2FBFA3;border-color:#1F7D6B;" onclick="MOCKUI.openMarkingForMyEntries()">🖨 <span data-i18n-kr="마킹용지로 받기" data-i18n-en="Get as Marking Sheet">마킹용지로 받기</span></button>
@@ -705,8 +705,37 @@ MOCK.loadRoundEntries = async function(round){
   } catch(e) { console.error('[MOCK] round-entries 조회 오류:', e); return { count:0, items:[] }; }
 };
 
+// point_costs 가격표에서 특정 action_key의 단가를 가져온다 (캐시해서 반복 호출 최소화)
+MOCK._priceListCache = null;
+MOCK.getPrice = async function(actionKey){
+  if (!MOCK._priceListCache) {
+    try {
+      var resp = await fetch(MLL.API_BASE + '/api/points/price-list');
+      var data = await resp.json();
+      MOCK._priceListCache = {};
+      (data.items || []).forEach(function(it){ MOCK._priceListCache[it.action_key] = it; });
+    } catch(e) { console.error('[MOCK] price-list 조회 오류:', e); MOCK._priceListCache = {}; }
+  }
+  var item = MOCK._priceListCache[actionKey];
+  return item ? Number(item.cost_points) : null;
+};
+
 // ── 엑셀/마킹용지 다운로드 실제 포인트 차감 ────────────────────────────────────
 // 엑셀: 기존 공용 포인트차감 엔드포인트 재사용 (조합 1개당 단가는 point_costs.mock_excel_download에서 관리)
+// 포인트 부족 시: 안내 문구 + 확인을 누르면 충전 페이지로 바로 이동
+MOCK._notifyInsufficientPoints = function(data){
+  var balance = (data.balance && data.balance.total) || 0;
+  var shortfall = data.shortfall || 0;
+  var msg = LANG==='en'
+    ? 'Not enough points.\nBalance: '+balance.toLocaleString()+' / Short by: '+shortfall.toLocaleString()+'\n\nPlease charge your points first. Go to the charge page now?'
+    : '포인트가 부족합니다.\n현재 잔액: '+balance.toLocaleString()+'P / 부족한 포인트: '+shortfall.toLocaleString()+'P\n\n포인트를 먼저 충전해 주세요. 지금 충전 페이지로 이동하시겠습니까?';
+  if (confirm(msg)) {
+    var url = data.chargeUrl || '/pay/category_select.html';
+    if (url.indexOf('http') !== 0) url = MLL.API_BASE + url; // 상대경로면 API 서버 기준으로 보정
+    window.location.href = url;
+  }
+};
+
 MOCK.chargeExcel = async function(count){
   var state = MOCK.requireAuth();
   if (!state) return { ok:false, cancelled:true };
@@ -716,7 +745,7 @@ MOCK.chargeExcel = async function(count){
     var data = await resp.json();
     if (!resp.ok) {
       if (resp.status === 402) {
-        alert((LANG==='en'?'Not enough points.\nBalance: ':'포인트가 부족합니다.\n현재 잔액: ')+((data.balance&&data.balance.total)||0).toLocaleString()+(LANG==='en'?'\nShortfall: ':'\n부족한 포인트: ')+(data.shortfall||0).toLocaleString());
+        MOCK._notifyInsufficientPoints(data);
       } else {
         alert((LANG==='en'?'Charge failed: ':'차감 실패: ')+(data.error||resp.status));
       }
@@ -739,7 +768,7 @@ MOCK.chargeMarking = async function(gameCount, imgCount){
     var data = await resp.json();
     if (!resp.ok) {
       if (resp.status === 402) {
-        alert((LANG==='en'?'Not enough points.\nBalance: ':'포인트가 부족합니다.\n현재 잔액: ')+((data.balance&&data.balance.total)||0).toLocaleString()+(LANG==='en'?'\nShortfall: ':'\n부족한 포인트: ')+(data.shortfall||0).toLocaleString());
+        MOCK._notifyInsufficientPoints(data);
       } else {
         alert((LANG==='en'?'Charge failed: ':'차감 실패: ')+(data.error||resp.status));
       }
@@ -2196,6 +2225,19 @@ MOCKUI.downloadMyEntriesExcel = async function(){
   var selected = MOCKUI.getCheckedMyEntries();
   if (!selected.length) { alert(LANG==='en' ? 'Please check at least one combo first.' : '엑셀로 받을 번호조합을 왼쪽 체크박스에서 먼저 선택해주세요.'); return; }
 
+  var unitPrice = await MOCK.getPrice('mock_excel_download');
+  if (unitPrice == null) { alert(LANG==='en' ? 'Could not load pricing. Please try again.' : '가격 정보를 불러오지 못했습니다. 다시 시도해주세요.'); return; }
+  var totalPrice = unitPrice * selected.length;
+  var ok = confirm(
+    (LANG==='en'
+      ? 'Excel download charges '+unitPrice.toLocaleString()+' points per combo.\n'
+      : '엑셀 다운로드는 번호조합 1개당 '+unitPrice.toLocaleString()+'포인트씩 과금됩니다.\n') +
+    (LANG==='en'
+      ? selected.length+' combo(s) selected → total '+totalPrice.toLocaleString()+' points will be charged.\n\nContinue?'
+      : selected.length+'개 선택됨 → 총 '+totalPrice.toLocaleString()+'포인트가 차감됩니다.\n\n계속하시겠습니까?')
+  );
+  if (!ok) return;
+
   var charge = await MOCK.chargeExcel(selected.length);
   if (!charge.ok) return;
 
@@ -2214,8 +2256,8 @@ MOCKUI.downloadMyEntriesExcel = async function(){
 MOCKUI.renderMy = async function(){
   MOCKUI.renderLiveReg();
   var state = MLL.getAuthState();
-  document.getElementById('myNickLabel').textContent = (state && state.type) ? state.nickname : '-';
   if (!state || !state.type) {
+    document.getElementById('myNickLabel').textContent = '0';
     document.getElementById('myEntryTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">'+T('set_nick_first')+'</td></tr></tbody>';
     MOCKUI.myEntriesCache = [];
     return;
@@ -2223,6 +2265,7 @@ MOCKUI.renderMy = async function(){
   var entries = (await MOCK.loadEntries()).sort(function(a,b){ return b.createdAt-a.createdAt; });
   MOCKUI.myEntriesCache = entries;
   MOCKUI.myCheckedIds = {}; // 다시 그릴 때마다 선택상태 초기화
+  document.getElementById('myNickLabel').textContent = entries.length;
 
   if (!entries.length) {
     document.getElementById('myEntryTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">'+T('no_entries_yet')+'</td></tr></tbody>';
