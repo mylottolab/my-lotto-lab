@@ -542,6 +542,8 @@ function refreshMockStat(){
       }
 
       // 로그인한 사용자면 "내 등록" 수도 같이 조회해서 총등록↔내등록 반전표시에 사용
+      // (토큰이 만료된 상태로 401이 한 번 나면, 재로그인 전까지는 조용히 재시도를 멈춤 — 불필요한 반복요청 방지)
+      if (window._mockAuthInvalid) return;
       var authState = MLL.getAuthState ? MLL.getAuthState() : null;
       if (!authState || !authState.type) return;
       var headers = {}, qs = '';
@@ -549,7 +551,10 @@ function refreshMockStat(){
       else qs = '?nickname='+encodeURIComponent(authState.nickname)+'&email='+encodeURIComponent(authState.email);
 
       fetch(MLL.API_BASE + '/api/mock/entries' + qs, { headers: headers })
-        .then(function(r){ return r.ok ? r.json() : { items: [] }; })
+        .then(function(r){
+          if (r.status === 401) { window._mockAuthInvalid = true; return { items: [] }; }
+          return r.ok ? r.json() : { items: [] };
+        })
         .then(function(d){
           window._mockMyCount = (d.items || []).filter(function(e){ return Number(e.round) === Number(saleRound); }).length;
 
