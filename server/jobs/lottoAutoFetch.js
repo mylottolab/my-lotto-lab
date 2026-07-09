@@ -16,6 +16,7 @@ const { createClient } = require('@supabase/supabase-js');
 const cheerio = require('cheerio');
 const { runRaceCatchup } = require('./raceAutoRun');
 const { gradeRound: gradeMockRound } = require('./mockAutoGrade');
+const { gradeRound: gradeBattleRound } = require('./battlesAutoGrade');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -228,6 +229,14 @@ async function fetchAndSaveRound(round, alreadyExistsOk) {
     console.log('[lottoAutoFetch] 모의실전시뮬레이션 자동채점 결과:', mockResult);
   } catch (e) {
     console.error('[lottoAutoFetch] 모의실전시뮬레이션 자동채점 오류 (당첨결과 저장은 정상 완료됨):', e.message);
+  }
+
+  // Battles(1:1 대결)도 같은 방식으로 자동 채점 + 우승 보상 지급합니다.
+  try {
+    const battleResult = await gradeBattleRound(round);
+    console.log('[lottoAutoFetch] Battles 자동채점 결과:', battleResult);
+  } catch (e) {
+    console.error('[lottoAutoFetch] Battles 자동채점 오류 (당첨결과 저장은 정상 완료됨):', e.message);
   }
 
   return {
