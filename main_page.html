@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab</title>
+<script src="common.js?v=20260709a"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -500,6 +501,87 @@ function formatWinnerShops(raw){
   return lines.join(' · ');
 }
 
+function refreshMockStat(){
+  var mockRoundEl = document.getElementById('statMockRound');
+  var statMockCountEl = document.getElementById('statMockCount');
+  if (!mockRoundEl || typeof MLL === 'undefined' || !MLL.getLottoInfo) return;
+
+  var info = MLL.getLottoInfo();
+  var saleRound = info.saleRound;
+  mockRoundEl.textContent = saleRound.toLocaleString();
+  if (!statMockCountEl) return;
+
+  fetch(MLL.API_BASE + '/api/mock/round-entries?round=' + saleRound)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var totalMockCount = data.count || 0;
+      if (totalMockCount <= 0) { statMockCountEl.innerHTML = ''; return; }
+
+      var prevTotal = window._mockPrevTotal;
+      window._mockPrevTotal = totalMockCount;
+      window._mockTotalCount = totalMockCount;
+
+      if (!document.getElementById('statMockCountNum')) {
+        statMockCountEl.innerHTML = '· <span class="flip-fade" id="statMockCountLabel">'+T('mock_total_label')+'</span> <span class="num font-num rolling flip-fade" id="statMockCountNum" style="font-size:13px;">0</span>'+T('game_suffix_unit');
+        // 최초 진입 시 0에서 카운트업
+        var numEl = document.getElementById('statMockCountNum');
+        var startTs = performance.now();
+        var DURATION = 700;
+        (function animateCount(){
+          var t = Math.min(1, (performance.now()-startTs)/DURATION);
+          var eased = 1 - Math.pow(1-t, 3);
+          numEl.textContent = Math.round(eased * totalMockCount).toLocaleString();
+          if (t < 1) requestAnimationFrame(animateCount);
+          else numEl.textContent = totalMockCount.toLocaleString();
+        })();
+      } else if (prevTotal !== undefined && prevTotal !== totalMockCount && window._mockShowingTotal !== false) {
+        // 값이 바뀐 경우에만 짧게 롤링 애니메이션 재생 (신규 등록 발생 시 눈에 띄게)
+        var numEl2 = document.getElementById('statMockCountNum');
+        if (numEl2) {
+          numEl2.classList.remove('rolling');
+          void numEl2.offsetWidth;
+          numEl2.classList.add('rolling');
+          numEl2.textContent = totalMockCount.toLocaleString();
+        }
+      }
+
+      // 로그인한 사용자면 "내 등록" 수도 같이 조회해서 총등록↔내등록 반전표시에 사용
+      var authState = MLL.getAuthState ? MLL.getAuthState() : null;
+      if (!authState || !authState.type) return;
+      var headers = {}, qs = '';
+      if (authState.type === 'member') headers['Authorization'] = 'Bearer ' + authState.token;
+      else qs = '?nickname='+encodeURIComponent(authState.nickname)+'&email='+encodeURIComponent(authState.email);
+
+      fetch(MLL.API_BASE + '/api/mock/entries' + qs, { headers: headers })
+        .then(function(r){ return r.ok ? r.json() : { items: [] }; })
+        .then(function(d){
+          window._mockMyCount = (d.items || []).filter(function(e){ return Number(e.round) === Number(saleRound); }).length;
+
+          if (!window._mockFlipStarted) {
+            window._mockFlipStarted = true;
+            var showingTotal = true;
+            setInterval(function(){
+              var le = document.getElementById('statMockCountLabel');
+              var ne = document.getElementById('statMockCountNum');
+              if (!le || !ne) return;
+              le.style.opacity = '0';
+              ne.style.opacity = '0';
+              setTimeout(function(){
+                showingTotal = !showingTotal;
+                window._mockShowingTotal = showingTotal;
+                le.textContent = showingTotal ? T('mock_total_label') : T('mock_my_label');
+                ne.textContent = (showingTotal ? window._mockTotalCount : (window._mockMyCount||0)).toLocaleString();
+                le.style.opacity = '1';
+                ne.style.opacity = '1';
+              }, 300);
+            }, 2600);
+          }
+        })
+        .catch(function(){ /* 내 등록수 조회 실패는 조용히 무시 (전체수는 이미 표시됨) */ });
+    })
+    .catch(function(e){ console.error('[main_page] mock count 조회 오류:', e); });
+}
+
 function refreshDynamicStats(){
   var entries = loadJSON('mll_entries', []);
   var strategies = loadJSON('mll_strategies', []);
@@ -530,71 +612,11 @@ function refreshDynamicStats(){
     raceNextEl.textContent = (raceNext && raceNext.round) ? raceNext.round.toLocaleString()+T('race_next_suffix') : '';
   }
 
-  var mockRoundEl = document.getElementById('statMockRound');
-  var saleRound = null;
-  if (mockRoundEl) {
-    var nowKo = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
-    var day = nowKo.getDay(), hour = nowKo.getHours(), min = nowKo.getMinutes();
-    var ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
-    var WEEK_MS = 7*24*60*60*1000;
-    var elapsed = Date.now() - ROUND1_TS;
-    var thisRound = Math.floor(elapsed/WEEK_MS)+1;
-    var nextRound = thisRound+1;
-    var inClosedWindow = (day===6 && (hour>20||(hour===20&&min>=0))) || (day===0 && hour<6);
-    var results2 = {};
-    try { results2 = JSON.parse(localStorage.getItem('mll_results')||'{}'); } catch(e){}
-    var thisRoundDrawn = !!(results2[thisRound] && results2[thisRound].nums);
-    if (!inClosedWindow) saleRound = nextRound;
-    else if (!thisRoundDrawn) saleRound = thisRound;
-    else saleRound = nextRound;
-    mockRoundEl.textContent = saleRound.toLocaleString();
-  }
-
-  // ── 모의등록 건수: 총등록 ↔ 내 등록을 계속 반전(toggle) 표시 ──
-  var statMockCountEl = document.getElementById('statMockCount');
-  if (statMockCountEl && saleRound != null) {
-    var mockEntries = loadJSON('mll_mock_entries', []);
-    var roundEntries = mockEntries.filter(function(e){ return Number(e.round) === Number(saleRound); });
-    var totalMockCount = roundEntries.length;
-    var myNick = null;
-    try { myNick = JSON.parse(localStorage.getItem('mll_mock_nickname')||'null'); } catch(e){}
-    var myMockCount = myNick ? roundEntries.filter(function(e){ return e.nickname === myNick.nickname; }).length : 0;
-
-    if (totalMockCount > 0) {
-      statMockCountEl.innerHTML = '· <span class="flip-fade" id="statMockCountLabel">'+T('mock_total_label')+'</span> <span class="num font-num rolling flip-fade" id="statMockCountNum" style="font-size:13px;">0</span>'+T('game_suffix_unit');
-      var numEl = document.getElementById('statMockCountNum');
-      var labelEl = document.getElementById('statMockCountLabel');
-
-      var startTs = performance.now();
-      var DURATION = 700;
-      (function animateCount(){
-        var t = Math.min(1, (performance.now()-startTs)/DURATION);
-        var eased = 1 - Math.pow(1-t, 3);
-        numEl.textContent = Math.round(eased * totalMockCount).toLocaleString();
-        if (t < 1) requestAnimationFrame(animateCount);
-        else numEl.textContent = totalMockCount.toLocaleString();
-      })();
-
-      // 닉네임이 있을 때만 "총등록"/"내 등록"을 계속 반전 표시 (없으면 총등록만 고정 표시)
-      if (myNick && !window._mockFlipStarted) {
-        window._mockFlipStarted = true;
-        var showingTotal = true;
-        setInterval(function(){
-          var le = document.getElementById('statMockCountLabel');
-          var ne = document.getElementById('statMockCountNum');
-          if (!le || !ne) return;
-          le.style.opacity = '0';
-          ne.style.opacity = '0';
-          setTimeout(function(){
-            showingTotal = !showingTotal;
-            le.textContent = showingTotal ? T('mock_total_label') : T('mock_my_label');
-            ne.textContent = (showingTotal ? totalMockCount : myMockCount).toLocaleString();
-            le.style.opacity = '1';
-            ne.style.opacity = '1';
-          }, 300);
-        }, 2600);
-      }
-    }
+  // ── 모의실전시뮬레이션: 실제 서버 데이터 (2026-07-09부터 서버DB 전환) ──
+  // 회차/전체등록수는 8초마다 다시 불러와서, 새로 등록되는 대로 숫자가 계속 갱신됩니다(광고 효과).
+  refreshMockStat();
+  if (!window._mockStatInterval) {
+    window._mockStatInterval = setInterval(refreshMockStat, 8000);
   }
 
   // ── 모의등록 접수마감까지 남은시간: 1초마다 갱신 ──
