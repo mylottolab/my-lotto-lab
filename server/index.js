@@ -240,3 +240,7 @@ app.use('/api/race', raceRouter);
 
 const raceAdminRouter = require('./routes/race_admin');
 app.use('/api/admin/race', raceAdminRouter);
+
+// ─── 모의실전시뮬레이션 ────────────────────────────────────────────────────
+const mockRouter = require('./routes/mock');
+app.use('/api/mock', mockRouter);
