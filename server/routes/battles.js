@@ -115,25 +115,51 @@ router.get('/rooms/:id', async (req, res) => {
   return res.json({ room: shapeRoom(room, participants, viewer ? viewer.id : null) });
 });
 
-// ─── [인증 필요] 방 생성 (무료, 개설자는 자동 참가되지 않음 — 따로 참가해야 함) ───
+// ─── [인증 필요] 방 생성 (개설자가 참가비를 내고 자동으로 첫 참가자가 됨) ───
 // POST /api/battles/rooms   body: { name, nickname, email }
 router.post('/rooms', async (req, res) => {
   try {
     const user = await resolveUser(req);
     if (!user) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
 
+    // 참가비 확인 및 차감 (개설과 동시에 개설자 본인 참가로 처리)
+    const { data: cost } = await supabase.from('point_costs').select('cost_points').eq('action_key', 'battle_1v1_entry').maybeSingle();
+    const price = cost ? Number(cost.cost_points) : 0;
+
+    if (price > 0) {
+      const result = await deductPoints(user.id, price, { actionKey: 'battle_1v1_entry', refId: null });
+      if (!result.success) {
+        return res.status(402).json({
+          error: '포인트가 부족합니다. 충전해주세요.',
+          shortfall: result.shortfall, balance: result.balance,
+          chargeUrl: '/pay/category_select.html',
+        });
+      }
+    }
+
     const round = await getSaleRound();
     const name = (req.body.name || '').trim() || `${user.nickname}님의 1:1 대결`;
 
-    const { data, error } = await supabase.from('battle_rooms').insert({
+    const { data: room, error } = await supabase.from('battle_rooms').insert({
       type: '1v1', name, round, max_participants: 2, status: 'waiting', created_by: user.id,
     }).select().single();
 
     if (error) {
-      console.error('[battles] 방 생성 오류:', error);
-      return res.status(500).json({ error: `방 생성 실패: ${error.message}` });
+      // 참가비는 이미 차감된 상태에서 방 생성이 실패한 경우 — 관리자 확인 필요(드문 케이스)
+      console.error('[battles] 방 생성 오류 (참가비는 이미 차감됨):', error);
+      return res.status(500).json({ error: `방 생성 실패: ${error.message}. 관리자에게 문의해주세요.` });
     }
-    return res.status(201).json({ success: true, room: shapeRoom(data, [], user.id) });
+
+    const { data: participant, error: pErr } = await supabase.from('battle_participants').insert({
+      room_id: room.id, user_id: user.id, nickname: user.nickname,
+    }).select().single();
+
+    if (pErr) {
+      console.error('[battles] 개설자 참가 등록 오류 (방은 생성됨, 참가비는 이미 차감됨):', pErr);
+      return res.status(500).json({ error: '방은 만들어졌지만 참가 처리 중 오류가 발생했습니다. 관리자에게 문의해주세요.', room: shapeRoom(room, [], user.id) });
+    }
+
+    return res.status(201).json({ success: true, room: shapeRoom(room, [participant], user.id) });
   } catch (err) {
     console.error('[battles] 방 생성 오류:', err);
     return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
