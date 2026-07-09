@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab - 모의 실전 시뮬레이션</title>
+<script src="common.js?v=20260709a"></script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -243,7 +245,7 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
         <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
         <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
       </div>
-      <div class="nick-badge" id="nickBadge" onclick="MOCKUI.openNicknameModal(true)">
+      <div class="nick-badge" id="nickBadge" onclick="MOCKUI.onNickBadgeClick()">
         <span class="dot"></span><span id="nickBadgeText" data-i18n-kr="닉네임 설정" data-i18n-en="Set Nickname">닉네임 설정</span>
       </div>
     </div>
@@ -456,7 +458,10 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
     <div class="card">
       <div class="section-title" style="justify-content:space-between;">
         <span>📋 <span data-i18n-kr="내 등록현황" data-i18n-en="My Entries">내 등록현황</span> (<span id="myNickLabel">-</span>)</span>
-        <button class="btn btn-outline" style="background:rgba(47,191,163,.15);color:#2FBFA3;border-color:#1F7D6B;" onclick="MOCKUI.openMarkingForMyEntries()">🖨 <span data-i18n-kr="마킹용지로 받기" data-i18n-en="Get as Marking Sheet">마킹용지로 받기</span></button>
+        <span style="display:flex;gap:8px;">
+          <button class="btn btn-outline" onclick="MOCKUI.downloadMyEntriesExcel()">📊 <span data-i18n-kr="엑셀로 받기" data-i18n-en="Download as Excel">엑셀로 받기</span></button>
+          <button class="btn btn-outline" style="background:rgba(47,191,163,.15);color:#2FBFA3;border-color:#1F7D6B;" onclick="MOCKUI.openMarkingForMyEntries()">🖨 <span data-i18n-kr="마킹용지로 받기" data-i18n-en="Get as Marking Sheet">마킹용지로 받기</span></button>
+        </span>
       </div>
       <div class="entry-table-wrap">
         <table class="entry-table" id="myEntryTable"></table>
@@ -486,16 +491,7 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
 
 </div>
 
-<!-- 닉네임 입력 모달 -->
-<div class="modal-overlay" id="nicknameModal">
-  <div class="modal-box">
-    <h3 id="nickModalTitle">🎲 닉네임을 정해주세요</h3>
-    <p data-i18n-html="true" data-i18n-kr="모의 실전 시뮬레이션에서 사용할 닉네임입니다.<br>한글/영문/숫자/밑줄 2~12자, 한 번 정하면 이 브라우저에서 계속 사용돼요." data-i18n-en="This is the nickname you'll use in the Mock Live Simulation.<br>2-12 characters (Korean/English/numbers/underscore); once set, it stays with this browser.">모의 실전 시뮬레이션에서 사용할 닉네임입니다.<br>한글/영문/숫자/밑줄 2~12자, 한 번 정하면 이 브라우저에서 계속 사용돼요.</p>
-    <input type="text" id="nickInput" placeholder="예: 행운의로또왕" data-i18n-placeholder-kr="예: 행운의로또왕" data-i18n-placeholder-en="e.g. LuckyLottoKing" maxlength="12" onkeydown="if(event.key==='Enter')MOCKUI.submitNickname();">
-    <div class="modal-err" id="nickErr"></div>
-    <button class="btn btn-gold" style="width:100%;" onclick="MOCKUI.submitNickname()" data-i18n-kr="시작하기" data-i18n-en="Get Started">시작하기</button>
-  </div>
-</div>
+<!-- 닉네임 입력 모달은 삭제되었습니다 — 이제 사이트 실제 로그인/비회원등록(auth_gate.js)을 사용합니다 -->
 
 <!-- 자동생성 다건 취사선택 모달 -->
 <div class="modal-overlay" id="autoPickModal">
@@ -523,83 +519,15 @@ table.entry-table{width:100%;border-collapse:collapse;min-width:560px;}
 // =====================================================
 if (typeof window.MLL === 'undefined') { window.MLL = {}; }
 var MLL = window.MLL;
-
-MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
-MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
-MLL.RESULTS_KEY = 'mll_results';
-
-// status: 'open'(접수중) / 'closing'(접수마감, 토요일20시~결과발표전) / 'waiting'(접수대기, 결과발표후~일요일06시)
-MLL.getLottoInfo = function() {
-  var now = new Date();
-  var ko  = new Date(now.toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
-  var day = ko.getDay(), hour = ko.getHours(), min = ko.getMinutes();
-  var elapsed   = now.getTime() - MLL.ROUND1_TS;
-  var thisRound = Math.floor(elapsed / MLL.WEEK_MS) + 1;
-  var nextRound = thisRound + 1;
-
-  var inClosedWindow = (day===6 && (hour>20||(hour===20&&min>=0))) || (day===0 && hour<6);
-
-  var results = MLL.loadResults ? MLL.loadResults() : {};
-  var thisRoundDrawn = !!(results[thisRound] && results[thisRound].nums);
-
-  var status, saleRound, soldOut;
-  if (!inClosedWindow) {
-    status = 'open';
-    saleRound = nextRound;
-    soldOut = false;
-  } else if (!thisRoundDrawn) {
-    status = 'closing';
-    saleRound = thisRound;
-    soldOut = true;
-  } else {
-    status = 'waiting';
-    saleRound = nextRound;
-    soldOut = true;
-  }
-
-  return { thisRound:thisRound, nextRound:nextRound, soldOut:soldOut, saleRound:saleRound, status:status };
-};
+// ⚠️ 2026-07-09: ROUND1_TS/WEEK_MS/getLottoInfo/getDrawDate/loadResults/BC/TC/calcGrade/calcPrize는
+// 이제 common.js가 제공합니다 (실제 서버 당첨결과 기반 정상 버전). 예전의 로컬(localStorage-only)
+// 재구현은 삭제했습니다. (getStatusLabel은 영문 지원이 필요해 이 페이지 전용으로 유지합니다.)
 
 MLL.STATUS_LABEL_KR = { open:'접수중', closing:'접수마감', waiting:'접수대기' };
 MLL.STATUS_LABEL_EN = { open:'Open', closing:'Closed', waiting:'Pending' };
 MLL.getStatusLabel = function(status){
   var lang = (typeof LANG !== 'undefined') ? LANG : 'kr';
   return (lang === 'en' ? MLL.STATUS_LABEL_EN : MLL.STATUS_LABEL_KR)[status];
-};
-
-MLL.getDrawDate = function(round) {
-  var d = new Date(MLL.ROUND1_TS + (round - 1) * MLL.WEEK_MS);
-  var y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
-  return y+'.'+m+'.'+dd;
-};
-
-MLL.loadResults = function() {
-  try { return JSON.parse(localStorage.getItem(MLL.RESULTS_KEY) || '{}'); }
-  catch(e) { return {}; }
-};
-
-MLL.BC = function(n) { return n<=10?'#e0b341':n<=20?'#5b6ee8':n<=30?'#d4537e':n<=40?'#8b91ab':'#3fb37f'; };
-MLL.TC = function(n) { return n<=10?'#1a1404':'#fff'; };
-
-MLL.calcGrade = function(myNums, winNums, bonusNum) {
-  var match = 0;
-  myNums.forEach(function(n){ if(winNums.indexOf(n) >= 0) match++; });
-  var hasBonus = myNums.indexOf(bonusNum) >= 0;
-  if (match===6) return 1;
-  if (match===5 && hasBonus) return 2;
-  if (match===5) return 3;
-  if (match===4) return 4;
-  if (match===3) return 5;
-  return 0;
-};
-MLL.calcPrize = function(grade, result) {
-  if (!result || grade===0) return 0;
-  if (grade===1) return result.prize1 || 0;
-  if (grade===2) return result.prize2 || 0;
-  if (grade===3) return result.prize3 || 0;
-  if (grade===4) return 50000;
-  if (grade===5) return 5000;
-  return 0;
 };
 
 // ── 전체 역사 데이터(lotto_results_full.json) — GitHub에 올려진 lotto_details1.xlsx를 변환한 완전한 1회~최신회차 데이터셋 ──
@@ -612,7 +540,7 @@ MLL.loadFullHistory = function(){
     .then(function(res){ if (!res.ok) throw new Error('fetch failed: '+res.status); return res.json(); })
     .then(function(data){ MLL._fullHistoryCache = data; return data; })
     .catch(function(err){
-      console.warn('[MLL] lotto_results_full.json 로드 실패, 부분 데이터(mll_results)로 대체:', err.message);
+      console.warn('[MLL] lotto_results_full.json 로드 실패, 부분 데이터(서버 결과)로 대체:', err.message);
       MLL._fullHistoryCache = MLL.loadResults();
       return MLL._fullHistoryCache;
     });
@@ -663,9 +591,6 @@ MLL.uuid = function() {
 // =====================================================
 var MOCK = {};
 
-MOCK.NICK_KEY = 'mll_mock_nickname';
-MOCK.REGISTRY_KEY = 'mll_mock_nicknames_registry';
-MOCK.ENTRIES_KEY = 'mll_mock_entries';
 MOCK.PRICE_PER_GAME = 1000;
 MOCK.GRID_ROWS = 5;
 
@@ -678,77 +603,90 @@ MOCK.getDeadlineLabel = function(){
   return '접수기간: 매주 일요일 06:00 ~ 토요일 20:00';
 };
 
-// ── 닉네임 ──
-MOCK.getNickname = function(){
-  try { return JSON.parse(localStorage.getItem(MOCK.NICK_KEY)||'null'); } catch(e){ return null; }
-};
-MOCK.loadRegistry = function(){
-  try { return JSON.parse(localStorage.getItem(MOCK.REGISTRY_KEY)||'{}'); } catch(e){ return {}; }
-};
-MOCK.saveRegistry = function(reg){ localStorage.setItem(MOCK.REGISTRY_KEY, JSON.stringify(reg)); };
-
-MOCK.NICK_PATTERN = /^[가-힣a-zA-Z0-9_]{2,12}$/;
-
-MOCK.registerNickname = function(nick){
-  nick = (nick||'').trim();
-  if (!MOCK.NICK_PATTERN.test(nick)) {
-    return { ok:false, reason:T('nick_err_pattern') };
+// ── 참가자 신원 = 사이트 실제 로그인/비회원등록 계정 (common.js의 MLL.getAuthState 그대로 사용) ──
+// 이 게임 전용 "모의닉네임"은 더 이상 없습니다 — 로그인한 계정의 닉네임이 곧 참가자 이름입니다.
+MOCK.requireAuth = function(){
+  var state = MLL.getAuthState();
+  if (!state || !state.type) {
+    if (window.MLL.requireAuth) MLL.requireAuth(function(){});
+    else alert(LANG==='en' ? 'Please log in first.' : '먼저 로그인해주세요.');
+    return null;
   }
-  var reg = MOCK.loadRegistry();
-  if (reg[nick]) {
-    return { ok:false, reason:T('nick_err_taken') };
+  return state;
+};
+
+// 서버 요청에 필요한 인증 헤더/바디를 만들어준다 (회원=Authorization 헤더, 비회원=닉네임+이메일)
+MOCK._authRequest = function(state, body){
+  body = body || {};
+  var headers = { 'Content-Type': 'application/json' };
+  if (state.type === 'member') {
+    headers['Authorization'] = 'Bearer ' + state.token;
+  } else {
+    body.nickname = state.nickname;
+    body.email = state.email;
   }
-  reg[nick] = true;
-  MOCK.saveRegistry(reg);
-  var data = { nickname: nick, createdAt: Date.now() };
-  localStorage.setItem(MOCK.NICK_KEY, JSON.stringify(data));
-  return { ok:true, nickname:nick };
+  return { headers: headers, body: body };
+};
+MOCK._authQuery = function(state){
+  return state.type === 'member' ? '' : ('?nickname='+encodeURIComponent(state.nickname)+'&email='+encodeURIComponent(state.email));
 };
 
-// ── 등록 데이터 CRUD ──
-MOCK.loadEntries = function(){
-  try { return JSON.parse(localStorage.getItem(MOCK.ENTRIES_KEY)||'[]'); } catch(e){ return []; }
+// ── 등록 데이터 (서버) ──
+MOCK._entryFromServerRow = function(row){
+  return {
+    id: row.id, nickname: row.nickname, round: row.round, nums: row.nums,
+    type: row.purchase_type, inputMethod: row.input_method,
+    grade: row.grade, prizeMoney: row.prize_money || 0,
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now()
+  };
 };
-MOCK.saveEntries = function(list){ localStorage.setItem(MOCK.ENTRIES_KEY, JSON.stringify(list)); };
 
-MOCK.addEntries = function(items){
-  var entries = MOCK.loadEntries();
-  items.forEach(function(item){
-    if (!item.id) item.id = MLL.uuid();
-    if (!item.createdAt) item.createdAt = Date.now();
-    item.grade = null;
-    item.prizeMoney = 0;
-    entries.push(item);
+MOCK.loadEntries = async function(){
+  var state = MLL.getAuthState();
+  if (!state || !state.type) return [];
+  try {
+    var headers = {};
+    if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
+    var resp = await fetch(MLL.API_BASE + '/api/mock/entries' + MOCK._authQuery(state), { headers: headers });
+    if (!resp.ok) return [];
+    var data = await resp.json();
+    return (data.items || []).map(MOCK._entryFromServerRow);
+  } catch(e) { console.error('[MOCK] entries 조회 오류:', e); return []; }
+};
+
+// items: [{round, nums, type, inputMethod}, ...] — nickname은 더 이상 항목에 넣지 않습니다(서버가 로그인 정보로 판단)
+MOCK.addEntries = async function(items){
+  var state = MOCK.requireAuth();
+  if (!state) return { ok:false, cancelled:true };
+
+  var payloadItems = items.map(function(it){
+    return { round: it.round, nums: it.nums, purchaseType: it.type, inputMethod: it.inputMethod };
   });
-  MOCK.saveEntries(entries);
-  if (typeof MOCKUI !== 'undefined' && MOCKUI.renderTicker) {
-    MOCKUI.tickerIdx = 0; // 새 등록건을 곧바로 보여주도록 처음으로 리셋
-    MOCKUI.renderTicker();
-  }
-  return items;
-};
+  var req = MOCK._authRequest(state, { items: payloadItems });
 
-// 특정 회차에 대해 아직 채점 안 된 항목들을 실제 mll_results로 채점
-MOCK.gradeEntriesForRound = function(round){
-  var results = MLL.loadResults();
-  var win = results[round];
-  if (!win || !win.nums) return 0;
-  var entries = MOCK.loadEntries();
-  var count = 0;
-  entries.forEach(function(e){
-    if (e.round === round && e.grade === null) {
-      e.grade = MLL.calcGrade(e.nums, win.nums, win.bonus);
-      e.prizeMoney = MLL.calcPrize(e.grade, win);
-      count++;
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/mock/entries', {
+      method: 'POST', headers: req.headers, body: JSON.stringify(req.body)
+    });
+    var data = await resp.json();
+    if (!resp.ok) {
+      alert((LANG==='en'?'Registration failed: ':'등록 실패: ')+(data.error||resp.status));
+      return { ok:false, error:data.error };
     }
-  });
-  if (count) MOCK.saveEntries(entries);
-  return count;
+    if (typeof MOCKUI !== 'undefined' && MOCKUI.renderTicker) {
+      MOCKUI.tickerIdx = 0; // 새 등록건을 곧바로 보여주도록 처음으로 리셋
+      MOCKUI.renderTicker();
+    }
+    return { ok:true, items:data.items };
+  } catch(e) {
+    alert((LANG==='en'?'Network error: ':'네트워크 오류: ')+e.message);
+    return { ok:false, error:e.message };
+  }
 };
 
-// 닉네임별 통계 (구입비/당첨금/수익률)
-MOCK.getStatsForNickname = function(nick){
-  var entries = MOCK.loadEntries().filter(function(e){ return e.nickname===nick; });
+// 닉네임별(=로그인 계정별) 통계 (구입비/당첨금/수익률) — 항상 "나"의 통계
+MOCK.getStatsForNickname = async function(){
+  var entries = await MOCK.loadEntries();
   var totalGames = entries.length;
   var totalCost = totalGames * MOCK.PRICE_PER_GAME;
   var totalPrize = entries.reduce(function(s,e){ return s + (e.prizeMoney||0); }, 0);
@@ -758,23 +696,69 @@ MOCK.getStatsForNickname = function(nick){
   return { entries:entries, totalGames:totalGames, totalCost:totalCost, totalPrize:totalPrize, gradeCounts:gradeCounts, roi:roi };
 };
 
-// 전체 참여자 랭킹 (수익률/당첨금 기준)
-MOCK.getLeaderboard = function(){
-  var entries = MOCK.loadEntries();
-  var byNick = {};
-  entries.forEach(function(e){
-    if (!byNick[e.nickname]) byNick[e.nickname] = { nickname:e.nickname, games:0, cost:0, prize:0 };
-    byNick[e.nickname].games++;
-    byNick[e.nickname].cost += MOCK.PRICE_PER_GAME;
-    byNick[e.nickname].prize += (e.prizeMoney||0);
-  });
-  var list = Object.values(byNick).map(function(x){
-    x.roi = x.cost>0 ? (x.prize/x.cost*100) : 0;
-    return x;
-  });
-  list.sort(function(a,b){ return b.prize - a.prize; });
-  list.forEach(function(x,i){ x.rank = i+1; });
-  return list;
+// 실시간 티커용: 특정 회차의 "전체 참여자" 등록건 (인증 불필요, 공개)
+MOCK.loadRoundEntries = async function(round){
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/mock/round-entries?round=' + round);
+    if (!resp.ok) return { count:0, items:[] };
+    return await resp.json();
+  } catch(e) { console.error('[MOCK] round-entries 조회 오류:', e); return { count:0, items:[] }; }
+};
+
+// ── 엑셀/마킹용지 다운로드 실제 포인트 차감 ────────────────────────────────────
+// 엑셀: 기존 공용 포인트차감 엔드포인트 재사용 (조합 1개당 단가는 point_costs.mock_excel_download에서 관리)
+MOCK.chargeExcel = async function(count){
+  var state = MOCK.requireAuth();
+  if (!state) return { ok:false, cancelled:true };
+  var req = MOCK._authRequest(state, { actionKey:'mock_excel_download', quantity: count });
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/points/spend', { method:'POST', headers:req.headers, body: JSON.stringify(req.body) });
+    var data = await resp.json();
+    if (!resp.ok) {
+      if (resp.status === 402) {
+        alert((LANG==='en'?'Not enough points.\nBalance: ':'포인트가 부족합니다.\n현재 잔액: ')+((data.balance&&data.balance.total)||0).toLocaleString()+(LANG==='en'?'\nShortfall: ':'\n부족한 포인트: ')+(data.shortfall||0).toLocaleString());
+      } else {
+        alert((LANG==='en'?'Charge failed: ':'차감 실패: ')+(data.error||resp.status));
+      }
+      return { ok:false, error:data.error };
+    }
+    return { ok:true };
+  } catch(e) {
+    alert((LANG==='en'?'Network error: ':'네트워크 오류: ')+e.message);
+    return { ok:false, error:e.message };
+  }
+};
+
+// 마킹용지: 매수 기반 계산식 전용 엔드포인트 (단가는 point_costs.mock_marking_* 에서 관리)
+MOCK.chargeMarking = async function(gameCount, imgCount){
+  var state = MOCK.requireAuth();
+  if (!state) return { ok:false, cancelled:true };
+  var req = MOCK._authRequest(state, { gameCount: gameCount, imgCount: imgCount });
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/mock/charge-marking', { method:'POST', headers:req.headers, body: JSON.stringify(req.body) });
+    var data = await resp.json();
+    if (!resp.ok) {
+      if (resp.status === 402) {
+        alert((LANG==='en'?'Not enough points.\nBalance: ':'포인트가 부족합니다.\n현재 잔액: ')+((data.balance&&data.balance.total)||0).toLocaleString()+(LANG==='en'?'\nShortfall: ':'\n부족한 포인트: ')+(data.shortfall||0).toLocaleString());
+      } else {
+        alert((LANG==='en'?'Charge failed: ':'차감 실패: ')+(data.error||resp.status));
+      }
+      return { ok:false, error:data.error };
+    }
+    return { ok:true, charged:data.charged };
+  } catch(e) {
+    alert((LANG==='en'?'Network error: ':'네트워크 오류: ')+e.message);
+    return { ok:false, error:e.message };
+  }
+};
+
+// 전체 참여자 순위 — 서버가 집계한 값을 그대로 사용 (모두가 같은 순위를 봄)
+MOCK.getLeaderboard = async function(){
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/mock/leaderboard');
+    var data = await resp.json();
+    return data.items || [];
+  } catch(e) { console.error('[MOCK] leaderboard 조회 오류:', e); return []; }
 };
 
 // =====================================================
@@ -1278,17 +1262,18 @@ MOCKUI.textLang = 'ko';
 // ── 상단바 중앙: 등록된 조합 롤링 표시 + 전체 등록조합수 디지털 카운터 ──
 MOCKUI.tickerIdx = 0;
 
-MOCKUI.renderTicker = function(){
+MOCKUI.renderTicker = async function(){
   var ballsEl = document.getElementById('tickerBalls');
   var countEl = document.getElementById('tickerCount');
   if (!ballsEl || !countEl) return;
 
   var info = MLL.getLottoInfo();
   var round = info.saleRound;
-  var entries = MOCK.loadEntries().filter(function(e){ return Number(e.round) === Number(round); });
+  var roundData = await MOCK.loadRoundEntries(round);
+  var entries = roundData.items || []; // 최신순으로 이미 정렬되어 옴
 
   // 카운터: 값이 바뀐 경우에만 롤링 애니메이션 재생
-  var newCount = entries.length;
+  var newCount = roundData.count || 0;
   var oldCount = Number((countEl.textContent||'0').replace(/,/g,'')) || 0;
   countEl.textContent = newCount.toLocaleString();
   if (newCount !== oldCount) {
@@ -1303,8 +1288,8 @@ MOCKUI.renderTicker = function(){
     return;
   }
   if (MOCKUI.tickerIdx >= entries.length) MOCKUI.tickerIdx = 0;
-  var entry = entries[entries.length - 1 - MOCKUI.tickerIdx];
-  var sorted = entry.nums.slice().sort(function(a,b){ return a-b; });
+  var nums = entries[MOCKUI.tickerIdx]; // items는 이미 최신순이라 앞에서부터 순환
+  var sorted = nums.slice().sort(function(a,b){ return a-b; });
   ballsEl.innerHTML = sorted.map(function(n){
     return '<span class="tb-ball" style="background:'+MOCKUI.ballBC(n)+';color:'+MOCKUI.ballTC(n)+';">'+n+'</span>';
   }).join('');
@@ -1318,8 +1303,7 @@ MOCKUI.advanceTicker = function(){
 MOCKUI.init = function(){
   MOCKUI.refreshHeader();
   MOCKUI.buildGrid();
-  MOCKUI.checkNicknameOnLoad();
-  MOCKUI.gradeIfPossible();
+  MOCKUI.refreshNickBadge();
   MOCKUI.renderMy();
   MOCKUI.renderStats();
   MOCKUI.renderLeaderboard();
@@ -1328,17 +1312,7 @@ MOCKUI.init = function(){
   setInterval(MOCKUI.advanceTicker, 2500);
 };
 
-MOCKUI.gradeIfPossible = function(){
-  var info = MLL.getLottoInfo();
-  // 이미 추첨이 끝난(현재 회차보다 작은) 모의등록 회차들을 채점
-  var entries = MOCK.loadEntries();
-  var rounds = Array.from(new Set(entries.map(function(e){return e.round;})));
-  rounds.forEach(function(r){
-    if (r < info.thisRound || (r === info.thisRound)) {
-      MOCK.gradeEntriesForRound(r);
-    }
-  });
-};
+// (gradeIfPossible은 더 이상 필요 없습니다 — 서버가 새 회차 확정 시 자동으로 채점합니다)
 
 // ── 헤더: 타이틀 + 상태 + 카운트다운 ──
 MOCKUI.refreshHeader = function(){
@@ -1403,43 +1377,29 @@ MOCKUI.switchMethod = function(method){
   document.querySelectorAll('.method-panel').forEach(function(p){ p.classList.toggle('active', p.id==='method-'+method); });
 };
 
-// ── 닉네임 ──
-MOCKUI.checkNicknameOnLoad = function(){
-  var nick = MOCK.getNickname();
-  if (nick) {
-    document.getElementById('nickBadgeText').textContent = nick.nickname;
+// ── 로그인 배지 (사이트 실제 로그인/비회원등록 상태를 그대로 반영) ──
+MOCKUI.refreshNickBadge = function(){
+  var state = MLL.getAuthState();
+  var el = document.getElementById('nickBadgeText');
+  if (state && state.type) {
+    el.textContent = state.nickname;
   } else {
-    MOCKUI.openNicknameModal(false);
+    el.textContent = LANG==='en' ? 'Log in' : '로그인';
   }
 };
 
-MOCKUI.openNicknameModal = function(isChange){
-  document.getElementById('nickModalTitle').textContent = isChange ? T('nick_modal_title_change') : T('nick_modal_title_new');
-  document.getElementById('nickInput').value = '';
-  document.getElementById('nickErr').textContent = '';
-  document.getElementById('nicknameModal').classList.add('show');
-  setTimeout(function(){ document.getElementById('nickInput').focus(); }, 50);
-};
-
-MOCKUI.submitNickname = function(){
-  var val = document.getElementById('nickInput').value;
-  var result = MOCK.registerNickname(val);
-  if (!result.ok) {
-    document.getElementById('nickErr').textContent = result.reason;
+// 헤더의 닉네임 배지 클릭 시: 로그인 안 되어 있으면 로그인 화면으로, 이미 로그인 상태면 "내 등록현황" 탭으로 이동
+MOCKUI.onNickBadgeClick = function(){
+  var state = MLL.getAuthState();
+  if (!state || !state.type) {
+    if (window.MLL.requireAuth) MLL.requireAuth(function(){ MOCKUI.refreshNickBadge(); MOCKUI.renderMy(); MOCKUI.renderStats(); });
+    else alert(LANG==='en' ? 'Please log in first.' : '먼저 로그인해주세요.');
     return;
   }
-  document.getElementById('nickBadgeText').textContent = result.nickname;
-  document.getElementById('nicknameModal').classList.remove('show');
-  MOCKUI.renderMy();
-  MOCKUI.renderStats();
-};
-
-MOCKUI.requireNickname = function(){
-  var nick = MOCK.getNickname();
-  if (!nick) { MOCKUI.openNicknameModal(false); return null; }
-  return nick.nickname;
+  MOCKUI.switchTab('my');
 };
 </script>
+
 <script>
 // =====================================================
 // 방식1: 직접입력 - 번호 공 패드 (기존 lotto_input_page_v4.html과 동일한 UX)
@@ -1543,7 +1503,7 @@ MOCKUI.ballAutoGen = function(){
 // cnt개의 자동번호 조합을 생성해 취사선택 팝업으로 보여줌 (AUTO 버튼 / 저장 버튼 양쪽에서 공용으로 사용)
 MOCKUI.generateAutoBatch = function(cnt){
   if (cnt>1000 && !confirm(cnt+'개를 생성합니다. 시간이 걸릴 수 있어요. 계속하시겠습니까?')) return;
-  var nick = MOCKUI.requireNickname();
+  var nick = MOCK.requireAuth();
   if (!nick) return;
   var info = MLL.getLottoInfo();
   var round = info.saleRound;
@@ -1629,15 +1589,16 @@ MOCKUI.closeAutoPickModal = function(){
   document.getElementById('autoPickModal').classList.remove('show');
 };
 
-MOCKUI.confirmAutoPick = function(){
+MOCKUI.confirmAutoPick = async function(){
   var st = MOCKUI.autoPickState;
   var selected = st.combos.filter(function(c,i){ return st.checked[i]; });
   if (!selected.length) { alert('저장할 조합을 1개 이상 선택해주세요.'); return; }
 
   var items = selected.map(function(nums){
-    return { nickname: st.nick, round: st.round, nums: nums.slice().sort(function(a,b){return a-b;}), type:'자동', inputMethod:'manual' };
+    return { round: st.round, nums: nums.slice().sort(function(a,b){return a-b;}), type:'자동', inputMethod:'manual' };
   });
-  MOCK.addEntries(items);
+  var result = await MOCK.addEntries(items);
+  if (!result.ok) return;
   MOCKUI.closeAutoPickModal();
   MOCKUI.showResultBox('manualResultBox', 'success', '✅ 자동번호 '+selected.length+'개 게임 저장 완료! ('+(selected.length*MOCK.PRICE_PER_GAME).toLocaleString()+'원)');
   MOCKUI.ballReset();
@@ -1645,8 +1606,8 @@ MOCKUI.confirmAutoPick = function(){
   MOCKUI.renderStats();
 };
 
-MOCKUI.ballSave = function(){
-  var nick = MOCKUI.requireNickname();
+MOCKUI.ballSave = async function(){
+  var nick = MOCK.requireAuth();
   if (!nick) return;
   if (!MOCK.isOpen()) { MOCKUI.showResultBox('manualResultBox', 'error', '⛔ 지금은 접수 기간이 아닙니다. ('+MOCK.getDeadlineLabel()+')'); return; }
 
@@ -1665,7 +1626,8 @@ MOCKUI.ballSave = function(){
   // 단건(수동/반자동/자동 1개)
   if (all.length !== 6) { MOCKUI.showResultBox('manualResultBox','error','6개의 번호를 완성해주세요.'); return; }
   var type = s.sel.length===0 ? '자동' : s.auto.length>0 ? '반자동' : '수동';
-  MOCK.addEntries([{ nickname:nick, round:round, nums: all.slice().sort(function(a,b){return a-b;}), type:type, inputMethod:'manual' }]);
+  var result = await MOCK.addEntries([{ round:round, nums: all.slice().sort(function(a,b){return a-b;}), type:type, inputMethod:'manual' }]);
+  if (!result.ok) return;
   MOCKUI.showResultBox('manualResultBox', 'success', '✅ '+type+' 1개 게임 등록 완료! (제'+round+'회, '+MOCK.PRICE_PER_GAME.toLocaleString()+'원)');
   MOCKUI.ballReset();
   MOCKUI.renderMy();
@@ -1706,8 +1668,8 @@ MOCKUI.addChatBubble = function(boxId, who, text){
   box.scrollTop = box.scrollHeight;
 };
 
-MOCKUI.processNaturalOrder = function(boxId, text, lang){
-  var nick = MOCKUI.requireNickname();
+MOCKUI.processNaturalOrder = async function(boxId, text, lang){
+  var nick = MOCK.requireAuth();
   if (!nick) return;
   MOCKUI.addChatBubble(boxId, 'user', text);
 
@@ -1728,17 +1690,17 @@ MOCKUI.processNaturalOrder = function(boxId, text, lang){
 
   if (result.type === 'direct') {
     result.combos.forEach(function(nums){
-      items.push({ nickname:nick, round:round, nums:nums, type:'수동', inputMethod: (lang==='en'?'voice_en':'voice') });
+      items.push({ round:round, nums:nums, type:'수동', inputMethod: (lang==='en'?'voice_en':'voice') });
     });
   } else if (result.type === 'semi') {
     for (var i=0; i<result.count; i++) {
       var nums2 = MOCKUI.fillRandom(result.include.slice());
-      items.push({ nickname:nick, round:round, nums:nums2, type:'반자동', inputMethod: (lang==='en'?'voice_en':'voice') });
+      items.push({ round:round, nums:nums2, type:'반자동', inputMethod: (lang==='en'?'voice_en':'voice') });
     }
   } else if (result.type === 'auto') {
     for (var i=0; i<result.count; i++) {
       var nums = MOCKUI.genAutoNums();
-      items.push({ nickname:nick, round:round, nums:nums, type:'자동', inputMethod: (lang==='en'?'voice_en':'voice') });
+      items.push({ round:round, nums:nums, type:'자동', inputMethod: (lang==='en'?'voice_en':'voice') });
     }
   }
 
@@ -1747,7 +1709,8 @@ MOCKUI.processNaturalOrder = function(boxId, text, lang){
     return;
   }
 
-  MOCK.addEntries(items);
+  var addResult = await MOCK.addEntries(items);
+  if (!addResult.ok) return;
   var cost = items.length * MOCK.PRICE_PER_GAME;
   var msg = lang==='en'
     ? '✅ Registered '+items.length+' game(s) for round '+round+' ('+cost.toLocaleString()+' KRW)'
@@ -1880,7 +1843,7 @@ MOCKUI.onExcelFileSelect = function(inp){
 };
 
 MOCKUI.uploadExcelFile = function(){
-  var nick = MOCKUI.requireNickname();
+  var nick = MOCK.requireAuth();
   if (!nick) return;
   if (!MOCK.isOpen()) { MOCKUI.showResultBox('excelResultBox','error','⛔ 지금은 접수 기간이 아닙니다. ('+MOCK.getDeadlineLabel()+')'); return; }
 
@@ -1913,8 +1876,7 @@ MOCKUI.uploadExcelFile = function(){
   });
 };
 
-MOCKUI.processExcelRows = function(rows){
-  var nick = MOCK.getNickname().nickname;
+MOCKUI.processExcelRows = async function(rows){
   var ok=0, skip=0, blocked=0, items=[];
   var open = MOCK.isOpen();
 
@@ -1939,12 +1901,15 @@ MOCKUI.processExcelRows = function(rows){
         if (nums.length!==6 || new Set(nums).size!==6 || nums.some(function(n){return n<1||n>45;})) { skip++; return; }
         finalNums = nums.slice().sort(function(a,b){return a-b;});
       }
-      items.push({ nickname:nick, round:round, nums:finalNums, type:type, inputMethod:'excel' });
+      items.push({ round:round, nums:finalNums, type:type, inputMethod:'excel' });
       ok++;
     } catch(e) { skip++; }
   });
 
-  if (items.length) MOCK.addEntries(items);
+  if (items.length) {
+    var result = await MOCK.addEntries(items);
+    if (!result.ok) return;
+  }
   var msg = '✅ '+ok+'개 게임 등록 완료! ('+(ok*MOCK.PRICE_PER_GAME).toLocaleString()+'원)';
   if (skip>0) msg += ' · 오류 '+skip+'개 건너뜀';
   if (blocked>0) msg += ' · 접수기간 외 '+blocked+'개 차단';
@@ -2007,16 +1972,17 @@ MOCKUI.zxingDecode = function(imageData, w, h){
   });
 };
 
-MOCKUI.registerQrCombos = function(parsed, resultBoxId){
-  var nick = MOCKUI.requireNickname();
+MOCKUI.registerQrCombos = async function(parsed, resultBoxId){
+  var nick = MOCK.requireAuth();
   if (!nick) return;
   if (!MOCK.isOpen()) { MOCKUI.showResultBox(resultBoxId, 'error', '⛔ 지금은 접수 기간이 아닙니다. ('+MOCK.getDeadlineLabel()+')'); return; }
   var info = MLL.getLottoInfo();
   var round = info.saleRound; // 항상 이번 모의시뮬레이션 대상 회차로 등록
   var items = parsed.combos.map(function(c){
-    return { nickname:nick, round:round, nums:c.nums.slice(), type:c.type, inputMethod:'qrscan' };
+    return { round:round, nums:c.nums.slice(), type:c.type, inputMethod:'qrscan' };
   });
-  MOCK.addEntries(items);
+  var result = await MOCK.addEntries(items);
+  if (!result.ok) return;
   MOCKUI.showResultBox(resultBoxId, 'success',
     '✅ QR 인식 성공! (원래 제'+parsed.origRound+'회 용지 → 이번 제'+round+'회 모의등록으로 반영) '+items.length+'개 게임, '+(items.length*MOCK.PRICE_PER_GAME).toLocaleString()+'원');
   MOCKUI.renderMy();
@@ -2163,18 +2129,17 @@ MOCKUI.rankLabel = function(grade){
   return '<span class="grade-tag g'+grade+'">'+MOCKUI.gradeOrdinal(grade)+'</span>';
 };
 
-MOCKUI.renderLiveReg = function(){
+MOCKUI.renderLiveReg = async function(){
   var tbody = document.getElementById('liveRegBody');
   var summary = document.getElementById('liveRegSummary');
   if (!tbody) return; // 이 패널이 없는 화면일 수도 있으니 안전 체크
-  var nickObj = MOCK.getNickname();
-  if (!nickObj) {
+  var state = MLL.getAuthState();
+  if (!state || !state.type) {
     tbody.innerHTML = '<tr><td colspan="2"><div class="live-empty">'+T('live_empty_no_nick')+'</div></td></tr>';
     if (summary) summary.textContent = '';
     return;
   }
-  var entries = MOCK.loadEntries().filter(function(e){ return e.nickname===nickObj.nickname; })
-    .sort(function(a,b){ return b.createdAt-a.createdAt; });
+  var entries = (await MOCK.loadEntries()).sort(function(a,b){ return b.createdAt-a.createdAt; });
 
   if (summary) summary.textContent = T('live_summary_total')+entries.length+T('live_summary_unit')+(entries.length*MOCK.PRICE_PER_GAME).toLocaleString()+T('live_summary_won');
 
@@ -2194,26 +2159,70 @@ MOCKUI.renderLiveReg = function(){
   }).join('');
 };
 
-MOCKUI.openMarkingForMyEntries = function(){
-  var nick = MOCK.getNickname();
-  if (!nick) { alert('닉네임을 먼저 설정해주세요.'); return; }
-  var entries = MOCK.loadEntries().filter(function(e){ return e.nickname===nick.nickname; });
-  if (!entries.length) { alert('등록된 번호가 없습니다.'); return; }
-  var rows = entries.map(function(e){ return e.nums; });
-  MLL.openMarkingModal(rows, 'mock_simulation_'+nick.nickname);
+// ── "내 등록현황" 표의 체크박스 선택 상태 ──
+MOCKUI.myEntriesCache = [];
+MOCKUI.myCheckedIds = {};
+
+MOCKUI.toggleMyEntry = function(id, checked){
+  if (checked) MOCKUI.myCheckedIds[id] = true; else delete MOCKUI.myCheckedIds[id];
+};
+MOCKUI.toggleAllMyEntries = function(checked){
+  MOCKUI.myCheckedIds = {};
+  if (checked) MOCKUI.myEntriesCache.forEach(function(e){ MOCKUI.myCheckedIds[e.id] = true; });
+  document.querySelectorAll('.my-entry-check').forEach(function(el){ el.checked = checked; });
+};
+MOCKUI.getCheckedMyEntries = function(){
+  return MOCKUI.myEntriesCache.filter(function(e){ return MOCKUI.myCheckedIds[e.id]; });
 };
 
-MOCKUI.renderMy = function(){
+// 체크한 조합만 마킹용지 PDF로 (실제 포인트 차감 후 진행)
+MOCKUI.openMarkingForMyEntries = async function(){
+  var state = MOCK.requireAuth();
+  if (!state) return;
+  var selected = MOCKUI.getCheckedMyEntries();
+  if (!selected.length) { alert(LANG==='en' ? 'Please check at least one combo first.' : '마킹용지로 받을 번호조합을 왼쪽 체크박스에서 먼저 선택해주세요.'); return; }
+
+  var charge = await MOCK.chargeMarking(selected.length, 1);
+  if (!charge.ok) return;
+
+  var rows = selected.map(function(e){ return e.nums; });
+  MLL.openMarkingModal(rows, 'mock_simulation_'+state.nickname);
+};
+
+// 체크한 조합만 엑셀로 (실제 포인트 차감 후 진행)
+MOCKUI.downloadMyEntriesExcel = async function(){
+  var state = MOCK.requireAuth();
+  if (!state) return;
+  var selected = MOCKUI.getCheckedMyEntries();
+  if (!selected.length) { alert(LANG==='en' ? 'Please check at least one combo first.' : '엑셀로 받을 번호조합을 왼쪽 체크박스에서 먼저 선택해주세요.'); return; }
+
+  var charge = await MOCK.chargeExcel(selected.length);
+  if (!charge.ok) return;
+
+  MOCKUI._loadXLSX(function(){
+    var wsData = [['회차','번호1','번호2','번호3','번호4','번호5','번호6','구분']];
+    selected.forEach(function(e){
+      wsData.push([e.round].concat(e.nums).concat([MOCKUI.purchaseTypeLabel(e.type)]));
+    });
+    var ws = XLSX.utils.aoa_to_sheet(wsData);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '내번호');
+    XLSX.writeFile(wb, 'mock_simulation_'+state.nickname+'_'+Date.now()+'.xlsx');
+  });
+};
+
+MOCKUI.renderMy = async function(){
   MOCKUI.renderLiveReg();
-  var nickObj = MOCK.getNickname();
-  var nick = nickObj ? nickObj.nickname : null;
-  document.getElementById('myNickLabel').textContent = nick || '-';
-  if (!nick) {
+  var state = MLL.getAuthState();
+  document.getElementById('myNickLabel').textContent = (state && state.type) ? state.nickname : '-';
+  if (!state || !state.type) {
     document.getElementById('myEntryTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">'+T('set_nick_first')+'</td></tr></tbody>';
+    MOCKUI.myEntriesCache = [];
     return;
   }
-  var entries = MOCK.loadEntries().filter(function(e){ return e.nickname===nick; })
-    .sort(function(a,b){ return b.createdAt-a.createdAt; });
+  var entries = (await MOCK.loadEntries()).sort(function(a,b){ return b.createdAt-a.createdAt; });
+  MOCKUI.myEntriesCache = entries;
+  MOCKUI.myCheckedIds = {}; // 다시 그릴 때마다 선택상태 초기화
 
   if (!entries.length) {
     document.getElementById('myEntryTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">'+T('no_entries_yet')+'</td></tr></tbody>';
@@ -2223,6 +2232,7 @@ MOCKUI.renderMy = function(){
   var rows = entries.map(function(e){
     var ballsHtml = e.nums.map(function(n){ return '<span class="ball" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';width:27px;height:27px;font-size:11px;">'+n+'</span>'; }).join(' ');
     return '<tr>' +
+      '<td><input type="checkbox" class="my-entry-check" onchange="MOCKUI.toggleMyEntry(\''+e.id+'\', this.checked)"></td>' +
       '<td>'+T('round_prefix')+e.round+T('round_suffix')+'</td>' +
       '<td>'+ballsHtml+'</td>' +
       '<td>'+MOCKUI.purchaseTypeLabel(e.type)+'</td>' +
@@ -2234,7 +2244,7 @@ MOCKUI.renderMy = function(){
   }).join('');
 
   document.getElementById('myEntryTable').innerHTML =
-    '<thead><tr><th>'+T('th_round')+'</th><th>'+T('th_numbers')+'</th><th>'+T('th_type')+'</th><th>'+T('th_input_method')+'</th><th>'+T('th_result')+'</th><th>'+T('th_rank')+'</th><th>'+T('th_prize')+'</th></tr></thead>' +
+    '<thead><tr><th><input type="checkbox" onchange="MOCKUI.toggleAllMyEntries(this.checked)"></th><th>'+T('th_round')+'</th><th>'+T('th_numbers')+'</th><th>'+T('th_type')+'</th><th>'+T('th_input_method')+'</th><th>'+T('th_result')+'</th><th>'+T('th_rank')+'</th><th>'+T('th_prize')+'</th></tr></thead>' +
     '<tbody>'+rows+'</tbody>';
 };
 
@@ -2243,14 +2253,14 @@ MOCKUI.methodLabel = function(m){
   return map[m] || m;
 };
 
-MOCKUI.renderStats = function(){
-  var nickObj = MOCK.getNickname();
-  if (!nickObj) {
+MOCKUI.renderStats = async function(){
+  var state = MLL.getAuthState();
+  if (!state || !state.type) {
     document.getElementById('statsGrid').innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--text-faint);text-align:center;">'+T('set_nick_first')+'</div>';
     document.getElementById('gradeBreakdown').innerHTML = '';
     return;
   }
-  var stats = MOCK.getStatsForNickname(nickObj.nickname);
+  var stats = await MOCK.getStatsForNickname();
   var roiColor = stats.roi >= 100 ? 'green' : (stats.totalGames>0 ? 'red' : '');
 
   document.getElementById('statsGrid').innerHTML =
@@ -2269,14 +2279,14 @@ MOCKUI.statBox = function(label, val, colorCls){
   return '<div class="stat-box"><div class="label">'+label+'</div><div class="val '+(colorCls||'')+'">'+val+'</div></div>';
 };
 
-MOCKUI.renderLeaderboard = function(){
-  var list = MOCK.getLeaderboard();
+MOCKUI.renderLeaderboard = async function(){
+  var list = await MOCK.getLeaderboard();
   if (!list.length) {
     document.getElementById('leaderboardTable').innerHTML = '<tbody><tr><td style="padding:30px;color:var(--text-faint);">'+T('no_participants_yet')+'</td></tr></tbody>';
     return;
   }
-  var myNickObj = MOCK.getNickname();
-  var myNick = myNickObj ? myNickObj.nickname : null;
+  var state = MLL.getAuthState();
+  var myNick = (state && state.type) ? state.nickname : null;
   var rows = list.map(function(x){
     var isMe = x.nickname === myNick;
     return '<tr style="'+(isMe?'background:rgba(224,179,65,.06);':'')+'">' +
@@ -2301,32 +2311,17 @@ document.addEventListener('DOMContentLoaded', function(){ MOCKUI.init(); });
 var MLL_CHAR_NAMES = {"16": "잘 맞추는 신묘한 조상님", "17": "복을 부르는 우리 다둥이", "18": "로또로 돈번 복돼지", "19": "재물운 부르는 불난집 꿈", "20": "역대 최고금액 407억 당첨점 춘천복권명당", "21": "강풍 부는 남태평양 바닷가", "22": "황혼의 나무", "23": "비상(飛上)", "24": "그해 겨울은 따뜻했네", "25": "눈을 머금은 큰나무", "26": "아,! 졸려.", "65": "단풍", "75": "1등당첨 환호하는 복돼지", "150": "달마가 여기 온 까닭은?", "151": "신묘한 조상님", "153": "복을 부르는 다둥이", "154": "로또 잘 맞추는 복돼지", "155": "대박 길조 큰불", "156": "누구에게나 1등은 온다", "158": "함께 이겨내자. 응?", "159": "어딘가 길이 있어", "27": "네가 좋아하기를", "28": "지친 널 지켜보는 나", "29": "살다보면 즐거운 날도", "30": "비가 와도 함께라면", "31": "운무가 깔려 있는 풍경", "32": "가을 고궁", "33": "2025년은 푸른 뱀의 해: 이번주 1등은 푸른 뱀띠", "38": "1등 날라가기 전에", "39": "우리가 응원할께요", "40": "다산왕 로또옥자", "41": "난 로또박사 맘껏 찍어", "42": "당첨 많은 복쥐", "43": "네잎클로버 쥔 토끼", "44": "큰 재물 부르는 큰불", "45": "황금들녁", "46": "금화 가득 로또돼지", "47": "무슨 번호로 살까?", "48": "아빠 힘내세요, 1등 당첨!", "49": "우린 이 번호로 정했어요", "50": "1등로또 사러 가는길", "51": "나도 蘭이나 치고 살고싶다", "52": "이번주 1등은 돼지띠", "53": "이번주 1등은 용띠", "54": "이번주 1등은 토끼띠", "55": "이번주 1등은 범띠", "56": "이번주 1등은 소띠", "57": "이번주 1등은 쥐띠", "58": "어둠을 뚫고 비상하는 吉鳥", "59": "2022호랑이 대박복권", "60": "여명", "61": "이 겨울 지나면", "62": "이 사막을 벗어날까?", "63": "이런 곳에도 서광이 있다", "64": "맥켄나의 황금", "66": "나는 안드로메다로 간다", "68": "다시 평온해진 그 바닷가", "69": "북극 빙하도 녹는 봄은 온다", "70": "나무열매 먹는 작은 새", "71": "아이들과 함께", "72": "봄나들이 가는 철새가족", "73": "나비 그리고 봄", "74": "소원과 함께하는 촛불", "76": "크리스마스 선물 상자들", "77": "저 곳에 다시 갈 수 있을까?", "78": "그냥 바라만 보는 도시야경", "79": "이렇게 넓은데 내 집은???", "80": "댕댕이의 봄날은 간다", "81": "소가 뛰어 노는 저곳에서..", "89": "그래 결정할 때가 왔어!", "90": "이 고요함을 즐기고 싶다", "91": "빛 잃은 나의 삶, 곧 광명이", "92": "이 꽃이 이쁘다.....", "93": "돌아가는 길에 핀 노란 꽃", "94": "가을 여명의 나무숲길", "95": "복 부르는 석류", "96": "꽃과 나비", "97": "내 마음을 적셔주는 폭포수", "98": "파도에 지워질 수도 있지만.......", "99": "신록의 계절 다시 시작한다", "100": "1등 되면 저런 곳에서", "101": "떠나고 싶다, 사람없는 곳에", "102": "내게도 희망의 싹이 튼다", "103": "이 과일 드시고 하세요.", "104": "초가을 호숫가", "105": "꽃은 피었으나 막막함이...", "106": "이름 모를 들꽃도 아름답다.", "107": "내 마음이야, 어둠이와도", "108": "이길 지나면 평탄할까?", "109": "초원의 빛", "110": "은하수 저 우주 너머로", "111": "저 너머 신대륙이 있다.", "112": "에베레스트 산행중", "113": "옛날 다니던 시골길 풍경", "114": "늦가을 나무숲 속에서", "115": "희망없는 적막한 겨울길", "116": "새로운 날이 떴다.", "117": "비 온 직 후 상쾌함이.....", "118": "걷다보면 어딘가 나오겠지", "119": "때가 되면 날개를 활짝편다", "120": "배꽃을 아십니까?", "121": "빗물 방울 맺힌 창가", "122": "감귤나무 있는 옛 초가집", "123": "캐나다 암곡의 늦여름 풍경", "124": "당첨되면 저기 사무실낸다", "125": "晩秋1", "126": "晩秋2", "127": "晩秋3", "128": "潔雪1", "129": "오묘한 기운 뿜는 불빛", "130": "나의 부인도 두섭", "131": "솜 머리 써서 찍어 볼까?", "132": "한켠에 다소곳이 있는 화분", "133": "봄, 마구 자란 화초", "134": "녀석 제대로 찾았네.", "135": "해바라기", "136": "석양이 지는 화초 들녁에서", "137": "동이 트는 들녁", "138": "관석(貫石)의 칼로 로또를!", "139": "풍경이나 보며 한번 쉬자", "140": "한번 먹어 볼까? 로또1등", "141": "깊숙한 숲속에도 서광이", "142": "나의 든든한 나무 아래에서", "143": "潔雪2", "144": "가을 운무가 짙은 가로수 길", "145": "햇살이 들어오는 여름 숲속", "146": "로또 당첨 기운 주는 폭포", "147": "2025년은 뱀의 해: 이번주 1등은 뱀띠", "148": "2025년은 뱀의 해: 이번주 1등은 뱀띠", "149": "이번주 1등은 말띠", "160": "이번주 1등은 양띠", "161": "무제", "34": "", "35": "", "36": "", "37": "", "82": "", "83": "", "84": "", "85": "", "86": "", "87": "", "88": "", "152": "", "157": ""};
 </script>
 <script>
-// =====================================================
-// ⚠️⚠️⚠️ 매우 중요한 보안 경고 ⚠️⚠️⚠️
-// 이 코드는 "지금 당장 동작을 보고 싶다"는 명시적 요청에 따라
-// 위험을 감수하고 구현된 테스트용 코드입니다.
-//
-// makinglotto.com의 관리자 인증정보(HTTP Basic Auth)가 이 파일에
-// 평문으로 포함되어 있습니다. 이 페이지의 "소스 보기"를 하는 누구나
-// 그 인증정보를 그대로 가져갈 수 있습니다.
-//
-// 절대로 이 상태로 외부에 공개 배포하거나 실제 서비스에 올리면 안 됩니다.
-// My Lotto Lab 서버가 구축되면, 이 인증정보는 반드시 서버 환경변수로
-// 옮기고, 이 파일의 직접 호출 코드는 전부 제거해야 합니다.
-// (설계서 v1.2, 4.5.1절 참고)
-// =====================================================
+// ⚠️ 2026-07-09: makinglotto.com 관리자 인증정보를 여기 클라이언트 코드에 평문으로
+// 두던 이전 방식은 완전히 제거했습니다 (GitHub Pages는 공개 배포라 소스보기만으로
+// 비밀번호가 노출되는 심각한 문제였음). 이제는 서버(routes/marking.js, /api/marking/generate)가
+// 인증정보를 환경변수로 보관하고 makinglotto.com 호출·청크분할·PDF병합·광고문구 삽입까지
+// 전부 서버에서 처리합니다. 이 페이지는 완성된 PDF만 응답으로 받아 다운로드만 시켜줍니다.
+// (포인트 차감은 MOCKUI.openMarkingForMyEntries에서 이미 처리한 뒤 이 파이프라인을 호출합니다)
 
 if (typeof window.MLL === 'undefined') { window.MLL = {}; }
 var MLL = window.MLL;
 
 MLL.MARKING_CONFIG = {
-  baseUrl: 'https://makinglotto.com',
-  loginUrl: 'https://makinglotto.com/admin/starter/8w6q5ndxdwsua52b',
-  mainPageUrl: 'https://makinglotto.com/lottomaking',
-  slipdownUrl: 'https://makinglotto.com/lottomaking/slipdown',
-  authUser: 'admin',
-  authPass: 'ysw6673', // ⚠️ 평문 노출, 테스트 전용. 서버 이전 시 즉시 제거할 것.
-  chunkSize: 15,
   defaultCid: '158',
   pricePerSheet: 300,   // 전표용지 1매당 300원
   gamesPerSheet: 5,      // 마킹용지 1매(A~E)에 들어가는 게임(번호조합) 수
@@ -2422,8 +2417,7 @@ MLL._updateMarkingPriceBox = function(){
   document.getElementById('mllMarkingPriceBox').innerHTML =
     gameCount+'게임 → 용지 '+sheetCount+'매('+cfg.gamesPerSheet+'게임/매) × '+cfg.pricePerSheet.toLocaleString()+'원 = '+sheetCost.toLocaleString()+'원' +
     (extraImgCost>0 ? ' + 이미지 추가 '+(imgCount-1)+'개 × '+cfg.extraImagePrice.toLocaleString()+'원 = '+extraImgCost.toLocaleString()+'원' : ' (이미지 1개는 무료)') +
-    '<br><b style="color:#2FBFA3;font-size:14px;">합계: '+total.toLocaleString()+'원</b>' +
-    '<div style="font-size:10px;color:var(--text-faint,#5a6080);margin-top:4px;">⚠️ 테스트 모드: 현재는 실제 포인트 차감 없이 동작만 확인합니다. (서버 구축 후 정식 차감 적용)</div>';
+    '<br><b style="color:#2FBFA3;font-size:14px;">합계: '+total.toLocaleString()+'원</b>';
 };
 
 MLL.closeMarkingModal = function(){
@@ -2440,7 +2434,6 @@ MLL._showMarkingResult = function(type, msg){
   box.textContent = msg;
 };
 
-// ── makinglotto.com 연동 ──
 MLL.submitMarkingRequest = function(){
   var rows = MLL.markingState.pendingRows;
   if (!rows || !rows.length) { MLL._showMarkingResult('error','받을 번호조합이 없습니다.'); return; }
@@ -2452,48 +2445,27 @@ MLL._runMarkingPipeline = async function(rows, cids, fileBase){
   var cfg = MLL.MARKING_CONFIG;
   if (!cids || !cids.length) cids = [parseInt(cfg.defaultCid)];
 
-  var chunks = [];
-  for (var i=0; i<rows.length; i+=cfg.chunkSize) chunks.push(rows.slice(i, i+cfg.chunkSize));
-
   try {
-    // 1) 로그인 (브라우저 fetch는 CORS 정책상 실패할 가능성이 높음 - 그 경우 명확히 안내)
-    var authHeader = 'Basic ' + btoa(cfg.authUser + ':' + cfg.authPass);
-    var pdfBlobs = [];
+    MLL._showMarkingResult('success', '⏳ PDF 생성 중입니다... (게임 수에 따라 다소 시간이 걸려요)');
 
-    for (var c=0; c<chunks.length; c++) {
-      MLL._showMarkingResult('success', '⏳ '+(c+1)+'/'+chunks.length+' 페이지 생성 중...');
-      // ⚠️ 캐릭터 순환의 현실적 한계:
-      // makinglotto.com API는 한 번 호출에 최대 15게임까지만 처리하며, 응답도 "그 청크 전체에 1개의 캐릭터"로 옵니다.
-      // 따라서 "용지 1매(게임 1개)마다 다른 캐릭터"를 완벽히 구현하려면 게임 1개당 API를 1번씩 호출해야 하는데,
-      // 이 경우 60게임 기준 호출이 4번 -> 60번으로 늘어나 처리 시간이 매우 길어지고 makinglotto.com 서버 부담도 커집니다.
-      // 따라서 지금 구현은 "15게임(청크) 단위로 캐릭터를 순환"하는 실용적 절충안입니다.
-      // 진짜 게임 1개 단위 순환이 꼭 필요하면, 청크 크기를 1로 낮추고 처리시간 증가를 감안해야 합니다(설계서 v1.2, 4.5.3절 비고로 별도 협의 필요).
-      var chunkRows = chunks[c];
-      var cid = cids[c % cids.length];
+    // 청크 분할, makinglotto.com 인증/호출, PDF 병합, 하단 광고문구 삽입까지
+    // 전부 서버(routes/marking.js)에서 처리하고, 완성된 PDF 파일 하나만 내려옵니다.
+    var resp = await fetch(MLL.API_BASE + '/api/marking/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: rows, cids: cids })
+    });
 
-      var payload = { cid: String(cid), rows: chunkRows };
-      var form = new FormData();
-      form.append('data', new Blob([JSON.stringify(payload)], {type:'application/json'}));
-
-      var resp = await fetch(cfg.slipdownUrl, {
-        method: 'POST',
-        headers: { 'Authorization': authHeader, 'X-Requested-With': 'XMLHttpRequest' },
-        body: form
-      });
-
-      if (!resp.ok) throw new Error('서버 응답 오류 (코드 '+resp.status+')');
-      var blob = await resp.blob();
-      if (blob.size < 500) throw new Error('PDF 생성 실패 (빈 응답)');
-      pdfBlobs.push(blob);
-      await new Promise(function(r){ setTimeout(r, 500); }); // 요청 간격 (서버 부담 방지)
+    if (!resp.ok) {
+      var errData = await resp.json().catch(function(){ return {}; });
+      throw new Error(errData.error || ('서버 응답 오류 (코드 ' + resp.status + ')'));
     }
 
-    // 2) 병합 (브라우저에서는 pypdf 대신 pdf-lib 사용)
-    MLL._showMarkingResult('success', '⏳ 페이지 병합 중...');
-    var mergedBlob = await MLL._mergePdfBlobs(pdfBlobs);
+    var blob = await resp.blob();
+    if (blob.size < 500) throw new Error('PDF 생성 실패 (빈 응답)');
 
-    // 3) 다운로드
-    var url = URL.createObjectURL(mergedBlob);
+    // 다운로드
+    var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
     a.download = fileBase + '_마킹용지.pdf';
@@ -2502,40 +2474,11 @@ MLL._runMarkingPipeline = async function(rows, cids, fileBase){
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    MLL._showMarkingResult('success', '✅ 마킹용지 PDF 생성 완료! ('+rows.length+'게임, '+chunks.length+'페이지)');
+    MLL._showMarkingResult('success', '✅ 마킹용지 PDF 생성 완료! (' + rows.length + '게임)');
   } catch(e) {
-    MLL._showMarkingResult('error',
-      '⚠️ PDF 생성 실패: ' + e.message +
-      ' — 브라우저에서 외부 서버(makinglotto.com)로 직접 요청 시 CORS(보안 정책)로 막힐 수 있습니다. ' +
-      '이 기능은 서버가 구축된 뒤 서버를 통해 호출해야 안정적으로 동작합니다.');
+    MLL._showMarkingResult('error', '⚠️ PDF 생성 실패: ' + e.message);
     console.error('[MLL marking] error:', e);
   }
-};
-
-// pdf-lib 동적 로드 + 병합
-MLL._pdfLibLoaded = false;
-MLL._loadPdfLib = function(){
-  return new Promise(function(resolve, reject){
-    if (MLL._pdfLibLoaded && window.PDFLib) { resolve(); return; }
-    var script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
-    script.onload = function(){ MLL._pdfLibLoaded = true; resolve(); };
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-};
-
-MLL._mergePdfBlobs = async function(blobs){
-  await MLL._loadPdfLib();
-  var merged = await PDFLib.PDFDocument.create();
-  for (var i=0; i<blobs.length; i++) {
-    var bytes = await blobs[i].arrayBuffer();
-    var src = await PDFLib.PDFDocument.load(bytes);
-    var pages = await merged.copyPages(src, src.getPageIndices());
-    pages.forEach(function(p){ merged.addPage(p); });
-  }
-  var mergedBytes = await merged.save();
-  return new Blob([mergedBytes], {type:'application/pdf'});
 };
 
 
