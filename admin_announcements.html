@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 공지/배너 관리</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 980px; margin: 30px auto; padding: 0 16px 80px; color: #222; background:#f7f8fb; }
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  .hint { font-size: 12.5px; color: #777; margin-bottom: 18px; }
+  .adminkey-box { background: #fff; border: 1px solid #ddd; padding: 14px; border-radius: 8px; margin-bottom: 22px; }
+  .adminkey-box label { display:block; font-size:12.5px; font-weight:700; color:#444; margin-bottom:6px; }
+  .adminkey-box input { width:100%; box-sizing:border-box; padding:9px; font-size:14px; border:1px solid #ccc; border-radius:6px; }
+
+  .card { background:#fff; border:1px solid #e2e2e8; border-radius:10px; padding:20px; margin-bottom:22px; }
+  .card h2 { font-size:15px; margin-bottom:14px; }
+
+  label.field-label { display:block; font-size:12px; font-weight:700; color:#555; margin-top:12px; margin-bottom:4px; }
+  input[type=text], input[type=url], input[type=datetime-local], textarea, select {
+    width:100%; box-sizing:border-box; padding:9px; font-size:13.5px; border:1px solid #ccc; border-radius:6px; font-family:inherit;
+  }
+  textarea { min-height:64px; resize:vertical; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+
+  .pages-box { display:flex; flex-wrap:wrap; gap:10px; margin-top:6px; padding:10px; border:1px solid #e2e2e8; border-radius:8px; background:#fafafc; }
+  .pages-box label { display:flex; align-items:center; gap:5px; font-size:12.5px; font-weight:400; margin:0; }
+
+  button.btn { margin-top:18px; padding:10px 22px; font-size:13.5px; font-weight:700; background:#222; color:#fff; border:none; border-radius:7px; cursor:pointer; }
+  button.btn:hover { background:#444; }
+  button.btn.secondary { background:#fff; color:#333; border:1px solid #ccc; }
+  button.btn.secondary:hover { background:#f2f2f2; }
+  button.btn.danger { background:#c0392b; }
+  button.btn.danger:hover { background:#992d21; }
+
+  .result { margin-top:12px; padding:10px; border-radius:6px; font-size:12.5px; white-space:pre-wrap; }
+  .result.ok { background:#e6f4ea; color:#1e7e34; }
+  .result.err { background:#fbe8e8; color:#c0392b; }
+
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { padding:9px 8px; border-bottom:1px solid #eee; text-align:left; vertical-align:top; }
+  th { color:#777; font-weight:700; font-size:11.5px; }
+  .tag { display:inline-block; padding:2px 9px; border-radius:20px; font-size:10.5px; font-weight:700; }
+  .tag.info{background:#dbe8ff;color:#1b4fb0;} .tag.warning{background:#fff0c2;color:#8a6f00;} .tag.urgent{background:#ffd9de;color:#a10f28;}
+  .tag.on{background:#dff5e6;color:#1e7e34;} .tag.off{background:#eee;color:#888;}
+  .row-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .row-actions button { padding:5px 10px; font-size:11.5px; margin:0; border-radius:5px; }
+</style>
+</head>
+<body>
+
+<h1>📣 공지/배너 관리</h1>
+<p class="hint">메인/서브메인/각 기능 화면에 띄우는 공지·긴급안내 배너를 관리합니다. 게시기간이 지나거나 "게시중지"로 바꾸면 화면에서 즉시 사라집니다.</p>
+
+<div class="adminkey-box">
+  <label>관리자 키 (ADMIN_API_KEY)</label>
+  <input type="password" id="adminKey" placeholder="관리자 키 입력 (이 브라우저에만 기억됨)">
+</div>
+
+<!-- ───────────── 등록/수정 폼 ───────────── -->
+<div class="card">
+  <h2 id="formTitle">① 새 공지 만들기</h2>
+  <input type="hidden" id="editId" value="">
+
+  <div class="row2">
+    <div>
+      <label class="field-label">제목 (한글) *</label>
+      <input type="text" id="titleKr" placeholder="예: 서버 점검 안내">
+    </div>
+    <div>
+      <label class="field-label">제목 (영문)</label>
+      <input type="text" id="titleEn" placeholder="e.g. Server Maintenance Notice">
+    </div>
+  </div>
+
+  <div class="row2">
+    <div>
+      <label class="field-label">본문 (한글) *</label>
+      <textarea id="bodyKr" placeholder="예: 7/12(토) 02:00~04:00 서버 점검이 있습니다. 이용에 참고 부탁드립니다."></textarea>
+    </div>
+    <div>
+      <label class="field-label">본문 (영문)</label>
+      <textarea id="bodyEn" placeholder="e.g. Server maintenance on 7/12 (Sat) 02:00-04:00 KST."></textarea>
+    </div>
+  </div>
+
+  <div class="row3">
+    <div>
+      <label class="field-label">톤(색상)</label>
+      <select id="tone">
+        <option value="info">안내 (파랑)</option>
+        <option value="warning">주의 (노랑)</option>
+        <option value="urgent">긴급 (빨강)</option>
+      </select>
+    </div>
+    <div>
+      <label class="field-label">크기</label>
+      <select id="size">
+        <option value="small">작게</option>
+        <option value="medium" selected>보통</option>
+        <option value="large">크게</option>
+      </select>
+    </div>
+    <div>
+      <label class="field-label">게시 여부</label>
+      <select id="isActive">
+        <option value="true" selected>게시중</option>
+        <option value="false">게시중지</option>
+      </select>
+    </div>
+  </div>
+
+  <label class="field-label">게시 위치 — 아무것도 선택 안 하면 "전체 사이트"에 게시됩니다</label>
+  <div class="pages-box" id="pagesBox">
+    <label><input type="checkbox" value="main_page"> 메인 화면 (main_page)</label>
+    <label><input type="checkbox" value="hub_data"> 서브메인 - Data 등록과 관리 (hub_data)</label>
+    <label><input type="checkbox" value="hub_race"> 서브메인 - 100전략 레이스 (hub_race)</label>
+    <label><input type="checkbox" value="mock_simulation"> 모의 실전 시뮬레이션 (mock_simulation)</label>
+  </div>
+  <input type="text" id="pagesCustom" placeholder="그 외 페이지키를 직접 입력 (쉼표로 구분, 예: global_lotto,hub_battles)" style="margin-top:8px;">
+
+  <div class="row2">
+    <div>
+      <label class="field-label">게시 시작</label>
+      <input type="datetime-local" id="startAt">
+    </div>
+    <div>
+      <label class="field-label">게시 종료 (비워두면 무기한)</label>
+      <input type="datetime-local" id="endAt">
+    </div>
+  </div>
+
+  <div class="row3">
+    <div>
+      <label class="field-label">링크 URL (선택)</label>
+      <input type="url" id="linkUrl" placeholder="https://...">
+    </div>
+    <div>
+      <label class="field-label">링크 버튼 문구 (한글)</label>
+      <input type="text" id="linkLabelKr" placeholder="자세히 보기">
+    </div>
+    <div>
+      <label class="field-label">링크 버튼 문구 (영문)</label>
+      <input type="text" id="linkLabelEn" placeholder="Learn more">
+    </div>
+  </div>
+
+  <button class="btn" onclick="submitForm()" id="submitBtn">저장</button>
+  <button class="btn secondary" onclick="resetForm()">새로 작성으로 전환</button>
+  <div id="formResult"></div>
+</div>
+
+<!-- ───────────── 목록 ───────────── -->
+<div class="card">
+  <h2>② 등록된 공지 목록</h2>
+  <button class="btn secondary" onclick="loadList()" style="margin-top:0;margin-bottom:12px;">🔄 새로고침</button>
+  <div id="listResult"></div>
+  <table id="listTable">
+    <thead><tr><th>제목</th><th>톤/크기</th><th>게시위치</th><th>기간</th><th>상태</th><th>관리</th></tr></thead>
+    <tbody><tr><td colspan="6" style="color:#999;padding:20px;">관리자 키 입력 후 새로고침을 눌러주세요.</td></tr></tbody>
+  </table>
+</div>
+
+<script>
+const API_BASE = 'https://my-lotto-lab-api.onrender.com';
+let allItems = [];
+
+function getAdminKey() {
+  const key = document.getElementById('adminKey').value.trim();
+  if (!key) alert('관리자 키를 입력해주세요.');
+  return key;
+}
+
+function showResult(elId, ok, message) {
+  const el = document.getElementById(elId);
+  el.className = 'result ' + (ok ? 'ok' : 'err');
+  el.textContent = message;
+}
+
+function toLocalInputValue(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function resetForm() {
+  document.getElementById('editId').value = '';
+  document.getElementById('formTitle').textContent = '① 새 공지 만들기';
+  document.getElementById('submitBtn').textContent = '저장';
+  ['titleKr','titleEn','bodyKr','bodyEn','linkUrl','linkLabelKr','linkLabelEn','pagesCustom'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('tone').value = 'info';
+  document.getElementById('size').value = 'medium';
+  document.getElementById('isActive').value = 'true';
+  document.getElementById('startAt').value = toLocalInputValue(new Date().toISOString());
+  document.getElementById('endAt').value = '';
+  document.querySelectorAll('#pagesBox input[type=checkbox]').forEach(cb => cb.checked = false);
+  document.getElementById('formResult').textContent = '';
+}
+
+async function submitForm() {
+  const adminKey = getAdminKey();
+  if (!adminKey) return;
+
+  const id = document.getElementById('editId').value;
+  const checkedPages = Array.from(document.querySelectorAll('#pagesBox input[type=checkbox]:checked')).map(cb => cb.value);
+  const customPages = document.getElementById('pagesCustom').value.split(',').map(s => s.trim()).filter(Boolean);
+  const pages = checkedPages.concat(customPages);
+
+  const startAtVal = document.getElementById('startAt').value;
+  const endAtVal = document.getElementById('endAt').value;
+
+  const body = {
+    title_kr: document.getElementById('titleKr').value.trim(),
+    title_en: document.getElementById('titleEn').value.trim(),
+    body_kr: document.getElementById('bodyKr').value.trim(),
+    body_en: document.getElementById('bodyEn').value.trim(),
+    tone: document.getElementById('tone').value,
+    size: document.getElementById('size').value,
+    pages: pages,
+    link_url: document.getElementById('linkUrl').value.trim(),
+    link_label_kr: document.getElementById('linkLabelKr').value.trim(),
+    link_label_en: document.getElementById('linkLabelEn').value.trim(),
+    start_at: startAtVal ? new Date(startAtVal).toISOString() : null,
+    end_at: endAtVal ? new Date(endAtVal).toISOString() : null,
+    is_active: document.getElementById('isActive').value === 'true',
+  };
+
+  if (!body.title_kr || !body.body_kr) {
+    showResult('formResult', false, '한글 제목과 본문은 필수입니다.');
+    return;
+  }
+
+  try {
+    const url = id ? `${API_BASE}/api/admin/announcements/${id}` : `${API_BASE}/api/admin/announcements`;
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showResult('formResult', false, '실패: ' + (data.error || res.status));
+      return;
+    }
+    showResult('formResult', true, (id ? '수정' : '등록') + ' 완료!');
+    resetForm();
+    loadList();
+  } catch (err) {
+    showResult('formResult', false, '네트워크 오류: ' + err.message);
+  }
+}
+
+function editItem(id) {
+  const item = allItems.find(x => x.id === id);
+  if (!item) return;
+  document.getElementById('editId').value = item.id;
+  document.getElementById('formTitle').textContent = '① 공지 수정 — ' + item.title_kr;
+  document.getElementById('submitBtn').textContent = '수정 저장';
+  document.getElementById('titleKr').value = item.title_kr || '';
+  document.getElementById('titleEn').value = item.title_en || '';
+  document.getElementById('bodyKr').value = item.body_kr || '';
+  document.getElementById('bodyEn').value = item.body_en || '';
+  document.getElementById('tone').value = item.tone || 'info';
+  document.getElementById('size').value = item.size || 'medium';
+  document.getElementById('isActive').value = item.is_active ? 'true' : 'false';
+  document.getElementById('linkUrl').value = item.link_url || '';
+  document.getElementById('linkLabelKr').value = item.link_label_kr || '';
+  document.getElementById('linkLabelEn').value = item.link_label_en || '';
+  document.getElementById('startAt').value = toLocalInputValue(item.start_at);
+  document.getElementById('endAt').value = toLocalInputValue(item.end_at);
+
+  const knownPages = ['main_page','hub_data','hub_race','mock_simulation'];
+  const pages = item.pages || [];
+  document.querySelectorAll('#pagesBox input[type=checkbox]').forEach(cb => {
+    cb.checked = pages.includes(cb.value);
+  });
+  document.getElementById('pagesCustom').value = pages.filter(p => !knownPages.includes(p)).join(', ');
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function toggleActive(id, current) {
+  const adminKey = getAdminKey();
+  if (!adminKey) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/announcements/${id}/toggle`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+      body: JSON.stringify({ is_active: !current }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert('변경 실패: ' + (data.error || res.status)); return; }
+    loadList();
+  } catch (err) { alert('네트워크 오류: ' + err.message); }
+}
+
+async function deleteItem(id, title) {
+  const adminKey = getAdminKey();
+  if (!adminKey) return;
+  if (!confirm(`"${title}" 공지를 삭제하시겠습니까? 되돌릴 수 없습니다.`)) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/announcements/${id}`, {
+      method: 'DELETE',
+      headers: { 'x-admin-key': adminKey },
+    });
+    const data = await res.json();
+    if (!res.ok) { alert('삭제 실패: ' + (data.error || res.status)); return; }
+    loadList();
+  } catch (err) { alert('네트워크 오류: ' + err.message); }
+}
+
+function fmtDate(iso) {
+  if (!iso) return '무기한';
+  const d = new Date(iso);
+  return d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+async function loadList() {
+  const adminKey = getAdminKey();
+  if (!adminKey) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/announcements`, { headers: { 'x-admin-key': adminKey } });
+    const data = await res.json();
+    if (!res.ok) {
+      showResult('listResult', false, '조회 실패: ' + (data.error || res.status));
+      return;
+    }
+    showResult('listResult', true, '');
+    document.getElementById('listResult').textContent = '';
+    allItems = data.items || [];
+
+    if (!allItems.length) {
+      document.querySelector('#listTable tbody').innerHTML = '<tr><td colspan="6" style="color:#999;padding:20px;">등록된 공지가 없습니다.</td></tr>';
+      return;
+    }
+
+    const nowMs = Date.now();
+    document.querySelector('#listTable tbody').innerHTML = allItems.map(item => {
+      const periodOk = (!item.end_at || new Date(item.end_at).getTime() > nowMs) && new Date(item.start_at).getTime() <= nowMs;
+      const liveNow = item.is_active && periodOk;
+      const pagesLabel = (item.pages && item.pages.length) ? item.pages.join(', ') : '전체 사이트';
+      return `<tr>
+        <td><b>${item.title_kr}</b>${item.title_en ? '<br><span style="color:#999;">'+item.title_en+'</span>' : ''}</td>
+        <td><span class="tag ${item.tone}">${item.tone}</span><br><span style="color:#999;">${item.size}</span></td>
+        <td>${pagesLabel}</td>
+        <td>${fmtDate(item.start_at)}<br>~ ${fmtDate(item.end_at)}</td>
+        <td><span class="tag ${liveNow ? 'on' : 'off'}">${liveNow ? '노출중' : (item.is_active ? '기간 아님' : '중지됨')}</span></td>
+        <td class="row-actions">
+          <button class="btn secondary" onclick="editItem('${item.id}')">수정</button>
+          <button class="btn secondary" onclick="toggleActive('${item.id}', ${item.is_active})">${item.is_active ? '중지' : '재개'}</button>
+          <button class="btn danger" onclick="deleteItem('${item.id}', '${item.title_kr.replace(/'/g,"")}')">삭제</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    showResult('listResult', false, '네트워크 오류: ' + err.message);
+  }
+}
+
+resetForm();
+</script>
+
+</body>
+</html>
