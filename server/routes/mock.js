@@ -111,6 +111,26 @@ router.get('/entries', async (req, res) => {
   }
 });
 
+// ─── [공개] 특정 회차의 전체 등록현황 (실시간 티커용, 최신순 최대 200개) ────────
+// GET /api/mock/round-entries?round=X
+router.get('/round-entries', async (req, res) => {
+  const round = Number(req.query.round);
+  if (!round) return res.status(400).json({ error: '올바른 회차가 아닙니다.' });
+
+  const { data, error, count } = await supabase
+    .from('mock_entries')
+    .select('nums', { count: 'exact' })
+    .eq('round', round)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (error) {
+    console.error('[mock] round-entries 조회 오류:', error);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+  return res.json({ round, count: count ?? (data || []).length, items: (data || []).map(d => d.nums) });
+});
+
 // ─── [공개] 전체 참여순위 (리더보드) ──────────────────────────────────────────
 // GET /api/mock/leaderboard
 router.get('/leaderboard', async (req, res) => {
