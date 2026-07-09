@@ -224,9 +224,17 @@ button{font-family:inherit;cursor:pointer;}
 .summary-type-pill b{color:var(--text);font-variant-numeric:tabular-nums;}
 .summary-empty{font-size:11.5px;color:var(--text-faint);margin-top:14px;padding-top:14px;border-top:1px solid var(--border-soft);}
 
-.room-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border-soft);margin-bottom:18px;}
-.room-tab{padding:10px 16px;font-size:13px;font-weight:600;color:var(--text-faint);border-bottom:2px solid transparent;cursor:pointer;}
-.room-tab.active{color:var(--text);border-bottom-color:var(--accent);}
+.result-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px;}
+.result-badge.win{background:rgba(63,179,127,.18);color:var(--green,#3fb37f);}
+.result-badge.lose{background:rgba(224,80,80,.15);color:#e05050;}
+.result-badge.draw{background:rgba(224,179,65,.15);color:var(--gold,#e0b341);}
+
+.all-rooms-table{width:100%;border-collapse:collapse;font-size:12px;}
+.all-rooms-table th{text-align:left;padding:10px 14px;color:var(--text-faint);font-size:11px;font-weight:700;border-bottom:1px solid var(--border-soft);}
+.all-rooms-table td{padding:10px 14px;border-bottom:1px solid var(--border-soft);color:var(--text-dim);}
+.all-rooms-table tr{cursor:pointer;}
+.all-rooms-table tr:hover td{color:var(--text);}
+.all-rooms-table tr:last-child td{border-bottom:none;}
 
 .room-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
 .room-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:16px;cursor:pointer;}
@@ -347,9 +355,13 @@ button{font-family:inherit;cursor:pointer;}
     </div>
 
     <div class="my-progress-section">
-      <div class="hub-col-title">📋 내 진행상황</div>
-      <div class="room-tabs" id="roomTabs"></div>
-      <div id="roomListBody"></div>
+      <div class="hub-col-title">📋 내 진행상황 <span class="cnt" id="myRoomCount">0개</span></div>
+      <div id="myTimelineBody"></div>
+    </div>
+
+    <div class="my-progress-section">
+      <div class="hub-col-title">📊 전체 배틀참여현황 (1:1 대결) <span class="cnt" id="allRoomCount">0개</span></div>
+      <div id="allRoomsTableBody"></div>
     </div>
   </div>
 
@@ -369,7 +381,7 @@ button{font-family:inherit;cursor:pointer;}
 // BUI - 화면 컨트롤러
 // =====================================================
 var BUI = {};
-BUI.state = { view:'typeSelect', roomTab:'waiting', createType:null, selectedBalls:[], multiCombos:[], currentRoomId:null };
+BUI.state = { view:'typeSelect', createType:null, selectedBalls:[], multiCombos:[], currentRoomId:null };
 
 BUI.init = function(){ BUI.showTypeSelectView(); };
 
@@ -426,9 +438,8 @@ BUI.showTypeSelectView = async function(){
   BUI.renderSummary();
   BUI.renderCreateTypeGrid();
   BUI.renderCreateForm();
-  BUI.renderTabs();
   BUI.showView('typeSelect');
-  await Promise.all([ BUI.renderAvailableRooms(), BUI.renderRoomList() ]);
+  await Promise.all([ BUI.renderAvailableRooms(), BUI.renderMyTimeline(), BUI.renderAllRoomsTable() ]);
 };
 
 BUI.backToTypeSelect = function(){ BUI.showTypeSelectView(); };
@@ -519,7 +530,8 @@ BUI.openRoom = async function(roomId){
 BUI.closeRoom = function(){
   document.getElementById('roomModal').classList.remove('show');
   BUI.renderAvailableRooms();
-  BUI.renderRoomList();
+  BUI.renderMyTimeline();
+  BUI.renderAllRoomsTable();
 };
 
 BUI.renderRoomModal = async function(){
@@ -692,45 +704,46 @@ BUI.statusLabel = function(s){
   return { waiting:'대기중', pending_numbers:'번호제출중', active:'추첨대기', completed:'완료' }[s] || s;
 };
 
-// ── 오른쪽: 참가가능한 방 (1:1만) ──
+// ── 결과카드 뱃지: 완료된 방에서 내가 이겼는지/졌는지/무승부인지/몰수패인지 한눈에 ──
+BUI.myResultBadge = function(r){
+  var mine = r.participants.find(function(p){ return p.isMe; });
+  if (!mine) return '';
+  if (r.allForfeited) return '<span class="result-badge draw">⚠️ 전원몰수</span>';
+  if (r.isDraw) return '<span class="result-badge draw">🤝 무승부</span>';
+  if (mine.forfeited) return '<span class="result-badge lose">패(몰수)</span>';
+  var won = r.winnerIds.indexOf(mine.id) >= 0;
+  return won ? '<span class="result-badge win">🏆 승리</span>' : '<span class="result-badge lose">패배</span>';
+};
+
+// ── 참가가능한 방 (1:1만, 이미 내가 낀 방은 제외) ──
 BUI.renderAvailableRooms = async function(){
   var rooms = await BATTLE.listAvailableRooms();
+  // (내가 만든 방도 함께 표시합니다 — 카드에서 내 방인지 여부는 아래에서 구분)
   document.getElementById('availRoomCount').textContent = rooms.length + '개';
   if (!rooms.length) {
     document.getElementById('availableRoomsBody').innerHTML = '<div class="card"><div class="empty-state">지금 참가할 수 있는 방이 없어요.<br>왼쪽에서 새 방을 만들어보세요!</div></div>';
     return;
   }
   document.getElementById('availableRoomsBody').innerHTML = '<div class="avail-room-list">' + rooms.map(function(r){
+    var isMine = r.participants.some(function(p){ return p.isMe; });
+    var actionLabel = isMine ? '내 방 · 도전자 대기중' : '참가하기 →';
     return '<div class="avail-room-card" onclick="BUI.openRoom(\'' + r.id + '\')">' +
-      '<div><div class="arc-name">' + r.name + '</div>' +
+      '<div><div class="arc-name">' + r.name + (isMine ? ' <span style="color:var(--text-faint);font-weight:400;">(내가 만든 방)</span>' : '') + '</div>' +
       '<div class="arc-meta">제' + r.round + '회 · ' + r.participants.length + '/' + r.maxParticipants + '명</div></div>' +
-      '<div class="arc-join">참가하기 →</div>' +
+      '<div class="arc-join"' + (isMine ? ' style="color:var(--text-faint);"' : '') + '>' + actionLabel + '</div>' +
     '</div>';
   }).join('') + '</div>';
 };
 
-// ── 하단: 방 진행상황(1:1, 상태탭으로 구분) ──
-BUI.renderTabs = function(){
-  var tabs = [
-    { key:'waiting', label:'대기중' },
-    { key:'pending_numbers', label:'번호제출중' },
-    { key:'active', label:'추첨대기' },
-    { key:'completed', label:'완료' },
-  ];
-  document.getElementById('roomTabs').innerHTML = tabs.map(function(t){
-    return '<div class="room-tab' + (BUI.state.roomTab===t.key?' active':'') + '" onclick="BUI.setRoomTab(\'' + t.key + '\')">' + t.label + '</div>';
-  }).join('');
-};
-BUI.setRoomTab = function(key){
-  BUI.state.roomTab = key;
-  BUI.renderTabs();
-  BUI.renderRoomList();
-};
 // 번호제출중(pending_numbers) 방의 상태 라벨을 나/상대 제출여부에 따라 세분화
 // - 둘 다 미제출: 기본 라벨("번호제출중") 유지
 // - 나는 제출, 상대는 미제출: "상대번호대기"
 // - 상대는 제출, 나는 미제출: "내번호대기"
 BUI.detailedStatusLabel = function(r){
+  if (r.status === 'waiting') {
+    var mineW = r.participants.find(function(p){ return p.isMe; });
+    return mineW ? '도전자 대기중' : BUI.statusLabel(r.status);
+  }
   if (r.status !== 'pending_numbers') return BUI.statusLabel(r.status);
   var mine = r.participants.find(function(p){ return p.isMe; });
   if (!mine) return BUI.statusLabel(r.status); // 내가 참가한 방이 아니면 세분화 불가
@@ -740,20 +753,57 @@ BUI.detailedStatusLabel = function(r){
   return BUI.statusLabel(r.status);
 };
 
-BUI.renderRoomList = async function(){
-  var body = document.getElementById('roomListBody');
+// ── 내 진행상황: 내가 개설했든 도전했든, 모든 상태를 한 번에 타임라인으로 ──
+BUI.renderMyTimeline = async function(){
+  var body = document.getElementById('myTimelineBody');
+  var countEl = document.getElementById('myRoomCount');
+  var state = MLL.getAuthState();
+  if (!state || !state.type) {
+    countEl.textContent = '0개';
+    body.innerHTML = '<div class="card"><div class="empty-state">로그인하시면 내가 만들거나 참가한 배틀을 한눈에 볼 수 있어요.</div></div>';
+    return;
+  }
   try {
-    var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/battles/rooms?status=' + BUI.state.roomTab);
+    var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/battles/my-rooms');
     var data = await resp.json();
     var rooms = data.items || [];
-    if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">해당 상태의 방이 없습니다.</div></div>'; return; }
+    countEl.textContent = rooms.length + '개';
+    if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">아직 참가한 배틀이 없습니다. 방을 만들거나 참가가능한 방에 도전해보세요!</div></div>'; return; }
     body.innerHTML = '<div class="room-list">' + rooms.map(function(r){
+      var badge = r.status === 'completed' ? BUI.myResultBadge(r) : '';
       return '<div class="room-card" onclick="BUI.openRoom(\'' + r.id + '\')">' +
-        '<div class="rc-top"><span class="rc-type" style="background:#5b9bd522;color:#5b9bd5;">1:1 대결</span><span class="status-tag status-' + r.status + '">' + BUI.detailedStatusLabel(r) + '</span></div>' +
+        '<div class="rc-top"><span class="rc-type" style="background:#5b9bd522;color:#5b9bd5;">1:1 대결</span>' + badge + '<span class="status-tag status-' + r.status + '">' + BUI.detailedStatusLabel(r) + '</span></div>' +
         '<div class="rc-name">' + r.name + '</div>' +
         '<div class="rc-meta">제' + r.round + '회 · 참가자 ' + r.participants.length + '/' + r.maxParticipants + '명</div>' +
       '</div>';
     }).join('') + '</div>';
+  } catch(e) { body.innerHTML = '<div class="card"><div class="empty-state">불러오지 못했습니다.</div></div>'; }
+};
+
+// ── 전체 배틀참여현황: 이 배틀종목(1:1)에서 벌어지는 모든 방(남의 것 포함)을 표로 ──
+BUI.renderAllRoomsTable = async function(){
+  var body = document.getElementById('allRoomsTableBody');
+  var countEl = document.getElementById('allRoomCount');
+  try {
+    var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/battles/rooms');
+    var data = await resp.json();
+    var rooms = data.items || [];
+    countEl.textContent = rooms.length + '개';
+    if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">아직 개설된 배틀이 없습니다.</div></div>'; return; }
+
+    var rowsHtml = rooms.map(function(r){
+      var opponentNames = r.participants.map(function(p){ return p.nickname + (p.isMe?' (나)':''); }).join(' vs ') || '-';
+      return '<tr onclick="BUI.openRoom(\'' + r.id + '\')">' +
+        '<td>' + r.name + '</td>' +
+        '<td class="font-num">제' + r.round + '회</td>' +
+        '<td>' + opponentNames + '</td>' +
+        '<td class="font-num">' + r.participants.length + '/' + r.maxParticipants + '</td>' +
+        '<td><span class="status-tag status-' + r.status + '">' + BUI.detailedStatusLabel(r) + '</span></td>' +
+      '</tr>';
+    }).join('');
+    body.innerHTML = '<div class="card" style="padding:0;overflow-x:auto;"><table class="all-rooms-table">' +
+      '<thead><tr><th>방 이름</th><th>회차</th><th>참가자</th><th>인원</th><th>상태</th></tr></thead>' +
+      '<tbody>' + rowsHtml + '</tbody></table></div>';
   } catch(e) { body.innerHTML = '<div class="card"><div class="empty-state">불러오지 못했습니다.</div></div>'; }
 };
 
