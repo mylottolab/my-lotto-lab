@@ -244,3 +244,10 @@ app.use('/api/admin/race', raceAdminRouter);
 // ─── 모의실전시뮬레이션 ────────────────────────────────────────────────────
 const mockRouter = require('./routes/mock');
 app.use('/api/mock', mockRouter);
+
+// ─── 공지/배너 시스템 ──────────────────────────────────────────────────────
+const announcementsRouter = require('./routes/announcements');
+app.use('/api/announcements', announcementsRouter);
+
+const announcementsAdminRouter = require('./routes/announcements_admin');
+app.use('/api/admin/announcements', announcementsAdminRouter);
