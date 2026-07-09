@@ -501,7 +501,7 @@ BUI.renderCreateForm = async function(){
 
   document.getElementById('createFormBody').innerHTML =
     '<div class="card">' +
-    '<div class="form-row"><label>방 이름</label><input type="text" class="inp" id="cfName" placeholder="1:1 대결 방" style="flex:1;"' + (pending?' disabled':'') + '></div>' +
+    '<div class="form-row"><label>방 이름</label><input type="text" class="inp" id="cfName" placeholder="1:1 대결 방" autocomplete="off" style="flex:1;"' + (pending?' disabled':'') + '></div>' +
     roundFieldHtml + priceRewardHtml +
     '<button class="btn btn-gold" style="width:100%;margin-top:10px;" onclick="BUI.submitCreate()"' + (pending?' disabled':'') + '>' + submitLabel + '</button>' +
     '</div>';
