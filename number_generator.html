@@ -190,7 +190,10 @@ MLL.uuid = function() {
 //   실제 데이터와 다르게 보이는 문제가 있어 서버 기준으로 통일한다.
 // =====================================================
 
-function _mllAuthState() { return (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type: null }; }
+async function _mllAuthState() {
+  if (window.MLL && MLL.ensureFreshToken) { try { await MLL.ensureFreshToken(); } catch(e) { console.error('[MLL] 토큰 갱신 오류:', e); } }
+  return (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type: null };
+}
 function _mllHeaders(state) {
   var h = { 'Content-Type': 'application/json' };
   if (state.type === 'member') h['Authorization'] = 'Bearer ' + state.token;
@@ -209,7 +212,7 @@ MLL.loadEntries = function() { return MLL._entriesCache; };
 MLL.loadResults = function() { return MLL._resultsCache; };
 
 MLL.refreshEntries = async function() {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) { MLL._entriesCache = []; return []; }
   var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
   try {
@@ -240,7 +243,7 @@ MLL.refreshResults = async function() {
 MLL.addEntry = async function(item) { var r = await MLL.addEntries([item]); return r[0]; };
 
 MLL.addEntries = async function(items) {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return items.map(function(){ return { id:null, _failed:true }; }); }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/lotto/entries', {
@@ -259,7 +262,7 @@ MLL.addEntries = async function(items) {
 };
 
 MLL.deleteEntry = async function(id) {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) return false;
   try {
     var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
@@ -501,7 +504,7 @@ MLL.applyCheck = function(sessionTag) {
 
   async function doCheck(allItems) {
     document.body.removeChild(overlay);
-    var state = _mllAuthState();
+    var state = await _mllAuthState();
     var body = allItems ? {} : { sessionTag: sessionTag };
     body = _mllAuthBody(state, body);
     try {
@@ -701,7 +704,7 @@ MLL._strategyResultsCache = [];
 MLL.loadStrategyResults = function() { return MLL._strategyResultsCache; };
 
 MLL.refreshStrategyResults = async function() {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) { MLL._strategyResultsCache = []; return []; }
   var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
   try {
@@ -718,7 +721,7 @@ MLL.refreshStrategyResults = async function() {
 };
 
 MLL.addStrategyResult = async function(item) {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return { id:null, _failed:true }; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/strategy/results', {
@@ -736,7 +739,7 @@ MLL.addStrategyResult = async function(item) {
 };
 
 MLL.deleteStrategyResult = async function(id) {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) return false;
   try {
     var resp = await fetch(MLL.API_BASE + '/api/strategy/results/' + id, { method: 'DELETE', headers: _mllHeaders(state) });
