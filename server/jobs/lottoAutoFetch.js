@@ -17,6 +17,7 @@ const cheerio = require('cheerio');
 const { runRaceCatchup } = require('./raceAutoRun');
 const { gradeRound: gradeMockRound } = require('./mockAutoGrade');
 const { gradeRound: gradeBattleRound } = require('./battlesAutoGrade');
+const { gradeRound: gradeTournamentRound } = require('./tournamentAutoGrade');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -237,6 +238,14 @@ async function fetchAndSaveRound(round, alreadyExistsOk) {
     console.log('[lottoAutoFetch] Battles 자동채점 결과:', battleResult);
   } catch (e) {
     console.error('[lottoAutoFetch] Battles 자동채점 오류 (당첨결과 저장은 정상 완료됨):', e.message);
+  }
+
+  // Battles 토너먼트(3/5/10단계)도 같은 방식으로 자동채점 + 단계진행/탈락컷 + 다음주 신규회차 개설을 처리합니다.
+  try {
+    const tournamentResult = await gradeTournamentRound(round);
+    console.log('[lottoAutoFetch] 토너먼트 자동채점 결과:', tournamentResult);
+  } catch (e) {
+    console.error('[lottoAutoFetch] 토너먼트 자동채점 오류 (당첨결과 저장은 정상 완료됨):', e.message);
   }
 
   return {
