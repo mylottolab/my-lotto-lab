@@ -309,7 +309,10 @@ MLL.uuid = function() {
 //   페이지 시작 시 반드시 먼저 호출해야 한다(맨 아래 mllInit 참고).
 // =====================================================
 
-function _mllAuthState() { return (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type: null }; }
+async function _mllAuthState() {
+  if (window.MLL && MLL.ensureFreshToken) { try { await MLL.ensureFreshToken(); } catch(e) { console.error('[MLL] 토큰 갱신 오류:', e); } }
+  return (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type: null };
+}
 function _mllHeaders(state) {
   var h = { 'Content-Type': 'application/json' };
   if (state.type === 'member') h['Authorization'] = 'Bearer ' + state.token;
@@ -328,7 +331,7 @@ MLL.loadEntries = function() { return MLL._entriesCache; };
 MLL.loadResults = function() { return MLL._resultsCache; };
 
 MLL.refreshEntries = async function() {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) { MLL._entriesCache = []; return []; }
   var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
   try {
@@ -359,7 +362,7 @@ MLL.refreshResults = async function() {
 MLL.addEntry = async function(item) { return MLL.addEntries([item]); };
 
 MLL.addEntries = async function(items) {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return { id: null, _failed: true }; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/lotto/entries', {
@@ -379,7 +382,7 @@ MLL.addEntries = async function(items) {
 };
 
 MLL.deleteEntry = async function(id) {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) return false;
   try {
     var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
@@ -402,7 +405,7 @@ MLL.deleteEntry = async function(id) {
 // =====================================================
 
 MLL.toggleFavorite = async function(id) {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return null; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/' + id + '/favorite', { method: 'PATCH', headers: _mllHeaders(state) });
@@ -713,7 +716,7 @@ MLL._waitImagesLoaded = function(container) {
 
 // ── 미확인건(추첨일 경과 + 결과 미반영) 자동매칭 ──
 MLL.applyCheck = async function(onDone) {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/confirm', {
