@@ -166,6 +166,24 @@ BATTLE.joinRoom = async function(roomId, side){
   }
 };
 
+// ── 번호조합 제출 (최대 100개, 1회) ──
+BATTLE.MAX_COMBOS_PER_PARTICIPANT = 100;
+BATTLE.submitPicksList = async function(roomId, combosArr){
+  var state = BATTLE.requireAuth();
+  if (!state) return { ok:false, cancelled:true };
+  var req = await BATTLE._authRequest(state, { combos: combosArr });
+  if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/battles/rooms/' + roomId + '/submit', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
+    if (!resp.ok) { await BATTLE._handleFail(resp); return { ok:false }; }
+    var data = await resp.json();
+    return { ok:true, room:data.room };
+  } catch(e) {
+    alert((LANG==='en'?'Network error: ':'네트워크 오류: ')+e.message);
+    return { ok:false };
+  }
+};
+
 // =====================================================
 // TOUR - 토너먼트(3/5/10단계) API 호출
 // (인증/에러처리는 BATTLE._authRequest 등을 그대로 재사용 — 도메인 로직만 다름)
