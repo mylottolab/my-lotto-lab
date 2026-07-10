@@ -63,11 +63,16 @@ BATTLE.requireAuth = function(){
   }
   return state;
 };
-BATTLE._authRequest = function(state, body){
+BATTLE._authRequest = async function(state, body){
   body = body || {};
   var headers = { 'Content-Type': 'application/json' };
-  if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
-  else { body.nickname = state.nickname; body.email = state.email; }
+  if (state.type === 'member') {
+    var freshToken = await MLL.ensureFreshToken();
+    if (!freshToken || freshToken === 'guest') return null; // 갱신 실패 -> 재로그인 필요 (ensureFreshToken이 이미 안내모달을 띄우진 않으므로 호출부에서 처리)
+    headers['Authorization'] = 'Bearer ' + freshToken;
+  } else {
+    body.nickname = state.nickname; body.email = state.email;
+  }
   return { headers: headers, body: body };
 };
 BATTLE._authQuery = function(state){
@@ -89,12 +94,13 @@ BATTLE._handleFail = async function(resp){
 // ── 방 목록/상세 조회 (공개) ──
 // 조회 요청에 "내가 누구인지"를 실어 보내는 공용 헬퍼 — 회원은 Authorization 헤더, 비회원은 쿼리파라미터.
 // (이전 버전은 회원 로그인 시 이 헤더를 안 실어 보내서, 서버가 "내 참가여부"를 판별 못 하는 버그가 있었음)
-BATTLE._viewerFetch = function(url){
+BATTLE._viewerFetch = async function(url){
   var state = MLL.getAuthState();
   var headers = {};
   var finalUrl = url;
   if (state && state.type === 'member') {
-    headers['Authorization'] = 'Bearer ' + state.token;
+    var freshToken = await MLL.ensureFreshToken();
+    if (freshToken && freshToken !== 'guest') headers['Authorization'] = 'Bearer ' + freshToken;
   } else if (state && state.type === 'guest') {
     var sep = url.indexOf('?') >= 0 ? '&' : '?';
     finalUrl = url + sep + 'nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
@@ -127,7 +133,8 @@ BATTLE.createRoom = async function(opts){
   if (!state) return { ok:false, cancelled:true };
   var body = { name: opts.name, type: opts.type || '1v1' };
   if (opts.type === 'team') { body.teamSize = opts.teamSize; body.side = opts.side; }
-  var req = BATTLE._authRequest(state, body);
+  var req = await BATTLE._authRequest(state, body);
+  if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/battles/rooms', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
     if (!resp.ok) { await BATTLE._handleFail(resp); return { ok:false }; }
@@ -145,7 +152,8 @@ BATTLE.joinRoom = async function(roomId, side){
   if (!state) return { ok:false, cancelled:true };
   var body = {};
   if (side === 0 || side === 1) body.side = side;
-  var req = BATTLE._authRequest(state, body);
+  var req = await BATTLE._authRequest(state, body);
+  if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/battles/rooms/' + roomId + '/join', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
     if (!resp.ok) { await BATTLE._handleFail(resp); return { ok:false }; }
@@ -162,7 +170,8 @@ BATTLE.MAX_COMBOS_PER_PARTICIPANT = 100;
 BATTLE.submitPicksList = async function(roomId, combosArr){
   var state = BATTLE.requireAuth();
   if (!state) return { ok:false, cancelled:true };
-  var req = BATTLE._authRequest(state, { combos: combosArr });
+  var req = await BATTLE._authRequest(state, { combos: combosArr });
+  if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/battles/rooms/' + roomId + '/submit', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
     if (!resp.ok) { await BATTLE._handleFail(resp); return { ok:false }; }
