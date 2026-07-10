@@ -183,22 +183,24 @@ router.get('/rooms/:id', async (req, res) => {
 
 // ─── [인증 필요] 방 생성 (개설자가 참가비를 내고 자동으로 첫 참가자가 됨) ───
 // POST /api/battles/rooms   body: { type, name, teamSize, side, nickname, email }
-// type: '1v1'(기본) | 'team' | 'ffa'.  team이면 teamSize(2~10)와 side(0 또는 1, 개설자가 들어갈 팀)가 필요.
-// ffa(무제한 대결)는 인원제한이 없고, 참가와 동시에 /submit으로 바로 번호조합을 등록할 수 있다.
+// type: '1v1'(기본) | 'team'.  team이면 teamSize(2~10)와 side(0 또는 1, 개설자가 들어갈 팀)가 필요.
+// ⚠️ 2026-07-11: 무제한 대결(ffa)은 유저가 만들 수 없다 — 회차마다 시스템(jobs/battlesAutoGrade.js)이
+// 자동으로 하나씩 개설하고, 회원/비회원은 참가자로만 참여한다. 여기서 type:'ffa' 요청은 거부한다.
 router.post('/rooms', async (req, res) => {
   try {
     const user = await resolveUser(req);
     if (!user) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
 
-    const type = ['team', 'ffa'].includes(req.body.type) ? req.body.type : '1v1';
+    if (req.body.type === 'ffa') {
+      return res.status(400).json({ error: '무제한 대결은 회차마다 시스템이 자동으로 개설합니다. 참가가능한 방에서 참가해주세요.' });
+    }
+    const type = req.body.type === 'team' ? 'team' : '1v1';
     let teamSize = null, side = null, maxParticipants = 2;
 
     if (type === 'team') {
       teamSize = Math.max(2, Math.min(10, parseInt(req.body.teamSize) || 2));
       side = req.body.side === 1 ? 1 : 0;
       maxParticipants = teamSize * 2;
-    } else if (type === 'ffa') {
-      maxParticipants = null; // 인원제한 없음
     }
 
     // 참가비 확인 및 차감 (개설과 동시에 개설자 본인 참가로 처리)
@@ -216,7 +218,7 @@ router.post('/rooms', async (req, res) => {
     }
 
     const round = await getSaleRound();
-    const typeName = type === 'team' ? '팀전' : (type === 'ffa' ? '무제한 대결' : '1:1 대결');
+    const typeName = type === 'team' ? '팀전' : '1:1 대결';
     const name = (req.body.name || '').trim() || `${user.nickname}님의 ${typeName}`;
 
     const insertRow = {
@@ -378,7 +380,24 @@ router.post('/rooms/:id/submit', async (req, res) => {
   }
 });
 
+// ─── [내부용] 시스템이 무제한 대결 방을 자동 개설할 때 쓰는 헬퍼 ───────────────
+// jobs/battlesAutoGrade.js가 매 회차 채점 직후 호출한다. 유저가 만드는 방이 아니므로
+// created_by가 없다(참가비 차감/첫 참가자 등록도 없음 — 다들 그냥 참가자로 join한다).
+// ⚠ max_participants 컬럼이 NOT NULL이라(2026-07-11 확인) null을 못 넣는다 — 사실상
+// 무제한을 의미하는 큰 숫자(FFA_UNLIMITED_SENTINEL)를 대신 채운다. join/submit 로직은
+// room.type==='ffa'일 때 이 값을 아예 안 보고 정원체크를 건너뛰므로 숫자 자체는 의미 없다.
+const FFA_UNLIMITED_SENTINEL = 999999;
+async function createSystemFFARoom(round) {
+  const name = `제${round}회 무제한 대결`;
+  const { data, error } = await supabase.from('battle_rooms').insert({
+    type: 'ffa', name, round, max_participants: FFA_UNLIMITED_SENTINEL, status: 'waiting', created_by: null,
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
 module.exports = router;
 module.exports.getSaleRound = getSaleRound;
 module.exports.getPriceReward = getPriceReward;
 module.exports.PRICE_ACTION_KEYS = PRICE_ACTION_KEYS;
+module.exports.createSystemFFARoom = createSystemFFARoom;
