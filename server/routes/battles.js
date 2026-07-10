@@ -51,6 +51,20 @@ async function getSaleRound() {
   return data ? nextRound : thisRound;
 }
 
+// ─── 대결 종류별 참가비/보상 point_costs action_key 매핑 ───────────────────────
+const PRICE_ACTION_KEYS = {
+  '1v1':  { entry: 'battle_1v1_entry',  reward: 'battle_1v1_reward' },
+  'team': { entry: 'battle_team_entry', reward: 'battle_team_reward' },
+};
+async function getPriceReward(type) {
+  const keys = PRICE_ACTION_KEYS[type];
+  if (!keys) return { entry: 0, reward: 0 };
+  const { data } = await supabase.from('point_costs').select('action_key, cost_points').in('action_key', [keys.entry, keys.reward]);
+  const map = {};
+  (data || []).forEach(r => { map[r.action_key] = Number(r.cost_points); });
+  return { entry: map[keys.entry] || 0, reward: map[keys.reward] || 0 };
+}
+
 // 방/참가자 원본 DB row를 프론트가 쓰기 편한 형태로 변환 (participants 내장, picks_list는 필요시 숨김)
 function shapeRoom(room, participants, viewerUserId) {
   const bothSubmitted = room.status === 'active' || room.status === 'completed';
@@ -60,9 +74,12 @@ function shapeRoom(room, participants, viewerUserId) {
     name: room.name,
     round: room.round,
     maxParticipants: room.max_participants,
+    teamCount: room.team_count || null,
+    teamSize: room.team_size || null,
     status: room.status,
     result: room.result_nums ? { nums: room.result_nums, bonus: room.result_bonus } : null,
     winnerIds: room.winner_ids || [],
+    winningSide: (room.winning_side === null || room.winning_side === undefined) ? null : room.winning_side,
     isDraw: room.is_draw,
     allForfeited: room.all_forfeited,
     createdAt: room.created_at,
@@ -70,6 +87,7 @@ function shapeRoom(room, participants, viewerUserId) {
     participants: (participants || []).map(p => ({
       id: p.id,
       nickname: p.nickname,
+      side: (p.side === null || p.side === undefined) ? null : p.side,
       isMe: p.user_id === viewerUserId,
       submitted: !!(p.picks_list && p.picks_list.length),
       comboCount: p.combo_count,
@@ -84,11 +102,12 @@ function shapeRoom(room, participants, viewerUserId) {
   };
 }
 
-// ─── [공개] 1:1 방 목록 (참가자 포함) ───────────────────────────────────────────
-// GET /api/battles/rooms?status=waiting  (로그인 상태면 Authorization 헤더로 "내 참가여부"도 함께 판별)
+// ─── [공개] 방 목록 (참가자 포함) ───────────────────────────────────────────────
+// GET /api/battles/rooms?status=waiting&type=1v1  (type 생략 시 1v1, 로그인 상태면 Authorization 헤더로 "내 참가여부"도 함께 판별)
 router.get('/rooms', async (req, res) => {
   const status = req.query.status;
-  let query = supabase.from('battle_rooms').select('*').eq('type', '1v1').order('created_at', { ascending: false }).limit(100);
+  const type = req.query.type || '1v1';
+  let query = supabase.from('battle_rooms').select('*').eq('type', type).order('created_at', { ascending: false }).limit(100);
   if (status) query = query.eq('status', status);
 
   const { data: rooms, error } = await query;
@@ -116,7 +135,7 @@ router.get('/rooms', async (req, res) => {
   return res.json({ items: rooms.map(r => shapeRoom(r, byRoom[r.id] || [], viewer ? viewer.id : null)) });
 });
 
-// ─── [인증 필요] 내가 참가 중인(개설했든 도전했든) 모든 1:1 방 — "내 진행상황" 타임라인용 ──
+// ─── [인증 필요] 내가 참가 중인(개설했든 도전했든) 모든 방(전체 종목) — "내 진행상황" 타임라인용 ──
 // GET /api/battles/my-rooms   (회원: Authorization 헤더 / 비회원: ?nickname=&email=)
 router.get('/my-rooms', async (req, res) => {
   const user = await resolveUser(req);
@@ -162,18 +181,27 @@ router.get('/rooms/:id', async (req, res) => {
 });
 
 // ─── [인증 필요] 방 생성 (개설자가 참가비를 내고 자동으로 첫 참가자가 됨) ───
-// POST /api/battles/rooms   body: { name, nickname, email }
+// POST /api/battles/rooms   body: { type, name, teamSize, side, nickname, email }
+// type: '1v1'(기본) | 'team'.  team이면 teamSize(2~10)와 side(0 또는 1, 개설자가 들어갈 팀)가 필요.
 router.post('/rooms', async (req, res) => {
   try {
     const user = await resolveUser(req);
     if (!user) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
 
-    // 참가비 확인 및 차감 (개설과 동시에 개설자 본인 참가로 처리)
-    const { data: cost } = await supabase.from('point_costs').select('cost_points').eq('action_key', 'battle_1v1_entry').maybeSingle();
-    const price = cost ? Number(cost.cost_points) : 0;
+    const type = req.body.type === 'team' ? 'team' : '1v1';
+    let teamSize = null, side = null, maxParticipants = 2;
 
-    if (price > 0) {
-      const result = await deductPoints(user.id, price, { actionKey: 'battle_1v1_entry', refId: null });
+    if (type === 'team') {
+      teamSize = Math.max(2, Math.min(10, parseInt(req.body.teamSize) || 2));
+      side = req.body.side === 1 ? 1 : 0;
+      maxParticipants = teamSize * 2;
+    }
+
+    // 참가비 확인 및 차감 (개설과 동시에 개설자 본인 참가로 처리)
+    const pricing = await getPriceReward(type);
+    if (pricing.entry > 0) {
+      const actionKey = PRICE_ACTION_KEYS[type].entry;
+      const result = await deductPoints(user.id, pricing.entry, { actionKey, refId: null });
       if (!result.success) {
         return res.status(402).json({
           error: '포인트가 부족합니다. 충전해주세요.',
@@ -184,11 +212,15 @@ router.post('/rooms', async (req, res) => {
     }
 
     const round = await getSaleRound();
-    const name = (req.body.name || '').trim() || `${user.nickname}님의 1:1 대결`;
+    const typeName = type === 'team' ? '팀전' : '1:1 대결';
+    const name = (req.body.name || '').trim() || `${user.nickname}님의 ${typeName}`;
 
-    const { data: room, error } = await supabase.from('battle_rooms').insert({
-      type: '1v1', name, round, max_participants: 2, status: 'waiting', created_by: user.id,
-    }).select().single();
+    const insertRow = {
+      type, name, round, max_participants: maxParticipants, status: 'waiting', created_by: user.id,
+    };
+    if (type === 'team') { insertRow.team_count = 2; insertRow.team_size = teamSize; }
+
+    const { data: room, error } = await supabase.from('battle_rooms').insert(insertRow).select().single();
 
     if (error) {
       // 참가비는 이미 차감된 상태에서 방 생성이 실패한 경우 — 관리자 확인 필요(드문 케이스)
@@ -196,9 +228,10 @@ router.post('/rooms', async (req, res) => {
       return res.status(500).json({ error: `방 생성 실패: ${error.message}. 관리자에게 문의해주세요.` });
     }
 
-    const { data: participant, error: pErr } = await supabase.from('battle_participants').insert({
-      room_id: room.id, user_id: user.id, nickname: user.nickname,
-    }).select().single();
+    const participantRow = { room_id: room.id, user_id: user.id, nickname: user.nickname };
+    if (type === 'team') participantRow.side = side;
+
+    const { data: participant, error: pErr } = await supabase.from('battle_participants').insert(participantRow).select().single();
 
     if (pErr) {
       console.error('[battles] 개설자 참가 등록 오류 (방은 생성됨, 참가비는 이미 차감됨):', pErr);
@@ -213,7 +246,7 @@ router.post('/rooms', async (req, res) => {
 });
 
 // ─── [인증 필요] 방 참가 (참가비 실제 차감) ────────────────────────────────────
-// POST /api/battles/rooms/:id/join   body: { nickname, email }
+// POST /api/battles/rooms/:id/join   body: { side, nickname, email }  (side는 팀전일 때만 필요: 0 또는 1)
 router.post('/rooms/:id/join', async (req, res) => {
   try {
     const user = await resolveUser(req);
@@ -227,15 +260,23 @@ router.post('/rooms/:id/join', async (req, res) => {
     const { data: existing } = await supabase.from('battle_participants').select('id').eq('room_id', id).eq('user_id', user.id).maybeSingle();
     if (existing) return res.status(409).json({ error: '이미 참가한 방입니다.' });
 
-    const { count } = await supabase.from('battle_participants').select('id', { count: 'exact', head: true }).eq('room_id', id);
-    if ((count || 0) >= room.max_participants) return res.status(409).json({ error: '정원이 가득 찼습니다.' });
+    const { data: currentParticipants } = await supabase.from('battle_participants').select('side').eq('room_id', id);
+    const count = (currentParticipants || []).length;
+    if (count >= room.max_participants) return res.status(409).json({ error: '정원이 가득 찼습니다.' });
 
-    // 참가비 조회 및 차감 (기존 point_costs 재사용)
-    const { data: cost } = await supabase.from('point_costs').select('cost_points').eq('action_key', 'battle_1v1_entry').maybeSingle();
-    const price = cost ? Number(cost.cost_points) : 0;
+    let side = null;
+    if (room.type === 'team') {
+      side = req.body.side === 1 ? 1 : (req.body.side === 0 ? 0 : null);
+      if (side === null) return res.status(400).json({ error: '참가할 팀을 선택해주세요.' });
+      const sideCount = (currentParticipants || []).filter(p => p.side === side).length;
+      if (sideCount >= room.team_size) return res.status(409).json({ error: `그 팀은 이미 정원(${room.team_size}명)이 찼습니다. 다른 팀을 선택해주세요.` });
+    }
 
-    if (price > 0) {
-      const result = await deductPoints(user.id, price, { actionKey: 'battle_1v1_entry', refId: id });
+    // 참가비 조회 및 차감
+    const pricing = await getPriceReward(room.type);
+    if (pricing.entry > 0) {
+      const actionKey = PRICE_ACTION_KEYS[room.type].entry;
+      const result = await deductPoints(user.id, pricing.entry, { actionKey, refId: id });
       if (!result.success) {
         return res.status(402).json({
           error: '포인트가 부족합니다. 충전해주세요.',
@@ -245,18 +286,30 @@ router.post('/rooms/:id/join', async (req, res) => {
       }
     }
 
-    const { data: newParticipant, error: insErr } = await supabase.from('battle_participants').insert({
-      room_id: id, user_id: user.id, nickname: user.nickname,
-    }).select().single();
+    const participantRow = { room_id: id, user_id: user.id, nickname: user.nickname };
+    if (room.type === 'team') participantRow.side = side;
+
+    const { data: newParticipant, error: insErr } = await supabase.from('battle_participants').insert(participantRow).select().single();
 
     if (insErr) {
       console.error('[battles] 참가 등록 오류 (포인트는 이미 차감됨):', insErr);
       return res.status(500).json({ error: '참가 처리 중 오류가 발생했습니다. 관리자에게 문의해주세요.' });
     }
 
-    // 정원이 찼으면 자동으로 번호제출 대기 상태로 전환
-    const newCount = (count || 0) + 1;
-    if (newCount >= room.max_participants) {
+    // 정원이 찼는지 확인 → 되면 자동으로 번호제출 대기 상태로 전환
+    // 1:1: 전체 인원만 보면 됨. 팀전: "각 팀이 정확히 team_size만큼" 찼는지까지 확인해야 함
+    // (한쪽 팀에만 인원이 몰린 채로 전체 인원수만 맞는 경우를 자동마감하면 안 되므로 별도 로직).
+    let full = false;
+    if (room.type === '1v1') {
+      full = (count + 1) >= room.max_participants;
+    } else if (room.type === 'team') {
+      const updatedSides = (currentParticipants || []).concat([{ side }]);
+      full = true;
+      for (let t = 0; t < 2; t++) {
+        if (updatedSides.filter(p => p.side === t).length < room.team_size) { full = false; break; }
+      }
+    }
+    if (full) {
       await supabase.from('battle_rooms').update({ status: 'pending_numbers' }).eq('id', id);
     }
 
@@ -316,3 +369,5 @@ router.post('/rooms/:id/submit', async (req, res) => {
 
 module.exports = router;
 module.exports.getSaleRound = getSaleRound;
+module.exports.getPriceReward = getPriceReward;
+module.exports.PRICE_ACTION_KEYS = PRICE_ACTION_KEYS;
