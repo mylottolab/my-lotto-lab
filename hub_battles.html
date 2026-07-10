@@ -477,11 +477,12 @@ BUI.openAdminView = function(){
   }
 };
 
-// ── 새 방 만들기: 1:1 + 팀전 활성화, 나머지는 "준비중" ──
+// ── 새 방 만들기: 1:1/팀전은 유저가 직접 개설. 무제한 대결은 회차마다 시스템이 자동 개설하고
+// 유저는 참가만 가능(systemOnly). 토너먼트는 아직 "준비중". ──
 BUI.CREATE_CARDS = [
   { key:'1v1', icon:'⚔️', label:'1:1 대결', desc:'1:1 정면대결 — 둘 중 결과가 좋은 쪽이 승리', enabled:true },
   { key:'team', icon:'🛡️', label:'팀전', desc:'여러 명씩 두 팀으로 나뉘어 팀 합계로 승부', enabled:true },
-  { key:'ffa', icon:'🌀', label:'무제한 대결', desc:'인원 제한 없이 누구나 참가, 당첨금 합계 1등이 승자', enabled:true },
+  { key:'ffa', icon:'🌀', label:'무제한 대결', desc:'회차마다 시스템이 자동 개설 — 인원 제한 없이 참가만', enabled:true, systemOnly:true },
   { key:'tournament', icon:'🏆', label:'토너먼트', desc:'준비중입니다.', enabled:false },
 ];
 BUI.renderCreateTypeGrid = function(){
@@ -489,9 +490,11 @@ BUI.renderCreateTypeGrid = function(){
     var active = c.enabled && BUI.state.createType === c.key;
     var style = c.enabled ? '' : 'opacity:.42;cursor:default;';
     var onclick = c.enabled ? ("BUI.selectCreateType('" + c.key + "')") : '';
+    var tag = !c.enabled ? ' <span style="font-size:9.5px;color:var(--text-faint);">(준비중)</span>'
+      : (c.systemOnly ? ' <span style="font-size:9.5px;color:var(--blue);">(참가전용)</span>' : '');
     return '<div class="create-type-card' + (active?' active':'') + '" style="' + style + '" onclick="' + onclick + '">' +
       '<div class="ti">' + c.icon + '</div>' +
-      '<div class="tn">' + c.label + (c.enabled?'':' <span style="font-size:9.5px;color:var(--text-faint);">(준비중)</span>') + '</div>' +
+      '<div class="tn">' + c.label + tag + '</div>' +
       '<div class="td">' + c.desc + '</div>' +
     '</div>';
   }).join('');
@@ -510,15 +513,30 @@ BUI.renderCreateForm = async function(){
     document.getElementById('createFormBody').innerHTML = '<div class="card"><div class="empty-state" style="padding:18px;">위에서 대결 종류를 선택해주세요.</div></div>';
     return;
   }
+
+  // ⚠️ 2026-07-11: 무제한 대결은 유저가 만드는 게 아니라 회차마다 시스템이 자동 개설한다.
+  // 여기서는 "방 만들기" 폼 대신 참가비/보상 정보만 보여주고, 실제 참가는 아래 "참가가능한
+  // 방" 목록에서 시스템이 이미 열어둔 방을 클릭해서 하도록 안내한다.
+  if (createType === 'ffa') {
+    var ffaPricing = await BATTLE.getPricing('ffa');
+    document.getElementById('createFormBody').innerHTML =
+      '<div class="card">' +
+      '<div class="empty-state" style="padding:14px 4px;">🌀 무제한 대결은 회차마다 <b style="color:var(--text);">시스템이 자동으로 방을 개설</b>합니다.<br>아래 "참가가능한 방"에서 지금 열려있는 방을 눌러 참가해주세요.</div>' +
+      '<div class="form-row" style="margin-top:10px;"><label style="color:var(--text-faint);">참가비/보상</label>' +
+      '<span style="font-size:12px;color:var(--gold);font-weight:700;">참가비 ' + ffaPricing.entry.toLocaleString() + 'P</span>' +
+      '<span style="font-size:12px;color:var(--green);font-weight:700;margin-left:8px;">1등 보상 ' + ffaPricing.reward.toLocaleString() + 'P (공동1등이면 n분할)</span></div>' +
+      '</div>';
+    return;
+  }
+
   var isTeam = createType === 'team';
-  var isFFA = createType === 'ffa';
   var info = MLL.getLottoInfo();
   var pricing = await BATTLE.getPricing(createType);
   var pending = info.status === 'closing';
 
   var priceRewardHtml = '<div class="form-row"><label style="color:var(--text-faint);">참가비/보상</label>' +
     '<span style="font-size:12px;color:var(--gold);font-weight:700;">참가비 ' + pricing.entry.toLocaleString() + 'P (참가 1인당)</span>' +
-    '<span style="font-size:12px;color:var(--green);font-weight:700;margin-left:8px;">' + (isTeam ? '우승 보상 ' + pricing.reward.toLocaleString() + 'P (팀원 각자)' : '우승 보상 ' + pricing.reward.toLocaleString() + 'P (1등에게)') + '</span></div>';
+    '<span style="font-size:12px;color:var(--green);font-weight:700;margin-left:8px;">우승 보상 ' + pricing.reward.toLocaleString() + 'P (팀원 각자)</span></div>';
 
   var roundFieldHtml = pending
     ? ('<div class="form-row" style="background:rgba(224,179,65,.08);border-radius:8px;padding:8px 10px;"><label>대상 회차</label><span style="font-size:12.5px;color:var(--gold);font-weight:700;">⏳ 추첨대기 및 결과작업중</span><span style="font-size:11px;color:var(--text-faint);">제' + info.thisRound + '회 결과 집계 중 — 결과 반영 즉시 제' + info.nextRound + '회로 방을 만들 수 있어요.</span></div>')
@@ -536,20 +554,22 @@ BUI.renderCreateForm = async function(){
       '</div>';
   }
 
-  var submitLabel = pending ? '결과 집계 완료 후 이용 가능' : ('⚔️ ' + (isTeam ? '팀전' : (isFFA ? '무제한 대결' : '1:1')) + '방 만들기');
+  var submitLabel = pending ? '결과 집계 완료 후 이용 가능' : ('⚔️ ' + (isTeam ? '팀전' : '1:1') + '방 만들기');
 
   document.getElementById('createFormBody').innerHTML =
     '<div class="card">' +
-    '<div class="form-row"><label>방 이름</label><input type="text" class="inp" id="cfName" placeholder="' + (isTeam?'팀전 방':(isFFA?'무제한 대결 방':'1:1 대결 방')) + '" autocomplete="off" style="flex:1;"' + (pending?' disabled':'') + '></div>' +
+    '<div class="form-row"><label>방 이름</label><input type="text" class="inp" id="cfName" placeholder="' + (isTeam?'팀전 방':'1:1 대결 방') + '" autocomplete="off" style="flex:1;"' + (pending?' disabled':'') + '></div>' +
     roundFieldHtml + teamFieldsHtml + priceRewardHtml +
     '<button class="btn btn-gold" style="width:100%;margin-top:10px;" onclick="BUI.submitCreate()"' + (pending?' disabled':'') + '>' + submitLabel + '</button>' +
     '</div>';
 };
 
+
 BUI.submitCreate = async function(){
   var info = MLL.getLottoInfo();
   if (info.status === 'closing') { alert('⏳ 추첨대기 및 결과작업중입니다. 결과가 반영된 뒤 다시 시도해주세요.'); return; }
   var createType = BUI.state.createType;
+  if (createType === 'ffa') { alert('무제한 대결은 시스템이 자동으로 개설합니다.'); return; }
   var name = document.getElementById('cfName').value.trim();
   var opts = { type: createType, name: name };
   if (createType === 'team') {
