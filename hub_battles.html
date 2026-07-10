@@ -166,18 +166,82 @@ BATTLE.joinRoom = async function(roomId, side){
   }
 };
 
-// ── 번호조합 제출 (최대 100개, 1회) ──
-BATTLE.MAX_COMBOS_PER_PARTICIPANT = 100;
-BATTLE.submitPicksList = async function(roomId, combosArr){
+// =====================================================
+// TOUR - 토너먼트(3/5/10단계) API 호출
+// (인증/에러처리는 BATTLE._authRequest 등을 그대로 재사용 — 도메인 로직만 다름)
+// =====================================================
+var TOUR = {};
+TOUR.TIER_CONFIG = {
+  3:  { stages: 3,  cutRatePerStage: 30, rewards: [1500, 1250, 1000] },
+  5:  { stages: 5,  cutRatePerStage: 20, rewards: [2500, 2000, 1500] },
+  10: { stages: 10, cutRatePerStage: 10, rewards: [5000, 3500, 2000] },
+};
+TOUR.ENTRY_ACTION_KEYS = { 3: 'battle_tour_3', 5: 'battle_tour_5', 10: 'battle_tour_10' };
+
+TOUR._priceCache = null;
+TOUR.getEntryCost = async function(tier){
+  if (!TOUR._priceCache) {
+    try {
+      var resp = await fetch(MLL.API_BASE + '/api/points/price-list');
+      var data = await resp.json();
+      var map = {};
+      (data.items || []).forEach(function(it){ map[it.action_key] = Number(it.cost_points); });
+      TOUR._priceCache = map;
+    } catch(e) { TOUR._priceCache = {}; }
+  }
+  return TOUR._priceCache[TOUR.ENTRY_ACTION_KEYS[tier]] || 0;
+};
+
+TOUR.getRegisteringRun = async function(tier){
+  try {
+    var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/tournament/runs?tier=' + tier + '&status=registering');
+    var data = await resp.json();
+    return (data.items && data.items[0]) || null;
+  } catch(e) { console.error('[TOUR] 등록가능 회차 조회 오류:', e); return null; }
+};
+
+TOUR.getMyRuns = async function(){
+  try {
+    var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/tournament/my-runs');
+    var data = await resp.json();
+    return data.items || [];
+  } catch(e) { console.error('[TOUR] 내 토너먼트 조회 오류:', e); return []; }
+};
+
+TOUR.getRunDetail = async function(id){
+  try {
+    var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/tournament/runs/' + id);
+    if (!resp.ok) return null;
+    var data = await resp.json();
+    return data.run;
+  } catch(e) { console.error('[TOUR] 토너먼트 상세 조회 오류:', e); return null; }
+};
+
+TOUR.join = async function(tier){
+  var state = BATTLE.requireAuth();
+  if (!state) return { ok:false, cancelled:true };
+  var req = await BATTLE._authRequest(state, {});
+  if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/tournament/' + tier + '/join', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
+    if (!resp.ok) { await BATTLE._handleFail(resp); return { ok:false }; }
+    var data = await resp.json();
+    return { ok:true, run:data.run };
+  } catch(e) {
+    alert((LANG==='en'?'Network error: ':'네트워크 오류: ')+e.message);
+    return { ok:false };
+  }
+};
+
+TOUR.submit = async function(runId, combosArr){
   var state = BATTLE.requireAuth();
   if (!state) return { ok:false, cancelled:true };
   var req = await BATTLE._authRequest(state, { combos: combosArr });
   if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
   try {
-    var resp = await fetch(MLL.API_BASE + '/api/battles/rooms/' + roomId + '/submit', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
+    var resp = await fetch(MLL.API_BASE + '/api/tournament/runs/' + runId + '/submit', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
     if (!resp.ok) { await BATTLE._handleFail(resp); return { ok:false }; }
-    var data = await resp.json();
-    return { ok:true, room:data.room };
+    return { ok:true };
   } catch(e) {
     alert((LANG==='en'?'Network error: ':'네트워크 오류: ')+e.message);
     return { ok:false };
@@ -372,7 +436,7 @@ button{font-family:inherit;cursor:pointer;}
         <div id="createFormBody"></div>
       </div>
       <div>
-        <div class="hub-col-title">🙋 참가가능한 방<span class="cnt" id="availRoomCount">0개</span></div>
+        <div class="hub-col-title"><span id="availRoomsTitle">🙋 참가가능한 방</span><span class="cnt" id="availRoomCount">0개</span></div>
         <div class="avail-tabs" id="availTabs"></div>
         <div id="availableRoomsBody"></div>
       </div>
@@ -478,13 +542,13 @@ BUI.openAdminView = function(){
   }
 };
 
-// ── 새 방 만들기: 1:1/팀전은 유저가 직접 개설. 무제한 대결은 회차마다 시스템이 자동 개설하고
-// 유저는 참가만 가능(systemOnly). 토너먼트는 아직 "준비중". ──
+// ── 새 방 만들기: 1:1/팀전은 유저가 직접 개설. 무제한 대결·토너먼트는 회차마다
+// 시스템이 자동 개설하고 유저는 참가만 가능(systemOnly). ──
 BUI.CREATE_CARDS = [
   { key:'1v1', icon:'⚔️', label:'1:1 대결', desc:'1:1 정면대결 — 둘 중 결과가 좋은 쪽이 승리', enabled:true },
   { key:'team', icon:'🛡️', label:'팀전', desc:'여러 명씩 두 팀으로 나뉘어 팀 합계로 승부', enabled:true },
   { key:'ffa', icon:'🌀', label:'무제한 대결', desc:'회차마다 시스템이 자동 개설 — 인원 제한 없이 참가만', enabled:true, systemOnly:true },
-  { key:'tournament', icon:'🏆', label:'토너먼트', desc:'준비중입니다.', enabled:false },
+  { key:'tournament', icon:'🏆', label:'토너먼트', desc:'3~10주 연속 진행 — 매주 하위성적자 탈락, 최종 1~3위 보상', enabled:true, systemOnly:true },
 ];
 BUI.renderCreateTypeGrid = function(){
   document.getElementById('createTypeGrid').innerHTML = BUI.CREATE_CARDS.map(function(c){
@@ -503,6 +567,7 @@ BUI.renderCreateTypeGrid = function(){
 BUI.selectCreateType = function(cardKey){
   BUI.state.createType = cardKey;
   BUI.renderCreateTypeGrid();
+  if (cardKey === 'tournament') { BUI.renderTournamentPanel(); return; }
   BUI.renderCreateForm();
   BUI.renderAvailableRooms();
   BUI.renderAllRoomsTable();
@@ -586,8 +651,217 @@ BUI.submitCreate = async function(){
   BUI.openRoom(result.room.id);
 };
 
+// =====================================================
+// 토너먼트(3/5/10단계) 전용 화면
+// 1:1/팀전/FFA는 "방 목록"이 핵심이지만, 토너먼트는 몇 주씩 이어지는 "내 진행상황"이
+// 핵심이라 구조가 달라서 별도 렌더 경로로 분리한다. 기존 좌(개설폼)/우(참가가능목록)/
+// 하단(전체현황) 3개 영역은 그대로 재사용하되 내용만 토너먼트용으로 바꿔 넣는다.
+// =====================================================
+BUI.state.tournamentTier = BUI.state.tournamentTier || 3;
+
+BUI.renderTournamentPanel = async function(){
+  await BUI.renderTournamentCreateForm();
+  await BUI.renderMyTournaments();
+  await BUI.renderTournamentAllRuns();
+};
+
+BUI.selectTournamentTier = function(tier){
+  BUI.state.tournamentTier = tier;
+  BUI.renderTournamentCreateForm();
+  BUI.renderTournamentAllRuns();
+};
+
+BUI.renderTournamentCreateForm = async function(){
+  var tier = BUI.state.tournamentTier;
+  var cfg = TOUR.TIER_CONFIG[tier];
+  var entryCost = await TOUR.getEntryCost(tier);
+  var run = await TOUR.getRegisteringRun(tier);
+
+  var tierTabsHtml = [3, 5, 10].map(function(t){
+    return '<button class="btn' + (t === tier ? ' btn-gold' : ' btn-outline') + '" style="margin-right:6px;" onclick="BUI.selectTournamentTier(' + t + ')">' + t + '단계</button>';
+  }).join('');
+  var rewardsHtml = cfg.rewards.map(function(r, i){ return (i + 1) + '위 ' + r.toLocaleString() + 'P'; }).join(' · ');
+
+  var statusHtml;
+  if (!run) {
+    statusHtml = '<div class="empty-state">지금 등록 가능한 회차가 없습니다. 잠시 후 다시 확인해주세요.</div>';
+  } else if (run.isMe) {
+    statusHtml = '<div style="font-size:12px;color:var(--green);text-align:center;padding:10px;">✅ 이미 참가하셨습니다 — 아래 "내 토너먼트"에서 진행상황을 확인·번호제출 하세요.</div>';
+  } else {
+    statusHtml =
+      '<div class="form-row"><label>대상 회차</label><span style="font-size:13px;font-weight:700;color:var(--accent);">' + run.name + '</span></div>' +
+      '<div class="form-row"><label>현재 참가인원</label><span class="font-num">' + run.participantCount + '명</span></div>' +
+      '<button class="btn btn-gold" style="width:100%;margin-top:10px;" onclick="BUI.joinTournament(' + tier + ')">🏆 ' + tier + '단계 토너먼트 참가하기 (' + entryCost.toLocaleString() + 'P)</button>';
+  }
+
+  document.getElementById('createFormBody').innerHTML =
+    '<div class="card">' +
+    '<div style="margin-bottom:10px;">' + tierTabsHtml + '</div>' +
+    '<div class="form-row"><label style="color:var(--text-faint);">진행방식</label><span style="font-size:12px;color:var(--text-dim);">매주 1단계씩 총 ' + cfg.stages + '단계(' + cfg.stages + '주) 진행 · 최종단계 전까지 매주 그 주 성적 기준(누적 아님) 하위 ' + cfg.cutRatePerStage + '%p씩 누적 탈락</span></div>' +
+    '<div class="form-row"><label style="color:var(--text-faint);">참가비/보상</label><span style="font-size:12px;color:var(--gold);font-weight:700;">참가비 ' + entryCost.toLocaleString() + 'P (최초 1회만)</span><span style="font-size:12px;color:var(--green);font-weight:700;margin-left:8px;">최종단계 ' + rewardsHtml + '</span></div>' +
+    statusHtml +
+    '</div>';
+};
+
+BUI.joinTournament = async function(tier){
+  var result = await TOUR.join(tier);
+  if (!result.ok) return;
+  alert('🏆 ' + tier + '단계 토너먼트에 참가했습니다! 1단계 번호조합을 바로 등록해주세요.');
+  await BUI.renderTournamentCreateForm();
+  await BUI.renderMyTournaments();
+  BUI.openTournamentRun(result.run.id);
+};
+
+// ── 내 토너먼트 목록 (우측 "참가가능한 방" 자리를 재사용) ──
+BUI.renderMyTournaments = async function(){
+  var titleEl = document.getElementById('availRoomsTitle');
+  if (titleEl) titleEl.textContent = '🏆 내 토너먼트';
+  var countEl = document.getElementById('availRoomCount');
+  var body = document.getElementById('availableRoomsBody');
+
+  var state = MLL.getAuthState();
+  if (!state || !state.type) {
+    if (countEl) countEl.textContent = '';
+    body.innerHTML = '<div class="card"><div class="empty-state">로그인하시면 내 토너먼트 진행상황을 볼 수 있어요.</div></div>';
+    return;
+  }
+
+  var runs = await TOUR.getMyRuns();
+  if (countEl) countEl.textContent = runs.length + '개';
+  if (!runs.length) { body.innerHTML = '<div class="card"><div class="empty-state">아직 참가한 토너먼트가 없습니다. 왼쪽에서 참가해보세요!</div></div>'; return; }
+
+  body.innerHTML = '<div class="avail-room-list">' + runs.map(function(r){
+    var statusLabel = r.myStatus === 'eliminated' ? '❌ 탈락'
+      : (r.myStatus === 'finished' ? '🏁 종료'
+      : (r.myCurrentStageSubmitted ? '✅ 제출완료·결과대기' : '⏰ 번호제출 필요'));
+    return '<div class="avail-room-card" onclick="BUI.openTournamentRun(\'' + r.id + '\')">' +
+      '<div><div class="arc-name">' + r.name + '</div>' +
+      '<div class="arc-meta">' + r.currentStage + '/' + r.totalStages + '단계 · ' + statusLabel + '</div></div>' +
+      '<div class="arc-join">보기 →</div>' +
+    '</div>';
+  }).join('') + '</div>';
+};
+
+// ── 선택한 티어의 전체 진행현황 (하단 "전체 배틀참여현황" 자리를 재사용) ──
+BUI.renderTournamentAllRuns = async function(){
+  var tier = BUI.state.tournamentTier;
+  var titleEl = document.getElementById('allRoomsTitle');
+  if (titleEl) titleEl.textContent = '📊 ' + tier + '단계 토너먼트 전체 현황';
+  var body = document.getElementById('allRoomsTableBody');
+  var countEl = document.getElementById('allRoomCount');
+  try {
+    var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/tournament/runs?tier=' + tier);
+    var data = await resp.json();
+    var runs = data.items || [];
+    if (countEl) countEl.textContent = runs.length + '개';
+    if (!runs.length) { body.innerHTML = '<div class="card"><div class="empty-state">아직 개설된 토너먼트가 없습니다.</div></div>'; return; }
+
+    var rowsHtml = runs.map(function(r){
+      var statusLabel = r.status === 'registering' ? '모집중' : (r.status === 'in_progress' ? '진행중' : '종료');
+      var statusCls = r.status === 'registering' ? 'status-waiting' : (r.status === 'in_progress' ? 'status-pending_numbers' : 'status-completed');
+      return '<tr onclick="BUI.openTournamentRun(\'' + r.id + '\')">' +
+        '<td>' + r.name + '</td>' +
+        '<td class="font-num">' + r.currentStage + '/' + r.totalStages + '단계</td>' +
+        '<td class="font-num">' + r.activeCount + '/' + r.participantCount + '명</td>' +
+        '<td><span class="status-tag ' + statusCls + '">' + statusLabel + '</span></td>' +
+      '</tr>';
+    }).join('');
+    body.innerHTML = '<div class="card" style="padding:0;overflow-x:auto;"><table class="all-rooms-table">' +
+      '<thead><tr><th>토너먼트</th><th>단계</th><th>생존/전체</th><th>상태</th></tr></thead>' +
+      '<tbody>' + rowsHtml + '</tbody></table></div>';
+  } catch(e) { body.innerHTML = '<div class="card"><div class="empty-state">불러오지 못했습니다.</div></div>'; }
+};
+
+// ── 토너먼트 상세(기존 roomModal 재사용) ──
+BUI.openTournamentRun = async function(runId){
+  BUI.state.modalKind = 'tournament';
+  BUI.state.currentTournamentRunId = runId;
+  BUI.state.selectedBalls = [];
+  BUI.state.multiCombos = [];
+  document.getElementById('roomModal').classList.add('show');
+  await BUI.renderTournamentModal();
+};
+BUI.closeTournamentRun = function(){
+  document.getElementById('roomModal').classList.remove('show');
+  BUI.renderMyTournaments();
+  BUI.renderTournamentAllRuns();
+};
+
+BUI.renderTournamentModal = async function(){
+  var run = await TOUR.getRunDetail(BUI.state.currentTournamentRunId);
+  var box = document.getElementById('roomModalBox');
+  if (!run) { BUI.closeTournamentRun(); return; }
+
+  var statusLabel = run.status === 'completed' ? '종료' : (run.status === 'registering' ? '모집중' : '진행중');
+  var statusCls = run.status === 'completed' ? 'status-completed' : (run.status === 'registering' ? 'status-waiting' : 'status-pending_numbers');
+  var header =
+    '<button class="modal-close-x" onclick="BUI.closeTournamentRun()" title="닫기">✕</button>' +
+    '<div style="margin-bottom:6px;padding-right:36px;"><h3 style="margin-bottom:0;">' + run.name + '</h3></div>' +
+    '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:16px;">' + run.tier + '단계 토너먼트 · ' + run.currentStage + '/' + run.totalStages + '단계 · <span class="status-tag ' + statusCls + '">' + statusLabel + '</span></div>';
+
+  var myP = run.participants.find(function(p){ return p.isMe; });
+  var needsSubmitWidget = false;
+  var bodyHtml = '';
+
+  if (run.status === 'completed') {
+    bodyHtml = run.winners.length
+      ? '<div class="card"><h3>🏆 최종 순위</h3>' + run.winners.map(function(pid, i){
+          var p = run.participants.find(function(x){ return x.id === pid; });
+          return '<div class="participant-row winner"><span>' + (i + 1) + '위. ' + (p ? p.nickname : '?') + (p && p.isMe ? ' (나)' : '') + ' 🏆</span></div>';
+        }).join('') + '</div>'
+      : '<div class="card"><div class="empty-state">최종단계 제출자가 없어 순위가 산정되지 않았습니다.</div></div>';
+  } else if (myP) {
+    var stageHistoryHtml = myP.stageHistory.length
+      ? '<div class="card"><h3>단계별 내 기록</h3>' + myP.stageHistory.map(function(h){
+          return '<div class="participant-row"><span>' + h.stage + '단계' + (h.forfeited ? ' (미제출)' : '') + '</span><span class="font-num">' + (h.totalPrize || 0).toLocaleString() + '원 · ' + (h.comboCount || 0) + '개</span></div>';
+        }).join('') + '</div>' : '';
+
+    if (myP.status === 'eliminated') {
+      bodyHtml = '<div class="card" style="background:rgba(224,80,80,.08);border-color:#e05050;"><h3>❌ ' + myP.eliminatedAtStage + '단계에서 탈락</h3><div style="font-size:12.5px;color:var(--text-dim);">아쉽지만 이번 토너먼트는 여기까지예요.</div></div>' + stageHistoryHtml;
+    } else if (myP.currentStageSubmitted) {
+      bodyHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ ' + run.currentStage + '단계 조합 ' + myP.currentStageComboCount + '개 제출 완료<br>이번 주 추첨 결과를 기다려주세요.</div></div>' + stageHistoryHtml;
+    } else {
+      needsSubmitWidget = true;
+      bodyHtml =
+        '<div class="card">' +
+          '<h3>' + run.currentStage + '단계 번호조합 등록 (최대 ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '개)</h3>' +
+          '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">이번 단계 성적만으로 평가됩니다(이전 단계 누적 아님). 하위 성적자는 이번 단계에서 탈락할 수 있어요.</p>' +
+          '<div class="form-row"><label>자동 생성 개수</label><input type="number" class="inp" id="multiGenCount" value="10" min="1" max="' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '" style="width:80px;"> <button class="btn btn-outline" onclick="BUI.addAutoCombos()">+ 자동 추가</button></div>' +
+          '<div class="form-row"><label>직접 선택</label><span style="font-size:11px;color:var(--text-faint);">아래 공에서 6개를 고르면 조합이 1개씩 추가됩니다</span></div>' +
+          '<div class="ball-grid" id="multiBallGrid"></div>' +
+          '<div id="multiComboList" style="margin-top:12px;"></div>' +
+          '<button class="btn btn-gold" style="width:100%;margin-top:10px;" id="submitMultiPicksBtn" disabled onclick="BUI.doSubmitTournamentPicks()">조합 등록 완료하기</button>' +
+        '</div>' + stageHistoryHtml;
+    }
+  } else {
+    bodyHtml = '<div class="card"><div class="empty-state">참가한 토너먼트가 아닙니다.</div></div>';
+  }
+
+  var participantsHtml = '<div class="card"><h3>참가자 (' + run.activeCount + '/' + run.participantCount + '명 생존)</h3>' +
+    run.participants.map(function(p){
+      var pStatus = p.status === 'eliminated' ? ('❌ 탈락(' + p.eliminatedAtStage + '단계)') : (p.status === 'finished' ? '🏁 완주' : (p.currentStageSubmitted ? '✅ 제출완료' : '⏳ 대기중'));
+      return '<div class="participant-row"><span>' + p.nickname + (p.isMe ? ' (나)' : '') + '</span><span style="color:var(--text-faint);">' + pStatus + '</span></div>';
+    }).join('') + '</div>';
+
+  box.innerHTML = header + bodyHtml + participantsHtml;
+  if (needsSubmitWidget && document.getElementById('multiBallGrid')) {
+    BUI.renderMultiBallGrid();
+    BUI.renderMultiComboList();
+  }
+};
+
+BUI.doSubmitTournamentPicks = async function(){
+  if (!BUI.state.multiCombos.length) { alert('번호조합을 1개 이상 등록해주세요.'); return; }
+  var result = await TOUR.submit(BUI.state.currentTournamentRunId, BUI.state.multiCombos);
+  if (!result.ok) return;
+  BUI.state.multiCombos = [];
+  BUI.state.selectedBalls = [];
+  await BUI.renderTournamentModal();
+};
+
 // ── 방 상세 ──
 BUI.openRoom = async function(roomId){
+  BUI.state.modalKind = 'room';
   BUI.state.currentRoomId = roomId;
   BUI.state.selectedBalls = [];
   BUI.state.multiCombos = [];
@@ -866,6 +1140,8 @@ BUI.myResultBadge = function(r){
 
 // ── 참가가능한 방 (1:1만, 이미 내가 낀 방은 제외) ──
 BUI.renderAvailableRooms = async function(){
+  var titleEl0 = document.getElementById('availRoomsTitle');
+  if (titleEl0) titleEl0.textContent = '🙋 참가가능한 방';
   var type = BUI.state.createType || '1v1';
   var rooms = await BATTLE.listAvailableRooms(type);
   // (내가 만든 방도 함께 표시합니다 — 카드에서 내 방인지 여부는 아래에서 구분)
@@ -1000,7 +1276,9 @@ BUI.renderAllRoomsTable = async function(){
 document.addEventListener('DOMContentLoaded', BUI.init);
 document.addEventListener('keydown', function(e){
   if (e.key !== 'Escape') return;
-  if (document.getElementById('roomModal').classList.contains('show')) BUI.closeRoom();
+  if (!document.getElementById('roomModal').classList.contains('show')) return;
+  if (BUI.state.modalKind === 'tournament') BUI.closeTournamentRun();
+  else BUI.closeRoom();
 });
 
 
