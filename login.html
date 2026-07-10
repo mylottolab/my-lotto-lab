@@ -242,9 +242,10 @@ async function handleLogin(e){
     var data = await res.json();
     if(!res.ok){ throw new Error(data.error || t('loginFail')); }
 
-    // 토큰 저장
+    // 토큰 저장 (refreshToken도 함께 저장 — 이게 있어야 accessToken 만료 시 재로그인 없이 갱신 가능)
     var storage = remember ? localStorage : sessionStorage;
     storage.setItem('mll_token', data.accessToken);
+    storage.setItem('mll_refresh_token', data.refreshToken);
     storage.setItem('mll_user', JSON.stringify(data.user));
 
     var ob = document.getElementById('okBanner');
@@ -271,7 +272,8 @@ async function handleLogin(e){
       // 못 읽는다. URL 쿼리로 토큰을 함께 실어 보내면, 도착한 페이지에서
       // common.js/auth_gate.js의 부트스트랩이 그 값을 받아 자기 도메인 localStorage에 다시 저장한다.
       target = 'https://my-lotto-lab-api.onrender.com/pay/category_select.html' +
-        '?mll_auth=member&mll_tok=' + encodeURIComponent(data.accessToken);
+        '?mll_auth=member&mll_tok=' + encodeURIComponent(data.accessToken) +
+        '&mll_rt=' + encodeURIComponent(data.refreshToken);
     }
     setTimeout(function(){ location.href = target; }, 800);
   } catch(err) {
