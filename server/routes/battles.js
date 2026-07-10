@@ -68,7 +68,10 @@ async function getPriceReward(type) {
 
 // 방/참가자 원본 DB row를 프론트가 쓰기 편한 형태로 변환 (participants 내장, picks_list는 필요시 숨김)
 function shapeRoom(room, participants, viewerUserId) {
-  const bothSubmitted = room.status === 'active' || room.status === 'completed';
+  // ⚠️ 2026-07-11: 예전엔 "둘 다 1개 이상 제출(active)"이면 공개했는데, 이제 마감 전까지
+  // 계속 추가 제출이 가능해지면서 그 기준이 의미가 없어졌다(추가할 때마다 상대가 이미 본
+  // 상태가 되어버림). 그래서 채점이 완전히 끝난(completed) 뒤에만 서로의 조합을 공개한다.
+  const revealed = room.status === 'completed';
   return {
     id: room.id,
     type: room.type,
@@ -92,11 +95,11 @@ function shapeRoom(room, participants, viewerUserId) {
       isMe: p.user_id === viewerUserId,
       submitted: !!(p.picks_list && p.picks_list.length),
       comboCount: p.combo_count,
-      // 상대방의 실제 번호조합은 둘 다 제출 완료(active) 또는 종료(completed) 전까지는 숨김 — 눈치싸움 방지
-      picksList: (bothSubmitted || p.user_id === viewerUserId) ? p.picks_list : null,
-      totalPrize: bothSubmitted ? p.total_prize : null,
-      winCount: bothSubmitted ? p.win_count : null,
-      bestGrade: bothSubmitted ? p.best_grade : null,
+      // 상대방의 실제 번호조합은 채점이 끝나기(completed) 전까지는 숨김 — 눈치싸움 방지
+      picksList: (revealed || p.user_id === viewerUserId) ? p.picks_list : null,
+      totalPrize: revealed ? p.total_prize : null,
+      winCount: revealed ? p.win_count : null,
+      bestGrade: revealed ? p.best_grade : null,
       forfeited: p.forfeited,
       submittedAt: p.submitted_at,
     })),
@@ -328,8 +331,11 @@ router.post('/rooms/:id/join', async (req, res) => {
   }
 });
 
-// ─── [인증 필요] 번호조합 제출 (최대 100개, 1회만) ─────────────────────────────
+// ─── [인증 필요] 번호조합 제출 (마감 전까지 여러 번 나눠서 추가 가능, 최대 100개) ───
 // POST /api/battles/rooms/:id/submit   body: { combos:[[6개],...], nickname, email }
+// ⚠️ 2026-07-11: "한 번 제출하면 끝"이던 방식을 "append(추가)" 방식으로 바꿨다 — 실수로
+// 몇 개만 넣고 눌러버려서 더 못 넣는 문제 때문. 이미 제출한 조합은 절대 수정/삭제되지
+// 않고(append-only), 마감(그 회차 추첨) 전까지는 몇 번이든 다시 들어와서 추가할 수 있다.
 router.post('/rooms/:id/submit', async (req, res) => {
   try {
     const user = await resolveUser(req);
@@ -338,7 +344,6 @@ router.post('/rooms/:id/submit', async (req, res) => {
     const { id } = req.params;
     const combos = req.body.combos;
     if (!Array.isArray(combos) || !combos.length) return res.status(400).json({ error: '번호조합을 1개 이상 등록해주세요.' });
-    if (combos.length > 100) return res.status(400).json({ error: '번호조합은 최대 100개까지만 등록할 수 있습니다.' });
     for (const c of combos) {
       if (!Array.isArray(c) || c.length !== 6) return res.status(400).json({ error: '각 조합은 6개의 번호여야 합니다.' });
     }
@@ -346,34 +351,43 @@ router.post('/rooms/:id/submit', async (req, res) => {
     const { data: room } = await supabase.from('battle_rooms').select('*').eq('id', id).maybeSingle();
     if (!room) return res.status(404).json({ error: '방을 찾을 수 없습니다.' });
     const canSubmitNow = room.status === 'pending_numbers' || (room.type === 'ffa' && room.status === 'waiting');
-    if (!canSubmitNow) return res.status(409).json({ error: '지금은 번호를 제출할 수 있는 상태가 아닙니다.' });
+    if (!canSubmitNow) return res.status(409).json({ error: '지금은 번호를 제출할 수 있는 상태가 아닙니다 (이미 마감되었을 수 있어요).' });
+    if (room.type === 'ffa') {
+      const currentSaleRound = await getSaleRound();
+      if (room.round !== currentSaleRound) return res.status(409).json({ error: '이미 마감된 회차입니다.' });
+    }
 
     const { data: participant } = await supabase.from('battle_participants').select('*').eq('room_id', id).eq('user_id', user.id).maybeSingle();
     if (!participant) return res.status(403).json({ error: '이 방의 참가자가 아닙니다.' });
-    if (participant.picks_list && participant.picks_list.length) return res.status(409).json({ error: '이미 번호를 제출했습니다.' });
 
-    const sortedCombos = combos.map(c => c.slice().sort((a, b) => a - b));
+    const existingPicks = participant.picks_list || [];
+    if (existingPicks.length + combos.length > 100) {
+      return res.status(400).json({
+        error: `이미 ${existingPicks.length}개를 제출하셨습니다. 최대 100개까지 가능하니 ${100 - existingPicks.length}개까지만 추가할 수 있어요.`,
+        alreadySubmitted: existingPicks.length,
+        remaining: Math.max(0, 100 - existingPicks.length),
+      });
+    }
+
+    const sortedNewCombos = combos.map(c => c.slice().sort((a, b) => a - b));
+    const mergedPicks = existingPicks.concat(sortedNewCombos);
     const { error: updErr } = await supabase.from('battle_participants').update({
-      picks_list: sortedCombos, combo_count: sortedCombos.length, submitted_at: new Date().toISOString(),
+      picks_list: mergedPicks, combo_count: mergedPicks.length, submitted_at: new Date().toISOString(),
     }).eq('id', participant.id);
     if (updErr) return res.status(500).json({ error: `제출 실패: ${updErr.message}` });
 
-    // 전원 제출 완료됐는지 확인 → 되면 active로 전환
-    // ⚠ FFA(무제한 대결)는 인원제한이 없어 언제든 새 참가자가 들어올 수 있으므로, 지금 이
-    // 순간 참가자 전원이 제출했다고 해서 "마감"으로 볼 수 없다 — 회차 마감(추첨) 시점에
-    // battlesAutoGrade가 한꺼번에 채점하며 그때 결과가 확정된다. 그래서 이 자동전환은
-    // 1:1/팀전에만 적용한다.
-    if (room.type !== 'ffa') {
-      const { data: allParticipants } = await supabase.from('battle_participants').select('picks_list').eq('room_id', id);
-      const allSubmitted = (allParticipants || []).every(p => p.picks_list && p.picks_list.length);
-      if (allSubmitted) {
-        await supabase.from('battle_rooms').update({ status: 'active' }).eq('id', id);
-      }
-    }
+    // ⚠️ 예전엔 1:1/팀전에서 "전원 1개 이상 제출"되는 순간 status를 active로 바꿔서 상대방
+    // 조합을 공개했었는데, 그러면 submit 엔드포인트가 pending_numbers만 받게 되어있어서
+    // 그 이후 추가 제출이 막혀버린다("마감 전까지 계속 추가 가능" 요구와 충돌). 그래서 이
+    // 자동전환을 없앴다 — 방은 회차가 실제로 마감(추첨)될 때까지 pending_numbers를 유지하고,
+    // 상대방 조합 공개도 채점이 끝난 뒤(completed)에만 이뤄지도록 shapeRoom()에서 처리한다.
 
     const { data: updatedRoom } = await supabase.from('battle_rooms').select('*').eq('id', id).single();
     const { data: participants } = await supabase.from('battle_participants').select('*').eq('room_id', id).order('created_at', { ascending: true });
-    return res.json({ success: true, room: shapeRoom(updatedRoom, participants, user.id) });
+    return res.json({
+      success: true, addedCount: sortedNewCombos.length, totalCount: mergedPicks.length,
+      room: shapeRoom(updatedRoom, participants, user.id),
+    });
   } catch (err) {
     console.error('[battles] 제출 오류:', err);
     return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
