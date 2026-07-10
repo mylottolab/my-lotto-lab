@@ -74,6 +74,45 @@ router.put('/point-costs/:actionKey', requireAdmin, async (req, res) => {
   return res.json({ message: '수정되었습니다.', item: data });
 });
 
+// 새 항목 생성 — 예전에는 새 action_key가 필요할 때마다 Supabase에 직접 SQL로 넣어야 했음
+// (2026-07-11). 이 화면(admin_points.html)의 "새 항목 추가" 폼이 이 엔드포인트를 호출한다.
+router.post('/point-costs', requireAdmin, async (req, res) => {
+  const { action_key, label_kr, label_en, unit_type, cost_points, free_quota, free_quota_period, grants_activity_point, notes } = req.body;
+
+  if (!action_key || !action_key.trim()) return res.status(400).json({ error: 'action_key는 필수입니다.' });
+  if (!/^[a-z0-9_]+$/.test(action_key.trim())) {
+    return res.status(400).json({ error: 'action_key는 영문 소문자·숫자·밑줄(_)만 사용할 수 있습니다. (예: battle_ffa_entry)' });
+  }
+  if (!label_kr || !label_kr.trim()) return res.status(400).json({ error: '한글 라벨(label_kr)은 필수입니다.' });
+  if (cost_points === undefined || isNaN(Number(cost_points)) || Number(cost_points) < 0) {
+    return res.status(400).json({ error: 'cost_points 값이 올바르지 않습니다.' });
+  }
+
+  const { data: existing } = await supabase.from('point_costs').select('action_key').eq('action_key', action_key.trim()).maybeSingle();
+  if (existing) return res.status(409).json({ error: `이미 존재하는 action_key입니다: ${action_key}` });
+
+  const insertPayload = {
+    action_key: action_key.trim(),
+    label_kr: label_kr.trim(),
+    label_en: (label_en || '').trim() || label_kr.trim(),
+    unit_type: unit_type || 'fixed',
+    cost_points: Number(cost_points),
+    free_quota: free_quota || null,
+    free_quota_period: free_quota_period || null,
+    grants_activity_point: !!grants_activity_point,
+    notes: notes || null,
+    updated_at: new Date().toISOString(),
+    updated_by: req.headers['x-admin-name'] || 'admin',
+  };
+
+  const { data, error } = await supabase.from('point_costs').insert(insertPayload).select().single();
+  if (error) {
+    console.error('[admin] point_costs 생성 오류:', error);
+    return res.status(500).json({ error: `생성 중 오류가 발생했습니다: ${error.message}` });
+  }
+  return res.status(201).json({ message: '생성되었습니다.', item: data });
+});
+
 // ─── 환율 (USD → 포인트) ──────────────────────────────────────────────────
 
 router.get('/exchange-rate', requireAdmin, async (req, res) => {
