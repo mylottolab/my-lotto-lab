@@ -846,6 +846,11 @@ BUI.detailedStatusLabel = function(r){
   var opponent = r.participants.find(function(p){ return !p.isMe; });
   if (mine.submitted && opponent && !opponent.submitted) return LANG==='en' ? 'Waiting on opponent' : '상대번호대기';
   if (opponent && opponent.submitted && !mine.submitted) return LANG==='en' ? 'Your number needed' : '내번호대기';
+  // ⚠ 2026-07-11: 둘 다 제출을 끝낸 경우가 빠져있어서, 서버의 room.status가 아직
+  // 'active'로 안 바뀐 짧은 틈에는 기본 라벨("번호제출중")로 잘못 표시되던 버그.
+  // 팀전은 43번째 줄에서 세분화 없이 r.status를 그대로 믿는 것과 동일하게,
+  // 여기서도 둘 다 제출했으면 무조건 "추첨대기"로 보여준다.
+  if (mine.submitted && opponent && opponent.submitted) return BUI.statusLabel('active');
   return BUI.statusLabel(r.status);
 };
 
