@@ -2337,7 +2337,12 @@ MLL.chargeDownload = async function(payload){
   var body = Object.assign({}, payload);
   var headers = { 'Content-Type': 'application/json' };
   if (state.type === 'member') {
-    headers['Authorization'] = 'Bearer ' + state.token;
+    var freshToken = await MLL.ensureFreshToken();
+    if (!freshToken || freshToken === 'guest') {
+      alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.');
+      return { ok:false };
+    }
+    headers['Authorization'] = 'Bearer ' + freshToken;
   } else {
     body.nickname = state.nickname;
     body.email = state.email;
