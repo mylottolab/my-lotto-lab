@@ -94,6 +94,7 @@ function shapeRoom(room, participants, viewerUserId) {
       side: (p.side === null || p.side === undefined) ? null : p.side,
       isMe: p.user_id === viewerUserId,
       submitted: !!(p.picks_list && p.picks_list.length),
+      finalized: !!p.finalized,
       comboCount: p.combo_count,
       // 상대방의 실제 번호조합은 채점이 끝나기(completed) 전까지는 숨김 — 눈치싸움 방지
       picksList: (revealed || p.user_id === viewerUserId) ? p.picks_list : null,
@@ -359,6 +360,7 @@ router.post('/rooms/:id/submit', async (req, res) => {
 
     const { data: participant } = await supabase.from('battle_participants').select('*').eq('room_id', id).eq('user_id', user.id).maybeSingle();
     if (!participant) return res.status(403).json({ error: '이 방의 참가자가 아닙니다.' });
+    if (participant.finalized) return res.status(409).json({ error: '이미 "제출완료" 처리하셔서 더 이상 추가할 수 없습니다.' });
 
     const existingPicks = participant.picks_list || [];
     if (existingPicks.length + combos.length > 100) {
@@ -371,9 +373,11 @@ router.post('/rooms/:id/submit', async (req, res) => {
 
     const sortedNewCombos = combos.map(c => c.slice().sort((a, b) => a - b));
     const mergedPicks = existingPicks.concat(sortedNewCombos);
-    const { error: updErr } = await supabase.from('battle_participants').update({
-      picks_list: mergedPicks, combo_count: mergedPicks.length, submitted_at: new Date().toISOString(),
-    }).eq('id', participant.id);
+    // final=true로 오면(사용자가 "이대로 제출완료"를 누른 경우) 그 즉시 잠가서 이후 추가 제출을 막는다.
+    // false(=나중에 추가)면 계속 열어둬서 마감 전까지 다시 들어와 추가할 수 있다.
+    const updatePayload = { picks_list: mergedPicks, combo_count: mergedPicks.length, submitted_at: new Date().toISOString() };
+    if (req.body.final) updatePayload.finalized = true;
+    const { error: updErr } = await supabase.from('battle_participants').update(updatePayload).eq('id', participant.id);
     if (updErr) return res.status(500).json({ error: `제출 실패: ${updErr.message}` });
 
     // ⚠️ 예전엔 1:1/팀전에서 "전원 1개 이상 제출"되는 순간 status를 active로 바꿔서 상대방
