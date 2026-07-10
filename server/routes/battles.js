@@ -55,6 +55,7 @@ async function getSaleRound() {
 const PRICE_ACTION_KEYS = {
   '1v1':  { entry: 'battle_1v1_entry',  reward: 'battle_1v1_reward' },
   'team': { entry: 'battle_team_entry', reward: 'battle_team_reward' },
+  'ffa':  { entry: 'battle_ffa_entry',  reward: 'battle_ffa_reward' },
 };
 async function getPriceReward(type) {
   const keys = PRICE_ACTION_KEYS[type];
@@ -182,19 +183,22 @@ router.get('/rooms/:id', async (req, res) => {
 
 // ─── [인증 필요] 방 생성 (개설자가 참가비를 내고 자동으로 첫 참가자가 됨) ───
 // POST /api/battles/rooms   body: { type, name, teamSize, side, nickname, email }
-// type: '1v1'(기본) | 'team'.  team이면 teamSize(2~10)와 side(0 또는 1, 개설자가 들어갈 팀)가 필요.
+// type: '1v1'(기본) | 'team' | 'ffa'.  team이면 teamSize(2~10)와 side(0 또는 1, 개설자가 들어갈 팀)가 필요.
+// ffa(무제한 대결)는 인원제한이 없고, 참가와 동시에 /submit으로 바로 번호조합을 등록할 수 있다.
 router.post('/rooms', async (req, res) => {
   try {
     const user = await resolveUser(req);
     if (!user) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
 
-    const type = req.body.type === 'team' ? 'team' : '1v1';
+    const type = ['team', 'ffa'].includes(req.body.type) ? req.body.type : '1v1';
     let teamSize = null, side = null, maxParticipants = 2;
 
     if (type === 'team') {
       teamSize = Math.max(2, Math.min(10, parseInt(req.body.teamSize) || 2));
       side = req.body.side === 1 ? 1 : 0;
       maxParticipants = teamSize * 2;
+    } else if (type === 'ffa') {
+      maxParticipants = null; // 인원제한 없음
     }
 
     // 참가비 확인 및 차감 (개설과 동시에 개설자 본인 참가로 처리)
@@ -212,7 +216,7 @@ router.post('/rooms', async (req, res) => {
     }
 
     const round = await getSaleRound();
-    const typeName = type === 'team' ? '팀전' : '1:1 대결';
+    const typeName = type === 'team' ? '팀전' : (type === 'ffa' ? '무제한 대결' : '1:1 대결');
     const name = (req.body.name || '').trim() || `${user.nickname}님의 ${typeName}`;
 
     const insertRow = {
@@ -262,7 +266,7 @@ router.post('/rooms/:id/join', async (req, res) => {
 
     const { data: currentParticipants } = await supabase.from('battle_participants').select('side').eq('room_id', id);
     const count = (currentParticipants || []).length;
-    if (count >= room.max_participants) return res.status(409).json({ error: '정원이 가득 찼습니다.' });
+    if (room.type !== 'ffa' && count >= room.max_participants) return res.status(409).json({ error: '정원이 가득 찼습니다.' });
 
     let side = null;
     if (room.type === 'team') {
@@ -339,7 +343,8 @@ router.post('/rooms/:id/submit', async (req, res) => {
 
     const { data: room } = await supabase.from('battle_rooms').select('*').eq('id', id).maybeSingle();
     if (!room) return res.status(404).json({ error: '방을 찾을 수 없습니다.' });
-    if (room.status !== 'pending_numbers') return res.status(409).json({ error: '지금은 번호를 제출할 수 있는 상태가 아닙니다.' });
+    const canSubmitNow = room.status === 'pending_numbers' || (room.type === 'ffa' && room.status === 'waiting');
+    if (!canSubmitNow) return res.status(409).json({ error: '지금은 번호를 제출할 수 있는 상태가 아닙니다.' });
 
     const { data: participant } = await supabase.from('battle_participants').select('*').eq('room_id', id).eq('user_id', user.id).maybeSingle();
     if (!participant) return res.status(403).json({ error: '이 방의 참가자가 아닙니다.' });
@@ -352,10 +357,16 @@ router.post('/rooms/:id/submit', async (req, res) => {
     if (updErr) return res.status(500).json({ error: `제출 실패: ${updErr.message}` });
 
     // 전원 제출 완료됐는지 확인 → 되면 active로 전환
-    const { data: allParticipants } = await supabase.from('battle_participants').select('picks_list').eq('room_id', id);
-    const allSubmitted = (allParticipants || []).every(p => p.picks_list && p.picks_list.length);
-    if (allSubmitted) {
-      await supabase.from('battle_rooms').update({ status: 'active' }).eq('id', id);
+    // ⚠ FFA(무제한 대결)는 인원제한이 없어 언제든 새 참가자가 들어올 수 있으므로, 지금 이
+    // 순간 참가자 전원이 제출했다고 해서 "마감"으로 볼 수 없다 — 회차 마감(추첨) 시점에
+    // battlesAutoGrade가 한꺼번에 채점하며 그때 결과가 확정된다. 그래서 이 자동전환은
+    // 1:1/팀전에만 적용한다.
+    if (room.type !== 'ffa') {
+      const { data: allParticipants } = await supabase.from('battle_participants').select('picks_list').eq('room_id', id);
+      const allSubmitted = (allParticipants || []).every(p => p.picks_list && p.picks_list.length);
+      if (allSubmitted) {
+        await supabase.from('battle_rooms').update({ status: 'active' }).eq('id', id);
+      }
     }
 
     const { data: updatedRoom } = await supabase.from('battle_rooms').select('*').eq('id', id).single();
