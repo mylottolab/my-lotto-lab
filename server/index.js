@@ -112,6 +112,32 @@ app.post('/api/auth/login', async (req, res) => {
   });
 });
 
+// ─── 토큰 재발급 (accessToken 만료 시 재로그인 없이 갱신) ───────────────────────
+// ⚠ 2026-07-10 신규: login.html이 로그인 응답의 refreshToken을 저장은 하되 쓸 곳이
+// 없어서 그냥 버려지고 있었음 — 그래서 토큰이 만료되면(보통 1시간) 재로그인 전까지
+// 계속 죽어있는 상태로 남는 문제가 있었습니다. auth_gate.js가 이 엔드포인트를 호출해
+// 조용히 새 토큰을 받아옵니다.
+app.post('/api/auth/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.status(400).json({ error: 'refreshToken이 필요합니다.' });
+
+  const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+  if (error || !data.session) {
+    return res.status(401).json({ error: '세션을 갱신할 수 없습니다. 다시 로그인해주세요.' });
+  }
+  return res.json({
+    accessToken: data.session.access_token,
+    refreshToken: data.session.refresh_token,
+    user: {
+      id: data.user.id,
+      email: data.user.email,
+      nickname: data.user.user_metadata?.nickname || '',
+      country: data.user.user_metadata?.country || 'KR',
+      emailConfirmed: data.user.email_confirmed_at ? true : false
+    }
+  });
+});
+
 // ─── 내 정보 조회 ──────────────────────────────────────────────────────────────
 app.get('/api/auth/me', async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
