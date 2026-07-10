@@ -25,10 +25,26 @@
   var SIGNUP_URL = 'https://mylottolab.github.io/my-lotto-lab/signup.html';
   var GUEST_URL = API + '/pay/guest_test.html';
 
+  // ⚠ 2026-07-10: window.MLL 초기화를 파일 맨 앞으로 옮겼습니다.
+  // (이 파일 안에서 window.MLL.ensureFreshToken 등을 곧바로 등록하는데, 이 파일을
+  //  common.js 없이 단독으로 쓰는 페이지에서는 window.MLL이 아직 없을 수 있어서
+  //  파일 맨 아래에서야 초기화하면 그 사이에 에러가 날 위험이 있었습니다.)
+  window.MLL = window.MLL || {};
+
   // ── 인증 상태 확인 ──────────────────────────────────────────
   function getAuthState() {
     var token = localStorage.getItem('mll_token') || sessionStorage.getItem('mll_token');
-    if (token) return { type: 'member', token: token };
+    if (token) {
+      // ⚠ 2026-07-10: login.html이 mll_user(닉네임 포함)와 mll_refresh_token을 저장은 하고 있었는데,
+      // 여기서 그 값들을 안 읽어서 회원 로그인 상태에서 닉네임이 항상 "undefined"로 보이던 문제가 있었음.
+      var nickname = null;
+      var refreshToken = localStorage.getItem('mll_refresh_token') || sessionStorage.getItem('mll_refresh_token');
+      try {
+        var userStr = localStorage.getItem('mll_user') || sessionStorage.getItem('mll_user');
+        if (userStr) nickname = JSON.parse(userStr).nickname || null;
+      } catch (e) {}
+      return { type: 'member', token: token, nickname: nickname, refreshToken: refreshToken };
+    }
 
     var gNick = localStorage.getItem('mll_guest_nickname');
     var gEmail = localStorage.getItem('mll_guest_email');
@@ -36,6 +52,52 @@
 
     return { type: null };
   }
+
+  // JWT의 exp(만료시각) 클레임만 가볍게 읽는다 (서명 검증은 서버가 하므로 여기선 그냥 디코딩만)
+  function decodeJwtExp(token) {
+    try {
+      var payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload.exp ? payload.exp * 1000 : null; // ms 단위로 변환
+    } catch (e) { return null; }
+  }
+
+  // ── 토큰 자동 갱신 ───────────────────────────────────────────
+  // accessToken이 만료됐거나 곧 만료될 예정이면(60초 이내), refreshToken으로 조용히 새로 받아온다.
+  // 로그인해두고 한참 방치했다가 다시 써도 "undefined"나 401로 죽어있지 않도록 하기 위함.
+  // 반환값: 사용 가능한 accessToken 문자열, 또는 재발급도 실패하면 null(→ 호출부에서 재로그인 유도).
+  window.MLL.ensureFreshToken = async function () {
+    var state = getAuthState();
+    if (state.type !== 'member') return state.type === 'guest' ? 'guest' : null;
+
+    var expMs = decodeJwtExp(state.token);
+    var stillValid = expMs && (expMs - Date.now() > 60000); // 60초 이상 여유 있으면 그대로 사용
+    if (stillValid) return state.token;
+
+    if (!state.refreshToken) {
+      // refresh token 자체가 없음(예전에 로그인한 세션 등) — 갱신 불가, 재로그인 필요
+      return null;
+    }
+
+    try {
+      var res = await fetch(API + '/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: state.refreshToken })
+      });
+      if (!res.ok) return null;
+      var data = await res.json();
+
+      // 기존과 같은 저장소(localStorage vs sessionStorage)에 그대로 갱신
+      var store = localStorage.getItem('mll_token') ? localStorage : sessionStorage;
+      store.setItem('mll_token', data.accessToken);
+      store.setItem('mll_refresh_token', data.refreshToken);
+      store.setItem('mll_user', JSON.stringify(data.user));
+      return data.accessToken;
+    } catch (e) {
+      console.error('[MLL] 토큰 갱신 오류:', e);
+      return null;
+    }
+  };
 
   // ── 도메인 간(GitHub Pages ↔ Render) 인증정보 전달 ──────────────
   // localStorage는 origin마다 분리되므로, MLL.crossOriginUrl()로 만든 링크를 타고
@@ -51,6 +113,10 @@
       if (params.get('mll_logout') === '1') {
         localStorage.removeItem('mll_token');
         sessionStorage.removeItem('mll_token');
+        localStorage.removeItem('mll_refresh_token');
+        sessionStorage.removeItem('mll_refresh_token');
+        localStorage.removeItem('mll_user');
+        sessionStorage.removeItem('mll_user');
         localStorage.removeItem('mll_guest_nickname');
         localStorage.removeItem('mll_guest_email');
         params.delete('mll_logout');
@@ -64,6 +130,8 @@
       var changed = false;
       if (authType === 'member' && params.get('mll_tok')) {
         localStorage.setItem('mll_token', params.get('mll_tok'));
+        if (params.get('mll_rt')) localStorage.setItem('mll_refresh_token', params.get('mll_rt'));
+        if (params.get('mll_usr')) localStorage.setItem('mll_user', params.get('mll_usr'));
         changed = true;
       } else if (authType === 'guest' && params.get('mll_nick') && params.get('mll_em')) {
         localStorage.setItem('mll_guest_nickname', params.get('mll_nick'));
@@ -71,7 +139,7 @@
         changed = true;
       }
       if (changed) {
-        params.delete('mll_auth'); params.delete('mll_tok');
+        params.delete('mll_auth'); params.delete('mll_tok'); params.delete('mll_rt'); params.delete('mll_usr');
         params.delete('mll_nick'); params.delete('mll_em');
         var qs = params.toString();
         var newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
@@ -86,7 +154,11 @@
     if (!state.type) return url;
     var sep = url.indexOf('?') >= 0 ? '&' : '?';
     if (state.type === 'member') {
-      return url + sep + 'mll_auth=member&mll_tok=' + encodeURIComponent(state.token);
+      var extra = url + sep + 'mll_auth=member&mll_tok=' + encodeURIComponent(state.token);
+      if (state.refreshToken) extra += '&mll_rt=' + encodeURIComponent(state.refreshToken);
+      var userStr = localStorage.getItem('mll_user') || sessionStorage.getItem('mll_user');
+      if (userStr) extra += '&mll_usr=' + encodeURIComponent(userStr);
+      return extra;
     }
     return url + sep + 'mll_auth=guest&mll_nick=' + encodeURIComponent(state.nickname) +
       '&mll_em=' + encodeURIComponent(state.email);
@@ -100,6 +172,10 @@
   function logout(afterUrl) {
     localStorage.removeItem('mll_token');
     sessionStorage.removeItem('mll_token');
+    localStorage.removeItem('mll_refresh_token');
+    sessionStorage.removeItem('mll_refresh_token');
+    localStorage.removeItem('mll_user');
+    sessionStorage.removeItem('mll_user');
     localStorage.removeItem('mll_guest_nickname');
     localStorage.removeItem('mll_guest_email');
 
@@ -226,6 +302,30 @@
   };
 
   /**
+   * 인증 요청용 헤더/바디를 자동으로 만들어준다 (회원=토큰 자동갱신 후 Authorization 헤더,
+   * 비회원=바디에 닉네임+이메일). 각 페이지에서 fetch 호출 직전에 이것만 부르면 됨.
+   * 사용법: var req = await MLL.getAuthRequest({ someField: 1 });
+   *         fetch(url, { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
+   * 로그인/비회원등록이 안 되어 있으면 null을 반환하고 등록 유도 모달을 띄운다.
+   */
+  window.MLL.getAuthRequest = async function (body) {
+    body = body || {};
+    var state = getAuthState();
+    if (!state.type) { showAuthModal(); return null; }
+
+    var headers = { 'Content-Type': 'application/json' };
+    if (state.type === 'member') {
+      var freshToken = await window.MLL.ensureFreshToken();
+      if (!freshToken || freshToken === 'guest') { showAuthModal(); return null; }
+      headers['Authorization'] = 'Bearer ' + freshToken;
+    } else {
+      body.nickname = state.nickname;
+      body.email = state.email;
+    }
+    return { headers: headers, body: body };
+  };
+
+  /**
    * 포인트 차감 실행 (모든 페이지 공통 진입점)
    * 사용법(고정단가): await MLL.spendPoints('global_lotto_game', 1);
    * 사용법(변동금액 - 토토/프로토처럼 사용자가 금액을 고르는 경우):
@@ -244,7 +344,12 @@
     if (options.amount !== undefined) body.amount = options.amount;
     if (options.refId !== undefined) body.refId = options.refId;
     if (state.type === 'member') {
-      headers['Authorization'] = 'Bearer ' + state.token;
+      var freshToken = await window.MLL.ensureFreshToken();
+      if (!freshToken || freshToken === 'guest') {
+        showAuthModal();
+        return { success: false, needAuth: true };
+      }
+      headers['Authorization'] = 'Bearer ' + freshToken;
     } else {
       body.nickname = state.nickname;
       body.email = state.email;
