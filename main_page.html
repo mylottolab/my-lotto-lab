@@ -546,39 +546,47 @@ function refreshMockStat(){
       if (window._mockAuthInvalid) return;
       var authState = MLL.getAuthState ? MLL.getAuthState() : null;
       if (!authState || !authState.type) return;
-      var headers = {}, qs = '';
-      if (authState.type === 'member') headers['Authorization'] = 'Bearer ' + authState.token;
-      else qs = '?nickname='+encodeURIComponent(authState.nickname)+'&email='+encodeURIComponent(authState.email);
 
-      fetch(MLL.API_BASE + '/api/mock/entries' + qs, { headers: headers })
-        .then(function(r){
-          if (r.status === 401) { window._mockAuthInvalid = true; return { items: [] }; }
-          return r.ok ? r.json() : { items: [] };
-        })
-        .then(function(d){
-          window._mockMyCount = (d.items || []).filter(function(e){ return Number(e.round) === Number(saleRound); }).length;
+      (async function(){
+        var headers = {}, qs = '';
+        if (authState.type === 'member') {
+          var freshToken = await (MLL.ensureFreshToken ? MLL.ensureFreshToken() : Promise.resolve(authState.token));
+          if (!freshToken || freshToken === 'guest') { window._mockAuthInvalid = true; return; }
+          headers['Authorization'] = 'Bearer ' + freshToken;
+        } else {
+          qs = '?nickname='+encodeURIComponent(authState.nickname)+'&email='+encodeURIComponent(authState.email);
+        }
 
-          if (!window._mockFlipStarted) {
-            window._mockFlipStarted = true;
-            var showingTotal = true;
-            setInterval(function(){
-              var le = document.getElementById('statMockCountLabel');
-              var ne = document.getElementById('statMockCountNum');
-              if (!le || !ne) return;
-              le.style.opacity = '0';
-              ne.style.opacity = '0';
-              setTimeout(function(){
-                showingTotal = !showingTotal;
-                window._mockShowingTotal = showingTotal;
-                le.textContent = showingTotal ? T('mock_total_label') : T('mock_my_label');
-                ne.textContent = (showingTotal ? window._mockTotalCount : (window._mockMyCount||0)).toLocaleString();
-                le.style.opacity = '1';
-                ne.style.opacity = '1';
-              }, 300);
-            }, 2600);
-          }
-        })
-        .catch(function(){ /* 내 등록수 조회 실패는 조용히 무시 (전체수는 이미 표시됨) */ });
+        fetch(MLL.API_BASE + '/api/mock/entries' + qs, { headers: headers })
+          .then(function(r){
+            if (r.status === 401) { window._mockAuthInvalid = true; return { items: [] }; }
+            return r.ok ? r.json() : { items: [] };
+          })
+          .then(function(d){
+            window._mockMyCount = (d.items || []).filter(function(e){ return Number(e.round) === Number(saleRound); }).length;
+
+            if (!window._mockFlipStarted) {
+              window._mockFlipStarted = true;
+              var showingTotal = true;
+              setInterval(function(){
+                var le = document.getElementById('statMockCountLabel');
+                var ne = document.getElementById('statMockCountNum');
+                if (!le || !ne) return;
+                le.style.opacity = '0';
+                ne.style.opacity = '0';
+                setTimeout(function(){
+                  showingTotal = !showingTotal;
+                  window._mockShowingTotal = showingTotal;
+                  le.textContent = showingTotal ? T('mock_total_label') : T('mock_my_label');
+                  ne.textContent = (showingTotal ? window._mockTotalCount : (window._mockMyCount||0)).toLocaleString();
+                  le.style.opacity = '1';
+                  ne.style.opacity = '1';
+                }, 300);
+              }, 2600);
+            }
+          })
+          .catch(function(){ /* 내 등록수 조회 실패는 조용히 무시 (전체수는 이미 표시됨) */ });
+      })();
     })
     .catch(function(e){ console.error('[main_page] mock count 조회 오류:', e); });
 }
