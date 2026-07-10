@@ -29,20 +29,28 @@ BATTLE.TYPES = {
 };
 
 // ── 참가비/우승보상 — 서버 point_costs에서 조회 (admin_points.html에서 관리) ──
-BATTLE._priceListCache = null;
-BATTLE.getPricing = async function(){
-  if (BATTLE._priceListCache) return BATTLE._priceListCache;
-  try {
-    var resp = await fetch(MLL.API_BASE + '/api/points/price-list');
-    var data = await resp.json();
-    var map = {};
-    (data.items || []).forEach(function(it){ map[it.action_key] = Number(it.cost_points); });
-    BATTLE._priceListCache = { entry: map['battle_1v1_entry'] || 0, reward: map['battle_1v1_reward'] || 0 };
-  } catch(e) {
-    console.error('[BATTLE] 가격 조회 오류:', e);
-    BATTLE._priceListCache = { entry: 0, reward: 0 };
+// (가격 캐시는 BATTLE._priceListFullCache로 아래에서 관리)
+BATTLE.PRICE_ACTION_KEYS = {
+  '1v1':  { entry: 'battle_1v1_entry',  reward: 'battle_1v1_reward' },
+  'team': { entry: 'battle_team_entry', reward: 'battle_team_reward' },
+};
+BATTLE._priceListFullCache = null;
+BATTLE.getPricing = async function(type){
+  type = type || '1v1';
+  if (!BATTLE._priceListFullCache) {
+    try {
+      var resp = await fetch(MLL.API_BASE + '/api/points/price-list');
+      var data = await resp.json();
+      var map = {};
+      (data.items || []).forEach(function(it){ map[it.action_key] = Number(it.cost_points); });
+      BATTLE._priceListFullCache = map;
+    } catch(e) {
+      console.error('[BATTLE] 가격 조회 오류:', e);
+      BATTLE._priceListFullCache = {};
+    }
   }
-  return BATTLE._priceListCache;
+  var keys = BATTLE.PRICE_ACTION_KEYS[type] || BATTLE.PRICE_ACTION_KEYS['1v1'];
+  return { entry: BATTLE._priceListFullCache[keys.entry] || 0, reward: BATTLE._priceListFullCache[keys.reward] || 0 };
 };
 
 // ── 사용자 인증 (실제 로그인/비회원등록 계정 — common.js의 MLL.getAuthState 그대로 사용) ──
@@ -94,9 +102,10 @@ BATTLE._viewerFetch = function(url){
   return fetch(finalUrl, { headers: headers });
 };
 
-BATTLE.listAvailableRooms = async function(){
+BATTLE.listAvailableRooms = async function(type){
+  type = type || '1v1';
   try {
-    var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/battles/rooms?status=waiting');
+    var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/battles/rooms?status=waiting&type=' + type);
     var data = await resp.json();
     return data.items || [];
   } catch(e) { console.error('[BATTLE] 방목록 조회 오류:', e); return []; }
@@ -112,10 +121,13 @@ BATTLE.getRoom = async function(roomId){
 };
 
 // ── 방 생성 (개설자가 참가비를 내고 바로 첫 참가자가 됨) ──
+// opts: { type:'1v1'|'team', name, teamSize, side }
 BATTLE.createRoom = async function(opts){
   var state = BATTLE.requireAuth();
   if (!state) return { ok:false, cancelled:true };
-  var req = BATTLE._authRequest(state, { name: opts.name });
+  var body = { name: opts.name, type: opts.type || '1v1' };
+  if (opts.type === 'team') { body.teamSize = opts.teamSize; body.side = opts.side; }
+  var req = BATTLE._authRequest(state, body);
   try {
     var resp = await fetch(MLL.API_BASE + '/api/battles/rooms', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
     if (!resp.ok) { await BATTLE._handleFail(resp); return { ok:false }; }
@@ -127,11 +139,13 @@ BATTLE.createRoom = async function(opts){
   }
 };
 
-// ── 방 참가 (참가비 실제 차감) ──
-BATTLE.joinRoom = async function(roomId){
+// ── 방 참가 (참가비 실제 차감) — side는 팀전일 때만 필요(0 또는 1) ──
+BATTLE.joinRoom = async function(roomId, side){
   var state = BATTLE.requireAuth();
   if (!state) return { ok:false, cancelled:true };
-  var req = BATTLE._authRequest(state, {});
+  var body = {};
+  if (side === 0 || side === 1) body.side = side;
+  var req = BATTLE._authRequest(state, body);
   try {
     var resp = await fetch(MLL.API_BASE + '/api/battles/rooms/' + roomId + '/join', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
     if (!resp.ok) { await BATTLE._handleFail(resp); return { ok:false }; }
@@ -360,7 +374,7 @@ button{font-family:inherit;cursor:pointer;}
     </div>
 
     <div class="my-progress-section">
-      <div class="hub-col-title">📊 전체 배틀참여현황 (1:1 대결) <span class="cnt" id="allRoomCount">0개</span></div>
+      <div class="hub-col-title"><span id="allRoomsTitle">📊 전체 배틀참여현황 (1:1 대결)</span> <span class="cnt" id="allRoomCount">0개</span></div>
       <div id="allRoomsTableBody"></div>
     </div>
   </div>
@@ -454,10 +468,10 @@ BUI.openAdminView = function(){
   }
 };
 
-// ── 새 방 만들기: 오늘은 1:1만 활성화, 나머지는 "준비중" ──
+// ── 새 방 만들기: 1:1 + 팀전 활성화, 나머지는 "준비중" ──
 BUI.CREATE_CARDS = [
   { key:'1v1', icon:'⚔️', label:'1:1 대결', desc:'1:1 정면대결 — 둘 중 결과가 좋은 쪽이 승리', enabled:true },
-  { key:'team', icon:'🛡️', label:'팀전', desc:'준비중입니다.', enabled:false },
+  { key:'team', icon:'🛡️', label:'팀전', desc:'여러 명씩 두 팀으로 나뉘어 팀 합계로 승부', enabled:true },
   { key:'ffa', icon:'🌀', label:'무제한 대결', desc:'준비중입니다.', enabled:false },
   { key:'tournament', icon:'🏆', label:'토너먼트', desc:'준비중입니다.', enabled:false },
 ];
@@ -477,6 +491,8 @@ BUI.selectCreateType = function(cardKey){
   BUI.state.createType = cardKey;
   BUI.renderCreateTypeGrid();
   BUI.renderCreateForm();
+  BUI.renderAvailableRooms();
+  BUI.renderAllRoomsTable();
 };
 
 BUI.renderCreateForm = async function(){
@@ -485,24 +501,37 @@ BUI.renderCreateForm = async function(){
     document.getElementById('createFormBody').innerHTML = '<div class="card"><div class="empty-state" style="padding:18px;">위에서 대결 종류를 선택해주세요.</div></div>';
     return;
   }
+  var isTeam = createType === 'team';
   var info = MLL.getLottoInfo();
-  var pricing = await BATTLE.getPricing();
+  var pricing = await BATTLE.getPricing(createType);
   var pending = info.status === 'closing';
 
   var priceRewardHtml = '<div class="form-row"><label style="color:var(--text-faint);">참가비/보상</label>' +
     '<span style="font-size:12px;color:var(--gold);font-weight:700;">참가비 ' + pricing.entry.toLocaleString() + 'P (참가 1인당)</span>' +
-    '<span style="font-size:12px;color:var(--green);font-weight:700;margin-left:8px;">우승 보상 ' + pricing.reward.toLocaleString() + 'P</span></div>';
+    '<span style="font-size:12px;color:var(--green);font-weight:700;margin-left:8px;">우승 보상 ' + pricing.reward.toLocaleString() + 'P (팀원 각자)</span></div>';
 
   var roundFieldHtml = pending
     ? ('<div class="form-row" style="background:rgba(224,179,65,.08);border-radius:8px;padding:8px 10px;"><label>대상 회차</label><span style="font-size:12.5px;color:var(--gold);font-weight:700;">⏳ 추첨대기 및 결과작업중</span><span style="font-size:11px;color:var(--text-faint);">제' + info.thisRound + '회 결과 집계 중 — 결과 반영 즉시 제' + info.nextRound + '회로 방을 만들 수 있어요.</span></div>')
     : ('<div class="form-row"><label>대상 회차</label><span style="font-size:13px;font-weight:700;color:var(--accent);">제' + info.saleRound + '회</span> <span style="font-size:11px;color:var(--text-faint);">(현재 판매중인 회차로 자동 설정됩니다)</span></div>');
 
-  var submitLabel = pending ? '결과 집계 완료 후 이용 가능' : '⚔️ 배틀방 만들기';
+  var teamFieldsHtml = '';
+  if (isTeam) {
+    teamFieldsHtml =
+      '<div class="form-row"><label>팀당 인원수</label><select class="inp" id="cfTeamSize">' +
+        [2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="'+n+'"'+(n===2?' selected':'')+'>'+n+'명씩 (총 '+(n*2)+'명)</option>'; }).join('') +
+      '</select></div>' +
+      '<div class="form-row"><label>내가 참가할 팀</label>' +
+        '<label style="font-weight:400;display:flex;align-items:center;gap:4px;"><input type="radio" name="cfSide" value="0" checked> 우리팀(A)</label>' +
+        '<label style="font-weight:400;display:flex;align-items:center;gap:4px;"><input type="radio" name="cfSide" value="1"> 상대팀(B)</label>' +
+      '</div>';
+  }
+
+  var submitLabel = pending ? '결과 집계 완료 후 이용 가능' : ('⚔️ ' + (isTeam ? '팀전' : '1:1') + '방 만들기');
 
   document.getElementById('createFormBody').innerHTML =
     '<div class="card">' +
-    '<div class="form-row"><label>방 이름</label><input type="text" class="inp" id="cfName" placeholder="1:1 대결 방" autocomplete="off" style="flex:1;"' + (pending?' disabled':'') + '></div>' +
-    roundFieldHtml + priceRewardHtml +
+    '<div class="form-row"><label>방 이름</label><input type="text" class="inp" id="cfName" placeholder="' + (isTeam?'팀전 방':'1:1 대결 방') + '" autocomplete="off" style="flex:1;"' + (pending?' disabled':'') + '></div>' +
+    roundFieldHtml + teamFieldsHtml + priceRewardHtml +
     '<button class="btn btn-gold" style="width:100%;margin-top:10px;" onclick="BUI.submitCreate()"' + (pending?' disabled':'') + '>' + submitLabel + '</button>' +
     '</div>';
 };
@@ -510,8 +539,15 @@ BUI.renderCreateForm = async function(){
 BUI.submitCreate = async function(){
   var info = MLL.getLottoInfo();
   if (info.status === 'closing') { alert('⏳ 추첨대기 및 결과작업중입니다. 결과가 반영된 뒤 다시 시도해주세요.'); return; }
+  var createType = BUI.state.createType;
   var name = document.getElementById('cfName').value.trim();
-  var result = await BATTLE.createRoom({ name: name });
+  var opts = { type: createType, name: name };
+  if (createType === 'team') {
+    opts.teamSize = parseInt(document.getElementById('cfTeamSize').value) || 2;
+    var sideEl = document.querySelector('input[name="cfSide"]:checked');
+    opts.side = sideEl ? parseInt(sideEl.value) : 0;
+  }
+  var result = await BATTLE.createRoom(opts);
   if (!result.ok) return;
   BUI.state.createType = null;
   await BUI.showTypeSelectView();
@@ -543,7 +579,7 @@ BUI.renderRoomModal = async function(){
   var header =
     '<button class="modal-close-x" onclick="BUI.closeRoom()" title="닫기">✕</button>' +
     '<div style="margin-bottom:6px;padding-right:36px;"><h3 style="margin-bottom:0;">' + room.name + '</h3></div>' +
-    '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:16px;">1:1 대결 · 제' + room.round + '회 · <span class="status-tag status-' + room.status + '">' + BUI.statusLabel(room.status) + '</span></div>';
+    '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:16px;">' + (room.type==='team'?'팀전 ('+room.teamSize+'명씩)':'1:1 대결') + ' · 제' + room.round + '회 · <span class="status-tag status-' + room.status + '">' + BUI.statusLabel(room.status) + '</span></div>';
 
   var bodyHtml = '';
   if (room.status === 'waiting') bodyHtml = BUI.roomWaitingHtml(room, myParticipant);
@@ -558,14 +594,38 @@ BUI.renderRoomModal = async function(){
   }
 };
 
+BUI.sideLabel = function(side){ return side === 1 ? '상대팀(B)' : '우리팀(A)'; };
+
 BUI.roomWaitingHtml = function(room, myParticipant){
-  var participantsHtml = room.participants.map(function(p){
-    return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + '</span><span style="color:var(--text-faint);">참가완료</span></div>';
-  }).join('') || '<div class="empty-state">아직 참가자가 없습니다.</div>';
+  var isTeam = room.type === 'team';
+  var participantsHtml;
+
+  if (isTeam) {
+    var blocks = [0, 1].map(function(side){
+      var members = room.participants.filter(function(p){ return p.side === side; });
+      var rows = members.map(function(p){
+        return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + '</span><span style="color:var(--text-faint);">참가완료</span></div>';
+      }).join('') || '<div style="font-size:11px;color:var(--text-faint);padding:6px 0;">아직 없음</div>';
+      return '<div style="margin-bottom:10px;"><div style="font-size:11.5px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">' + BUI.sideLabel(side) + ' (' + members.length + '/' + room.teamSize + ')</div>' + rows + '</div>';
+    }).join('');
+    participantsHtml = blocks;
+  } else {
+    participantsHtml = room.participants.map(function(p){
+      return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + '</span><span style="color:var(--text-faint);">참가완료</span></div>';
+    }).join('') || '<div class="empty-state">아직 참가자가 없습니다.</div>';
+  }
 
   var joinFormHtml = '';
   if (!myParticipant && room.participants.length < room.maxParticipants) {
-    joinFormHtml = '<button class="btn btn-gold" style="width:100%;" onclick="BUI.doJoin()">참가하기</button>';
+    if (isTeam) {
+      var sideCounts = [0, 1].map(function(side){ return room.participants.filter(function(p){ return p.side === side; }).length; });
+      var options = [0, 1].filter(function(side){ return sideCounts[side] < room.teamSize; }).map(function(side){
+        return '<label style="font-weight:400;display:flex;align-items:center;gap:4px;"><input type="radio" name="joinSide" value="' + side + '"' + (side===0?' checked':'') + '> ' + BUI.sideLabel(side) + ' (' + sideCounts[side] + '/' + room.teamSize + ')</label>';
+      }).join('');
+      joinFormHtml = '<div class="form-row">' + options + '</div><button class="btn btn-gold" style="width:100%;" onclick="BUI.doJoin()">참가하기</button>';
+    } else {
+      joinFormHtml = '<button class="btn btn-gold" style="width:100%;" onclick="BUI.doJoin()">참가하기</button>';
+    }
   } else if (myParticipant) {
     joinFormHtml = '<div style="font-size:12px;color:var(--green);text-align:center;padding:10px;">✅ ' + (LANG==='en' ? 'Room created! Waiting for a challenger.' : '방이 개설되었습니다. 도전자를 기다립시다.') + '</div>';
   }
@@ -575,16 +635,20 @@ BUI.roomWaitingHtml = function(room, myParticipant){
 };
 
 BUI.doJoin = async function(){
-  var result = await BATTLE.joinRoom(BUI.state.currentRoomId);
+  var sideEl = document.querySelector('input[name="joinSide"]:checked');
+  var side = sideEl ? parseInt(sideEl.value) : undefined;
+  var result = await BATTLE.joinRoom(BUI.state.currentRoomId, side);
   if (!result.ok) return;
   BUI.renderRoomModal();
 };
 
 BUI.roomPendingHtml = function(room, myParticipant){
+  var isTeam = room.type === 'team';
   var deadlineNotice = '<div class="card" style="background:rgba(224,179,65,.06);border-color:var(--gold-dim);font-size:11px;color:var(--text-dim);">⏰ 번호조합 등록 마감: 추첨일(토요일) 밤 20시까지. 그때까지 1개도 등록하지 않으면 자동 몰수패 처리됩니다.</div>';
   var participantsHtml = room.participants.map(function(p){
     var comboLabel = p.submitted ? (' · ' + p.comboCount + '개 조합') : '';
-    return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + comboLabel + '</span><span style="color:' + (p.submitted?'var(--green)':'var(--text-faint)') + ';">' + (p.submitted?'제출완료':'대기중') + '</span></div>';
+    var sideTag = isTeam ? (' <span style="color:var(--text-faint);">['+BUI.sideLabel(p.side)+']</span>') : '';
+    return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + sideTag + comboLabel + '</span><span style="color:' + (p.submitted?'var(--green)':'var(--text-faint)') + ';">' + (p.submitted?'제출완료':'대기중') + '</span></div>';
   }).join('');
 
   var submitHtml = '';
@@ -671,13 +735,16 @@ BUI.doSubmitMultiPicks = async function(){
 };
 
 BUI.roomActiveHtml = function(room){
+  var isTeam = room.type === 'team';
   return '<div class="card"><div class="empty-state">⏳ 모든 참가자가 번호를 제출했습니다.<br>제' + room.round + '회 추첨 결과가 발표되면 자동으로 채점됩니다.</div></div>' +
     '<div class="card"><h3>참가자별 제출 조합 수</h3>' + room.participants.map(function(p){
-      return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + '</span><span class="font-num">' + (p.comboCount||0) + '개 조합</span></div>';
+      var sideTag = isTeam ? (' <span style="color:var(--text-faint);">['+BUI.sideLabel(p.side)+']</span>') : '';
+      return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + sideTag + '</span><span class="font-num">' + (p.comboCount||0) + '개 조합</span></div>';
     }).join('') + '</div>';
 };
 
 BUI.roomCompletedHtml = function(room){
+  var isTeam = room.type === 'team';
   var r = room.result;
   var resultHtml = r ? ('<div class="card"><h3>추첨 결과</h3><div class="font-num" style="font-size:14px;">' + r.nums.join(', ') + ' <span style="color:var(--text-faint);">+ ' + r.bonus + '</span></div></div>') : '';
 
@@ -685,10 +752,27 @@ BUI.roomCompletedHtml = function(room){
   if (room.allForfeited) {
     rankedHtml = '<div class="card" style="background:rgba(224,80,80,.08);border-color:#e05050;"><h3>⚠️ 전원 몰수패</h3><div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;">등록 마감(추첨일 20시)까지 어느 쪽도 번호조합을 제출하지 않아 우승자가 없습니다. 참가비 환불이나 보상 지급도 없습니다.</div></div>';
   } else if (room.isDraw) {
-    rankedHtml = '<div class="card" style="background:rgba(91,156,213,.08);border-color:var(--blue);"><h3>🤝 무승부</h3><div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;">당첨금 합계와 등록건수까지 완전히 같아 우승자를 가릴 수 없었습니다.<br>참가자 전원에게 참가비의 절반이 활동포인트로 환불되었습니다.</div></div>' +
+    rankedHtml = '<div class="card" style="background:rgba(91,156,213,.08);border-color:var(--blue);"><h3>🤝 무승부</h3><div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;">' + (isTeam?'양 팀':'') + '당첨금 합계와 등록건수까지 완전히 같아 우승자를 가릴 수 없었습니다.<br>참가자 전원에게 참가비의 절반이 활동포인트로 환불되었습니다.</div></div>' +
       '<div class="card"><h3>결과</h3>' + room.participants.map(function(p){
-        return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + (p.forfeited?' (미제출)':'') + '</span><span class="font-num">누적 ' + (p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개 조합</span></div>';
+        var sideTag = isTeam ? (' <span style="color:var(--text-faint);">['+BUI.sideLabel(p.side)+']</span>') : '';
+        return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + sideTag + (p.forfeited?' (미제출)':'') + '</span><span class="font-num">누적 ' + (p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개 조합</span></div>';
       }).join('') + '</div>';
+  } else if (isTeam) {
+    var teamTotalsHtml = [0,1].map(function(side){
+      var members = room.participants.filter(function(p){ return p.side === side; });
+      var totalPrize = members.reduce(function(s,p){ return s + (p.totalPrize||0); }, 0);
+      var totalCombo = members.reduce(function(s,p){ return s + (p.comboCount||0); }, 0);
+      var isWinningSide = room.winningSide === side;
+      return '<div class="card" style="' + (isWinningSide?'border-color:var(--gold);background:rgba(224,179,65,.06);':'') + '">' +
+        '<h3>' + BUI.sideLabel(side) + (isWinningSide?' 🏆':'') + '</h3>' +
+        '<div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">팀 합계: <b class="font-num" style="color:var(--gold);">' + totalPrize.toLocaleString() + '원</b> · 총 ' + totalCombo + '개 조합</div>' +
+        members.map(function(p){
+          var forfeitTag = p.forfeited ? ' (미제출·몰수패)' : '';
+          return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + forfeitTag + '</span><span class="font-num">' + (p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개</span></div>';
+        }).join('') +
+      '</div>';
+    }).join('');
+    rankedHtml = teamTotalsHtml;
   } else {
     rankedHtml = '<div class="card"><h3>🏆 결과</h3>' + room.participants.map(function(p){
       var isWinner = room.winnerIds.indexOf(p.id) >= 0;
@@ -717,7 +801,8 @@ BUI.myResultBadge = function(r){
 
 // ── 참가가능한 방 (1:1만, 이미 내가 낀 방은 제외) ──
 BUI.renderAvailableRooms = async function(){
-  var rooms = await BATTLE.listAvailableRooms();
+  var type = BUI.state.createType || '1v1';
+  var rooms = await BATTLE.listAvailableRooms(type);
   // (내가 만든 방도 함께 표시합니다 — 카드에서 내 방인지 여부는 아래에서 구분)
   document.getElementById('availRoomCount').textContent = rooms.length + '개';
   if (!rooms.length) {
@@ -727,9 +812,10 @@ BUI.renderAvailableRooms = async function(){
   document.getElementById('availableRoomsBody').innerHTML = '<div class="avail-room-list">' + rooms.map(function(r){
     var isMine = r.participants.some(function(p){ return p.isMe; });
     var actionLabel = isMine ? '내 방 · 도전자 대기중' : '참가하기 →';
+    var teamMeta = r.type === 'team' ? (' (' + r.teamSize + '명씩)') : '';
     return '<div class="avail-room-card" onclick="BUI.openRoom(\'' + r.id + '\')">' +
       '<div><div class="arc-name">' + r.name + (isMine ? ' <span style="color:var(--text-faint);font-weight:400;">(내가 만든 방)</span>' : '') + '</div>' +
-      '<div class="arc-meta">제' + r.round + '회 · ' + r.participants.length + '/' + r.maxParticipants + '명</div></div>' +
+      '<div class="arc-meta">제' + r.round + '회' + teamMeta + ' · ' + r.participants.length + '/' + r.maxParticipants + '명</div></div>' +
       '<div class="arc-join"' + (isMine ? ' style="color:var(--text-faint);"' : '') + '>' + actionLabel + '</div>' +
     '</div>';
   }).join('') + '</div>';
@@ -745,6 +831,7 @@ BUI.detailedStatusLabel = function(r){
     return mineW ? '도전자 대기중' : BUI.statusLabel(r.status);
   }
   if (r.status !== 'pending_numbers') return BUI.statusLabel(r.status);
+  if (r.type === 'team') return BUI.statusLabel(r.status); // 팀전은 인원이 여럿이라 상대/내번호대기로 세분화하지 않음
   var mine = r.participants.find(function(p){ return p.isMe; });
   if (!mine) return BUI.statusLabel(r.status); // 내가 참가한 방이 아니면 세분화 불가
   var opponent = r.participants.find(function(p){ return !p.isMe; });
@@ -752,6 +839,9 @@ BUI.detailedStatusLabel = function(r){
   if (opponent && opponent.submitted && !mine.submitted) return LANG==='en' ? 'Your number needed' : '내번호대기';
   return BUI.statusLabel(r.status);
 };
+
+BUI.typeTagLabel = function(type){ return type === 'team' ? '팀전' : '1:1 대결'; };
+BUI.typeTagColor = function(type){ return type === 'team' ? { bg:'#3fb37f22', color:'#3fb37f' } : { bg:'#5b9bd522', color:'#5b9bd5' }; };
 
 // ── 내 진행상황: 내가 개설했든 도전했든, 모든 상태를 한 번에 타임라인으로 ──
 BUI.renderMyTimeline = async function(){
@@ -771,8 +861,9 @@ BUI.renderMyTimeline = async function(){
     if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">아직 참가한 배틀이 없습니다. 방을 만들거나 참가가능한 방에 도전해보세요!</div></div>'; return; }
     body.innerHTML = '<div class="room-list">' + rooms.map(function(r){
       var badge = r.status === 'completed' ? BUI.myResultBadge(r) : '';
+      var tc = BUI.typeTagColor(r.type);
       return '<div class="room-card" onclick="BUI.openRoom(\'' + r.id + '\')">' +
-        '<div class="rc-top"><span class="rc-type" style="background:#5b9bd522;color:#5b9bd5;">1:1 대결</span>' + badge + '<span class="status-tag status-' + r.status + '">' + BUI.detailedStatusLabel(r) + '</span></div>' +
+        '<div class="rc-top"><span class="rc-type" style="background:' + tc.bg + ';color:' + tc.color + ';">' + BUI.typeTagLabel(r.type) + '</span>' + badge + '<span class="status-tag status-' + r.status + '">' + BUI.detailedStatusLabel(r) + '</span></div>' +
         '<div class="rc-name">' + r.name + '</div>' +
         '<div class="rc-meta">제' + r.round + '회 · 참가자 ' + r.participants.length + '/' + r.maxParticipants + '명</div>' +
       '</div>';
@@ -780,12 +871,16 @@ BUI.renderMyTimeline = async function(){
   } catch(e) { body.innerHTML = '<div class="card"><div class="empty-state">불러오지 못했습니다.</div></div>'; }
 };
 
-// ── 전체 배틀참여현황: 이 배틀종목(1:1)에서 벌어지는 모든 방(남의 것 포함)을 표로 ──
+// ── 전체 배틀참여현황: 현재 선택된 배틀종목에서 벌어지는 모든 방(남의 것 포함)을 표로 ──
 BUI.renderAllRoomsTable = async function(){
+  var type = BUI.state.createType || '1v1';
+  var titleEl = document.getElementById('allRoomsTitle');
+  if (titleEl) titleEl.textContent = '📊 전체 배틀참여현황 (' + BUI.typeTagLabel(type) + ')';
+
   var body = document.getElementById('allRoomsTableBody');
   var countEl = document.getElementById('allRoomCount');
   try {
-    var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/battles/rooms');
+    var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/battles/rooms?type=' + type);
     var data = await resp.json();
     var rooms = data.items || [];
     // 아직 모집 중(대기중)이면서 내가 안 낀 방은 "참가가능한 방"에서만 보여주면 되므로 여기서는 제외
@@ -797,11 +892,19 @@ BUI.renderAllRoomsTable = async function(){
     if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">아직 개설된 배틀이 없습니다.</div></div>'; return; }
 
     var rowsHtml = rooms.map(function(r){
-      var opponentNames = r.participants.map(function(p){ return p.nickname + (p.isMe?' (나)':''); }).join(' vs ') || '-';
+      var namesLabel;
+      if (r.type === 'team') {
+        namesLabel = [0,1].map(function(side){
+          var names = r.participants.filter(function(p){ return p.side===side; }).map(function(p){ return p.nickname + (p.isMe?'(나)':''); });
+          return BUI.sideLabel(side) + ': ' + (names.join(', ') || '-');
+        }).join(' vs ');
+      } else {
+        namesLabel = r.participants.map(function(p){ return p.nickname + (p.isMe?' (나)':''); }).join(' vs ') || '-';
+      }
       return '<tr onclick="BUI.openRoom(\'' + r.id + '\')">' +
         '<td>' + r.name + '</td>' +
         '<td class="font-num">제' + r.round + '회</td>' +
-        '<td>' + opponentNames + '</td>' +
+        '<td>' + namesLabel + '</td>' +
         '<td class="font-num">' + r.participants.length + '/' + r.maxParticipants + '</td>' +
         '<td><span class="status-tag status-' + r.status + '">' + BUI.detailedStatusLabel(r) + '</span></td>' +
       '</tr>';
