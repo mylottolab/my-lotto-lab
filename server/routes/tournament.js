@@ -132,6 +132,7 @@ router.get('/runs/:id', async (req, res) => {
       eliminatedAtStage: p.eliminated_at_stage,
       currentStageSubmitted: !!(currentEntry && currentEntry.picks_list && currentEntry.picks_list.length),
       currentStageComboCount: currentEntry ? currentEntry.combo_count : 0,
+      currentStageFinalized: !!(currentEntry && currentEntry.finalized),
       stageHistory: myEntries.filter(e => e.stage < run.current_stage || run.status === 'completed').map(e => ({
         stage: e.stage, totalPrize: e.total_prize, comboCount: e.combo_count, forfeited: e.forfeited,
       })),
@@ -247,6 +248,7 @@ router.post('/runs/:id/submit', async (req, res) => {
       .from('tournament_stage_entries').select('*')
       .eq('run_id', id).eq('participant_id', participant.id).eq('stage', run.current_stage).maybeSingle();
     if (!entry) return res.status(409).json({ error: '지금은 번호를 제출할 수 있는 단계가 아닙니다.' });
+    if (entry.finalized) return res.status(409).json({ error: '이미 "제출완료" 처리하셔서 더 이상 추가할 수 없습니다.' });
 
     const existingPicks = entry.picks_list || [];
     if (existingPicks.length + combos.length > 100) {
@@ -259,9 +261,11 @@ router.post('/runs/:id/submit', async (req, res) => {
 
     const sortedNewCombos = combos.map(c => c.slice().sort((a, b) => a - b));
     const mergedPicks = existingPicks.concat(sortedNewCombos);
-    const { error: updErr } = await supabase.from('tournament_stage_entries').update({
-      picks_list: mergedPicks, combo_count: mergedPicks.length, submitted_at: new Date().toISOString(),
-    }).eq('id', entry.id);
+    // final=true("이대로 제출완료")면 그 즉시 잠가서 이후 추가를 막는다. false("나중에 추가")면
+    // 계속 열어둬서 이번 단계 마감 전까지 다시 들어와 추가할 수 있다.
+    const updatePayload = { picks_list: mergedPicks, combo_count: mergedPicks.length, submitted_at: new Date().toISOString() };
+    if (req.body.final) updatePayload.finalized = true;
+    const { error: updErr } = await supabase.from('tournament_stage_entries').update(updatePayload).eq('id', entry.id);
     if (updErr) return res.status(500).json({ error: `제출 실패: ${updErr.message}` });
 
     return res.json({ success: true, addedCount: sortedNewCombos.length, totalCount: mergedPicks.length });
