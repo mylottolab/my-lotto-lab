@@ -258,8 +258,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div id="step3" style="display:none;">
         <div class="success-wrap">
           <div class="success-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-          <div class="success-title" data-i18n-kr="이메일 인증이 필요합니다" data-i18n-en="Email verification required">이메일 인증이 필요합니다</div>
-          <div class="success-desc" data-i18n-kr="Supabase Auth에서 귀하의 메일로 인증 클릭을 요청합니다. 메일을 열어 Sign in을 클릭해주세요. 그래야 가입이 완료됩니다." data-i18n-en="Supabase Auth has sent a verification request to your email. Please open the email and click Sign in to complete your registration.">Supabase Auth에서 귀하의 메일로 인증 클릭을 요청합니다. 메일을 열어 Sign in을 클릭해주세요. 그래야 가입이 완료됩니다.</div>
+          <div class="success-title" id="step3Title" data-i18n-kr="이메일 인증이 필요합니다" data-i18n-en="Email verification required">이메일 인증이 필요합니다</div>
+          <div class="success-desc" id="step3Desc" data-i18n-kr="Supabase Auth에서 귀하의 메일로 인증 클릭을 요청합니다. 메일을 열어 Sign in을 클릭해주세요. 그래야 가입이 완료됩니다." data-i18n-en="Supabase Auth has sent a verification request to your email. Please open the email and click Sign in to complete your registration.">Supabase Auth에서 귀하의 메일로 인증 클릭을 요청합니다. 메일을 열어 Sign in을 클릭해주세요. 그래야 가입이 완료됩니다.</div>
+          <div id="step3Actions"></div>
         </div>
       </div>
     </div>
@@ -291,6 +292,9 @@ var I18N = {
   strengthFair:    {kr:'보통',en:'Fair'},
   strengthGood:    {kr:'양호',en:'Good'},
   strengthStrong:  {kr:'강함',en:'Strong'},
+  signupDoneTitle: {kr:'가입 완료! 🎉',en:'You\'re all set! 🎉'},
+  signupDoneDesc:  {kr:'바로 로그인되었어요. 지금 바로 이용하실 수 있습니다.',en:'You\'re already signed in. You can start using My Lotto Lab right away.'},
+  startNowBtn:     {kr:'시작하기 →',en:'Get started →'},
 };
 function t(k){ return I18N[k][LANG]; }
 
@@ -399,11 +403,43 @@ async function handleSignup(){
       if(res.status===409) msg=t('emailDupe');
       var b=document.getElementById('errBanner2');b.textContent=msg;b.classList.add('show');return;
     }
+    renderStep3Result(data);
     setStep(3);
   } catch(err){
     var b=document.getElementById('errBanner2');b.textContent=t('networkErr');b.classList.add('show');
   } finally {
     btn.classList.remove('loading');btn.disabled=false;
+  }
+}
+
+// ⚠ 2026-07-10: Supabase 프로젝트의 "Confirm email" 설정이 꺼져있는 동안은 가입 즉시
+// autoConfirmed:true + 세션 토큰이 응답에 실려온다. 이 경우 "이메일 인증 필요" 화면 대신
+// 바로 로그인 처리 후 "가입 완료" 화면 + 시작하기 버튼을 보여준다. 나중에 "Confirm email"을
+// 켜면 백엔드가 autoConfirmed:false만 내려주게 되므로, 아래 else 분기(기존 이메일 인증 안내)가
+// 자동으로 다시 살아난다 — 이 파일을 또 고칠 필요 없음.
+function renderStep3Result(data){
+  var titleEl=document.getElementById('step3Title');
+  var descEl=document.getElementById('step3Desc');
+  var actionsEl=document.getElementById('step3Actions');
+
+  if(data.autoConfirmed && data.accessToken){
+    localStorage.setItem('mll_token', data.accessToken);
+    localStorage.setItem('mll_refresh_token', data.refreshToken);
+    localStorage.setItem('mll_user', JSON.stringify(data.user));
+
+    titleEl.removeAttribute('data-i18n-kr'); titleEl.removeAttribute('data-i18n-en');
+    descEl.removeAttribute('data-i18n-kr'); descEl.removeAttribute('data-i18n-en');
+    titleEl.textContent=t('signupDoneTitle');
+    descEl.textContent=t('signupDoneDesc');
+    actionsEl.innerHTML='<button class="btn-submit" style="margin-top:6px;" onclick="location.href=\'main_page.html\'">'+t('startNowBtn')+'</button>';
+    document.getElementById('loginRow').style.display='none';
+  } else {
+    // 기존 문구(HTML에 이미 data-i18n로 박혀있는 그대로) 사용 — 다국어 갱신만 재적용
+    titleEl.setAttribute('data-i18n-kr','이메일 인증이 필요합니다'); titleEl.setAttribute('data-i18n-en','Email verification required');
+    descEl.setAttribute('data-i18n-kr','Supabase Auth에서 귀하의 메일로 인증 클릭을 요청합니다. 메일을 열어 Sign in을 클릭해주세요. 그래야 가입이 완료됩니다.');
+    descEl.setAttribute('data-i18n-en','Supabase Auth has sent a verification request to your email. Please open the email and click Sign in to complete your registration.');
+    applyLang();
+    actionsEl.innerHTML='';
   }
 }
 
@@ -427,6 +463,13 @@ function resetForm(){
   });
   document.getElementById('pwStrength').style.display='none';
   clearAll();
+  var titleEl=document.getElementById('step3Title'), descEl=document.getElementById('step3Desc');
+  titleEl.setAttribute('data-i18n-kr','이메일 인증이 필요합니다'); titleEl.setAttribute('data-i18n-en','Email verification required');
+  descEl.setAttribute('data-i18n-kr','Supabase Auth에서 귀하의 메일로 인증 클릭을 요청합니다. 메일을 열어 Sign in을 클릭해주세요. 그래야 가입이 완료됩니다.');
+  descEl.setAttribute('data-i18n-en','Supabase Auth has sent a verification request to your email. Please open the email and click Sign in to complete your registration.');
+  document.getElementById('step3Actions').innerHTML='';
+  document.getElementById('loginRow').style.display='';
+  applyLang();
   setStep(1);
 }
 window.addEventListener('pageshow', function(e){
