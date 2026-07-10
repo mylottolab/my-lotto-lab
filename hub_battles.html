@@ -796,6 +796,8 @@ BUI.openTournamentRun = async function(runId){
   BUI.state.currentTournamentRunId = runId;
   BUI.state.selectedBalls = [];
   BUI.state.multiCombos = [];
+  BUI.state.submitConfirmShown = false;
+  BUI.state.submitRemaining = null;
   document.getElementById('roomModal').classList.add('show');
   await BUI.renderTournamentModal();
 };
@@ -836,20 +838,14 @@ BUI.renderTournamentModal = async function(){
 
     if (myP.status === 'eliminated') {
       bodyHtml = '<div class="card" style="background:rgba(224,80,80,.08);border-color:#e05050;"><h3>❌ ' + myP.eliminatedAtStage + '단계에서 탈락</h3><div style="font-size:12.5px;color:var(--text-dim);">아쉽지만 이번 토너먼트는 여기까지예요.</div></div>' + stageHistoryHtml;
-    } else if (myP.currentStageSubmitted) {
-      bodyHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ ' + run.currentStage + '단계 조합 ' + myP.currentStageComboCount + '개 제출 완료<br>이번 주 추첨 결과를 기다려주세요.</div></div>' + stageHistoryHtml;
     } else {
-      needsSubmitWidget = true;
-      bodyHtml =
-        '<div class="card">' +
-          '<h3>' + run.currentStage + '단계 번호조합 등록 (최대 ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '개)</h3>' +
-          '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">이번 단계 성적만으로 평가됩니다(이전 단계 누적 아님). 하위 성적자는 이번 단계에서 탈락할 수 있어요.</p>' +
-          '<div class="form-row"><label>자동 생성 개수</label><input type="number" class="inp" id="multiGenCount" value="10" min="1" max="' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '" style="width:80px;"> <button class="btn btn-outline" onclick="BUI.addAutoCombos()">+ 자동 추가</button></div>' +
-          '<div class="form-row"><label>직접 선택</label><span style="font-size:11px;color:var(--text-faint);">아래 공에서 6개를 고르면 조합이 1개씩 추가됩니다</span></div>' +
-          '<div class="ball-grid" id="multiBallGrid"></div>' +
-          '<div id="multiComboList" style="margin-top:12px;"></div>' +
-          '<button class="btn btn-gold" style="width:100%;margin-top:10px;" id="submitMultiPicksBtn" disabled onclick="BUI.doSubmitTournamentPicks()">조합 등록 완료하기</button>' +
-        '</div>' + stageHistoryHtml;
+      var already = myP.currentStageComboCount || 0;
+      if (already >= 100) {
+        bodyHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ 최대 100개 조합 제출 완료<br>이번 주 추첨 결과를 기다려주세요.</div></div>' + stageHistoryHtml;
+      } else {
+        needsSubmitWidget = !BUI.state.submitConfirmShown;
+        bodyHtml = BUI.comboSubmitWidgetHtml(already, '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">' + run.currentStage + '단계 조합입니다 — 이번 단계 성적만으로 평가됩니다(이전 단계 누적 아님). 하위 성적자는 이번 단계에서 탈락할 수 있어요.</p>') + stageHistoryHtml;
+      }
     }
   } else {
     bodyHtml = '<div class="card"><div class="empty-state">참가한 토너먼트가 아닙니다.</div></div>';
@@ -868,21 +864,14 @@ BUI.renderTournamentModal = async function(){
   }
 };
 
-BUI.doSubmitTournamentPicks = async function(){
-  if (!BUI.state.multiCombos.length) { alert('번호조합을 1개 이상 등록해주세요.'); return; }
-  var result = await TOUR.submit(BUI.state.currentTournamentRunId, BUI.state.multiCombos);
-  if (!result.ok) return;
-  BUI.state.multiCombos = [];
-  BUI.state.selectedBalls = [];
-  await BUI.renderTournamentModal();
-};
-
 // ── 방 상세 ──
 BUI.openRoom = async function(roomId){
   BUI.state.modalKind = 'room';
   BUI.state.currentRoomId = roomId;
   BUI.state.selectedBalls = [];
   BUI.state.multiCombos = [];
+  BUI.state.submitConfirmShown = false;
+  BUI.state.submitRemaining = null;
   document.getElementById('roomModal').classList.add('show');
   await BUI.renderRoomModal();
 };
@@ -912,8 +901,8 @@ BUI.renderRoomModal = async function(){
   else if (room.status === 'completed') bodyHtml = BUI.roomCompletedHtml(room);
 
   box.innerHTML = header + bodyHtml;
-  var needsComboWidget = (room.status === 'pending_numbers') || (room.type === 'ffa' && room.status === 'waiting');
-  if (needsComboWidget && myParticipant && !myParticipant.submitted && document.getElementById('multiBallGrid')) {
+  var needsComboWidget = !BUI.state.submitConfirmShown && ((room.status === 'pending_numbers') || (room.type === 'ffa' && room.status === 'waiting'));
+  if (needsComboWidget && myParticipant && (myParticipant.comboCount || 0) < 100 && document.getElementById('multiBallGrid')) {
     BUI.renderMultiBallGrid();
     BUI.renderMultiComboList();
   }
@@ -980,18 +969,13 @@ BUI.roomFFAHtml = function(room, myParticipant){
   var actionHtml = '';
   if (!myParticipant) {
     actionHtml = '<div class="card"><button class="btn btn-gold" style="width:100%;" onclick="BUI.doJoin()">참가하기</button></div>';
-  } else if (!myParticipant.submitted) {
-    actionHtml = '<div class="card">' +
-      '<h3>내 번호조합 등록 (최대 ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '개)</h3>' +
-      '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">인원 제한 없이 누구나 참가할 수 있고, 추첨 후 각자 당첨금 <b style="color:var(--gold);">합계</b>가 가장 큰 사람이 1등입니다. (참가비는 조합 개수와 무관하게 1회만 부과됩니다)</p>' +
-      '<div class="form-row"><label>자동 생성 개수</label><input type="number" class="inp" id="multiGenCount" value="10" min="1" max="' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '" style="width:80px;"> <button class="btn btn-outline" onclick="BUI.addAutoCombos()">+ 자동 추가</button></div>' +
-      '<div class="form-row"><label>직접 선택</label><span style="font-size:11px;color:var(--text-faint);">아래 공에서 6개를 고르면 조합이 1개씩 추가됩니다</span></div>' +
-      '<div class="ball-grid" id="multiBallGrid"></div>' +
-      '<div id="multiComboList" style="margin-top:12px;"></div>' +
-      '<button class="btn btn-gold" style="width:100%;margin-top:10px;" id="submitMultiPicksBtn" disabled onclick="BUI.doSubmitMultiPicks()">조합 등록 완료하기</button>' +
-    '</div>';
   } else {
-    actionHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ ' + myParticipant.comboCount + '개 조합 제출 완료<br>추첨 결과가 나올 때까지 다른 참가자들도 계속 참가할 수 있어요.</div></div>';
+    var already = myParticipant.comboCount || 0;
+    if (already >= 100) {
+      actionHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ 최대 100개 조합 제출 완료<br>추첨 결과를 기다려주세요.</div></div>';
+    } else {
+      actionHtml = BUI.comboSubmitWidgetHtml(already, '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">인원 제한 없이 누구나 참가할 수 있고, 추첨 후 각자 당첨금 <b style="color:var(--gold);">합계</b>가 가장 큰 사람이 1등입니다. (참가비는 조합 개수와 무관하게 1회만 부과됩니다)</p>');
+    }
   }
 
   return deadlineNotice + '<div class="card"><h3>참가자 (' + room.participants.length + '명)</h3>' + participantsHtml + '</div>' + actionHtml;
@@ -1007,21 +991,79 @@ BUI.roomPendingHtml = function(room, myParticipant){
   }).join('');
 
   var submitHtml = '';
-  if (myParticipant && !myParticipant.submitted) {
-    submitHtml = '<div class="card">' +
-      '<h3>내 번호조합 등록 (최대 ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '개)</h3>' +
-      '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">여러 개의 번호조합을 등록할 수 있어요. 추첨 후 각 조합의 당첨금을 모두 더한 <b style="color:var(--gold);">합계</b>로 승부를 가립니다. (참가비는 조합 개수와 무관하게 1회만 부과됩니다)</p>' +
-      '<div class="form-row"><label>자동 생성 개수</label><input type="number" class="inp" id="multiGenCount" value="10" min="1" max="' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '" style="width:80px;"> <button class="btn btn-outline" onclick="BUI.addAutoCombos()">+ 자동 추가</button></div>' +
-      '<div class="form-row"><label>직접 선택</label><span style="font-size:11px;color:var(--text-faint);">아래 공에서 6개를 고르면 조합이 1개씩 추가됩니다</span></div>' +
-      '<div class="ball-grid" id="multiBallGrid"></div>' +
-      '<div id="multiComboList" style="margin-top:12px;"></div>' +
-      '<button class="btn btn-gold" style="width:100%;margin-top:10px;" id="submitMultiPicksBtn" disabled onclick="BUI.doSubmitMultiPicks()">조합 등록 완료하기</button>' +
-    '</div>';
-  } else if (myParticipant && myParticipant.submitted) {
-    submitHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ ' + myParticipant.comboCount + '개 조합 제출 완료<br>다른 참가자의 제출을 기다리는 중입니다.</div></div>';
+  if (myParticipant) {
+    var already = myParticipant.comboCount || 0;
+    if (already >= 100) {
+      submitHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ 최대 100개 조합 제출 완료<br>다른 참가자의 제출을 기다리는 중입니다.</div></div>';
+    } else {
+      submitHtml = BUI.comboSubmitWidgetHtml(already, '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">여러 개의 번호조합을 등록할 수 있어요. 추첨 후 각 조합의 당첨금을 모두 더한 <b style="color:var(--gold);">합계</b>로 승부를 가립니다. (참가비는 조합 개수와 무관하게 1회만 부과됩니다)</p>');
+    }
   }
 
   return deadlineNotice + '<div class="card"><h3>참가자 (' + room.participants.length + '명)</h3>' + participantsHtml + '</div>' + submitHtml;
+};
+
+// ── 공통 번호조합 제출 위젯: 1:1/팀전/FFA/토너먼트가 전부 이 함수를 공유한다. ──
+// ⚠ 2026-07-11: "한 번에 다 등록하고 끝"이 아니라, 마감 전까지 여러 번 나눠서 추가
+// 제출할 수 있도록 바꿨다(실수로 몇 개만 넣고 완료 눌러버리는 사고 방지). 이미 서버에
+// 제출한 조합은 절대 수정/삭제할 수 없다 — "등록하기"를 누르면 곧바로 보내는 게 아니라
+// 확인패널을 한 번 거치게 해서, 지금 스테이징된 조합 개수를 보여주고 실수를 막는다.
+BUI.comboSubmitWidgetHtml = function(alreadySubmitted, introHtml){
+  var remaining = 100 - alreadySubmitted;
+  BUI.state.submitRemaining = remaining;
+
+  if (BUI.state.submitConfirmShown) {
+    var staged = BUI.state.multiCombos.length;
+    var total = alreadySubmitted + staged;
+    return '<div class="card" style="border-color:var(--gold-dim);">' +
+      '<div style="font-size:13px;font-weight:700;margin-bottom:8px;">총 100개 중 ' + total + '개 입력 (기존 ' + alreadySubmitted + '개 + 지금 ' + staged + '개) · 잔여 입력가능 ' + (100 - total) + '개</div>' +
+      '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">⚠️ 한 번 제출한 조합은 <b style="color:var(--red);">수정·삭제가 불가능</b>합니다 (복권을 한 번 사면 취소할 수 없는 것과 같아요). 아직 제출 안 한 나머지는 마감 전까지 언제든 다시 들어와서 추가할 수 있어요.</div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;">' +
+        '<button class="btn btn-outline" onclick="BUI.cancelSubmitConfirm()">🔙 지금 더 추가하기</button>' +
+        '<button class="btn btn-outline" onclick="BUI.confirmSubmit(false)">💾 여기까지 제출, 나중에 더 추가하기</button>' +
+        '<button class="btn btn-gold" onclick="BUI.confirmSubmit(true)">✅ 이대로 제출완료</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  return '<div class="card">' +
+    (alreadySubmitted > 0 ? '<div style="font-size:12px;color:var(--green);margin-bottom:10px;">✓ 이미 ' + alreadySubmitted + '개 제출됨 — 마감 전까지 계속 추가할 수 있어요 (최대 100개)</div>' : '') +
+    '<h3>번호조합 등록 (잔여 ' + remaining + '개 가능)</h3>' +
+    introHtml +
+    '<div class="form-row"><label>자동 생성 개수</label><input type="number" class="inp" id="multiGenCount" value="10" min="1" max="' + remaining + '" style="width:80px;"> <button class="btn btn-outline" onclick="BUI.addAutoCombos()">+ 자동 추가</button></div>' +
+    '<div class="form-row"><label>직접 선택</label><span style="font-size:11px;color:var(--text-faint);">아래 공에서 6개를 고르면 조합이 1개씩 추가됩니다</span></div>' +
+    '<div class="ball-grid" id="multiBallGrid"></div>' +
+    '<div id="multiComboList" style="margin-top:12px;"></div>' +
+    '<button class="btn btn-gold" style="width:100%;margin-top:10px;" id="submitMultiPicksBtn" disabled onclick="BUI.openSubmitConfirm()">등록하기</button>' +
+  '</div>';
+};
+
+BUI.openSubmitConfirm = function(){
+  if (!BUI.state.multiCombos.length) { alert('번호조합을 1개 이상 등록해주세요.'); return; }
+  BUI.state.submitConfirmShown = true;
+  BUI.rerenderCurrentSubmitUI();
+};
+BUI.cancelSubmitConfirm = function(){
+  BUI.state.submitConfirmShown = false;
+  BUI.rerenderCurrentSubmitUI();
+};
+BUI.rerenderCurrentSubmitUI = function(){
+  if (BUI.state.modalKind === 'tournament') BUI.renderTournamentModal();
+  else BUI.renderRoomModal();
+};
+BUI.confirmSubmit = async function(isFinal){
+  var combos = BUI.state.multiCombos;
+  var result = (BUI.state.modalKind === 'tournament')
+    ? await TOUR.submit(BUI.state.currentTournamentRunId, combos)
+    : await BATTLE.submitPicksList(BUI.state.currentRoomId, combos);
+  if (!result.ok) return;
+  BUI.state.multiCombos = [];
+  BUI.state.selectedBalls = [];
+  BUI.state.submitConfirmShown = false;
+  alert(isFinal
+    ? '✅ 제출 완료했습니다! 참여해주셔서 감사합니다.'
+    : '💾 지금까지 조합이 제출됐어요. 마감 전까지 언제든 다시 들어와서 추가하실 수 있습니다.');
+  BUI.rerenderCurrentSubmitUI();
 };
 
 BUI.renderMultiBallGrid = function(){
@@ -1046,8 +1088,9 @@ BUI.toggleMultiBall = function(n){
   BUI.renderMultiBallGrid();
 };
 BUI.addCombo = function(combo){
-  if (BUI.state.multiCombos.length >= BATTLE.MAX_COMBOS_PER_PARTICIPANT) {
-    alert('번호조합은 최대 ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '개까지만 등록할 수 있어요.');
+  var cap = (BUI.state.submitRemaining != null) ? BUI.state.submitRemaining : BATTLE.MAX_COMBOS_PER_PARTICIPANT;
+  if (BUI.state.multiCombos.length >= cap) {
+    alert('지금 추가로 등록할 수 있는 조합은 최대 ' + cap + '개입니다.');
     return;
   }
   BUI.state.multiCombos.push(combo);
@@ -1058,9 +1101,10 @@ BUI.removeCombo = function(idx){
   BUI.renderMultiComboList();
 };
 BUI.addAutoCombos = function(){
+  var cap = (BUI.state.submitRemaining != null) ? BUI.state.submitRemaining : BATTLE.MAX_COMBOS_PER_PARTICIPANT;
   var countInput = document.getElementById('multiGenCount');
-  var count = Math.max(1, Math.min(BATTLE.MAX_COMBOS_PER_PARTICIPANT - BUI.state.multiCombos.length, parseInt(countInput.value)||1));
-  if (count <= 0) { alert('이미 최대 ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '개를 등록했어요.'); return; }
+  var count = Math.max(1, Math.min(cap - BUI.state.multiCombos.length, parseInt(countInput.value)||1));
+  if (count <= 0) { alert('지금 추가로 등록할 수 있는 조합 한도(' + cap + '개)에 도달했어요.'); return; }
   for (var i=0;i<count;i++){
     var pool = []; for (var n=1;n<=45;n++) pool.push(n);
     var picked = [];
@@ -1072,21 +1116,14 @@ BUI.addAutoCombos = function(){
 BUI.renderMultiComboList = function(){
   var el = document.getElementById('multiComboList');
   if (!el) return;
+  var cap = (BUI.state.submitRemaining != null) ? BUI.state.submitRemaining : BATTLE.MAX_COMBOS_PER_PARTICIPANT;
   var combos = BUI.state.multiCombos;
   var listHtml = combos.map(function(c, i){
     return '<div class="participant-row"><span class="font-num">' + (i+1) + '. ' + c.join(', ') + '</span><span style="color:var(--red);cursor:pointer;" onclick="BUI.removeCombo(' + i + ')">✕ 삭제</span></div>';
   }).join('') || '<div style="font-size:11.5px;color:var(--text-faint);padding:8px 0;">아직 등록된 조합이 없습니다.</div>';
-  el.innerHTML = '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">등록된 조합: <b style="color:var(--gold);">' + combos.length + ' / ' + BATTLE.MAX_COMBOS_PER_PARTICIPANT + '</b></div>' + listHtml;
+  el.innerHTML = '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">지금 등록 준비된 조합: <b style="color:var(--gold);">' + combos.length + ' / ' + cap + '</b></div>' + listHtml;
   var btn = document.getElementById('submitMultiPicksBtn');
   if (btn) btn.disabled = combos.length === 0;
-};
-BUI.doSubmitMultiPicks = async function(){
-  if (!BUI.state.multiCombos.length) { alert('번호조합을 1개 이상 등록해주세요.'); return; }
-  var result = await BATTLE.submitPicksList(BUI.state.currentRoomId, BUI.state.multiCombos);
-  if (!result.ok) return;
-  BUI.state.multiCombos = [];
-  BUI.state.selectedBalls = [];
-  BUI.renderRoomModal();
 };
 
 BUI.roomActiveHtml = function(room){
