@@ -85,7 +85,29 @@ app.post('/api/auth/signup', async (req, res) => {
     // auth 계정은 이미 생성됐으므로 가입 자체는 성공으로 처리하되 로그만 남김
   }
 
-  return res.status(201).json({ message: '가입이 완료되었습니다.', userId: data.user.id });
+  // ⚠️ 2026-07-10: Supabase 프로젝트의 "Confirm email" 설정이 꺼져있으면 signUp() 즉시
+  // data.session이 채워져서 온다(=이메일 인증 없이 바로 로그인 가능한 상태). 이 경우 프론트가
+  // "이메일 인증 대기" 화면을 보여줄 필요가 없으므로, 세션 토큰을 그대로 실어보내 가입과 동시에
+  // 로그인까지 끝낼 수 있게 한다. "Confirm email"을 나중에 켜면 data.session이 null로 오므로
+  // 자동으로 기존의 "이메일 인증 필요" 흐름으로 되돌아간다(프론트 쪽 분기 로직 그대로 재사용됨).
+  if (data.session) {
+    return res.status(201).json({
+      message: '가입이 완료되었습니다.',
+      userId: data.user.id,
+      autoConfirmed: true,
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        nickname: data.user.user_metadata?.nickname || nickname,
+        country: data.user.user_metadata?.country || (country || 'KR'),
+        emailConfirmed: true
+      }
+    });
+  }
+
+  return res.status(201).json({ message: '가입이 완료되었습니다.', userId: data.user.id, autoConfirmed: false });
 });
 
 // ─── 로그인 ────────────────────────────────────────────────────────────────────
