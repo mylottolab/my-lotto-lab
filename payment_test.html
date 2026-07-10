@@ -241,10 +241,25 @@ async function submitBankTransfer(){
 
   btn.classList.add('loading'); btn.disabled = true;
   try {
+    var headers = {'Content-Type':'application/json'};
+    var body = { depositorName: depositorName, nickname: nickname, email: email, amount: price };
+
+    // ⚠ 2026-07-10: 로그인 상태(회원)여도 여기서 Authorization 헤더를 안 보내고 있어서,
+    // 항상 profiles 테이블의 닉네임+이메일 "문자열 대조" 경로만 타던 버그가 있었음
+    // (한 글자라도 다르면 "등록된 닉네임과 이메일이 일치하지 않습니다" 오류).
+    // 다른 화면들과 동일하게 MLL.ensureFreshToken()으로 회원이면 토큰을 실어 보낸다.
+    if (typeof MLL !== 'undefined' && MLL.getAuthState) {
+      var bankAuthState = MLL.getAuthState();
+      if (bankAuthState.type === 'member' && MLL.ensureFreshToken) {
+        var freshToken = await MLL.ensureFreshToken();
+        if (freshToken && freshToken !== 'guest') headers['Authorization'] = 'Bearer ' + freshToken;
+      }
+    }
+
     var res = await fetch(API + '/api/payment/bank-transfer/request', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ depositorName: depositorName, nickname: nickname, email: email, amount: price })
+      headers: headers,
+      body: JSON.stringify(body)
     });
     var data = await res.json();
     if (!res.ok) {
@@ -270,7 +285,8 @@ async function loadBalance(){
     document.getElementById('depositorEmail').value = state.email;
   } else {
     try {
-      var meRes = await fetch(API + '/api/auth/me', { headers: { Authorization: 'Bearer ' + state.token } });
+      var freshTokenMe = (MLL.ensureFreshToken) ? await MLL.ensureFreshToken() : state.token;
+      var meRes = await fetch(API + '/api/auth/me', { headers: { Authorization: 'Bearer ' + freshTokenMe } });
       var me = await meRes.json();
       if (meRes.ok) {
         document.getElementById('depositorNickname').value = me.nickname;
@@ -281,8 +297,12 @@ async function loadBalance(){
 
   var headers = {};
   var qs = '';
-  if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
-  else qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  if (state.type === 'member') {
+    var freshTokenBal = (MLL.ensureFreshToken) ? await MLL.ensureFreshToken() : state.token;
+    if (freshTokenBal && freshTokenBal !== 'guest') headers['Authorization'] = 'Bearer ' + freshTokenBal;
+  } else {
+    qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  }
 
   try {
     var res = await fetch(API + '/api/points/balance' + qs, { headers: headers });
@@ -324,7 +344,8 @@ async function startPayment(){
       buyeremail: document.getElementById('buyeremail').value
     };
     if (authState.type === 'member') {
-      headers['Authorization'] = 'Bearer ' + authState.token;
+      var freshTokenPay = (MLL.ensureFreshToken) ? await MLL.ensureFreshToken() : authState.token;
+      headers['Authorization'] = 'Bearer ' + freshTokenPay;
     } else {
       payload.nickname = authState.nickname;
       payload.email = authState.email;
