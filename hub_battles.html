@@ -168,10 +168,10 @@ BATTLE.joinRoom = async function(roomId, side){
 
 // ── 번호조합 제출 (최대 100개, 1회) ──
 BATTLE.MAX_COMBOS_PER_PARTICIPANT = 100;
-BATTLE.submitPicksList = async function(roomId, combosArr){
+BATTLE.submitPicksList = async function(roomId, combosArr, isFinal){
   var state = BATTLE.requireAuth();
   if (!state) return { ok:false, cancelled:true };
-  var req = await BATTLE._authRequest(state, { combos: combosArr });
+  var req = await BATTLE._authRequest(state, { combos: combosArr, final: !!isFinal });
   if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/battles/rooms/' + roomId + '/submit', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
@@ -251,10 +251,10 @@ TOUR.join = async function(tier){
   }
 };
 
-TOUR.submit = async function(runId, combosArr){
+TOUR.submit = async function(runId, combosArr, isFinal){
   var state = BATTLE.requireAuth();
   if (!state) return { ok:false, cancelled:true };
-  var req = await BATTLE._authRequest(state, { combos: combosArr });
+  var req = await BATTLE._authRequest(state, { combos: combosArr, final: !!isFinal });
   if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/tournament/runs/' + runId + '/submit', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
@@ -840,7 +840,9 @@ BUI.renderTournamentModal = async function(){
       bodyHtml = '<div class="card" style="background:rgba(224,80,80,.08);border-color:#e05050;"><h3>❌ ' + myP.eliminatedAtStage + '단계에서 탈락</h3><div style="font-size:12.5px;color:var(--text-dim);">아쉽지만 이번 토너먼트는 여기까지예요.</div></div>' + stageHistoryHtml;
     } else {
       var already = myP.currentStageComboCount || 0;
-      if (already >= 100) {
+      if (myP.currentStageFinalized) {
+        bodyHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✅ ' + run.currentStage + '단계 제출완료 (' + already + '개) — 더 이상 추가할 수 없습니다.<br>이번 주 추첨 결과를 기다려주세요.</div></div>' + stageHistoryHtml;
+      } else if (already >= 100) {
         bodyHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ 최대 100개 조합 제출 완료<br>이번 주 추첨 결과를 기다려주세요.</div></div>' + stageHistoryHtml;
       } else {
         needsSubmitWidget = !BUI.state.submitConfirmShown;
@@ -902,7 +904,7 @@ BUI.renderRoomModal = async function(){
 
   box.innerHTML = header + bodyHtml;
   var needsComboWidget = !BUI.state.submitConfirmShown && ((room.status === 'pending_numbers') || (room.type === 'ffa' && room.status === 'waiting'));
-  if (needsComboWidget && myParticipant && (myParticipant.comboCount || 0) < 100 && document.getElementById('multiBallGrid')) {
+  if (needsComboWidget && myParticipant && !myParticipant.finalized && (myParticipant.comboCount || 0) < 100 && document.getElementById('multiBallGrid')) {
     BUI.renderMultiBallGrid();
     BUI.renderMultiComboList();
   }
@@ -971,7 +973,9 @@ BUI.roomFFAHtml = function(room, myParticipant){
     actionHtml = '<div class="card"><button class="btn btn-gold" style="width:100%;" onclick="BUI.doJoin()">참가하기</button></div>';
   } else {
     var already = myParticipant.comboCount || 0;
-    if (already >= 100) {
+    if (myParticipant.finalized) {
+      actionHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✅ 제출완료 (' + already + '개) — 더 이상 추가할 수 없습니다.<br>추첨 결과를 기다려주세요.</div></div>';
+    } else if (already >= 100) {
       actionHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ 최대 100개 조합 제출 완료<br>추첨 결과를 기다려주세요.</div></div>';
     } else {
       actionHtml = BUI.comboSubmitWidgetHtml(already, '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">인원 제한 없이 누구나 참가할 수 있고, 추첨 후 각자 당첨금 <b style="color:var(--gold);">합계</b>가 가장 큰 사람이 1등입니다. (참가비는 조합 개수와 무관하게 1회만 부과됩니다)</p>');
@@ -993,7 +997,9 @@ BUI.roomPendingHtml = function(room, myParticipant){
   var submitHtml = '';
   if (myParticipant) {
     var already = myParticipant.comboCount || 0;
-    if (already >= 100) {
+    if (myParticipant.finalized) {
+      submitHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✅ 제출완료 (' + already + '개) — 더 이상 추가할 수 없습니다.<br>다른 참가자의 제출을 기다리는 중입니다.</div></div>';
+    } else if (already >= 100) {
       submitHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ 최대 100개 조합 제출 완료<br>다른 참가자의 제출을 기다리는 중입니다.</div></div>';
     } else {
       submitHtml = BUI.comboSubmitWidgetHtml(already, '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">여러 개의 번호조합을 등록할 수 있어요. 추첨 후 각 조합의 당첨금을 모두 더한 <b style="color:var(--gold);">합계</b>로 승부를 가립니다. (참가비는 조합 개수와 무관하게 1회만 부과됩니다)</p>');
@@ -1054,14 +1060,14 @@ BUI.rerenderCurrentSubmitUI = function(){
 BUI.confirmSubmit = async function(isFinal){
   var combos = BUI.state.multiCombos;
   var result = (BUI.state.modalKind === 'tournament')
-    ? await TOUR.submit(BUI.state.currentTournamentRunId, combos)
-    : await BATTLE.submitPicksList(BUI.state.currentRoomId, combos);
+    ? await TOUR.submit(BUI.state.currentTournamentRunId, combos, isFinal)
+    : await BATTLE.submitPicksList(BUI.state.currentRoomId, combos, isFinal);
   if (!result.ok) return;
   BUI.state.multiCombos = [];
   BUI.state.selectedBalls = [];
   BUI.state.submitConfirmShown = false;
   alert(isFinal
-    ? '✅ 제출 완료했습니다! 참여해주셔서 감사합니다.'
+    ? '✅ 제출 완료했습니다! 이제 이 조합은 수정·추가할 수 없습니다. 참여해주셔서 감사합니다.'
     : '💾 지금까지 조합이 제출됐어요. 마감 전까지 언제든 다시 들어와서 추가하실 수 있습니다.');
   BUI.rerenderCurrentSubmitUI();
 };
