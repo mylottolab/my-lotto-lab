@@ -221,7 +221,7 @@ router.post('/:tier/join', async (req, res) => {
   }
 });
 
-// ─── [인증 필요] 현재 단계 번호조합 제출 (최대 100개, 1회) ─────────────────────
+// ─── [인증 필요] 현재 단계 번호조합 제출 (마감 전까지 여러 번 나눠서 추가 가능, 최대 100개) ──
 // POST /api/tournament/runs/:id/submit   body: { combos:[[6개],...], nickname, email }
 router.post('/runs/:id/submit', async (req, res) => {
   try {
@@ -231,7 +231,6 @@ router.post('/runs/:id/submit', async (req, res) => {
     const { id } = req.params;
     const combos = req.body.combos;
     if (!Array.isArray(combos) || !combos.length) return res.status(400).json({ error: '번호조합을 1개 이상 등록해주세요.' });
-    if (combos.length > 100) return res.status(400).json({ error: '번호조합은 최대 100개까지만 등록할 수 있습니다.' });
     for (const c of combos) {
       if (!Array.isArray(c) || c.length !== 6) return res.status(400).json({ error: '각 조합은 6개의 번호여야 합니다.' });
     }
@@ -248,15 +247,24 @@ router.post('/runs/:id/submit', async (req, res) => {
       .from('tournament_stage_entries').select('*')
       .eq('run_id', id).eq('participant_id', participant.id).eq('stage', run.current_stage).maybeSingle();
     if (!entry) return res.status(409).json({ error: '지금은 번호를 제출할 수 있는 단계가 아닙니다.' });
-    if (entry.picks_list && entry.picks_list.length) return res.status(409).json({ error: '이미 이번 단계 번호를 제출했습니다.' });
 
-    const sortedCombos = combos.map(c => c.slice().sort((a, b) => a - b));
+    const existingPicks = entry.picks_list || [];
+    if (existingPicks.length + combos.length > 100) {
+      return res.status(400).json({
+        error: `이미 ${existingPicks.length}개를 제출하셨습니다. 최대 100개까지 가능하니 ${100 - existingPicks.length}개까지만 추가할 수 있어요.`,
+        alreadySubmitted: existingPicks.length,
+        remaining: Math.max(0, 100 - existingPicks.length),
+      });
+    }
+
+    const sortedNewCombos = combos.map(c => c.slice().sort((a, b) => a - b));
+    const mergedPicks = existingPicks.concat(sortedNewCombos);
     const { error: updErr } = await supabase.from('tournament_stage_entries').update({
-      picks_list: sortedCombos, combo_count: sortedCombos.length, submitted_at: new Date().toISOString(),
+      picks_list: mergedPicks, combo_count: mergedPicks.length, submitted_at: new Date().toISOString(),
     }).eq('id', entry.id);
     if (updErr) return res.status(500).json({ error: `제출 실패: ${updErr.message}` });
 
-    return res.json({ success: true });
+    return res.json({ success: true, addedCount: sortedNewCombos.length, totalCount: mergedPicks.length });
   } catch (err) {
     console.error('[tournament] 제출 오류:', err);
     return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
