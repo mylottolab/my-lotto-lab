@@ -101,6 +101,46 @@ async function gradeRoom1v1(room, winRow, pricing) {
   }).eq('id', room.id);
 }
 
+// ─── 무제한 대결(FFA) 채점 ───────────────────────────────────────────────────
+// 1:1과 완전히 같은 승자산출 로직(compareParticipants: 당첨금 합계 desc → 제출건수 asc)을
+// 참가자가 몇 명이든 그대로 적용한다. 1등이 여럿(동점)이면 1:1의 무승부 처리를 N명으로
+// 확장해서 참가비 절반씩 환불한다.
+async function gradeRoomFFA(room, winRow, pricing) {
+  const participants = await gradeParticipants(room, winRow);
+  const allForfeited = participants.length > 0 && participants.every(p => p.forfeited);
+  let winnerIds = [], isDraw = false;
+
+  if (!allForfeited && participants.length > 0) {
+    const sorted = participants.slice().sort(compareParticipants);
+    const best = sorted[0];
+    const trueTies = best.forfeited ? [] : sorted.filter(p => compareParticipants(p, best) === 0);
+
+    if (trueTies.length > 1) {
+      isDraw = true;
+      if (pricing.entry > 0) {
+        for (const p of trueTies) {
+          await creditPoints(p.user_id, Math.floor(pricing.entry / 2), {
+            reason: `"${room.name}" 무제한 대결 공동 1위 참가비 절반 환불`, refId: room.id,
+          });
+        }
+      }
+    } else {
+      winnerIds = [best.id];
+      if (pricing.reward > 0 && !best.forfeited) {
+        await creditPoints(best.user_id, pricing.reward, {
+          reason: `"${room.name}" 무제한 대결 1위 보상`, refId: room.id,
+        });
+      }
+    }
+  }
+
+  await supabase.from('battle_rooms').update({
+    status: 'completed', result_nums: winRow.nums, result_bonus: winRow.bonus,
+    winner_ids: winnerIds, is_draw: isDraw, all_forfeited: allForfeited,
+    completed_at: new Date().toISOString(),
+  }).eq('id', room.id);
+}
+
 async function gradeRoomTeam(room, winRow, pricing) {
   const participants = await gradeParticipants(room, winRow);
   const teamCount = room.team_count || 2;
@@ -180,15 +220,22 @@ async function gradeRound(round) {
   if (winErr) throw winErr;
   if (!winRow || !winRow.nums) return { skipped: true, reason: 'no_win_data', round };
 
-  // 이 회차로 진행 중이던(아직 안 끝난) 1:1·팀전 방들 — 번호제출 대기중이든 이미 전원 제출했든 전부 이 시점에 채점
-  const { data: rooms, error: roomsErr } = await supabase
+  // 이 회차로 진행 중이던(아직 안 끝난) 방들 — 1:1·팀전은 번호제출 대기중이든 이미 전원
+  // 제출했든(pending_numbers/active) 이 시점에 채점한다. FFA(무제한 대결)는 인원제한이 없어
+  // 정원기반 상태전이 자체가 없으므로 계속 waiting 상태로 남아있다가 여기서 한 번에 채점된다.
+  // (1v1/team의 waiting은 "아직 정원이 안 찬 상태"라 채점 대상이 아니므로 제외해야 함 —
+  //  그래서 status 필터링을 타입별로 다르게 적용한다.)
+  const { data: roundRooms, error: roomsErr } = await supabase
     .from('battle_rooms')
     .select('*')
-    .in('type', ['1v1', 'team'])
+    .in('type', ['1v1', 'team', 'ffa'])
     .eq('round', round)
-    .in('status', ['pending_numbers', 'active']);
+    .in('status', ['waiting', 'pending_numbers', 'active']);
   if (roomsErr) throw roomsErr;
-  if (!rooms || !rooms.length) return { skipped: true, reason: 'nothing_to_grade', round };
+  const rooms = (roundRooms || []).filter(r => (
+    r.type === 'ffa' ? r.status === 'waiting' : (r.status === 'pending_numbers' || r.status === 'active')
+  ));
+  if (!rooms.length) return { skipped: true, reason: 'nothing_to_grade', round };
 
   let graded = 0;
   const pricingCache = {};
@@ -197,6 +244,7 @@ async function gradeRound(round) {
       if (!pricingCache[room.type]) pricingCache[room.type] = await getPriceReward(room.type);
       const pricing = pricingCache[room.type];
       if (room.type === 'team') await gradeRoomTeam(room, winRow, pricing);
+      else if (room.type === 'ffa') await gradeRoomFFA(room, winRow, pricing);
       else await gradeRoom1v1(room, winRow, pricing);
       graded++;
     } catch (e) {
