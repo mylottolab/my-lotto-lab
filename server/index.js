@@ -81,8 +81,17 @@ app.post('/api/auth/signup', async (req, res) => {
     country: country || 'KR'
   });
   if (profileErr) {
-    console.error('[signup] profiles 저장 오류:', profileErr);
-    // auth 계정은 이미 생성됐으므로 가입 자체는 성공으로 처리하되 로그만 남김
+    // ⚠️ 2026-07-10: 예전에는 여기서 로그만 남기고 가입을 "성공"으로 처리했음 — 그 결과
+    // auth.users엔 있지만 profiles엔 없는 반쪽짜리 계정이 여러 번 생겨서(예: 돼지엄마2, 돼지엄마3),
+    // 나중에 충전/토토 등 profiles를 참조하는 모든 기능에서 "닉네임/이메일 불일치" 오류가
+    // 반복적으로 발생했다. 이제는 profiles 저장이 실패하면 방금 만든 auth 계정을 즉시 롤백(삭제)해서
+    // 반쪽짜리 계정 자체가 생기지 않도록 하고, 사용자에게 명확히 재시도를 요청한다.
+    console.error('[signup] profiles 저장 오류 - auth 계정 롤백 시도:', profileErr);
+    const { error: rollbackErr } = await supabase.auth.admin.deleteUser(data.user.id);
+    if (rollbackErr) {
+      console.error('[signup] 롤백(auth 계정 삭제)도 실패 — 수동 확인 필요. userId:', data.user.id, rollbackErr);
+    }
+    return res.status(500).json({ error: '가입 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.' });
   }
 
   // ⚠️ 2026-07-10: Supabase 프로젝트의 "Confirm email" 설정이 꺼져있으면 signUp() 즉시
