@@ -616,11 +616,13 @@ MOCK.requireAuth = function(){
 };
 
 // 서버 요청에 필요한 인증 헤더/바디를 만들어준다 (회원=Authorization 헤더, 비회원=닉네임+이메일)
-MOCK._authRequest = function(state, body){
+MOCK._authRequest = async function(state, body){
   body = body || {};
   var headers = { 'Content-Type': 'application/json' };
   if (state.type === 'member') {
-    headers['Authorization'] = 'Bearer ' + state.token;
+    var freshToken = await MLL.ensureFreshToken();
+    if (!freshToken || freshToken === 'guest') return null;
+    headers['Authorization'] = 'Bearer ' + freshToken;
   } else {
     body.nickname = state.nickname;
     body.email = state.email;
@@ -646,7 +648,10 @@ MOCK.loadEntries = async function(){
   if (!state || !state.type) return [];
   try {
     var headers = {};
-    if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
+    if (state.type === 'member') {
+      var freshToken = await MLL.ensureFreshToken();
+      if (freshToken && freshToken !== 'guest') headers['Authorization'] = 'Bearer ' + freshToken;
+    }
     var resp = await fetch(MLL.API_BASE + '/api/mock/entries' + MOCK._authQuery(state), { headers: headers });
     if (!resp.ok) return [];
     var data = await resp.json();
@@ -662,7 +667,8 @@ MOCK.addEntries = async function(items){
   var payloadItems = items.map(function(it){
     return { round: it.round, nums: it.nums, purchaseType: it.type, inputMethod: it.inputMethod };
   });
-  var req = MOCK._authRequest(state, { items: payloadItems });
+  var req = await MOCK._authRequest(state, { items: payloadItems });
+  if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
 
   try {
     var resp = await fetch(MLL.API_BASE + '/api/mock/entries', {
@@ -739,7 +745,8 @@ MOCK._notifyInsufficientPoints = function(data){
 MOCK.chargeExcel = async function(count){
   var state = MOCK.requireAuth();
   if (!state) return { ok:false, cancelled:true };
-  var req = MOCK._authRequest(state, { actionKey:'mock_excel_download', quantity: count });
+  var req = await MOCK._authRequest(state, { actionKey:'mock_excel_download', quantity: count });
+  if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/points/spend', { method:'POST', headers:req.headers, body: JSON.stringify(req.body) });
     var data = await resp.json();
@@ -762,7 +769,8 @@ MOCK.chargeExcel = async function(count){
 MOCK.chargeMarking = async function(gameCount, imgCount){
   var state = MOCK.requireAuth();
   if (!state) return { ok:false, cancelled:true };
-  var req = MOCK._authRequest(state, { gameCount: gameCount, imgCount: imgCount });
+  var req = await MOCK._authRequest(state, { gameCount: gameCount, imgCount: imgCount });
+  if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/mock/charge-marking', { method:'POST', headers:req.headers, body: JSON.stringify(req.body) });
     var data = await resp.json();
