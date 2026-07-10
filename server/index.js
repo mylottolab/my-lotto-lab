@@ -55,11 +55,13 @@ app.post('/api/auth/signup', async (req, res) => {
     return res.status(409).json({ error: '이미 사용 중인 닉네임입니다.' });
   }
 
-  const { data, error } = await supabase.auth.admin.createUser({
+  // ⚠️ 2026-07-10: supabase.auth.admin.createUser()는 "관리자가 강제로 계정을 만드는" 방식이라
+  // Supabase가 확인메일을 자동으로 보내주지 않습니다(그래서 가입해도 메일이 안 왔었습니다).
+  // 본인이 직접 가입하는 일반 흐름에서 확인메일이 자동으로 나가려면 auth.signUp()을 써야 합니다.
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    email_confirm: false,
-    user_metadata: { nickname, country: country || 'KR' }
+    options: { data: { nickname, country: country || 'KR' } }
   });
   if (error) {
     if (error.message.includes('already registered') || error.message.includes('already been registered')) {
