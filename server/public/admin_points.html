@@ -31,6 +31,12 @@ tr:last-child td{border-bottom:none;}
 .cost-input{width:80px;background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12.5px;}
 .save-btn{background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;}
 .save-btn:disabled{opacity:.4;cursor:default;}
+.add-form{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 14px;background:var(--bg);border:1px solid var(--border-soft);border-radius:10px;padding:14px;margin-bottom:14px;}
+.add-form label{font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;}
+.add-form input[type=text],.add-form input[type=number]{width:100%;background:var(--surface);border:1px solid var(--border-soft);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12.5px;}
+.add-form .full{grid-column:1 / -1;}
+.add-form .chk-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);}
+.toggle-add-btn{background:var(--surface);border:1px solid var(--border-soft);color:var(--text);border-radius:7px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;margin-bottom:12px;}
 .badge{font-size:9.5px;padding:2px 7px;border-radius:20px;font-weight:700;}
 .badge.free{background:rgba(63,179,127,.15);color:var(--green);}
 .badge.paid{background:rgba(224,179,65,.15);color:var(--gold);}
@@ -138,6 +144,36 @@ tr:last-child td{border-bottom:none;}
 
   <div class="card">
     <h2>📋 메뉴별 포인트 차감 단가</h2>
+    <button class="toggle-add-btn" onclick="toggleAddForm()" id="addToggleBtn">➕ 새 항목 추가</button>
+    <div class="add-form" id="addForm" style="display:none;">
+      <div>
+        <label>action_key (영문 소문자·숫자·밑줄만, 예: battle_ffa_entry)</label>
+        <input type="text" id="newActionKey" placeholder="battle_ffa_entry">
+      </div>
+      <div>
+        <label>단가(P)</label>
+        <input type="number" step="0.01" id="newCostPoints" placeholder="100">
+      </div>
+      <div>
+        <label>한글 라벨</label>
+        <input type="text" id="newLabelKr" placeholder="무제한 대결 참가비">
+      </div>
+      <div>
+        <label>영문 라벨 (비우면 한글과 동일)</label>
+        <input type="text" id="newLabelEn" placeholder="Unlimited Battle Entry Fee">
+      </div>
+      <div class="full chk-row">
+        <input type="checkbox" id="newGrantsActivity"> <label for="newGrantsActivity" style="margin:0;">활동포인트로 지급되는 항목입니다 (보상/적립성 항목에 체크)</label>
+      </div>
+      <div class="full">
+        <label>비고 (선택)</label>
+        <input type="text" id="newNotes" placeholder="예: 무제한 대결 1등에게만 지급, 공동1등이면 n분할">
+      </div>
+      <div class="full" style="display:flex;gap:8px;">
+        <button class="save-btn" onclick="submitNewCost()">추가하기</button>
+        <button class="save-btn" style="background:var(--surface);color:var(--text-dim);border:1px solid var(--border-soft);" onclick="toggleAddForm()">취소</button>
+      </div>
+    </div>
     <table>
       <thead>
         <tr>
@@ -201,6 +237,16 @@ async function apiPut(path, body){
   });
   var data = await res.json();
   if(!res.ok){ showToast(data.error || '저장 실패', false); throw new Error(data.error); }
+  return data;
+}
+async function apiPost(path, body){
+  var res = await fetch(API + path, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'x-admin-key': adminKey },
+    body: JSON.stringify(body)
+  });
+  var data = await res.json();
+  if(!res.ok){ showToast(data.error || '생성 실패', false); throw new Error(data.error); }
   return data;
 }
 
@@ -275,6 +321,41 @@ async function saveCost(actionKey){
   try {
     await apiPut('/api/admin/point-costs/' + actionKey, { cost_points: Number(val) });
     showToast(actionKey + ' 저장되었습니다.', true);
+  } catch(e){}
+}
+
+function toggleAddForm(){
+  var form = document.getElementById('addForm');
+  var show = form.style.display === 'none';
+  form.style.display = show ? 'grid' : 'none';
+  document.getElementById('addToggleBtn').textContent = show ? '✕ 닫기' : '➕ 새 항목 추가';
+  if (show) {
+    ['newActionKey','newCostPoints','newLabelKr','newLabelEn','newNotes'].forEach(function(id){ document.getElementById(id).value = ''; });
+    document.getElementById('newGrantsActivity').checked = false;
+  }
+}
+
+async function submitNewCost(){
+  var actionKey = document.getElementById('newActionKey').value.trim();
+  var costPoints = document.getElementById('newCostPoints').value;
+  var labelKr = document.getElementById('newLabelKr').value.trim();
+  var labelEn = document.getElementById('newLabelEn').value.trim();
+  var grantsActivity = document.getElementById('newGrantsActivity').checked;
+  var notes = document.getElementById('newNotes').value.trim();
+
+  if (!actionKey) { showToast('action_key를 입력해주세요.', false); return; }
+  if (!labelKr) { showToast('한글 라벨을 입력해주세요.', false); return; }
+  if (costPoints === '' || isNaN(Number(costPoints)) || Number(costPoints) < 0) { showToast('단가를 올바르게 입력해주세요.', false); return; }
+
+  try {
+    await apiPost('/api/admin/point-costs', {
+      action_key: actionKey, label_kr: labelKr, label_en: labelEn,
+      cost_points: Number(costPoints), grants_activity_point: grantsActivity, notes: notes || null,
+    });
+    showToast(actionKey + ' 항목이 추가되었습니다.', true);
+    toggleAddForm();
+    var costs = await apiGet('/api/admin/point-costs');
+    renderCosts(costs.items);
   } catch(e){}
 }
 
