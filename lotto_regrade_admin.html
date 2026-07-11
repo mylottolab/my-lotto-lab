@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>한국로또 재채점 (관리자)</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 620px; margin: 30px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 20px; }
+  label { display: block; margin-top: 12px; font-size: 13px; font-weight: bold; color: #444; }
+  input { width: 100%; box-sizing: border-box; padding: 8px; margin-top: 4px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+  button { margin-top: 18px; padding: 10px 20px; font-size: 14px; background: #222; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+  button:hover { background: #444; }
+  button:disabled { background: #999; cursor: not-allowed; }
+  .result { margin-top: 14px; padding: 10px; border-radius: 4px; font-size: 12.5px; white-space: pre-wrap; word-break: break-all; }
+  .result.ok { background: #e6f4ea; color: #1e7e34; }
+  .result.err { background: #fbe8e8; color: #c0392b; }
+  .hint { font-size: 12px; color: #888; margin-top: 2px; }
+  .adminkey-box { background: #fafafa; border: 1px solid #ddd; padding: 12px; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<a href="main_page.html" style="display:inline-block;margin-bottom:10px;font-size:13px;color:#2a5db0;text-decoration:none;">← 메인으로</a>
+<h1>🔁 한국로또 재채점</h1>
+<p class="hint">
+당첨번호(kr_lotto_results)는 이미 저장돼 있는데, 100전략 레이스·모의실전시뮬레이션·Battles·토너먼트·
+로또 모의테스트(실전)가 "추첨대기"로 남아있을 때 쓰는 도구입니다.<br>
+(엑셀 업로드처럼 정상 자동수집 경로를 안 거치고 당첨번호만 직접 들어간 경우 이런 일이 생길 수 있어요.)<br>
+당첨번호를 새로 가져오는 게 아니라, <b>이미 저장된 당첨번호를 그대로 써서 채점만 다시 실행</b>합니다.
+</p>
+
+<div class="adminkey-box">
+  <label>관리자 키 (ADMIN_API_KEY)</label>
+  <input type="password" id="adminKey" placeholder="관리자 키 입력 (이 브라우저에만 기억됨)">
+</div>
+
+<label>회차</label>
+<input type="number" id="roundInput" placeholder="예: 1232">
+
+<button onclick="submitRegrade()" id="regradeBtn">재채점 실행</button>
+<div id="regradeResult"></div>
+
+<script>
+const API_BASE = 'https://my-lotto-lab-api.onrender.com';
+
+function getAdminKey() {
+  const key = document.getElementById('adminKey').value.trim();
+  if (!key) alert('관리자 키를 입력해주세요.');
+  return key;
+}
+function showResult(ok, message) {
+  const el = document.getElementById('regradeResult');
+  el.className = 'result ' + (ok ? 'ok' : 'err');
+  el.textContent = message;
+}
+
+async function submitRegrade() {
+  const adminKey = getAdminKey();
+  if (!adminKey) return;
+  const round = parseInt(document.getElementById('roundInput').value);
+  if (!round) { showResult(false, '회차를 입력해주세요.'); return; }
+
+  const btn = document.getElementById('regradeBtn');
+  btn.disabled = true;
+  btn.textContent = '재채점 중... (몇 초~몇십 초 걸릴 수 있어요)';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/lotto/regrade`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+      body: JSON.stringify({ round }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showResult(false, '실패: ' + (data.error || res.status));
+    } else {
+      const c = data.chainResults || {};
+      const summary = [
+        '✅ 제' + round + '회 재채점 완료',
+        '',
+        '· 100전략 레이스: ' + (c.race && c.race.error ? '오류(' + c.race.error + ')' : JSON.stringify(c.race)),
+        '· 모의실전시뮬레이션: ' + (c.mock && c.mock.error ? '오류(' + c.mock.error + ')' : JSON.stringify(c.mock)),
+        '· Battles: ' + (c.battles && c.battles.error ? '오류(' + c.battles.error + ')' : JSON.stringify(c.battles)),
+        '· 토너먼트: ' + (c.tournament && c.tournament.error ? '오류(' + c.tournament.error + ')' : JSON.stringify(c.tournament)),
+        '· 모의테스트(실전): ' + (c.mocktest && c.mocktest.error ? '오류(' + c.mocktest.error + ')' : JSON.stringify(c.mocktest)),
+      ].join('\n');
+      showResult(true, summary);
+    }
+  } catch (err) {
+    showResult(false, '네트워크 오류: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '재채점 실행';
+  }
+}
+</script>
+
+</body>
+</html>
