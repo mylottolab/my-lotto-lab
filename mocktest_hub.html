@@ -65,6 +65,20 @@ button{font-family:inherit;cursor:pointer;}
 .game-tab .gt-status.wait{background:rgba(212,83,126,.14);color:var(--red);}
 .game-tab .gt-status.ready{background:rgba(63,179,127,.14);color:var(--green);}
 
+.landing-section-title{font-size:13.5px;font-weight:700;color:var(--text-dim);margin-bottom:10px;}
+.landing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.landing-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:16px;cursor:pointer;transition:transform .15s,border-color .15s;}
+.landing-card:hover{transform:translateY(-2px);border-color:var(--game-accent);}
+.landing-card .lc-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;margin-bottom:10px;}
+.landing-card .lc-badge.wait{background:rgba(212,83,126,.14);color:var(--red);}
+.landing-card .lc-badge.ready{background:rgba(63,179,127,.14);color:var(--green);}
+.landing-card .lc-name{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:7px;}
+.landing-card .lc-target{font-size:12px;color:var(--text-dim);margin-top:6px;}
+.landing-card .lc-countdown{font-size:11px;color:var(--gold);margin-top:8px;}
+.landing-card .lc-jackpot{font-size:11px;color:var(--green);margin-top:6px;}
+@media (max-width:900px){ .landing-grid{grid-template-columns:repeat(2,1fr);} }
+@media (max-width:520px){ .landing-grid{grid-template-columns:1fr;} }
+
 .info-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;gap:28px;flex-wrap:wrap;}
 .info-item .k{font-size:10.5px;color:var(--text-faint);margin-bottom:3px;}
 .info-item .v{font-size:14.5px;font-weight:700;color:var(--text);}
@@ -81,7 +95,7 @@ select.scroll-picker{width:100%;max-height:220px;overflow-y:auto;font-family:inh
 select.scroll-picker option{padding:8px 10px;}
 select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
 
-.ball-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin:10px 0;}
+.ball-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:10px 0;}
 .ball-btn{border:1px solid var(--border);background:var(--bg);color:var(--text-dim);border-radius:50%;aspect-ratio:1;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0;}
 .ball-btn.on{background:var(--game-accent);color:#fff;border-color:var(--game-accent);}
 .ball-btn:hover{border-color:var(--game-accent);}
@@ -115,6 +129,19 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
   .main-tabs, .game-tabs{flex-direction:column;}
   .ball-grid{grid-template-columns:repeat(7,1fr);}
 }
+
+/* ── 번호입력 화면: 왼쪽(입력공, 세로로 길게) / 오른쪽(등록된 조합, 세로로 길게) ── */
+.register-cols{display:flex;gap:22px;align-items:flex-start;margin-top:6px;}
+.reg-col-left{flex:0 0 300px;}
+.reg-col-right{flex:1;min-width:0;max-height:620px;overflow-y:auto;padding-right:4px;}
+@media (max-width:820px){
+  .register-cols{flex-direction:column;}
+  .reg-col-left{flex:none;width:100%;}
+  .reg-col-right{max-height:420px;width:100%;}
+}
+.input-mode-tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.mode-btn{flex:1;min-width:76px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);border-radius:8px;padding:8px 6px;font-size:12px;font-weight:700;}
+.mode-btn.active{background:var(--game-accent);color:#fff;border-color:var(--game-accent);}
 </style>
 </head>
 <body>
@@ -237,6 +264,14 @@ MT.getGlobalDates = async function(gameCode){
     return d.dates || [];
   } catch(e) { return []; }
 };
+// 잭팟은 별도로 안 만들고 기존 해외복권(global_lotto) 시스템의 실시간 잭팟을 그대로 재사용한다
+// (설계 확정 2026-07-12 — 정확도/지연은 신경쓰지 않고 그대로 공유하기로 함).
+MT.getJackpot = async function(gameCode){
+  try {
+    var r = await fetch(MT.API_BASE + '/api/global/jackpot/' + gameCode);
+    return r.ok ? r.json() : null;
+  } catch(e) { return null; }
+};
 MT.getMyEntries = async function(gameCode, mode){
   var state = await mtAuthState();
   if (!state.type) return [];
@@ -290,9 +325,23 @@ MU.state = {
   checkGame: 'KR', checkMain: [], checkBonus: [], checkRound: null, checkDate: null,
 };
 
+MU.state.view = 'landing'; // 'landing' | 'register' | 'check'
+
 MU.init = async function(){
+  var params = new URLSearchParams(location.search);
+  var tabParam = (params.get('tab') || '').toUpperCase();
+  var gameParam = (params.get('game') || '').toUpperCase();
+
   MU.renderMainTabs();
-  await MU.renderMainTabBody();
+
+  if (tabParam === 'CHECK') {
+    MU.state.view = 'check';
+    await MU.renderChecker();
+  } else if ((tabParam === 'REAL' || tabParam === 'MOCK') && MT.GAMES[gameParam]) {
+    await MU.enterRegister(gameParam, tabParam);
+  } else {
+    await MU.goNav('landing');
+  }
   MU.refreshBalance();
 };
 MU.refreshBalance = async function(){
@@ -307,28 +356,134 @@ MU.refreshBalance = async function(){
   } catch(e){}
 };
 
-MU.MAIN_TABS = [
-  { key:'REAL', icon:'⏰', title:'실전테스트 (추첨대기)', desc:'다음 실제 추첨을 기다리는 진짜 예행연습' },
-  { key:'MOCK', icon:'⚡', title:'모의테스트 (즉시확인)', desc:'과거 아무 회차나 골라서 바로 채점' },
-  { key:'CHECK', icon:'🔍', title:'수동조회기 (무료)', desc:'등록 없이 번호만 넣어서 당첨여부만 확인' },
+// ── 상단 내비게이션: "처음(8카드 랜딩)" / "수동조회기" 둘뿐 — 실전·모의 진입은
+// 랜딩카드를 눌러서 들어간다(요청: "카드 8장을 보여주고 클릭하면 본론으로 들어가도록") ──
+MU.NAV_TABS = [
+  { key:'landing', icon:'🏠', title:'실전·모의테스트 홈', desc:'4종목 실전/모의테스트 카드 모아보기' },
+  { key:'check', icon:'🔍', title:'수동조회기 (무료)', desc:'등록 없이 번호만 넣어서 당첨여부만 확인' },
 ];
 MU.renderMainTabs = function(){
-  document.getElementById('mainTabs').innerHTML = MU.MAIN_TABS.map(function(t){
-    return '<div class="main-tab' + (MU.state.mainTab===t.key?' active':'') + '" onclick="MU.setMainTab(\'' + t.key + '\')">' +
+  document.getElementById('mainTabs').innerHTML = MU.NAV_TABS.map(function(t){
+    var active = (MU.state.view === t.key) || (t.key === 'landing' && MU.state.view === 'register');
+    return '<div class="main-tab' + (active?' active':'') + '" onclick="MU.goNav(\'' + t.key + '\')">' +
       '<span class="mt-icon">' + t.icon + '</span><span class="mt-title">' + t.title + '</span>' +
       '<div class="mt-desc">' + t.desc + '</div>' +
     '</div>';
   }).join('');
 };
-MU.setMainTab = async function(key){
-  MU.state.mainTab = key;
+MU.goNav = async function(key){
+  MU.state.view = key;
   MU.state.picks = []; MU.state.selectedMain = []; MU.state.selectedBonus = [];
   MU.renderMainTabs();
-  await MU.renderMainTabBody();
+  if (key === 'landing') await MU.renderLanding();
+  else await MU.renderChecker();
 };
-MU.renderMainTabBody = async function(){
-  if (MU.state.mainTab === 'CHECK') { await MU.renderChecker(); return; }
+
+// ── 랜딩 카드로 클릭해서 특정 종목+모드의 실제 등록화면으로 진입 ──
+MU.enterRegister = async function(code, mode){
+  MU.state.view = 'register';
+  MU.state.game = code;
+  MU.state.mainTab = mode;
+  MU.state.picks = []; MU.state.selectedMain = []; MU.state.selectedBonus = [];
+  MU.state.mockTarget = null; MU.state.mockTargetIdx = null;
+  MU.state.inputMode = 'manual';
+  MU.renderMainTabs();
   await MU.renderGameSection();
+};
+
+// ⏱ 남은시간 표시용 — 여러 카드의 카운트다운을 1초마다 한 우번에 갱신 (landing 뷰일 때만 동작)
+MU.landingDeadlines = {};
+function formatCountdown(ms){
+  if (ms <= 0) return '마감';
+  var totalSec = Math.floor(ms/1000);
+  var d = Math.floor(totalSec/86400), h = Math.floor((totalSec%86400)/3600), m = Math.floor((totalSec%3600)/60), s = totalSec%60;
+  if (d > 0) return d+'일 '+h+'시간 '+m+'분';
+  return (h<10?'0'+h:h)+':'+(m<10?'0'+m:m)+':'+(s<10?'0'+s:s);
+}
+function computeKRRegDeadline(){
+  var nowKo = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+  var d = nowKo.getDay();
+  var daysUntilSat = (6 - d + 7) % 7;
+  var candidate = new Date(nowKo.getFullYear(), nowKo.getMonth(), nowKo.getDate()+daysUntilSat, 20,0,0,0);
+  if (candidate.getTime() <= nowKo.getTime()) candidate = new Date(candidate.getTime() + 7*86400000);
+  return candidate;
+}
+if (!window._mtLandingInterval) {
+  window._mtLandingInterval = setInterval(function(){
+    if (MU.state.view !== 'landing') return;
+    Object.keys(MU.landingDeadlines).forEach(function(id){
+      var el = document.getElementById(id);
+      if (!el) { delete MU.landingDeadlines[id]; return; }
+      el.textContent = formatCountdown(MU.landingDeadlines[id].getTime() - Date.now());
+    });
+  }, 1000);
+}
+
+MU.renderLanding = async function(){
+  var body = document.getElementById('mainTabBody');
+  body.innerHTML = '<div class="card"><div class="empty-state">불러오는 중...</div></div>';
+  MU.landingDeadlines = {};
+
+  var realCardsHtml = [], mockCardsHtml = [];
+
+  for (var i=0;i<MT.GAME_ORDER.length;i++){
+    var code = MT.GAME_ORDER[i];
+    var g = MT.GAMES[code];
+    var isKR = code === 'KR';
+    var realId = 'landingCd_' + code + '_REAL';
+    var targetLabel, deadlineDate = null;
+
+    if (isKR) {
+      var meta = await MT.getKrMeta();
+      targetLabel = (meta && meta.nextRound) ? ('제' + meta.nextRound + '회') : '-';
+      deadlineDate = computeKRRegDeadline();
+    } else {
+      var meta2 = await MT.getGlobalMeta(code);
+      targetLabel = (meta2 && meta2.nextDrawDate) ? meta2.nextDrawDate : '-';
+      deadlineDate = (meta2 && meta2.nextDrawDate) ? new Date(meta2.nextDrawDate + 'T23:59:00+09:00') : null;
+    }
+    if (deadlineDate) MU.landingDeadlines[realId] = deadlineDate;
+
+    var jackpotHtml = '';
+    if (!isKR) {
+      var jp = await MT.getJackpot(code);
+      var jpVal = jp && (jp.jackpot_estimate || jp.jackpotEstimate);
+      jackpotHtml = '<div class="lc-jackpot">💰 예상 잭팟 ' + (jpVal ? ('$' + Number(jpVal).toLocaleString()) : '정보없음') + '</div>';
+    }
+
+    realCardsHtml.push(
+      '<div class="landing-card real" onclick="MU.enterRegister(\'' + code + '\',\'REAL\')">' +
+        '<div class="lc-badge wait">⏰ 추첨대기</div>' +
+        '<div class="lc-name"><span class="flag-ic flag-' + g.flag + '"></span>' + g.nameKr + '</div>' +
+        '<div class="lc-target font-num">' + targetLabel + '</div>' +
+        (deadlineDate ? '<div class="lc-countdown">마감까지 <span id="' + realId + '" class="font-num">--</span></div>' : '') +
+        jackpotHtml +
+      '</div>'
+    );
+
+    var rangeLabel;
+    if (isKR) {
+      var meta3 = await MT.getKrMeta();
+      rangeLabel = (meta3 && meta3.maxRound) ? ('제1회 ~ 제' + meta3.maxRound + '회') : '데이터 없음';
+    } else {
+      var meta4 = await MT.getGlobalMeta(code);
+      rangeLabel = (meta4 && meta4.minDrawDate) ? (meta4.minDrawDate + ' ~ ' + meta4.maxDrawDate) : '데이터 없음';
+    }
+    mockCardsHtml.push(
+      '<div class="landing-card mock" onclick="MU.enterRegister(\'' + code + '\',\'MOCK\')">' +
+        '<div class="lc-badge ready">⚡ 즉시확인</div>' +
+        '<div class="lc-name"><span class="flag-ic flag-' + g.flag + '"></span>' + g.nameKr + '</div>' +
+        '<div class="lc-target">' + rangeLabel + '</div>' +
+      '</div>'
+    );
+  }
+
+  body.innerHTML =
+    '<div class="landing-section-title">⏰ 실전테스트 — 다음 추첨을 기다리는 진짜 예행연습</div>' +
+    '<div class="landing-grid">' + realCardsHtml.join('') + '</div>' +
+    '<div class="landing-section-title" style="margin-top:22px;">⚡ 모의테스트 — 과거 회차로 즉시 채점</div>' +
+    '<div class="landing-grid">' + mockCardsHtml.join('') + '</div>' +
+    '<div style="text-align:center;margin-top:22px;"><button class="btn btn-outline" onclick="MU.goNav(\'check\')">🔍 등록 없이 무료로 당첨번호만 확인하기 →</button></div>';
 };
 
 // ── 실전/모의 공통: 게임탭 + 등록패널 + 내 등록현황 ──
@@ -342,7 +497,9 @@ MU.renderGameSection = async function(){
     '</div>';
   }).join('');
 
+  var modeLabel = MU.state.mainTab === 'REAL' ? '⏰ 실전테스트' : '⚡ 모의테스트';
   document.getElementById('mainTabBody').innerHTML =
+    '<div style="margin-bottom:12px;"><button class="btn btn-outline" onclick="MU.goNav(\'landing\')">← 처음으로</button> <span style="font-size:12.5px;color:var(--text-dim);margin-left:8px;">' + modeLabel + '</span></div>' +
     '<div class="game-tabs">' + gameTabsHtml + '</div>' +
     '<div id="gameInfoArea"><div class="card"><div class="empty-state">불러오는 중...</div></div></div>';
 
@@ -353,6 +510,7 @@ MU.selectGame = async function(code){
   MU.state.game = code;
   MU.state.picks = []; MU.state.selectedMain = []; MU.state.selectedBonus = [];
   MU.state.mockTarget = null; MU.state.mockTargetIdx = null;
+  MU.state.inputMode = 'manual';
   await MU.renderGameSection();
 };
 
@@ -389,20 +547,140 @@ MU.loadGameInfoArea = async function(){
 
   MU.renderBallGrid();
   MU.renderPicksList();
+  MU.renderModeControls();
   if (MU.state.mainTab === 'MOCK') await MU.renderTargetSlider();
   await MU.renderMyEntries();
 };
 
 MU.registerPanelHtml = function(){
   var g = MT.GAMES[MU.state.game];
+  var mode = MU.state.inputMode || 'manual';
+  var modeBtn = function(key, icon, label){
+    return '<button class="mode-btn' + (mode===key?' active':'') + '" data-mode="' + key + '" onclick="MU.setInputMode(\'' + key + '\')">' + icon + ' ' + label + '</button>';
+  };
   return '<h3>번호조합 등록</h3>' +
     '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">100개까지는 기본요금, 그 이후는 1개당 추가요금이 붙습니다. 개수 제한은 없어요.</p>' +
-    '<div class="form-row"><label>자동 생성 개수</label><input type="number" class="inp" id="mtGenCount" value="10" min="1" style="width:90px;"> <button class="btn btn-outline" onclick="MU.addAutoCombos()">+ 자동 추가</button></div>' +
-    '<div class="form-row"><label>메인번호 (' + g.mainCount + '개)</label></div>' +
-    '<div class="ball-grid" id="mtMainGrid"></div>' +
-    (g.bonusCount ? '<div class="form-row"><label>보너스번호 (' + g.bonusCount + '개)</label></div><div class="ball-grid" id="mtBonusGrid"></div>' : '') +
-    '<div id="mtPicksList" style="margin-top:14px;"></div>' +
-    '<button class="btn btn-accent" style="width:100%;margin-top:12px;" id="mtSubmitBtn" disabled onclick="MU.openConfirm()">등록하기</button>';
+    '<div class="input-mode-tabs">' +
+      modeBtn('manual','✋','수동') + modeBtn('auto','🎲','자동') + modeBtn('semi','🎯','반자동') + modeBtn('voice','🎙️','음성입력') +
+    '</div>' +
+    '<div id="mtModeControls"></div>' +
+    '<div class="register-cols">' +
+      '<div class="reg-col-left">' +
+        '<div class="form-row"><label>메인번호 (' + g.mainCount + '개)</label></div>' +
+        '<div class="ball-grid" id="mtMainGrid"></div>' +
+        (g.bonusCount ? '<div class="form-row"><label>보너스번호 (' + g.bonusCount + '개)</label></div><div class="ball-grid" id="mtBonusGrid"></div>' : '') +
+      '</div>' +
+      '<div class="reg-col-right">' +
+        '<div id="mtPicksList"></div>' +
+        '<button class="btn btn-accent" style="width:100%;margin-top:12px;" id="mtSubmitBtn" disabled onclick="MU.openConfirm()">등록하기</button>' +
+      '</div>' +
+    '</div>';
+};
+
+// ── 입력모드 전환 (수동/자동/반자동/음성입력) — 공그리드는 항상 클릭 가능하게 두고,
+// 모드 탭은 그 위에 뜨는 "도움 컨트롤"만 바꾼다. ──
+MU.setInputMode = function(mode){
+  MU.state.inputMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-mode')===mode); });
+  MU.renderModeControls();
+};
+MU.renderModeControls = function(){
+  var el = document.getElementById('mtModeControls');
+  if (!el) return;
+  var g = MT.GAMES[MU.state.game];
+  var mode = MU.state.inputMode || 'manual';
+
+  if (mode === 'manual') {
+    el.innerHTML = '<p style="font-size:11px;color:var(--text-faint);margin-bottom:6px;">아래 공을 직접 눌러서 메인 ' + g.mainCount + '개' + (g.bonusCount ? '·보너스 ' + g.bonusCount + '개' : '') + '를 채우면 조합이 자동으로 추가됩니다.</p>';
+  } else if (mode === 'auto') {
+    el.innerHTML = '<div class="form-row"><label>자동 생성 개수</label><input type="number" class="inp" id="mtGenCount" value="10" min="1" style="width:90px;"> <button class="btn btn-outline" onclick="MU.addAutoCombos()">+ 완전자동 추가</button></div>';
+  } else if (mode === 'semi') {
+    el.innerHTML = '<p style="font-size:11px;color:var(--text-faint);margin-bottom:6px;">아래 공에서 넣고 싶은 번호를 먼저 몇 개만 골라두세요(고정번호). 나머지는 자동으로 채워서 조합을 완성합니다.</p>' +
+      '<div class="form-row"><label>생성 개수</label><input type="number" class="inp" id="mtSemiCount" value="10" min="1" style="width:90px;"> <button class="btn btn-outline" onclick="MU.addSemiAutoCombos()">🎯 반자동으로 채우기</button></div>';
+  } else if (mode === 'voice') {
+    el.innerHTML = '<div class="form-row"><label>음성 언어</label>' +
+      '<select class="inp" id="mtVoiceLang" style="width:130px;"><option value="ko-KR">한국어</option><option value="en-US">English</option></select>' +
+      '<button class="btn btn-outline" id="mtVoiceBtn" onclick="MU.startVoiceInput()">🎙️ 음성으로 입력</button></div>' +
+      '<div id="mtVoiceStatus" style="font-size:11.5px;color:var(--text-dim);margin-top:6px;line-height:1.6;">번호를 하나씩 순서대로 말씀해주세요 (예: "3, 12, 21, 28, 34, 41").</div>';
+  }
+};
+
+// ── 반자동: 지금 선택된 번호(고정)는 유지하고, 나머지 자리만 무작위로 채워 N개 생성 ──
+MU.addSemiAutoCombos = function(){
+  var g = MT.GAMES[MU.state.game];
+  var fixedMain = MU.state.selectedMain.slice();
+  var fixedBonus = MU.state.selectedBonus.slice();
+  if (fixedMain.length >= g.mainCount && (!g.bonusCount || fixedBonus.length >= g.bonusCount)) {
+    alert('번호를 이미 전부 고르셨어요. 반자동은 "일부만 고르고 나머지는 자동"인 방식입니다 — 전부 직접 고르셨다면 그냥 공을 마저 누르면 자동으로 조합이 추가됩니다.');
+    return;
+  }
+  var count = Math.max(1, parseInt(document.getElementById('mtSemiCount').value) || 1);
+  for (var i=0;i<count;i++){
+    var mainPool = []; for (var n=1;n<=g.mainMax;n++) if (fixedMain.indexOf(n)<0) mainPool.push(n);
+    var main = fixedMain.slice();
+    while (main.length < g.mainCount && mainPool.length) { var idx = Math.floor(Math.random()*mainPool.length); main.push(mainPool.splice(idx,1)[0]); }
+    var bonus = fixedBonus.slice();
+    if (g.bonusCount) {
+      var bonusPool = []; for (var n=1;n<=g.bonusMax;n++) if (fixedBonus.indexOf(n)<0) bonusPool.push(n);
+      while (bonus.length < g.bonusCount && bonusPool.length) { var idx = Math.floor(Math.random()*bonusPool.length); bonus.push(bonusPool.splice(idx,1)[0]); }
+    }
+    MU.state.picks.push({ main: main.sort(function(a,b){return a-b;}), bonus: bonus.sort(function(a,b){return a-b;}) });
+  }
+  MU.renderPicksList();
+};
+
+// ── 음성입력 (Web Speech API — Chrome 계열 지원, 한국어/영어) ──
+// ⚠ 브라우저 STT가 말한 숫자를 대부분 아라비아 숫자로 바로 인식해주지만(가장 흔한 경우),
+// 혹시 한글 숫자 단어 그대로 나오는 경우를 대비해 최소한의 단어 매핑도 함께 시도한다.
+// 완벽한 한글 숫자 파서는 아니며, 최선 노력(best-effort) 수준이다.
+var MT_KOREAN_NUM_WORDS = { '영':0,'공':0,'일':1,'이':2,'삼':3,'사':4,'오':5,'육':6,'유':6,'칠':7,'팔':8,'구':9,'십':10 };
+function mtExtractNumbersFromSpeech(text){
+  var matches = text.match(/\d+/g);
+  if (matches && matches.length) return matches.map(Number);
+  var words = text.replace(/[,、]/g,' ').split(/\s+/).filter(Boolean);
+  var nums = [];
+  words.forEach(function(w){ if (MT_KOREAN_NUM_WORDS.hasOwnProperty(w)) nums.push(MT_KOREAN_NUM_WORDS[w]); });
+  return nums;
+}
+MU.startVoiceInput = function(){
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var statusEl = document.getElementById('mtVoiceStatus');
+  if (!SpeechRecognition) {
+    if (statusEl) statusEl.textContent = '이 브라우저는 음성입력을 지원하지 않아요. (Chrome 권장)';
+    return;
+  }
+  var g = MT.GAMES[MU.state.game];
+  var lang = document.getElementById('mtVoiceLang').value;
+  var recog = new SpeechRecognition();
+  recog.lang = lang;
+  recog.interimResults = false;
+  recog.maxAlternatives = 1;
+  if (statusEl) statusEl.textContent = '🎙️ 듣고 있어요... 번호를 순서대로 말씀해주세요.';
+
+  recog.onresult = function(e){
+    var transcript = e.results[0][0].transcript;
+    var numbers = mtExtractNumbersFromSpeech(transcript);
+    var needCount = g.mainCount + g.bonusCount;
+    if (numbers.length < needCount) {
+      if (statusEl) statusEl.textContent = '인식됨: "' + transcript + '" — 번호를 ' + needCount + '개 이상 인식하지 못했어요. 다시 시도해주세요.';
+      return;
+    }
+    var main = numbers.slice(0, g.mainCount);
+    var bonus = g.bonusCount ? numbers.slice(g.mainCount, needCount) : [];
+    if (new Set(main).size !== main.length || main.some(function(n){ return n<1 || n>g.mainMax; })) {
+      if (statusEl) statusEl.textContent = '인식됨: "' + transcript + '" — 번호가 중복되거나 범위(1~' + g.mainMax + ')를 벗어났어요. 다시 시도해주세요.';
+      return;
+    }
+    if (g.bonusCount && (new Set(bonus).size !== bonus.length || bonus.some(function(n){ return n<1 || n>g.bonusMax; }))) {
+      if (statusEl) statusEl.textContent = '인식됨: "' + transcript + '" — 보너스번호가 중복되거나 범위를 벗어났어요. 다시 시도해주세요.';
+      return;
+    }
+    MU.state.picks.push({ main: main.slice().sort(function(a,b){return a-b;}), bonus: bonus.slice().sort(function(a,b){return a-b;}) });
+    MU.renderPicksList();
+    if (statusEl) statusEl.textContent = '✅ 조합 추가됨: ' + main.join(', ') + (bonus.length ? (' + ' + bonus.join(',')) : '');
+  };
+  recog.onerror = function(e){ if (statusEl) statusEl.textContent = '음성인식 오류: ' + e.error; };
+  recog.start();
 };
 
 MU.renderBallGrid = function(){
