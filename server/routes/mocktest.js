@@ -92,6 +92,25 @@ async function computeNextDrawDate(gameCode) {
   return null;
 }
 
+// ─── [공개] 해외 종목 모의테스트용 - 결과가 있는 날짜 전체 목록 (스크롤바 매핑용) ──
+// GET /api/mocktest/global/dates/:gameCode
+// 해외 3종은 특정 요일에만 추첨해서 날짜가 듬성듬성이라, 프론트 슬라이더가
+// "인덱스 → 실제 날짜"로 정확히 매핑하려면 이 목록이 필요하다.
+router.get('/global/dates/:gameCode', async (req, res) => {
+  const gameCode = req.params.gameCode?.toUpperCase();
+  if (!GLOBAL_GAME_CODES.includes(gameCode)) return res.status(400).json({ error: '알 수 없는 종목입니다.' });
+  try {
+    const { data, error } = await supabase
+      .from('mocktest_global_draws').select('draw_date')
+      .eq('game_code', gameCode).order('draw_date', { ascending: true });
+    if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    return res.json({ dates: (data || []).map(r => r.draw_date) });
+  } catch (err) {
+    console.error('[mocktest] global/dates 오류:', err);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // ─── [공개] 한국로또 메타정보 (다음 회차, 모의테스트용 회차 범위) ───────────────
 // GET /api/mocktest/kr/meta
 router.get('/kr/meta', async (req, res) => {
