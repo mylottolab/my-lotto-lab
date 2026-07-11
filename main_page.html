@@ -599,9 +599,6 @@ function refreshDynamicStats(){
   document.getElementById('statEntries').textContent = entries.length.toLocaleString();
   document.getElementById('statStrategies').textContent = strategies.length.toLocaleString();
 
-  var rounds = Object.keys(results).map(Number).filter(function(n){return n>0;});
-  document.getElementById('statRounds').textContent = rounds.length.toLocaleString();
-
   var raceMeta = loadJSON('mll_race_meta', null);
   var raceEl = document.getElementById('statRaceRound');
   var raceUnitEl = document.getElementById('statRaceUnit');
@@ -662,6 +659,34 @@ function refreshDynamicStats(){
     setInterval(tickMockCountdown, 1000);
   }
 
+  renderRoundsAndResults(results);
+
+  // ⚠ 2026-07-12: mll_results 로컬캐시가 비어있으면(특히 첫 방문 게스트/시크릿창) 서버에서
+  // 직접 최신 결과를 가져와 채운다. 원래 이 데이터는 누구에게나 공개되어야 하는 정보라
+  // 로그인/방문이력과 무관하게 항상 보여야 하는데, 캐시에만 의존하면 첫 방문자에게는
+  // "데이터 없음"으로 보이는 문제가 있었다.
+  var rounds0 = Object.keys(results).map(Number).filter(function(n){ return n > 0; });
+  if (!rounds0.length && window.MLL && MLL.API_BASE) {
+    fetch(MLL.API_BASE + '/api/lotto/results')
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var list = data.items || (Array.isArray(data) ? data : []);
+        if (!list.length) return;
+        var freshResults = {};
+        list.forEach(function(row){
+          freshResults[row.round] = {
+            nums: row.nums, bonus: row.bonus,
+            prize1: row.prize1, winners1: row.winners1,
+            autoWin: row.auto_win, semiWin: row.semi_win, manualWin: row.manual_win,
+            winnerShops: row.winner_shops,
+          };
+        });
+        try { localStorage.setItem('mll_results', JSON.stringify(freshResults)); } catch(e){}
+        renderRoundsAndResults(freshResults);
+      })
+      .catch(function(e){ console.error('[main_page] 서버 결과 조회 실패:', e); });
+  }
+
   var battleCountEl = document.getElementById('statBattleCount');
   if (battleCountEl) {
     try {
@@ -671,7 +696,12 @@ function refreshDynamicStats(){
       battleCountEl.textContent = activeCount.toLocaleString();
     } catch(e) { battleCountEl.textContent = '0'; }
   }
+}
 
+function renderRoundsAndResults(results){
+  var rounds = Object.keys(results).map(Number).filter(function(n){return n>0;});
+  var statRoundsEl = document.getElementById('statRounds');
+  if (statRoundsEl) statRoundsEl.textContent = rounds.length.toLocaleString();
   if(rounds.length){
     rounds.sort(function(a,b){return b-a;});
     var round = rounds[0];
