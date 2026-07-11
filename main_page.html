@@ -369,7 +369,7 @@ body{
         <div class="hcard-countdown" id="mockCountdown"><span class="cd-dot"></span><span><span data-i18n-kr="접수마감까지" data-i18n-en="Closes in">접수마감까지</span> <span class="cd-time" id="mockCountdownTime">--:--:--</span></span></div>
       </div>
       <div class="hcard-stat">
-        <span class="num font-num" id="statMockRound">0</span><span class="unit" data-i18n-kr="회차 모의등록 진행중" data-i18n-en="-round mock entry open">회차 모의등록 진행중</span>
+        <span class="num font-num" id="statMockRound">0</span><span class="unit" id="statMockUnit" data-i18n-kr="회차 모의등록 진행중" data-i18n-en="-round mock entry open">회차 모의등록 진행중</span>
         <span class="hcard-stat-next" id="statMockCount"></span>
       </div>
       <div class="hcard-arrow">→</div>
@@ -502,15 +502,60 @@ function formatWinnerShops(raw){
   return lines.join(' · ');
 }
 
+// 한국로또 계산 기준 — jobs/lottoAutoFetch.js의 computeExpectedLatestRound()와 완전히 동일한
+// 공식을 그대로 써서, "이미 추첨이 끝난 가장 최근 회차"를 DB 상태와 무관하게 날짜 계산만으로
+// 항상 정확히 구한다 (관리자가 결과입력을 늦게 해도 이 표시는 안 꼬이도록).
+var MOCK_ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
+var MOCK_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+function computeExpectedLatestRoundClient(){
+  var now = Date.now();
+  var weeksSinceRound1 = Math.floor((now - MOCK_ROUND1_TS) / MOCK_WEEK_MS);
+  return weeksSinceRound1 + 1;
+}
+// 모의등록 창구는 매주 일요일 06:00 ~ 토요일 20:00만 열려있고, 토요일 20:00 ~ 일요일
+// 06:00은 "추첨완료 · 다음 회차 등록 대기" 공백시간이다.
+function getMockPhase(){
+  var nowKo = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+  var d = nowKo.getDay(); // 0=일 ~ 6=토
+  var h = nowKo.getHours();
+  var isBlackout = (d === 6 && h >= 20) || (d === 0 && h < 6);
+  var latestDrawnRound = computeExpectedLatestRoundClient();
+  return { isBlackout: isBlackout, latestDrawnRound: latestDrawnRound, openRound: latestDrawnRound + 1 };
+}
+
 function refreshMockStat(){
   var mockRoundEl = document.getElementById('statMockRound');
   var statMockCountEl = document.getElementById('statMockCount');
-  if (!mockRoundEl || typeof MLL === 'undefined' || !MLL.getLottoInfo) return;
+  var mockUnitEl = document.getElementById('statMockUnit');
+  var mockCountdownEl = document.getElementById('mockCountdown');
+  if (!mockRoundEl) return;
 
-  var info = MLL.getLottoInfo();
-  var saleRound = info.saleRound;
+  var phase = getMockPhase();
+
+  // ── 공백시간(토 20:00~일 06:00): 등록 자체가 안 열려있으므로 "추첨완료" 안내로 대체 ──
+  if (phase.isBlackout) {
+    mockRoundEl.textContent = phase.latestDrawnRound.toLocaleString();
+    if (mockUnitEl) {
+      mockUnitEl.removeAttribute('data-i18n-kr'); mockUnitEl.removeAttribute('data-i18n-en');
+      mockUnitEl.textContent = (LANG==='en')
+        ? (' round drawn · ' + phase.openRound + ' round opens Sun 06:00')
+        : ('회차 추첨완료 · ' + phase.openRound + '회차 일요일 06:00부터 등록 가능');
+    }
+    if (statMockCountEl) statMockCountEl.innerHTML = '';
+    if (mockCountdownEl) mockCountdownEl.style.display = 'none';
+    return;
+  }
+
+  if (mockCountdownEl) mockCountdownEl.style.display = '';
+  if (mockUnitEl && !mockUnitEl.hasAttribute('data-i18n-kr')) {
+    mockUnitEl.setAttribute('data-i18n-kr', '회차 모의등록 진행중');
+    mockUnitEl.setAttribute('data-i18n-en', '-round mock entry open');
+    mockUnitEl.textContent = (LANG==='en') ? '-round mock entry open' : '회차 모의등록 진행중';
+  }
+
+  var saleRound = phase.openRound;
   mockRoundEl.textContent = saleRound.toLocaleString();
-  if (!statMockCountEl) return;
+  if (!statMockCountEl || typeof MLL === 'undefined' || !MLL.API_BASE) return;
 
   fetch(MLL.API_BASE + '/api/mock/round-entries?round=' + saleRound)
     .then(function(r){ return r.json(); })
