@@ -376,7 +376,11 @@ router.post('/entries/confirm', async (req, res) => {
 // 인증 불필요 (공개 데이터)
 router.get('/results', async (req, res) => {
   try {
-    let query = supabase.from('kr_lotto_results').select('*').order('round', { ascending: false });
+    // ⚠ 2026-07-12: Supabase(PostgREST)는 쿼리에 .limit()을 명시하지 않으면 기본적으로
+    // 최대 1,000행까지만 돌려준다. 회차가 1,000개를 넘어가면서 메인화면 "누적 데이터"가
+    // 1,000에서 안 올라가던 원인이 이거였음 — 넉넉하게 5000으로 명시해서 당분간(약 90년치
+    // 회차 분량) 다시 이 문제가 재발하지 않도록 한다.
+    let query = supabase.from('kr_lotto_results').select('*').order('round', { ascending: false }).limit(5000);
     if (req.query.round) query = query.eq('round', Number(req.query.round));
 
     const { data, error } = await query;
@@ -493,13 +497,14 @@ router.get('/entries/admin-stats', async (req, res) => {
 
     const { data: entries, error } = await supabase
       .from('kr_lotto_entries')
-      .select('round, nums, type, is_real, input_method');
+      .select('round, nums, type, is_real, input_method')
+      .limit(20000); // ⚠ 2026-07-12: 다른 조회들과 동일한 이유로 명시 — 등록건수가 1,000건을 넘어가고 있음
     if (error) {
       console.error('[lotto] admin-stats entries 조회 오류:', error);
       return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
     }
 
-    const { data: results, error: rErr } = await supabase.from('kr_lotto_results').select('*');
+    const { data: results, error: rErr } = await supabase.from('kr_lotto_results').select('*').limit(5000);
     if (rErr) {
       console.error('[lotto] admin-stats results 조회 오류:', rErr);
       return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
