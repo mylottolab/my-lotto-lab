@@ -22,6 +22,34 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// ─── 한국로또 회차 재채점 (엑셀 업로드 등으로 채점연쇄가 안 탄 경우 복구용) ─────
+// ⚠ 2026-07-12: kr_lotto_results에 당첨번호는 있는데, 그게 정상적인 자동수집
+// 경로(또는 admin.html의 "지금 확인하기")를 안 거치고 엑셀 업로드처럼 다른 경로로
+// 들어간 경우 100전략·모의실전·Battles·토너먼트·모의테스트 채점 연쇄가 하나도
+// 안 타는 문제가 있었다. 이 엔드포인트는 "이미 저장된" 회차에 대해 그 채점
+// 연쇄만 다시 실행한다 (당첨번호 자체는 새로 안 가져옴 — 이미 있는 걸 그대로 씀).
+// POST /api/admin/lotto/regrade   body: { round: 1232 }
+router.post('/lotto/regrade', requireAdmin, async (req, res) => {
+  const round = parseInt(req.body.round);
+  if (!round) return res.status(400).json({ error: 'round는 필수입니다.' });
+
+  const { data: existing, error: checkErr } = await supabase
+    .from('kr_lotto_results').select('round, nums').eq('round', round).maybeSingle();
+  if (checkErr) return res.status(500).json({ error: `조회 오류: ${checkErr.message}` });
+  if (!existing || !existing.nums) {
+    return res.status(404).json({ error: `제${round}회 당첨번호가 아직 저장되어 있지 않습니다. 먼저 당첨번호부터 저장해주세요.` });
+  }
+
+  try {
+    const { runPostSaveChain } = require('../jobs/lottoAutoFetch');
+    const chainResults = await runPostSaveChain(round);
+    return res.json({ success: true, round, chainResults });
+  } catch (err) {
+    console.error('[admin] 재채점 오류:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── 메뉴별 포인트 단가 ───────────────────────────────────────────────────
 
 // 조회 (관리자 화면용 - 전체 필드 포함)
