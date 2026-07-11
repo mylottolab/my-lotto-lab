@@ -111,6 +111,21 @@ async function fetchResultsByRound(rounds) {
   return map;
 }
 
+// ─── [공개] 전체(사이트 합계) 등록 조합 수 ────────────────────────────────────
+// GET /api/lotto/entries/total-count
+// 메인화면에서 비로그인 방문자에게 "OO개 등록된 번호조합"(사이트 전체 합계, 홍보용)을
+// 보여줄 때 쓴다. 로그인한 사용자는 이 대신 GET /entries의 결과 개수(본인 것만)를 쓴다.
+router.get('/entries/total-count', async (req, res) => {
+  const { count, error } = await supabase
+    .from('kr_lotto_entries')
+    .select('id', { count: 'exact', head: true });
+  if (error) {
+    console.error('[lotto] entries total-count 조회 오류:', error);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+  return res.json({ count: count || 0 });
+});
+
 // ─── GET /api/lotto/entries ─── 내 번호조합 조회 (?round= 옵션으로 특정 회차만)
 router.get('/entries', async (req, res) => {
   try {
