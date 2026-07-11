@@ -45,6 +45,21 @@ function toItem(row) {
   };
 }
 
+// ─── [공개] 전체(사이트 합계) 전략 수립건수 ────────────────────────────────────
+// GET /api/strategy/results/total-count
+// 메인화면에서 비로그인 방문자에게 "OO개 수립된 전략"(사이트 전체 합계, 홍보용)을
+// 보여줄 때 쓴다. 로그인한 사용자는 이 대신 GET /results의 결과 개수(본인 것만)를 쓴다.
+router.get('/results/total-count', async (req, res) => {
+  const { count, error } = await supabase
+    .from('kr_strategy_results')
+    .select('id', { count: 'exact', head: true });
+  if (error) {
+    console.error('[strategy] total-count 조회 오류:', error);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+  return res.json({ count: count || 0 });
+});
+
 // ─── GET /api/strategy/results ─── 내 전략 생성결과 전체 조회 (최신순)
 router.get('/results', async (req, res) => {
   try {
