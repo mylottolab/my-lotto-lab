@@ -318,3 +318,10 @@ app.use('/api/battles', battlesRouter);
 // ─── Battles 토너먼트 (3/5/10단계) ─────────────────────────────────────────
 const tournamentRouter = require('./routes/tournament');
 app.use('/api/tournament', tournamentRouter);
+
+// ─── 로또 모의테스트 및 실험 (한국로또/파워볼/메가밀리언스/유로밀리언스) ───────
+const mocktestRouter = require('./routes/mocktest');
+app.use('/api/mocktest', mocktestRouter);
+
+const mocktestAdminRouter = require('./routes/mocktest_admin');
+app.use('/api/admin/mocktest', mocktestAdminRouter);
