@@ -77,6 +77,9 @@ button{font-family:inherit;cursor:pointer;}
 .form-row:last-child{border-bottom:none;}
 .form-row label{font-size:12.5px;font-weight:700;color:var(--text-dim);min-width:120px;}
 .inp{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:8px 10px;font-size:13px;outline:none;}
+select.scroll-picker{width:100%;max-height:220px;overflow-y:auto;font-family:inherit;font-variant-numeric:tabular-nums;}
+select.scroll-picker option{padding:8px 10px;}
+select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
 
 .ball-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin:10px 0;}
 .ball-btn{border:1px solid var(--border);background:var(--bg);color:var(--text-dim);border-radius:50%;aspect-ratio:1;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0;}
@@ -324,7 +327,7 @@ MU.setMainTab = async function(key){
   await MU.renderMainTabBody();
 };
 MU.renderMainTabBody = async function(){
-  if (MU.state.mainTab === 'CHECK') { MU.renderChecker(); return; }
+  if (MU.state.mainTab === 'CHECK') { await MU.renderChecker(); return; }
   await MU.renderGameSection();
 };
 
@@ -640,7 +643,7 @@ MU.closeDetail = function(){ document.getElementById('detailModal').classList.re
 // =====================================================
 // 수동조회기 (무료, 등록/저장 없음)
 // =====================================================
-MU.renderChecker = function(){
+MU.renderChecker = async function(){
   var gameTabsHtml = MT.GAME_ORDER.map(function(code){
     var g = MT.GAMES[code];
     var active = MU.state.checkGame === code;
@@ -661,21 +664,45 @@ MU.renderChecker = function(){
       '<div id="checkResultBox" style="margin-top:16px;"></div>' +
     '</div>';
 
-  MU.renderCheckTargetRow();
+  await MU.renderCheckTargetRow();
   MU.renderCheckBallGrid();
 };
-MU.checkSelectGame = function(code){
+MU.checkSelectGame = async function(code){
   MU.state.checkGame = code;
   MU.state.checkMain = []; MU.state.checkBonus = [];
   MU.state.checkRound = null; MU.state.checkDate = null;
-  MU.renderChecker();
+  await MU.renderChecker();
 };
-MU.renderCheckTargetRow = function(){
+// ⚠ 2026-07-12: 달력(<input type="date">)이나 숫자 직접입력은 회차/날짜를 정확히 몰라도
+// 아무 값이나 넣을 수 있어서 불편하다는 피드백 — 실제로 존재하는 회차/날짜만 나열한
+// "스크롤해서 고르는 목록"(select size 지정)으로 교체. 최신 것이 맨 위로 오게 정렬.
+MU.renderCheckTargetRow = async function(){
   var el = document.getElementById('checkTargetRow');
+  el.innerHTML = '<div class="form-row"><label>' + (MU.state.checkGame==='KR'?'회차':'추첨일') + '</label></div><div class="empty-state" style="padding:10px;">불러오는 중...</div>';
+
   if (MU.state.checkGame === 'KR') {
-    el.innerHTML = '<div class="form-row"><label>회차</label><input type="number" class="inp" id="checkRoundInput" placeholder="예: 1231" style="width:120px;" oninput="MU.state.checkRound=parseInt(this.value)||null"></div>';
+    var meta = await MT.getKrMeta();
+    var maxRound = meta ? meta.maxRound : 0;
+    if (!maxRound) { el.innerHTML = '<div class="empty-state">회차 데이터가 없습니다.</div>'; return; }
+    if (MU.state.checkRound == null) MU.state.checkRound = maxRound;
+    var optsHtml = '';
+    for (var r = maxRound; r >= 1; r--) {
+      optsHtml += '<option value="' + r + '"' + (r === MU.state.checkRound ? ' selected' : '') + '>제' + r + '회</option>';
+    }
+    el.innerHTML = '<div class="form-row"><label>회차 (스크롤해서 선택)</label></div>' +
+      '<select class="inp scroll-picker" id="checkRoundInput" size="8" onchange="MU.state.checkRound=parseInt(this.value)">' + optsHtml + '</select>';
   } else {
-    el.innerHTML = '<div class="form-row"><label>추첨일</label><input type="date" class="inp" id="checkDateInput" oninput="MU.state.checkDate=this.value"></div>';
+    var code = MU.state.checkGame;
+    var dates = MU.state.globalDates[code];
+    if (!dates) { dates = await MT.getGlobalDates(code); MU.state.globalDates[code] = dates; }
+    if (!dates.length) { el.innerHTML = '<div class="empty-state">아직 등록된 결과가 없습니다. (관리자 CSV 업로드 후 이용 가능)</div>'; return; }
+    var sortedDesc = dates.slice().reverse();
+    if (MU.state.checkDate == null) MU.state.checkDate = sortedDesc[0];
+    var optsHtml2 = sortedDesc.map(function(d){
+      return '<option value="' + d + '"' + (d === MU.state.checkDate ? ' selected' : '') + '>' + d + '</option>';
+    }).join('');
+    el.innerHTML = '<div class="form-row"><label>추첨일 (스크롤해서 선택)</label></div>' +
+      '<select class="inp scroll-picker" id="checkDateInput" size="8" onchange="MU.state.checkDate=this.value">' + optsHtml2 + '</select>';
   }
 };
 MU.renderCheckBallGrid = function(){
