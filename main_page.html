@@ -636,6 +636,84 @@ function refreshMockStat(){
     .catch(function(e){ console.error('[main_page] mock count 조회 오류:', e); });
 }
 
+// ⚠ 2026-07-12: 로그인 여부와 무관하게 항상 같은 숫자(그냥 이 브라우저 캐시)가 보이던 문제.
+// 이제 비로그인 방문자는 "사이트 전체 등록 합계"(공개 홍보용 통계), 로그인한 사람은
+// "본인이 실제로 등록한 개수"만 보이도록 분리한다. MLL(auth_gate.js)이 이 스크립트보다
+// 늦게 로드될 수 있어서, 로그인 판별은 MLL에 기대지 않고 localStorage를 직접 읽는다.
+function mainGetAuthState(){
+  var token = localStorage.getItem('mll_token') || sessionStorage.getItem('mll_token');
+  if (token) return { type: 'member', token: token };
+  var gNick = localStorage.getItem('mll_guest_nickname');
+  var gEmail = localStorage.getItem('mll_guest_email');
+  if (gNick && gEmail) return { type: 'guest', nickname: gNick, email: gEmail };
+  return { type: null };
+}
+function refreshEntriesCount(){
+  var el = document.getElementById('statEntries');
+  if (!el) return;
+  var state = mainGetAuthState();
+
+  if (!state.type) {
+    fetch('https://my-lotto-lab-api.onrender.com/api/lotto/entries/total-count')
+      .then(function(r){ return r.json(); })
+      .then(function(data){ el.textContent = (data.count || 0).toLocaleString(); })
+      .catch(function(e){ console.error('[main_page] 전체 등록수 조회 오류:', e); });
+    return;
+  }
+
+  var qs = '';
+  var tokenPromise = Promise.resolve(null);
+  if (state.type === 'member') {
+    tokenPromise = (window.MLL && MLL.ensureFreshToken) ? MLL.ensureFreshToken() : Promise.resolve(state.token);
+  } else {
+    qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  }
+
+  tokenPromise.then(function(token){
+    var headers = {};
+    if (state.type === 'member') {
+      if (!token || token === 'guest') { el.textContent = '0'; return; }
+      headers['Authorization'] = 'Bearer ' + token;
+    }
+    return fetch('https://my-lotto-lab-api.onrender.com/api/lotto/entries' + qs, { headers: headers })
+      .then(function(r){ return r.ok ? r.json() : { items: [] }; })
+      .then(function(data){ el.textContent = (data.items || []).length.toLocaleString(); });
+  }).catch(function(e){ console.error('[main_page] 내 등록수 조회 오류:', e); });
+}
+
+function refreshStrategiesCount(){
+  var el = document.getElementById('statStrategies');
+  if (!el) return;
+  var state = mainGetAuthState();
+
+  if (!state.type) {
+    fetch('https://my-lotto-lab-api.onrender.com/api/strategy/results/total-count')
+      .then(function(r){ return r.json(); })
+      .then(function(data){ el.textContent = (data.count || 0).toLocaleString(); })
+      .catch(function(e){ console.error('[main_page] 전체 전략수 조회 오류:', e); });
+    return;
+  }
+
+  var qs = '';
+  var tokenPromise = Promise.resolve(null);
+  if (state.type === 'member') {
+    tokenPromise = (window.MLL && MLL.ensureFreshToken) ? MLL.ensureFreshToken() : Promise.resolve(state.token);
+  } else {
+    qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  }
+
+  tokenPromise.then(function(token){
+    var headers = {};
+    if (state.type === 'member') {
+      if (!token || token === 'guest') { el.textContent = '0'; return; }
+      headers['Authorization'] = 'Bearer ' + token;
+    }
+    return fetch('https://my-lotto-lab-api.onrender.com/api/strategy/results' + qs, { headers: headers })
+      .then(function(r){ return r.ok ? r.json() : { items: [] }; })
+      .then(function(data){ el.textContent = (data.items || []).length.toLocaleString(); });
+  }).catch(function(e){ console.error('[main_page] 내 전략수 조회 오류:', e); });
+}
+
 function renderRaceStat(meta, nextInfo){
   // meta 또는 nextInfo가 undefined면 그 부분은 그대로 두고 건드리지 않는다 (부분 갱신용 —
   // /api/race/meta와 /api/race/next-numbers/latest를 순차로 따로 호출하기 때문)
@@ -657,12 +735,10 @@ function renderRaceStat(meta, nextInfo){
 }
 
 function refreshDynamicStats(){
-  var entries = loadJSON('mll_entries', []);
-  var strategies = loadJSON('mll_strategies', []);
   var results = loadJSON('mll_results', {});
 
-  document.getElementById('statEntries').textContent = entries.length.toLocaleString();
-  document.getElementById('statStrategies').textContent = strategies.length.toLocaleString();
+  refreshEntriesCount();
+  refreshStrategiesCount();
 
   renderRaceStat(loadJSON('mll_race_meta', null), loadJSON('mll_race_next_numbers', null));
 
