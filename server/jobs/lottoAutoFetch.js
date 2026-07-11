@@ -200,6 +200,57 @@ async function saveResult(basic, detail) {
 
 // ─── 공개 함수: 특정 회차(또는 예상 최신회차)를 시도 ─────────────────────────
 // alreadyExistsOk=true면 이미 있어도 다시 덮어씀(수동 재시도용), false면 있으면 건너뜀(자동 스케줄용)
+// ⚠ 2026-07-12: 엑셀 업로드처럼 saveResult()를 거치지 않고 kr_lotto_results에 직접
+// 당첨번호가 들어가는 경로가 있으면, 아래 채점 연쇄가 하나도 안 타서 100전략·모의실전·
+// Battles·토너먼트·모의테스트가 전부 "추첨대기"에 멈춰있는 문제가 생긴다. 그래서 이
+// 연쇄 부분을 별도 함수로 분리해서, routes/admin.js의 "재채점" 버튼이 이미 저장된
+// 회차에 대해서도 이 함수만 다시 호출할 수 있게 한다.
+async function runPostSaveChain(round) {
+  const results = {};
+
+  try {
+    results.race = await runRaceCatchup();
+    console.log('[lottoAutoFetch] 100전략 레이스 자동 시뮬레이션 결과:', results.race);
+  } catch (e) {
+    console.error('[lottoAutoFetch] 100전략 레이스 자동 시뮬레이션 오류:', e.message);
+    results.race = { error: e.message };
+  }
+
+  try {
+    results.mock = await gradeMockRound(round);
+    console.log('[lottoAutoFetch] 모의실전시뮬레이션 자동채점 결과:', results.mock);
+  } catch (e) {
+    console.error('[lottoAutoFetch] 모의실전시뮬레이션 자동채점 오류:', e.message);
+    results.mock = { error: e.message };
+  }
+
+  try {
+    results.battles = await gradeBattleRound(round);
+    console.log('[lottoAutoFetch] Battles 자동채점 결과:', results.battles);
+  } catch (e) {
+    console.error('[lottoAutoFetch] Battles 자동채점 오류:', e.message);
+    results.battles = { error: e.message };
+  }
+
+  try {
+    results.tournament = await gradeTournamentRound(round);
+    console.log('[lottoAutoFetch] 토너먼트 자동채점 결과:', results.tournament);
+  } catch (e) {
+    console.error('[lottoAutoFetch] 토너먼트 자동채점 오류:', e.message);
+    results.tournament = { error: e.message };
+  }
+
+  try {
+    results.mocktest = await gradeMocktestRound(round);
+    console.log('[lottoAutoFetch] 모의테스트(KR 실전) 자동채점 결과:', results.mocktest);
+  } catch (e) {
+    console.error('[lottoAutoFetch] 모의테스트 자동채점 오류:', e.message);
+    results.mocktest = { error: e.message };
+  }
+
+  return results;
+}
+
 async function fetchAndSaveRound(round, alreadyExistsOk) {
   if (!round) round = computeExpectedLatestRound();
 
@@ -215,55 +266,18 @@ async function fetchAndSaveRound(round, alreadyExistsOk) {
   const detail = await fetchDetailedResult(round);
   const saved = await saveResult(basic, detail);
 
-  // 당첨결과 저장 성공 직후, 100전략 레이스도 자동으로 이어서 시뮬레이션합니다.
-  // (여기서 실패해도 당첨결과 저장 자체는 이미 끝났으므로 로그만 남기고 정상 응답을 계속 반환합니다.
-  //  관리자는 필요하면 hub_race.html에서 수동으로 "시뮬레이션 실행"을 눌러 보완할 수 있습니다.)
-  try {
-    const raceResult = await runRaceCatchup();
-    console.log('[lottoAutoFetch] 100전략 레이스 자동 시뮬레이션 결과:', raceResult);
-  } catch (e) {
-    console.error('[lottoAutoFetch] 100전략 레이스 자동 시뮬레이션 오류 (당첨결과 저장은 정상 완료됨):', e.message);
-  }
-
-  // 모의실전시뮬레이션도 같은 방식으로 자동 채점합니다.
-  try {
-    const mockResult = await gradeMockRound(round);
-    console.log('[lottoAutoFetch] 모의실전시뮬레이션 자동채점 결과:', mockResult);
-  } catch (e) {
-    console.error('[lottoAutoFetch] 모의실전시뮬레이션 자동채점 오류 (당첨결과 저장은 정상 완료됨):', e.message);
-  }
-
-  // Battles(1:1 대결)도 같은 방식으로 자동 채점 + 우승 보상 지급합니다.
-  try {
-    const battleResult = await gradeBattleRound(round);
-    console.log('[lottoAutoFetch] Battles 자동채점 결과:', battleResult);
-  } catch (e) {
-    console.error('[lottoAutoFetch] Battles 자동채점 오류 (당첨결과 저장은 정상 완료됨):', e.message);
-  }
-
-  // Battles 토너먼트(3/5/10단계)도 같은 방식으로 자동채점 + 단계진행/탈락컷 + 다음주 신규회차 개설을 처리합니다.
-  try {
-    const tournamentResult = await gradeTournamentRound(round);
-    console.log('[lottoAutoFetch] 토너먼트 자동채점 결과:', tournamentResult);
-  } catch (e) {
-    console.error('[lottoAutoFetch] 토너먼트 자동채점 오류 (당첨결과 저장은 정상 완료됨):', e.message);
-  }
-
-  // "로또 모의테스트 및 실험" 카테고리 중 한국로또 실전테스트(추첨대기)도 같은 방식으로 자동채점합니다.
-  // (해외 3종 실전테스트는 관리자가 결과를 입력하는 순간 그 자리에서 바로 채점되므로 여기 해당 없음)
-  try {
-    const mocktestResult = await gradeMocktestRound(round);
-    console.log('[lottoAutoFetch] 모의테스트(KR 실전) 자동채점 결과:', mocktestResult);
-  } catch (e) {
-    console.error('[lottoAutoFetch] 모의테스트 자동채점 오류 (당첨결과 저장은 정상 완료됨):', e.message);
-  }
+  // 당첨결과 저장 성공 직후, 100전략 레이스·모의실전·Battles·토너먼트·모의테스트를
+  // 전부 자동으로 이어서 채점합니다 (실패해도 당첨결과 저장 자체는 이미 끝났으므로
+  // 로그만 남기고 정상 응답을 계속 반환합니다).
+  const chainResults = await runPostSaveChain(round);
 
   return {
     success: true,
     round,
     detailOk: !!detail,
     message: `${round}회 저장 완료` + (detail ? '' : ' (기본정보만 — 상세 스크래핑 실패, 관리자가 나중에 엑셀로 보완 가능)'),
-    row: saved
+    row: saved,
+    chainResults,
   };
 }
 
@@ -291,4 +305,4 @@ function startScheduler() {
   console.log('[lottoAutoFetch] 스케줄러 등록 완료 (매주 토요일 20:45~23:00 KST, 5분 간격)');
 }
 
-module.exports = { fetchAndSaveRound, computeExpectedLatestRound, startScheduler };
+module.exports = { fetchAndSaveRound, computeExpectedLatestRound, startScheduler, runPostSaveChain };
