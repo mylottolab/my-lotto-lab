@@ -173,6 +173,24 @@ body{
 .globe-arrow{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0;transition:transform .2s;}
 .globe-card:hover .globe-arrow{transform:translateX(4px);}
 .stadium-card:hover .globe-arrow{transform:translateX(4px);}
+.lab-card:hover .globe-arrow{transform:translateX(4px);}
+
+/* ── 모의테스트 배너: 보라색 실험/시험관 모티프로 나머지 두 카드와 의도적으로 다른 톤 ── */
+.lab-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;margin-top:16px;
+  background:radial-gradient(circle at 85% 20%, rgba(138,111,232,.22), transparent 55%),
+             radial-gradient(circle at 15% 90%, rgba(232,115,47,.13), transparent 50%),
+             linear-gradient(135deg, #150d2e 0%, #1f1435 100%);
+  border:1px solid #3a2f6c;transition:transform .2s, border-color .2s;}
+.lab-card:hover{transform:translateY(-3px);border-color:#8a6fe8;}
+.lab-card:focus-visible{outline:2px solid #8a6fe8;outline-offset:2px;}
+.lab-glow{position:absolute;top:-60%;right:-10%;width:280px;height:280px;border-radius:50%;background:#8a6fe8;opacity:.10;filter:blur(60px);pointer-events:none;}
+.lab-bubbles{position:absolute;right:20px;top:50%;width:130px;height:130px;margin-top:-65px;pointer-events:none;}
+.lab-bubbles::before{content:'';position:absolute;left:8px;top:14px;width:24px;height:24px;border:1px solid rgba(255,255,255,.08);border-radius:50%;}
+.lab-bubbles::after{content:'';position:absolute;right:6px;bottom:8px;width:46px;height:46px;border:1px solid rgba(255,255,255,.06);border-radius:50%;}
+.lab-tag{color:#c3b2ff !important;}
+@media (max-width:680px){
+  .lab-bubbles{display:none;}
+}
 
 /* ── 토토·프로토 배너: 잔디 그라디언트 + 라인 모티프로 globe-card와 의도적으로 다른 톤 ── */
 .stadium-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;margin-top:16px;
@@ -396,6 +414,31 @@ body{
           <span class="gg-pill" style="--c:#e0383d;" onclick="event.stopPropagation();location.href='global_lotto.html?game=POWERBALL'">Powerball</span>
           <span class="gg-pill" style="--c:#1a6fd4;" onclick="event.stopPropagation();location.href='global_lotto.html?game=MEGAMILLIONS'">Mega Millions</span>
           <span class="gg-pill" style="--c:#f0b400;" onclick="event.stopPropagation();location.href='global_lotto.html?game=EUROMILLIONS'">EuroMillions</span>
+        </div>
+      </div>
+      <div class="globe-arrow">→</div>
+    </div>
+  </div>
+
+  <div class="genre-divider">
+    <span class="gd-line"></span>
+    <span class="gd-label" data-i18n-kr="🧪 모의테스트 실험실로 건너가기" data-i18n-en="🧪 Cross over to the Mock Test Lab">🧪 모의테스트 실험실로 건너가기</span>
+    <span class="gd-line"></span>
+  </div>
+
+  <div class="lab-card" onclick="location.href='mocktest_hub.html'" tabindex="0" role="button">
+    <div class="lab-glow"></div>
+    <div class="lab-bubbles"></div>
+    <div class="globe-content">
+      <div class="globe-icon">🧪</div>
+      <div class="globe-text">
+        <div class="globe-tag lab-tag">NEW · MOCK TEST</div>
+        <div class="globe-title" data-i18n-kr="로또 모의테스트 및 실험" data-i18n-en="Lottery Mock Exam & Test">로또 모의테스트 및 실험</div>
+        <div class="globe-desc" data-i18n-kr="한국로또·파워볼·메가밀리언스·유로밀리언스 4종을 실전처럼 예행연습. 다음 추첨을 기다리는 실전테스트, 과거 아무 회차나 즉시 채점하는 모의테스트, 등록 없이 무료로 당첨여부만 확인하는 수동조회기까지." data-i18n-en="Practice all 4 lotteries like the real thing — real-round tests waiting for the next draw, instant mock tests against any past round, and a free manual checker with no registration.">한국로또·파워볼·메가밀리언스·유로밀리언스 4종을 실전처럼 예행연습. 다음 추첨을 기다리는 실전테스트, 과거 아무 회차나 즉시 채점하는 모의테스트, 등록 없이 무료로 당첨여부만 확인하는 수동조회기까지.</div>
+        <div class="globe-games">
+          <span class="gg-pill" style="--c:#8a6fe8;" onclick="event.stopPropagation();location.href='mocktest_hub.html?tab=REAL'" data-i18n-kr="실전테스트" data-i18n-en="Real Test">실전테스트</span>
+          <span class="gg-pill" style="--c:#e0b341;" onclick="event.stopPropagation();location.href='mocktest_hub.html?tab=MOCK'" data-i18n-kr="모의테스트" data-i18n-en="Mock Test">모의테스트</span>
+          <span class="gg-pill" style="--c:#3fb37f;" onclick="event.stopPropagation();location.href='mocktest_hub.html?tab=CHECK'" data-i18n-kr="무료 수동조회기" data-i18n-en="Free Manual Checker">무료 수동조회기</span>
         </div>
       </div>
       <div class="globe-arrow">→</div>
