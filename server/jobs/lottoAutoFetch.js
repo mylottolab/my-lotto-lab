@@ -18,6 +18,7 @@ const { runRaceCatchup } = require('./raceAutoRun');
 const { gradeRound: gradeMockRound } = require('./mockAutoGrade');
 const { gradeRound: gradeBattleRound } = require('./battlesAutoGrade');
 const { gradeRound: gradeTournamentRound } = require('./tournamentAutoGrade');
+const { gradeRound: gradeMocktestRound } = require('./mocktestAutoGrade');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -246,6 +247,15 @@ async function fetchAndSaveRound(round, alreadyExistsOk) {
     console.log('[lottoAutoFetch] 토너먼트 자동채점 결과:', tournamentResult);
   } catch (e) {
     console.error('[lottoAutoFetch] 토너먼트 자동채점 오류 (당첨결과 저장은 정상 완료됨):', e.message);
+  }
+
+  // "로또 모의테스트 및 실험" 카테고리 중 한국로또 실전테스트(추첨대기)도 같은 방식으로 자동채점합니다.
+  // (해외 3종 실전테스트는 관리자가 결과를 입력하는 순간 그 자리에서 바로 채점되므로 여기 해당 없음)
+  try {
+    const mocktestResult = await gradeMocktestRound(round);
+    console.log('[lottoAutoFetch] 모의테스트(KR 실전) 자동채점 결과:', mocktestResult);
+  } catch (e) {
+    console.error('[lottoAutoFetch] 모의테스트 자동채점 오류 (당첨결과 저장은 정상 완료됨):', e.message);
   }
 
   return {
