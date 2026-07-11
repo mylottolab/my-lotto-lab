@@ -125,6 +125,9 @@ async function creditPoints(userId, amount, meta) {
   const { error } = await supabase.from('point_ledger').insert({
     user_id: userId,
     point_type: 'activity',
+    amount: amount,       // ⚠ 2026-07-12: 이 컬럼이 빠져있어서 point_ledger의 amount NOT NULL
+                           // 제약에 걸려 Battles 우승보상 지급이 전부 실패하던 버그. remaining과
+                           // 별개로, "원래 지급된 양"을 기록하는 amount도 반드시 같이 채워야 함.
     remaining: amount,
     earned_at: nowIso,
     expires_at: expiresAt,
