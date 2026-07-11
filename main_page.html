@@ -665,22 +665,21 @@ function refreshDynamicStats(){
   // 직접 최신 결과를 가져와 채운다. 원래 이 데이터는 누구에게나 공개되어야 하는 정보라
   // 로그인/방문이력과 무관하게 항상 보여야 하는데, 캐시에만 의존하면 첫 방문자에게는
   // "데이터 없음"으로 보이는 문제가 있었다.
-  var rounds0 = Object.keys(results).map(Number).filter(function(n){ return n > 0; });
-  if (!rounds0.length) {
-    // ⚠ auth_gate.js(=window.MLL 정의)가 이 파일 맨 아래에서 로드되기 때문에, 이 시점엔
-    // 아직 window.MLL이 없을 수 있다 — MLL.API_BASE에 의존하지 않고 주소를 직접 쓴다.
-    // ⚠ 2026-07-12: 실제 응답은 { results: { "233": {nums,bonus,prize1,winners1,autoWin,...} } }
-    // 형태로, mll_results 로컬캐시와 거의 동일한 모양이라 그대로 써도 된다(따로 매핑 불필요).
-    fetch('https://my-lotto-lab-api.onrender.com/api/lotto/results')
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        var freshResults = data.results || {};
-        if (!Object.keys(freshResults).length) return;
-        try { localStorage.setItem('mll_results', JSON.stringify(freshResults)); } catch(e){}
-        renderRoundsAndResults(freshResults);
-      })
-      .catch(function(e){ console.error('[main_page] 서버 결과 조회 실패:', e); });
-  }
+  // ⚠ auth_gate.js(=window.MLL 정의)가 이 파일 맨 아래에서 로드되기 때문에, 이 시점엔
+  // 아직 window.MLL이 없을 수 있다 — MLL.API_BASE에 의존하지 않고 주소를 직접 쓴다.
+  // ⚠ 2026-07-12: "캐시가 비어있을 때만" 서버에서 가져오면, 예전 회차가 이미 캐시에 남아있는
+  // 브라우저(=오늘 하루 여러 번 방문한 일반창)에서는 새 회차가 나와도 영영 안 갱신되는 문제가
+  // 있었다. 그래서 캐시 유무와 상관없이 매번 서버 최신값으로 덮어쓰도록 바꾼다 — 화면은 일단
+  // 캐시(있으면)로 즉시 보여주고, 서버 응답이 오면 최신값으로 다시 그린다.
+  fetch('https://my-lotto-lab-api.onrender.com/api/lotto/results')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var freshResults = data.results || {};
+      if (!Object.keys(freshResults).length) return;
+      try { localStorage.setItem('mll_results', JSON.stringify(freshResults)); } catch(e){}
+      renderRoundsAndResults(freshResults);
+    })
+    .catch(function(e){ console.error('[main_page] 서버 결과 조회 실패:', e); });
 
   var battleCountEl = document.getElementById('statBattleCount');
   if (battleCountEl) {
