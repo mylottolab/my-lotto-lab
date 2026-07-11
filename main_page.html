@@ -636,6 +636,26 @@ function refreshMockStat(){
     .catch(function(e){ console.error('[main_page] mock count 조회 오류:', e); });
 }
 
+function renderRaceStat(meta, nextInfo){
+  // meta 또는 nextInfo가 undefined면 그 부분은 그대로 두고 건드리지 않는다 (부분 갱신용 —
+  // /api/race/meta와 /api/race/next-numbers/latest를 순차로 따로 호출하기 때문)
+  var raceEl = document.getElementById('statRaceRound');
+  var raceUnitEl = document.getElementById('statRaceUnit');
+  if (meta !== undefined && raceEl && raceUnitEl) {
+    if (meta && meta.lastSimulatedRound) {
+      raceEl.textContent = meta.lastSimulatedRound.toLocaleString();
+      raceUnitEl.textContent = T('race_done_suffix');
+    } else {
+      raceEl.textContent = T('race_ready');
+      raceUnitEl.textContent = T('race_ready_suffix');
+    }
+  }
+  var raceNextEl = document.getElementById('statRaceNext');
+  if (nextInfo !== undefined && raceNextEl) {
+    raceNextEl.textContent = (nextInfo && nextInfo.round) ? nextInfo.round.toLocaleString()+T('race_next_suffix') : '';
+  }
+}
+
 function refreshDynamicStats(){
   var entries = loadJSON('mll_entries', []);
   var strategies = loadJSON('mll_strategies', []);
@@ -644,24 +664,24 @@ function refreshDynamicStats(){
   document.getElementById('statEntries').textContent = entries.length.toLocaleString();
   document.getElementById('statStrategies').textContent = strategies.length.toLocaleString();
 
-  var raceMeta = loadJSON('mll_race_meta', null);
-  var raceEl = document.getElementById('statRaceRound');
-  var raceUnitEl = document.getElementById('statRaceUnit');
-  if (raceEl && raceUnitEl) {
-    if (raceMeta && raceMeta.lastSimulatedRound) {
-      raceEl.textContent = raceMeta.lastSimulatedRound.toLocaleString();
-      raceUnitEl.textContent = T('race_done_suffix');
-    } else {
-      raceEl.textContent = T('race_ready');
-      raceUnitEl.textContent = T('race_ready_suffix');
-    }
-  }
+  renderRaceStat(loadJSON('mll_race_meta', null), loadJSON('mll_race_next_numbers', null));
 
-  var raceNext = loadJSON('mll_race_next_numbers', null);
-  var raceNextEl = document.getElementById('statRaceNext');
-  if (raceNextEl) {
-    raceNextEl.textContent = (raceNext && raceNext.round) ? raceNext.round.toLocaleString()+T('race_next_suffix') : '';
-  }
+  // ⚠ 2026-07-12: "최근 추첨"과 동일한 이유로, 로컬캐시(mll_race_meta/mll_race_next_numbers)에만
+  // 의존하면 캐시가 없거나 오래된 브라우저에서 회차가 뒤처져 보이는 문제가 있었다. 서버에서
+  // 직접 최신값을 가져와 항상 덮어쓴다.
+  fetch('https://my-lotto-lab-api.onrender.com/api/race/meta')
+    .then(function(r){ return r.json(); })
+    .then(function(meta){
+      try { localStorage.setItem('mll_race_meta', JSON.stringify(meta)); } catch(e){}
+      renderRaceStat(meta, undefined);
+      return fetch('https://my-lotto-lab-api.onrender.com/api/race/next-numbers/latest');
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(nextInfo){
+      try { localStorage.setItem('mll_race_next_numbers', JSON.stringify(nextInfo)); } catch(e){}
+      renderRaceStat(undefined, nextInfo);
+    })
+    .catch(function(e){ console.error('[main_page] 100전략레이스 정보 조회 오류:', e); });
 
   // ── 모의실전시뮬레이션: 실제 서버 데이터 (2026-07-09부터 서버DB 전환) ──
   // 회차/전체등록수는 8초마다 다시 불러와서, 새로 등록되는 대로 숫자가 계속 갱신됩니다(광고 효과).
