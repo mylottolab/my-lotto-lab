@@ -662,6 +662,69 @@ var WINNING_FILE_TYPES = [
   { type:'euromillions', label:'🇪🇺 유로밀리언스' },
 ];
 
+// ── CSV 첫 컬럼(회차 또는 날짜)에서 범위 자동추출 — 실제 4종 파일로 검증된 규칙 ──
+// korea645: 1열 = 회차(정수). global 3종: 1열 = 날짜, 파일마다 표기법이 다름(파워볼은
+// 심지어 한 파일 안에서도 옛날 데이터는 M/D/YYYY, 최근 데이터는 YYYY-MM-DD로 섞여있음).
+var CSV_RANGE_CONFIG = {
+  korea645:     { kind:'round' },
+  powerball:    { kind:'date', format:'mdy' }, // ISO(YYYY-MM-DD)는 아래서 자동으로 먼저 시도됨
+  megamillions: { kind:'date', format:'mdy' },
+  euromillions: { kind:'date', format:'dmy' },
+};
+
+function parseDateFlexible(str, format) {
+  str = (str || '').trim().replace(/^"|"$/g, '');
+  if (!str) return null;
+  var iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return new Date(Date.UTC(+iso[1], +iso[2]-1, +iso[3]));
+  if (format === 'mdy') {
+    var m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return new Date(Date.UTC(+m[3], +m[1]-1, +m[2]));
+  } else if (format === 'dmy') {
+    var m2 = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (m2) return new Date(Date.UTC(+m2[3], +m2[2]-1, +m2[1]));
+  }
+  return null;
+}
+
+// 파일을 브라우저에서 바로 읽어 첫 컬럼만 훑어 최소/최대를 계산한다 (서버 왕복 없음 — 즉시 표시됨)
+function extractRangeFromCsv(type, file) {
+  return new Promise(function(resolve) {
+    var config = CSV_RANGE_CONFIG[type];
+    var reader = new FileReader();
+    reader.onerror = function(){ resolve(null); };
+    reader.onload = function(e) {
+      try {
+        var lines = String(e.target.result).split(/\r\n|\n|\r/);
+        if (config.kind === 'round') {
+          var min = null, max = null;
+          for (var i = 1; i < lines.length; i++) {
+            var first = (lines[i].split(',')[0] || '').trim();
+            if (!/^\d+$/.test(first)) continue;
+            var n = parseInt(first, 10);
+            if (min === null || n < min) min = n;
+            if (max === null || n > max) max = n;
+          }
+          resolve(min === null ? null : { start: '제' + min + '회', end: '제' + max + '회' });
+        } else {
+          var minD = null, maxD = null;
+          for (var j = 1; j < lines.length; j++) {
+            var field0 = (lines[j].split(',')[0] || '');
+            var d = parseDateFlexible(field0, config.format);
+            if (!d) continue;
+            if (!minD || d < minD) minD = d;
+            if (!maxD || d > maxD) maxD = d;
+          }
+          resolve(!minD ? null : { start: minD.toISOString().slice(0,10), end: maxD.toISOString().slice(0,10) });
+        }
+      } catch (err) {
+        resolve(null);
+      }
+    };
+    reader.readAsText(file);
+  });
+}
+
 async function loadWinningFiles() {
   var grid = document.getElementById('winningFilesGrid');
   grid.innerHTML = '<div class="msg msg-info">불러오는 중...</div>';
@@ -701,17 +764,30 @@ async function loadWinningFiles() {
   }).join('');
 }
 
-function onWinningCsvSelect(type) {
+async function onWinningCsvSelect(type) {
   var input = document.getElementById('csv_' + type);
   var label = document.getElementById('csvLabel_' + type);
   var btn = document.getElementById('btnUpload_' + type);
-  if (input.files && input.files[0]) {
-    label.textContent = '✅ ' + input.files[0].name;
-    btn.disabled = false;
-  } else {
+  var file = input.files && input.files[0];
+
+  if (!file) {
     label.textContent = '📎 CSV 파일 선택 (클릭)';
     btn.disabled = true;
+    return;
   }
+
+  label.textContent = '⏳ ' + file.name + ' — 범위 분석 중...';
+  btn.disabled = true;
+
+  var range = await extractRangeFromCsv(type, file);
+  if (range) {
+    document.getElementById('range_start_' + type).value = range.start;
+    document.getElementById('range_end_' + type).value = range.end;
+    label.textContent = '✅ ' + file.name + ' — 범위 자동추출됨 (아래에서 확인·수정 가능)';
+  } else {
+    label.textContent = '⚠️ ' + file.name + ' — 범위를 자동으로 읽지 못했어요. 직접 입력해주세요.';
+  }
+  btn.disabled = false;
 }
 
 // multipart 업로드는 adminPost(JSON 전용)를 못 써서 별도로 fetch — 나머지(x-admin-key,
