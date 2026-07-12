@@ -99,7 +99,7 @@ button{font-family:inherit;cursor:pointer;}
 .winning-file-card .wf-range{font-size:11.5px;color:var(--text-dim);margin-top:8px;font-variant-numeric:tabular-nums;}
 .winning-file-card .wf-badge{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px;margin-top:8px;background:rgba(63,179,127,.14);color:var(--green);}
 .winning-file-card .wf-note{font-size:10px;color:var(--text-faint);margin-top:8px;line-height:1.5;}
-.winning-file-card .wf-btn{width:100%;margin-top:12px;}
+.winning-file-card .wf-btn{width:100%;margin-top:12px;font-size:11.5px;padding:8px 14px;}
 
 .info-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;gap:28px;flex-wrap:wrap;}
 .info-item .k{font-size:10.5px;color:var(--text-faint);margin-bottom:3px;}
@@ -537,6 +537,7 @@ MU.init = async function(){
   var params = new URLSearchParams(location.search);
   var tabParam = (params.get('tab') || '').toUpperCase();
   var gameParam = (params.get('game') || '').toUpperCase();
+  var openFiles = params.get('openFiles') === '1';
 
   MU.renderMainTabs();
   applyLang();
@@ -545,6 +546,9 @@ MU.init = async function(){
     await MU.enterRegister(gameParam, tabParam);
   } else {
     await MU.goNav('landing');
+    // main_page.html의 "정답 모음" 미리보기 박스에서 곧장 넘어온 경우, 랜딩에 도착하자마자
+    // 우측 카드를 눌러 하단 4종 다운로드 패널까지 자동으로 펼쳐준다.
+    if (openFiles) await MU.toggleWinningFiles();
   }
   MU.refreshBalance();
 };
