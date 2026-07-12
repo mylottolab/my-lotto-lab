@@ -325,3 +325,5 @@ app.use('/api/mocktest', mocktestRouter);
 
 const mocktestAdminRouter = require('./routes/mocktest_admin');
 app.use('/api/admin/mocktest', mocktestAdminRouter);
+const filesRouter = require('./routes/files');
+app.use('/api/files', filesRouter);
