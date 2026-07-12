@@ -233,12 +233,15 @@ router.post('/entries', async (req, res) => {
       user_id: user.id, game_code: gameCode, mode,
       target_round: targetRound, target_draw_date: targetDrawDate,
       picks_list: mergedPicks, combo_count: mergedPicks.length,
-      status: mode === 'MOCK' ? 'graded' : 'pending',
+      // ⚠️ 2026-07-12 설계 변경: "등록"(비최종)은 시험지에 답 적어두는 임시저장일 뿐,
+      // "이대로 제출완료"(최종)를 눌러야 비로소 채점하고 결과를 공개한다. 예전엔 모의테스트가
+      // 등록하는 족족 바로 채점돼서 "제출완료해야 결과를 안다"는 원칙과 안 맞았다.
+      status: (mode === 'MOCK' && isFinal) ? 'graded' : 'pending',
       finalized: isFinal,
     };
 
-    if (mode === 'MOCK') {
-      // 이어붙인 경우 통계/Top3가 전체 조합 기준으로 다시 계산되어야 하므로 매번 전체 재채점한다.
+    if (mode === 'MOCK' && isFinal) {
+      // 이어붙인 경우 통계/Top3가 전체 조합 기준으로 다시 계산되어야 하므로 전체를 채점한다.
       const { results, stats, top3 } = gradeEntryCombos(gameCode, mergedPicks, drawResult);
       row.results = results;
       row.stats = stats;
