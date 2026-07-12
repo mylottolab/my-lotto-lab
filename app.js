@@ -391,7 +391,7 @@ APP.renderGameTabs = function(){
     var drawLabel = lang === 'en' ? g.drawDaysLabelEn : g.drawDaysLabelKr;
     var live = APP.gameLiveStats(g.code);
     var animVal = APP._getAnimatedJackpotValue(g.code);
-    var jpLabel = animVal ? ('$' + Math.round(animVal).toLocaleString()) : '-';
+    var jpLabel = animVal ? (_drCurrency(g.code) + Math.round(animVal).toLocaleString()) : '-';
 
     var draw = APP._latestDrawCache[g.code];
     var lastDrawHtml;
@@ -437,7 +437,7 @@ APP.renderInfoCard = function(){
 
   var deadlineBi = live.deadlineMs ? GLOBAL.formatDeadlineBilingual(live.deadlineMs, g.cutoffTz, lang) : { local:'-', kst:'-' };
   var animVal = APP._getAnimatedJackpotValue(g.code);
-  var jpAmountLabel = animVal ? ('$' + Math.round(animVal).toLocaleString()) : '-';
+  var jpAmountLabel = animVal ? (_drCurrency(g.code) + Math.round(animVal).toLocaleString()) : '-';
   var cashLine = (jp.cash_value && g.code !== 'EUROMILLIONS') ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': $' + Number(jp.cash_value).toLocaleString() + '</div>') : '';
   var asOfLine = jp.fetched_at ? new Date(jp.fetched_at).toLocaleString(lang==='en'?'en-US':'ko-KR') : '-';
 
@@ -471,7 +471,7 @@ APP.startLiveTicker = function(){
 
       var animVal = APP._getAnimatedJackpotValue(g.code);
       if (animVal) {
-        var jpStr = '$' + Math.round(animVal).toLocaleString();
+        var jpStr = _drCurrency(g.code) + Math.round(animVal).toLocaleString();
         document.querySelectorAll('[data-live-jackpot="' + g.code + '"]').forEach(function(el){ el.textContent = jpStr; });
         var bigJp = document.querySelector('[data-live-jackpot-big="' + g.code + '"]');
         if (bigJp) bigJp.textContent = jpStr;
