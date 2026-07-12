@@ -339,6 +339,7 @@ var STR = {
   winning_file_free_download_btn: { kr:'⬇ 무료로 다시 다운로드', en:'⬇ Re-download for free' },
   winning_file_download_btn_sm: { kr:'⬇ 2,500P', en:'⬇ 2,500P' },
   winning_file_free_download_btn_sm: { kr:'⬇ 무료 재다운로드', en:'⬇ Free re-download' },
+  winning_count_suffix: { kr:'개 회차 데이터', en:' draws' },
   winning_file_confirm_new: { kr:'{name} 역대 당첨번호 파일을 2,500포인트로 다운로드하시겠습니까?', en:'Download the {name} winning number archive for 2,500 points?' },
   winning_file_confirm_free: { kr:'{name} 파일을 24시간 이내 무료로 다시 다운로드합니다.', en:'Re-download the {name} file for free (within the 24h window).' },
   winning_file_insufficient: { kr:'포인트가 부족합니다.', en:'Not enough points.' },
@@ -472,6 +473,8 @@ MT.getWinningFilesMeta = async function(){
   } catch(e) { return []; }
 };
 // 역대 당첨번호 CSV 다운로드 (신규 구매 시 2500P 차감, 24h 이내 재요청이면 무과금)
+// ⚠ 2026-07-12: 서버가 미리 저장해둔 파일이 아니라 결과 DB에서 그때그때 CSV를 만들어
+// 응답 자체로 바로 내려준다 (JSON이 아니라 CSV 바디) — 그래서 blob으로 받아 처리한다.
 MT.downloadWinningFile = async function(fileType){
   var state = await mtAuthState();
   if (!state.type) { if (window.MLL && MLL.requireAuth) MLL.requireAuth(function(){}); return { ok:false, error:'AUTH_REQUIRED' }; }
@@ -479,9 +482,14 @@ MT.downloadWinningFile = async function(fileType){
     var r = await fetch(MT.API_BASE + '/api/files/winning/' + fileType + '/download', {
       method: 'POST', headers: mtHeaders(state), body: JSON.stringify(mtAuthBody(state, {})),
     });
-    var d = await r.json();
-    if (!r.ok) return { ok:false, error: d.error || '' };
-    return { ok:true, url: d.url, freeRedownload: !!d.freeRedownload };
+    if (!r.ok) {
+      var errBody = {};
+      try { errBody = await r.json(); } catch(e){}
+      return { ok:false, error: errBody.error || '' };
+    }
+    var blob = await r.blob();
+    var freeRedownload = r.headers.get('X-Free-Redownload') === '1';
+    return { ok:true, blob: blob, freeRedownload: freeRedownload };
   } catch(e) { return { ok:false, error: e.message }; }
 };
 MT.submitEntry = async function(payload){
@@ -698,14 +706,14 @@ MU.renderWinningFilesGrid = async function(){
     var fileType = MT.FILE_TYPE[code];
     var meta = byType[fileType] || null;
     var rangeLabel = (meta && meta.range_start && meta.range_end) ? (meta.range_start + ' ~ ' + meta.range_end) : T('no_data');
-    var sizeLabel = (meta && meta.file_size_kb) ? (meta.file_size_kb >= 1024 ? (meta.file_size_kb/1024).toFixed(1) + 'MB' : meta.file_size_kb + 'KB') : null;
+    var countLabel = (meta && meta.count) ? (meta.count.toLocaleString() + T('winning_count_suffix')) : null;
     var isFree = !!(meta && meta.freeRedownloadUntil && new Date(meta.freeRedownloadUntil).getTime() > Date.now());
     var badgeHtml = isFree ? '<div class="wf-badge">' + T('winning_free_badge') + '</div>' : '';
     var btnLabel = isFree ? T('winning_file_free_download_btn_sm') : T('winning_file_download_btn_sm');
     return '<div class="landing-card wfile">' +
       '<div class="lc-name"><span class="flag-ic flag-' + g.flag + '"></span>' + (LANG==='en'?g.nameEn:g.nameKr) + '</div>' +
       '<div class="lc-target font-num" style="font-size:13px;font-weight:700;color:var(--text);">' + rangeLabel + '</div>' +
-      (sizeLabel ? '<div class="wf-filesize font-num">' + sizeLabel + '</div>' : '') +
+      (countLabel ? '<div class="wf-filesize font-num">' + countLabel + '</div>' : '') +
       badgeHtml +
       '<button class="btn btn-accent wf-btn-sm" onclick="MU.downloadWinningFile(\'' + fileType + '\',\'' + code + '\',' + isFree + ')">' + btnLabel + '</button>' +
     '</div>';
@@ -714,7 +722,8 @@ MU.renderWinningFilesGrid = async function(){
   grid.innerHTML = cardsHtml;
 };
 
-// ── 실제 다운로드 실행: 확인모달(간단 confirm) → 서버에서 signed URL 발급 → 이동 ──
+// ── 실제 다운로드 실행: 확인모달(간단 confirm) → 서버가 결과DB에서 즉석 생성한 CSV를
+// blob으로 받아 브라우저 다운로드로 저장한다 (더 이상 signed URL 방식이 아님) ──
 MU.downloadWinningFile = async function(fileType, code, isFree){
   var g = MT.GAMES[code];
   var name = LANG==='en' ? g.nameEn : g.nameKr;
@@ -727,7 +736,15 @@ MU.downloadWinningFile = async function(fileType, code, isFree){
     else if (res.error !== 'AUTH_REQUIRED') alert(T('winning_file_fail'));
     return;
   }
-  window.location.href = res.url;
+  var blobUrl = URL.createObjectURL(res.blob);
+  var a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = fileType + '_winning_numbers.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 4000);
+
   MU.refreshBalance();
   await MU.renderWinningFilesGrid(); // 무료 재다운로드 배지/버튼 상태 즉시 갱신
 };
