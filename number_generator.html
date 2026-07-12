@@ -78,6 +78,21 @@ body{background:#f3f4f6;font-size:13px;}
 .empty-result{text-align:center;padding:60px;color:#bbb;font-size:13px;}
 .progress-bar{height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden;margin:6px 0;}
 .progress-fill{height:100%;background:linear-gradient(90deg,#e67700,#f5c518);border-radius:2px;transition:width 0.3s;}
+
+@media (max-width:900px){
+  .main{grid-template-columns:1fr;}
+}
+@media (max-width:680px){
+  .header-inner{padding:0 12px;height:auto;min-height:44px;}
+  .main{padding:10px;gap:10px;}
+  .card-body{padding:10px 12px;}
+  .cond-grid{grid-template-columns:1fr;}
+  .analysis-grid{grid-template-columns:1fr;}
+  .result-head{padding:10px 12px;}
+  .analysis-panel{margin:10px;}
+  .card:has(.num-table){overflow-x:auto;}
+  .num-table{min-width:480px;}
+}
 </style>
 </head>
 <body>
