@@ -140,10 +140,19 @@ function _appQuerySuffix(state, extra){
   }
   return parts.length ? ('?' + parts.join('&')) : '';
 }
+// ⚠ 2026-07-13: 실제로 인증 헤더를 실어 서버에 요청을 보내는 곳(포인트 조회/등록현황
+// 조회/응모 제출)에서는 MLL.getAuthState()를 곧바로 쓰면 안 된다 — 토큰이 만료된 채로
+// 그대로 실려 나가서 401이 나고, 그 실패가 조용히 무시되면 hub_lounge.html에서 났던
+// "undefined/0" 버그와 똑같은 증상이 여기서도 재현된다. mocktest_hub.html의
+// mtAuthState()와 동일하게, 먼저 MLL.ensureFreshToken()으로 토큰을 갱신한 뒤 상태를 가져온다.
+async function _appAuthState(){
+  if (window.MLL && MLL.ensureFreshToken) { try { await MLL.ensureFreshToken(); } catch(e){} }
+  return MLL.getAuthState();
+}
 
 // 포인트 잔액 서버에서 갱신
 APP.refreshPoints = async function(){
-  var state = MLL.getAuthState();
+  var state = await _appAuthState();
   if (!state.type) { APP._pointsCache = { balance: 0 }; return APP._pointsCache; }
   try {
     var qs = _appQuerySuffix(state);
@@ -157,7 +166,7 @@ APP.refreshPoints = async function(){
 
 // 내 등록현황(HISTORY) 서버에서 갱신
 APP.refreshEntries = async function(){
-  var state = MLL.getAuthState();
+  var state = await _appAuthState();
   if (!state.type) { APP._entriesCache = []; return []; }
   try {
     var qs = _appQuerySuffix(state);
@@ -663,7 +672,7 @@ APP.confirmRegister = async function(){
   var subAll = s.subSel.concat(s.subAuto).sort(function(a,b){return a-b;});
   var inputMethod = (s.mainAuto.length===0 && s.subAuto.length===0) ? 'MANUAL' : (s.mainSel.length===0 && s.subSel.length===0) ? 'AUTO' : 'SEMI_AUTO';
 
-  var state = MLL.getAuthState();
+  var state = await _appAuthState();
   if (!state.type) { alert(APP.t('need_login')); APP.closeConfirm(); return; }
 
   var confirmBtn = document.getElementById('t_confirmBtn');
