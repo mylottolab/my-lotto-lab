@@ -150,6 +150,34 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
 .session-opts{display:flex;flex-direction:column;gap:6px;}
 .session-opt{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;color:var(--text-dim);}
 .session-opt.active{background:rgba(138,111,232,.14);border-color:var(--game-accent);color:var(--text);font-weight:700;}
+
+/* =====================================================================
+   📱 모바일 반응형 (max-width:680px) — PC 화면(위 CSS)은 전혀 건드리지 않음.
+   ===================================================================== */
+@media (max-width:680px){
+  .topbar-inner{height:auto;min-height:56px;padding:10px 14px;flex-wrap:wrap;gap:8px 0;}
+  .brand{gap:8px;}
+  .brand-mark{width:28px;height:28px;font-size:13px;}
+  .brand-name{font-size:12.5px;}
+  .brand-sub{display:none;}
+  .topbar-right{gap:6px;width:100%;justify-content:flex-start;}
+  .points-badge{padding:5px 10px;margin-left:auto;}
+  .points-badge .val{font-size:12.5px;}
+  #langKrBtn,#langEnBtn{padding:5px 9px !important;font-size:11px !important;}
+  .lotto-switch{padding:5px 9px;font-size:11px;}
+
+  .wrap{padding:14px;}
+  .info-card{padding:14px 16px;gap:16px;}
+  .card{padding:16px;}
+  .landing-card{padding:15px 12px;}
+  .modal-box{padding:18px;}
+
+  .register-cols{gap:14px;}
+}
+@media (max-width:380px){
+  .brand-name{font-size:11.5px;}
+  button[onclick*="hub_lounge"] span{display:none;}
+}
 </style>
 </head>
 <body>
