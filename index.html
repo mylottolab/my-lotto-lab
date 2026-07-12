@@ -17,15 +17,11 @@ body{margin:0;background:#0f0f1a;display:flex;align-items:center;justify-content
   <div class="text">My Lotto Lab 로딩 중...</div>
 </div>
 <script>
-// PC / 모바일 자동 감지 후 분기
-const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-  || window.innerWidth < 768;
-
-if (isMobile) {
-  location.replace('./mobile/index.html');
-} else {
-  location.replace('./main_page.html');
-}
+// ⚠ 2026-07-13: 예전엔 모바일 기기를 './mobile/index.html'로 보내려 했는데,
+// 그 폴더가 저장소에 아예 없어서 폰으로 루트 주소(index.html)에 들어오는
+// 모든 사용자가 깨진 페이지를 만나고 있었다. 지금은 main_page.html 자체를
+// 반응형으로 만들고 있으니, PC/모바일 구분 없이 같은 페이지로 보낸다.
+location.replace('./main_page.html');
 </script>
 </body>
 </html>
