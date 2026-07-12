@@ -184,9 +184,39 @@ router.post('/entries', async (req, res) => {
       }
     }
 
-    const { cost, actionKey } = await getCost(gameCode, mode, picksList.length);
-    if (cost > 0) {
-      const result = await deductPoints(user.id, cost, { actionKey, refId: null });
+    // ⚠️ 2026-07-12 설계 변경: "등록하기"를 누를 때마다 완전히 새 응시(=새로운 참가비)를
+    // 만들던 방식을 버리고, 아직 끝내지 않은(finalized=false) 응시에 이어붙이는(append) 방식을
+    // 도입했었다. 다만 같은 회차라도 사용자가 "일부러 여러 번 따로" 응시하고 싶을 수 있어서
+    // (예: 서로 다른 전략을 비교해보고 싶을 때), "같은 대상이면 자동으로 하나로 합침"은
+    // 틀렸다 — 대신 프론트가 명시적으로 entry_id를 지정했을 때만 그 응시에 이어붙이고,
+    // entry_id가 없으면(=사용자가 "새 응시 시작"을 선택) 항상 새 응시를 만든다. 이렇게 하면
+    // 같은 회차에 여러 개의 독립된 응시(각자 고유 id)를 자유롭게 만들 수 있다.
+    let existing = null;
+    const requestedEntryId = req.body.entry_id || null;
+    if (requestedEntryId) {
+      const { data: found, error: findErr } = await supabase
+        .from('mocktest_entries').select('*').eq('id', requestedEntryId).eq('user_id', user.id).maybeSingle();
+      if (findErr) return res.status(500).json({ error: '기존 응시 조회 중 오류가 발생했습니다.' });
+      if (!found) return res.status(404).json({ error: '이어붙일 응시를 찾을 수 없습니다.' });
+      if (found.finalized) return res.status(409).json({ error: '이미 제출완료(마감)된 응시입니다. 이어붙일 수 없습니다.' });
+      if (found.game_code !== gameCode || found.mode !== mode) {
+        return res.status(400).json({ error: '종목/모드가 일치하지 않는 응시입니다.' });
+      }
+      const sameTarget = (gameCode === 'KR') ? (found.target_round === targetRound) : (found.target_draw_date === targetDrawDate);
+      if (!sameTarget) return res.status(400).json({ error: '대상 회차(날짜)가 일치하지 않는 응시입니다.' });
+      existing = found;
+    }
+
+    const existingPicks = existing ? (existing.picks_list || []) : [];
+    const existingCount = existingPicks.length;
+    const newTotal = existingCount + picksList.length;
+
+    const { cost: totalCostForNewTotal, actionKey, base, incr } = await getCost(gameCode, mode, newTotal);
+    const alreadyPaidCost = calcTieredCost(existingCount, base, incr);
+    const additionalCost = Math.max(0, totalCostForNewTotal - alreadyPaidCost);
+
+    if (additionalCost > 0) {
+      const result = await deductPoints(user.id, additionalCost, { actionKey, refId: null });
       if (!result.success) {
         return res.status(402).json({
           error: '포인트가 부족합니다. 충전해주세요.',
@@ -196,28 +226,41 @@ router.post('/entries', async (req, res) => {
       }
     }
 
-    const insertRow = {
+    const mergedPicks = existingPicks.concat(picksList);
+    const isFinal = !!req.body.final;
+
+    const row = {
       user_id: user.id, game_code: gameCode, mode,
       target_round: targetRound, target_draw_date: targetDrawDate,
-      picks_list: picksList, combo_count: picksList.length,
+      picks_list: mergedPicks, combo_count: mergedPicks.length,
       status: mode === 'MOCK' ? 'graded' : 'pending',
+      finalized: isFinal,
     };
 
     if (mode === 'MOCK') {
-      const { results, stats, top3 } = gradeEntryCombos(gameCode, picksList, drawResult);
-      insertRow.results = results;
-      insertRow.stats = stats;
-      insertRow.top3 = top3;
-      insertRow.graded_at = new Date().toISOString();
+      // 이어붙인 경우 통계/Top3가 전체 조합 기준으로 다시 계산되어야 하므로 매번 전체 재채점한다.
+      const { results, stats, top3 } = gradeEntryCombos(gameCode, mergedPicks, drawResult);
+      row.results = results;
+      row.stats = stats;
+      row.top3 = top3;
+      row.graded_at = new Date().toISOString();
     }
 
-    const { data: entry, error: insertErr } = await supabase.from('mocktest_entries').insert(insertRow).select().single();
-    if (insertErr) {
-      console.error('[mocktest] 등록 오류 (포인트는 이미 차감됨):', insertErr);
+    let entry, dbErr;
+    if (existing) {
+      ({ data: entry, error: dbErr } = await supabase.from('mocktest_entries').update(row).eq('id', existing.id).select().single());
+    } else {
+      ({ data: entry, error: dbErr } = await supabase.from('mocktest_entries').insert(row).select().single());
+    }
+    if (dbErr) {
+      console.error('[mocktest] 등록 오류 (포인트는 이미 차감됨):', dbErr);
       return res.status(500).json({ error: '등록 중 오류가 발생했습니다. 관리자에게 문의해주세요.' });
     }
 
-    return res.status(201).json({ message: '등록되었습니다.', entry, cost });
+    return res.status(201).json({
+      message: '등록되었습니다.', entry, cost: additionalCost,
+      appended: !!existing, addedCount: picksList.length, totalCount: mergedPicks.length,
+    });
   } catch (err) {
     console.error('[mocktest] entries 등록 오류:', err);
     return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
