@@ -192,6 +192,16 @@ body{
   .lab-bubbles{display:none;}
 }
 
+/* ── "정답 모음: 역대 당첨번호 파일" 미리보기 박스 — lab-card 안, 화살표 앞에 배치 ── */
+.wfile-preview{background:rgba(224,179,65,.07);border:1px solid rgba(224,179,65,.35);border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;flex-shrink:0;width:230px;transition:border-color .2s, transform .15s;}
+.wfile-preview:hover{border-color:#e0b341;transform:translateY(-2px);}
+.wfile-preview .wp-icon{font-size:18px;flex-shrink:0;}
+.wfile-preview .wp-title{font-size:12.5px;font-weight:700;color:#e0b341;line-height:1.4;}
+.wfile-preview .wp-desc{font-size:10px;color:#8b91ab;margin-top:6px;line-height:1.5;}
+@media (max-width:680px){
+  .wfile-preview{width:100%;margin-top:14px;}
+}
+
 /* ── 토토·프로토 배너: 잔디 그라디언트 + 라인 모티프로 globe-card와 의도적으로 다른 톤 ── */
 .stadium-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;margin-top:16px;
   background:radial-gradient(circle at 88% 15%, rgba(63,179,127,.22), transparent 55%),
@@ -438,6 +448,13 @@ body{
         <div class="globe-games">
           <span class="gg-pill" style="--c:#8a6fe8;" onclick="event.stopPropagation();location.href='mocktest_hub.html?tab=REAL'" data-i18n-kr="실전테스트" data-i18n-en="Real Test">실전테스트</span>
           <span class="gg-pill" style="--c:#e0b341;" onclick="event.stopPropagation();location.href='mocktest_hub.html?tab=MOCK'" data-i18n-kr="모의테스트" data-i18n-en="Mock Test">모의테스트</span>
+        </div>
+      </div>
+      <div class="wfile-preview" onclick="event.stopPropagation();location.href='mocktest_hub.html?openFiles=1'" tabindex="0" role="button">
+        <span class="wp-icon">📄</span>
+        <div>
+          <div class="wp-title" data-i18n-kr="정답 모음: 역대 당첨번호 파일" data-i18n-en="Answer Key: Winning Number Archives">정답 모음: 역대 당첨번호 파일</div>
+          <div class="wp-desc" data-i18n-kr="한국로또·파워볼·메가밀리언스·유로밀리언스 4종 역대 당첨번호 CSV" data-i18n-en="CSV archives for Korea Lotto, Powerball, Mega Millions, EuroMillions">한국로또·파워볼·메가밀리언스·유로밀리언스 4종 역대 당첨번호 CSV</div>
         </div>
       </div>
       <div class="globe-arrow">→</div>
