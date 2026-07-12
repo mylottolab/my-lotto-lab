@@ -83,7 +83,15 @@ a{color:inherit;text-decoration:none;}
 <script>
 var API = 'https://my-lotto-lab-api.onrender.com';
 
-function getAuthState() {
+// ⚠ 2026-07-13: 예전엔 여기서 localStorage 토큰을 날것 그대로 읽었는데, 그러면
+// 토큰이 만료된 뒤에도 감지를 못 해서 화면에 "undefined님 / 0P"가 조용히 떠버리는
+// 버그가 있었다. mocktest_hub.html이 이미 쓰고 있는 것과 동일하게, 요청 전에
+// MLL.ensureFreshToken()으로 먼저 토큰을 최신 상태로 갱신한 뒤 상태를 가져온다.
+async function getAuthState() {
+  if (window.MLL && MLL.ensureFreshToken) { try { await MLL.ensureFreshToken(); } catch (e) {} }
+  if (window.MLL && MLL.getAuthState) return MLL.getAuthState();
+
+  // MLL이 아직 로드되지 않은 극히 드문 경우를 위한 안전장치 (기존 방식 그대로)
   var token = localStorage.getItem('mll_token') || sessionStorage.getItem('mll_token');
   if (token) return { type: 'member', token: token };
   var gNick = localStorage.getItem('mll_guest_nickname');
@@ -102,7 +110,7 @@ function withAuthParams(url, state) {
 }
 
 async function load() {
-  var state = getAuthState();
+  var state = await getAuthState();
   var content = document.getElementById('content');
 
   if (!state.type) {
@@ -121,15 +129,38 @@ async function load() {
   var isGuest = state.type === 'guest';
   var headers = {};
   var qs = '';
+  var sessionExpired = false;
   if (state.type === 'member') {
     headers['Authorization'] = 'Bearer ' + state.token;
     try {
       var meRes = await fetch(API + '/api/auth/me', { headers: headers });
+      if (meRes.status === 401) sessionExpired = true;
       var me = await meRes.json();
       if (meRes.ok) nickname = me.nickname;
     } catch (e) {}
   } else {
     qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  }
+
+  // ⚠ MLL.ensureFreshToken()으로 갱신을 시도했는데도 /api/auth/me가 401이면, 세션이
+  // 완전히 끊긴 것이다. 이 경우 예전처럼 "undefined님 / 0P"를 그냥 보여주는 대신,
+  // 명확하게 재로그인을 안내한다 (조용히 실패를 삼키지 않는다).
+  // ⚠ MLL.logout()은 호출 즉시 main_page.html로 강제 이동시켜버려서 이 안내 메시지가
+  // 뜰 새도 없이 화면이 넘어가버린다. 그래서 여기선 logout()을 부르지 않고, 만료된
+  // 토큰만 직접 지워서(재사용 방지) 이 페이지에 안내 메시지가 그대로 보이게 한다.
+  if (sessionExpired) {
+    localStorage.removeItem('mll_token'); sessionStorage.removeItem('mll_token');
+    localStorage.removeItem('mll_refresh_token'); sessionStorage.removeItem('mll_refresh_token');
+    localStorage.removeItem('mll_user'); sessionStorage.removeItem('mll_user');
+    content.innerHTML =
+      '<div class="profile-card" style="text-align:center;">' +
+        '<div class="balance-label">로그인 세션이 만료되었습니다. 다시 로그인해주세요.</div>' +
+        '<div class="action-row">' +
+          '<a class="action-btn primary" href="login.html">다시 로그인</a>' +
+          '<a class="action-btn secondary" href="main_page.html">메인으로</a>' +
+        '</div>' +
+      '</div>';
+    return;
   }
 
   var balance = { total: 0, deposit: 0, activity: 0 };
