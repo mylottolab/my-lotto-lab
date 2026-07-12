@@ -335,9 +335,9 @@ var MT = {};
 MT.API_BASE = 'https://my-lotto-lab-api.onrender.com';
 MT.GAMES = {
   KR:           { nameKr:'한국로또',     nameEn:'Korea Lotto',      flag:'kr', mainCount:6, mainMax:45, bonusCount:0, bonusMax:0 },
-  POWERBALL:    { nameKr:'파워볼',       nameEn:'Powerball',        flag:'us', mainCount:5, mainMax:69, bonusCount:1, bonusMax:26 },
-  MEGAMILLIONS: { nameKr:'메가밀리언스', nameEn:'Mega Millions',    flag:'us', mainCount:5, mainMax:70, bonusCount:1, bonusMax:25 },
-  EUROMILLIONS: { nameKr:'유로밀리언스', nameEn:'EuroMillions',     flag:'eu', mainCount:5, mainMax:50, bonusCount:2, bonusMax:12 },
+  POWERBALL:    { nameKr:'파워볼',       nameEn:'Powerball',        flag:'us', mainCount:5, mainMax:69, bonusCount:1, bonusMax:26, currency:'$' },
+  MEGAMILLIONS: { nameKr:'메가밀리언스', nameEn:'Mega Millions',    flag:'us', mainCount:5, mainMax:70, bonusCount:1, bonusMax:25, currency:'$' },
+  EUROMILLIONS: { nameKr:'유로밀리언스', nameEn:'EuroMillions',     flag:'eu', mainCount:5, mainMax:50, bonusCount:2, bonusMax:12, currency:'€' },
 };
 MT.GAME_ORDER = ['KR','POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
 
@@ -504,7 +504,7 @@ MU.enterRegister = async function(code, mode){
   await MU.renderGameSection();
 };
 
-// ⏱ 남은시간 표시용 — 여러 카드의 카운트다운을 1초마다 한�우번에 갱신 (landing 뷰일 때만 동작)
+// ⏱ 남은시간 표시용 — 여러 카드의 카운트다운을 1초마다 한 우번에 갱신 (landing 뷰일 때만 동작)
 MU.landingDeadlines = {};
 function formatCountdown(ms){
   if (ms <= 0) return T('deadline_over');
@@ -564,7 +564,7 @@ MU.renderLanding = async function(){
     if (!isKR) {
       var jp = await MT.getJackpot(code);
       var jpVal = jp && (jp.jackpot_estimate || jp.jackpotEstimate);
-      jackpotHtml = '<div class="lc-jackpot">' + T('lc_jackpot') + ' ' + (jpVal ? ('$' + Number(jpVal).toLocaleString()) : T('no_info')) + '</div>';
+      jackpotHtml = '<div class="lc-jackpot">' + T('lc_jackpot') + ' ' + (jpVal ? (g.currency + Number(jpVal).toLocaleString()) : T('no_info')) + '</div>';
     }
 
     realCardsHtml.push(
