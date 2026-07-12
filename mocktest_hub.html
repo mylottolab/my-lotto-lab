@@ -80,26 +80,9 @@ button{font-family:inherit;cursor:pointer;}
 @media (max-width:900px){ .landing-grid{grid-template-columns:repeat(2,1fr);} }
 @media (max-width:520px){ .landing-grid{grid-template-columns:1fr;} }
 
-.landing-split{display:flex;gap:16px;align-items:flex-start;}
-.landing-split .landing-left{flex:1;min-width:0;}
-.landing-split .landing-right{width:260px;flex-shrink:0;}
-@media (max-width:900px){ .landing-split{flex-direction:column;} .landing-split .landing-right{width:100%;} }
-
-.winning-main-card{background:linear-gradient(155deg, var(--surface) 0%, var(--surface-2) 100%);border:1px solid var(--border-soft);border-radius:14px;padding:22px 18px;cursor:pointer;transition:border-color .15s, transform .1s;height:100%;}
-.winning-main-card:hover{transform:translateY(-2px);border-color:var(--red);}
-.winning-main-card.open{border-color:var(--red);box-shadow:0 0 0 1px var(--red);}
-.winning-main-card .wm-icon{font-size:22px;margin-bottom:10px;}
-.winning-main-card .wm-title{font-size:14.5px;font-weight:700;color:var(--red);line-height:1.4;}
-.winning-main-card .wm-desc{font-size:11px;color:var(--text-faint);margin-top:10px;line-height:1.6;}
-.winning-main-card .wm-arrow{font-size:11px;color:var(--text-dim);margin-top:16px;}
-
-.winning-files-panel{margin-top:22px;}
-.winning-file-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:18px 16px;}
-.winning-file-card .wf-name{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:7px;}
-.winning-file-card .wf-range{font-size:11.5px;color:var(--text-dim);margin-top:8px;font-variant-numeric:tabular-nums;}
-.winning-file-card .wf-badge{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px;margin-top:8px;background:rgba(63,179,127,.14);color:var(--green);}
-.winning-file-card .wf-note{font-size:10px;color:var(--text-faint);margin-top:8px;line-height:1.5;}
-.winning-file-card .wf-btn{width:100%;margin-top:12px;font-size:11.5px;padding:8px 14px;}
+.landing-card.wfile .wf-filesize{font-size:10.5px;color:var(--text-faint);margin-top:4px;}
+.landing-card.wfile .wf-badge{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;margin-top:8px;background:rgba(63,179,127,.14);color:var(--green);}
+.landing-card.wfile .wf-btn-sm{width:100%;margin-top:12px;font-size:10.5px;padding:6px 10px;}
 
 .info-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;gap:28px;flex-wrap:wrap;}
 .info-item .k{font-size:10.5px;color:var(--text-faint);margin-bottom:3px;}
@@ -354,6 +337,8 @@ var STR = {
   winning_file_cost_note: { kr:'다운로드 1회당 2,500P (24시간 이내 재다운로드는 무료)', en:'2,500P per download (free re-download within 24h)' },
   winning_file_download_btn: { kr:'⬇ 다운로드 (2,500P)', en:'⬇ Download (2,500P)' },
   winning_file_free_download_btn: { kr:'⬇ 무료로 다시 다운로드', en:'⬇ Re-download for free' },
+  winning_file_download_btn_sm: { kr:'⬇ 2,500P', en:'⬇ 2,500P' },
+  winning_file_free_download_btn_sm: { kr:'⬇ 무료 재다운로드', en:'⬇ Free re-download' },
   winning_file_confirm_new: { kr:'{name} 역대 당첨번호 파일을 2,500포인트로 다운로드하시겠습니까?', en:'Download the {name} winning number archive for 2,500 points?' },
   winning_file_confirm_free: { kr:'{name} 파일을 24시간 이내 무료로 다시 다운로드합니다.', en:'Re-download the {name} file for free (within the 24h window).' },
   winning_file_insufficient: { kr:'포인트가 부족합니다.', en:'Not enough points.' },
@@ -526,7 +511,6 @@ MU.state = {
   krMeta: null, globalMeta: {}, globalDates: {},
   entriesCache: [],
   activeEntryId: null,  // null=새 응시 시작 / 값 있으면 그 응시(고유id)에 이어붙임 — 같은 회차에도 여러 독립 응시를 만들 수 있다
-  winningFilesOpen: false, // 우측 "정답 모음" 카드 클릭 시 하단 4종 다운로드 패널 펼침 여부
 };
 
 MU.state.view = 'landing'; // 'landing' | 'register'
@@ -546,9 +530,12 @@ MU.init = async function(){
     await MU.enterRegister(gameParam, tabParam);
   } else {
     await MU.goNav('landing');
-    // main_page.html의 "정답 모음" 미리보기 박스에서 곧장 넘어온 경우, 랜딩에 도착하자마자
-    // 우측 카드를 눌러 하단 4종 다운로드 패널까지 자동으로 펼쳐준다.
-    if (openFiles) await MU.toggleWinningFiles();
+    // main_page.html의 "정답 모음" 미리보기 박스에서 곧장 넘어온 경우, 이제 섹션이 항상
+    // 펼쳐져 있으므로 그 위치로 스크롤만 이동시켜준다.
+    if (openFiles) {
+      var el = document.getElementById('winningFilesGrid');
+      if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+    }
   }
   MU.refreshBalance();
 };
@@ -683,57 +670,24 @@ MU.renderLanding = async function(){
     );
   }
 
-  var leftHtml =
+  body.innerHTML =
     '<div class="landing-section-title">' + T('landing_real_title') + '</div>' +
     '<div class="landing-grid">' + realCardsHtml.join('') + '</div>' +
     '<div class="landing-section-title" style="margin-top:22px;">' + T('landing_mock_title') + '</div>' +
-    '<div class="landing-grid">' + mockCardsHtml.join('') + '</div>';
+    '<div class="landing-grid">' + mockCardsHtml.join('') + '</div>' +
+    '<div class="landing-section-title" style="margin-top:22px;">' + T('winning_files_title') + '</div>' +
+    '<div class="landing-grid" id="winningFilesGrid"></div>';
 
-  var rightHtml =
-    '<div class="winning-main-card' + (MU.state.winningFilesOpen ? ' open' : '') + '" id="winningMainCard" onclick="MU.toggleWinningFiles()">' +
-      '<div class="wm-icon">📄</div>' +
-      '<div class="wm-title">' + T('winning_files_title') + '</div>' +
-      '<div class="wm-desc">' + T('winning_files_desc') + '</div>' +
-      '<div class="wm-arrow" id="winningMainArrow">' + T(MU.state.winningFilesOpen ? 'winning_files_close' : 'winning_files_open') + '</div>' +
-    '</div>';
-
-  body.innerHTML =
-    '<div class="landing-split">' +
-      '<div class="landing-left">' + leftHtml + '</div>' +
-      '<div class="landing-right">' + rightHtml + '</div>' +
-    '</div>' +
-    '<div class="winning-files-panel" id="winningFilesPanel" style="display:' + (MU.state.winningFilesOpen ? 'block' : 'none') + ';"></div>';
-
-  // 언어전환 등으로 랜딩이 재렌더링될 때, 패널이 이미 열려있던 상태라면 내용도 다시 채워준다
-  if (MU.state.winningFilesOpen) await MU.renderWinningFilesPanel();
+  await MU.renderWinningFilesGrid();
 };
 
-// ── 우측 "정답 모음: 역대 당첨번호 파일" 카드 클릭 → 모의테스트 섹션 아래에 4종 다운로드 카드 토글 ──
-MU.toggleWinningFiles = async function(){
-  MU.state.winningFilesOpen = !MU.state.winningFilesOpen;
-  var card = document.getElementById('winningMainCard');
-  var arrow = document.getElementById('winningMainArrow');
-  var panel = document.getElementById('winningFilesPanel');
-  if (!card || !panel) return;
-
-  if (MU.state.winningFilesOpen) {
-    card.classList.add('open');
-    if (arrow) arrow.textContent = T('winning_files_close');
-    await MU.renderWinningFilesPanel();
-    panel.style.display = 'block';
-    panel.scrollIntoView({ behavior:'smooth', block:'start' });
-  } else {
-    card.classList.remove('open');
-    if (arrow) arrow.textContent = T('winning_files_open');
-    panel.style.display = 'none';
-  }
-};
-
-// ── 4종(한국로또/파워볼/메가밀리언스/유로밀리언스) 다운로드 카드 렌더 — GET /api/files/winning 메타 사용 ──
-MU.renderWinningFilesPanel = async function(){
-  var panel = document.getElementById('winningFilesPanel');
-  if (!panel) return;
-  panel.innerHTML = '<div class="card"><div class="empty-state">' + T('loading') + '</div></div>';
+// ── 4종(한국로또/파워볼/메가밀리언스/유로밀리언스) 다운로드 카드 렌더 — 항상 펼쳐진 상태,
+// 상단 실전/모의 카드와 동일한 landing-grid/landing-card를 그대로 써서 크기를 맞춘다 ──
+// GET /api/files/winning 메타 사용
+MU.renderWinningFilesGrid = async function(){
+  var grid = document.getElementById('winningFilesGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="card"><div class="empty-state">' + T('loading') + '</div></div>';
 
   var items = await MT.getWinningFilesMeta();
   var byType = {};
@@ -744,19 +698,20 @@ MU.renderWinningFilesPanel = async function(){
     var fileType = MT.FILE_TYPE[code];
     var meta = byType[fileType] || null;
     var rangeLabel = (meta && meta.range_start && meta.range_end) ? (meta.range_start + ' ~ ' + meta.range_end) : T('no_data');
+    var sizeLabel = (meta && meta.file_size_kb) ? (meta.file_size_kb >= 1024 ? (meta.file_size_kb/1024).toFixed(1) + 'MB' : meta.file_size_kb + 'KB') : null;
     var isFree = !!(meta && meta.freeRedownloadUntil && new Date(meta.freeRedownloadUntil).getTime() > Date.now());
     var badgeHtml = isFree ? '<div class="wf-badge">' + T('winning_free_badge') + '</div>' : '';
-    var btnLabel = isFree ? T('winning_file_free_download_btn') : T('winning_file_download_btn');
-    return '<div class="winning-file-card">' +
-      '<div class="wf-name"><span class="flag-ic flag-' + g.flag + '"></span>' + (LANG==='en'?g.nameEn:g.nameKr) + '</div>' +
-      '<div class="wf-range font-num">' + rangeLabel + '</div>' +
+    var btnLabel = isFree ? T('winning_file_free_download_btn_sm') : T('winning_file_download_btn_sm');
+    return '<div class="landing-card wfile">' +
+      '<div class="lc-name"><span class="flag-ic flag-' + g.flag + '"></span>' + (LANG==='en'?g.nameEn:g.nameKr) + '</div>' +
+      '<div class="lc-target font-num" style="font-size:13px;font-weight:700;color:var(--text);">' + rangeLabel + '</div>' +
+      (sizeLabel ? '<div class="wf-filesize font-num">' + sizeLabel + '</div>' : '') +
       badgeHtml +
-      '<div class="wf-note">' + T('winning_file_cost_note') + '</div>' +
-      '<button class="btn btn-accent wf-btn" onclick="MU.downloadWinningFile(\'' + fileType + '\',\'' + code + '\',' + isFree + ')">' + btnLabel + '</button>' +
+      '<button class="btn btn-accent wf-btn-sm" onclick="MU.downloadWinningFile(\'' + fileType + '\',\'' + code + '\',' + isFree + ')">' + btnLabel + '</button>' +
     '</div>';
   }).join('');
 
-  panel.innerHTML = '<div class="landing-section-title">' + T('winning_files_title') + '</div><div class="landing-grid">' + cardsHtml + '</div>';
+  grid.innerHTML = cardsHtml;
 };
 
 // ── 실제 다운로드 실행: 확인모달(간단 confirm) → 서버에서 signed URL 발급 → 이동 ──
@@ -774,7 +729,7 @@ MU.downloadWinningFile = async function(fileType, code, isFree){
   }
   window.location.href = res.url;
   MU.refreshBalance();
-  await MU.renderWinningFilesPanel(); // 무료 재다운로드 배지/버튼 상태 즉시 갱신
+  await MU.renderWinningFilesGrid(); // 무료 재다운로드 배지/버튼 상태 즉시 갱신
 };
 
 // ── 실전/모의 공통: 게임탭 + 등록패널 + 내 등록현황 ──
