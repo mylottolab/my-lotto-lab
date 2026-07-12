@@ -151,27 +151,31 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
     <div class="brand">
       <div class="brand-mark">🧪</div>
       <div>
-        <div class="brand-name">My Lotto Lab — 모의테스트</div>
-        <div class="brand-sub">4종 복권 예행연습 · 즉시확인</div>
+        <div class="brand-name" data-i18n-kr="My Lotto Lab — 모의테스트" data-i18n-en="My Lotto Lab — Mock Test">My Lotto Lab — 모의테스트</div>
+        <div class="brand-sub" data-i18n-kr="4종 복권 예행연습 · 즉시확인" data-i18n-en="Practice all 4 lotteries · Instant results">4종 복권 예행연습 · 즉시확인</div>
       </div>
     </div>
     <div class="topbar-right">
+      <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
+        <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface-2);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
+      </div>
       <div class="lotto-wrap">
         <button class="lotto-switch" id="lottoBtn" onclick="toggleLottoMenu()">
-          <span style="font-size:13px;">🧪</span> <span>모의테스트</span> ▾
+          <span style="font-size:13px;">🧪</span> <span data-i18n-kr="모의테스트" data-i18n-en="Mock Test">모의테스트</span> ▾
         </button>
         <div class="lotto-menu" id="lottoMenu">
-          <div class="lotto-item" onclick="location.href='main_page.html'"><span><span class="flag-ic flag-kr"></span> 한국 로또</span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">메인</span></div>
-          <div class="lotto-item" onclick="location.href='global_lotto.html'"><span><span class="flag-ic flag-us"></span> 해외복권 3종</span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
-          <div class="lotto-item" onclick="location.href='toto_proto.html'"><span>⚽ 토토·프로토</span><span class="soon" style="color:#3fb37f;border-color:#1e7b4d;">SPORTS</span></div>
-          <div class="lotto-item" style="color:var(--game-accent);" onclick="toggleLottoMenu()"><span>🧪 모의테스트 및 실험</span><span class="soon" style="color:var(--game-accent);border-color:var(--game-accent);">이용중</span></div>
+          <div class="lotto-item" onclick="location.href='main_page.html'"><span><span class="flag-ic flag-kr"></span> <span data-i18n-kr="한국 로또" data-i18n-en="Korea Lotto">한국 로또</span></span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;" data-i18n-kr="메인" data-i18n-en="Main">메인</span></div>
+          <div class="lotto-item" onclick="location.href='global_lotto.html'"><span><span class="flag-ic flag-us"></span> <span data-i18n-kr="해외복권 3종" data-i18n-en="Global Lottery">해외복권 3종</span></span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
+          <div class="lotto-item" onclick="location.href='toto_proto.html'"><span>⚽ <span data-i18n-kr="토토·프로토" data-i18n-en="Toto·Proto">토토·프로토</span></span><span class="soon" style="color:#3fb37f;border-color:#1e7b4d;">SPORTS</span></div>
+          <div class="lotto-item" style="color:var(--game-accent);" onclick="toggleLottoMenu()"><span>🧪 <span data-i18n-kr="모의테스트 및 실험" data-i18n-en="Mock Test & Experiment">모의테스트 및 실험</span></span><span class="soon" style="color:var(--game-accent);border-color:var(--game-accent);" data-i18n-kr="이용중" data-i18n-en="Active">이용중</span></div>
         </div>
       </div>
       <button onclick="location.href='hub_lounge.html'" style="display:flex;align-items:center;gap:6px;color:var(--text-dim);font-size:11.5px;cursor:pointer;border:1px solid var(--border);padding:6px 12px;border-radius:7px;background:none;font-family:inherit;">
-        👤 <span>회원·Lounge</span>
+        👤 <span data-i18n-kr="회원·Lounge" data-i18n-en="Member·Lounge">회원·Lounge</span>
       </button>
       <div class="points-badge">
-        <span class="lbl">포인트</span>
+        <span class="lbl" data-i18n-kr="포인트" data-i18n-en="Points">포인트</span>
         <span class="val font-num" id="pointsBalance">-</span>
       </div>
     </div>
@@ -188,8 +192,8 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
     <h3 id="confirmTitle">등록 확인</h3>
     <p id="confirmBody"></p>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-outline" style="flex:1;" onclick="MU.closeConfirm()">취소</button>
-      <button class="btn btn-accent" style="flex:2;" onclick="MU.confirmSubmit()">확인하고 등록</button>
+      <button class="btn btn-outline" style="flex:1;" onclick="MU.closeConfirm()" data-i18n-kr="취소" data-i18n-en="Cancel">취소</button>
+      <button class="btn btn-accent" style="flex:2;" onclick="MU.confirmSubmit()" data-i18n-kr="확인하고 등록" data-i18n-en="Confirm & register">확인하고 등록</button>
     </div>
   </div>
 </div>
@@ -201,15 +205,139 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
 
 <script>
 // =====================================================
+// 언어 (KR/EN) — main_page.html과 동일한 방식: 정적 텍스트는 data-i18n 속성 스윕,
+// 동적으로 JS가 그리는 텍스트는 T('key')로 가져온다. 언어 전환 시 현재 보이는
+// 화면을 다시 그린다(이 페이지는 거의 전부 JS로 렌더링되기 때문).
+// =====================================================
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+var STR = {
+  landing_real_title: { kr:'⏰ 실전테스트 — 다음 추첨을 기다리는 진짜 예행연습', en:'⏰ Real Test — genuine practice waiting for the next draw' },
+  landing_mock_title:  { kr:'⚡ 모의테스트 — 과거 회차로 즉시 채점', en:'⚡ Mock Test — instant grading against any past round' },
+  lc_wait:  { kr:'⏰ 추첨대기', en:'⏰ Waiting for draw' },
+  lc_ready: { kr:'⚡ 즉시확인', en:'⚡ Instant check' },
+  lc_deadline: { kr:'마감까지', en:'Closes in' },
+  lc_jackpot: { kr:'💰 예상 잭팟', en:'💰 Est. jackpot' },
+  no_info: { kr:'정보없음', en:'No info' },
+  no_data: { kr:'데이터 없음', en:'No data' },
+  deadline_over: { kr:'마감', en:'Closed' },
+  loading: { kr:'불러오는 중...', en:'Loading...' },
+  back_to_landing: { kr:'← 처음으로', en:'← Back to home' },
+  mode_real_label: { kr:'⏰ 실전테스트', en:'⏰ Real Test' },
+  mode_mock_label: { kr:'⚡ 모의테스트', en:'⚡ Mock Test' },
+  register_title: { kr:'번호조합 등록', en:'Register combinations' },
+  register_desc: { kr:'100개까지는 기본요금, 그 이후는 1개당 추가요금이 붙습니다. 개수 제한은 없어요.', en:'A flat fee covers up to 100 combos; each extra combo beyond that adds a small per-combo fee. There\'s no upper limit.' },
+  mode_manual: { kr:'수동', en:'Manual' },
+  mode_auto: { kr:'자동', en:'Auto' },
+  mode_semi: { kr:'반자동', en:'Semi-auto' },
+  mode_voice: { kr:'음성입력', en:'Voice' },
+  manual_help: { kr:'아래 공을 직접 눌러서 메인 {main}개{bonus}를 채우면 조합이 자동으로 추가됩니다.', en:'Tap the balls below to fill {main} main numbers{bonus}, and the combo is added automatically.' },
+  bonus_suffix: { kr:'·보너스 {n}개', en:' + {n} bonus' },
+  auto_gen_count: { kr:'자동 생성 개수', en:'Combos to generate' },
+  auto_gen_btn: { kr:'+ 완전자동 추가', en:'+ Add fully random' },
+  semi_help: { kr:'아래 공에서 넣고 싶은 번호를 먼저 몇 개만 골라두세요(고정번호). 나머지는 자동으로 채워서 조합을 완성합니다.', en:'First pick a few numbers you want fixed on the balls below. The rest will be filled in automatically.' },
+  semi_gen_count: { kr:'생성 개수', en:'Combos to generate' },
+  semi_gen_btn: { kr:'🎯 반자동으로 채우기', en:'🎯 Fill semi-auto' },
+  voice_lang_label: { kr:'음성 언어', en:'Voice language' },
+  voice_start_btn: { kr:'🎙️ 음성으로 입력', en:'🎙️ Start voice input' },
+  voice_default_status: { kr:'번호를 하나씩 순서대로 말씀해주세요 (예: "3, 12, 21, 28, 34, 41").', en:'Say the numbers one by one, in order (e.g. "3, 12, 21, 28, 34, 41").' },
+  voice_listening: { kr:'🎙️ 듣고 있어요... 번호를 순서대로 말씀해주세요.', en:'🎙️ Listening... please say the numbers in order.' },
+  voice_unsupported: { kr:'이 브라우저는 음성입력을 지원하지 않아요. (Chrome 권장)', en:'This browser doesn\'t support voice input. (Chrome recommended)' },
+  voice_not_enough: { kr:'인식됨: "{t}" — 번호를 {n}개 이상 인식하지 못했어요. 다시 시도해주세요.', en:'Heard: "{t}" — couldn\'t recognize {n}+ numbers. Please try again.' },
+  voice_invalid_main: { kr:'인식됨: "{t}" — 번호가 중복되거나 범위(1~{max})를 벗어났어요. 다시 시도해주세요.', en:'Heard: "{t}" — numbers were duplicated or out of range (1–{max}). Please try again.' },
+  voice_invalid_bonus: { kr:'인식됨: "{t}" — 보너스번호가 중복되거나 범위를 벗어났어요. 다시 시도해주세요.', en:'Heard: "{t}" — bonus numbers were duplicated or out of range. Please try again.' },
+  voice_added: { kr:'✅ 조합 추가됨: {c}', en:'✅ Combo added: {c}' },
+  voice_error: { kr:'음성인식 오류: {e}', en:'Voice recognition error: {e}' },
+  semi_already_full: { kr:'번호를 이미 전부 고르셨어요. 반자동은 "일부만 고르고 나머지는 자동"인 방식입니다 — 전부 직접 고르셨다면 그냥 공을 마저 누르면 자동으로 조합이 추가됩니다.', en:'You\'ve already picked every number. Semi-auto is for picking just a few and auto-filling the rest — if you\'ve chosen them all, the combo will be added automatically.' },
+  main_numbers: { kr:'메인번호', en:'Main numbers' },
+  bonus_numbers: { kr:'보너스번호', en:'Bonus numbers' },
+  register_btn: { kr:'등록하기', en:'Register' },
+  staged_count: { kr:'담은 조합', en:'Combos ready' },
+  estimated_cost: { kr:'예상 참가비', en:'Estimated fee' },
+  no_picks_yet: { kr:'아직 담은 조합이 없습니다.', en:'No combos added yet.' },
+  my_entries: { kr:'내 등록현황', en:'My entries' },
+  no_entries: { kr:'등록내역이 없습니다.', en:'No entries yet.' },
+  status_waiting: { kr:'⏰ 추첨대기', en:'⏰ Waiting for draw' },
+  status_graded: { kr:'✅ 채점완료', en:'✅ Graded' },
+  no_win: { kr:'당첨 없음', en:'No win' },
+  combo_count_suffix: { kr:'개 조합', en:' combos' },
+  mock_select_round: { kr:'모의테스트할 회차 선택', en:'Choose a round to test' },
+  mock_select_date: { kr:'모의테스트할 추첨일 선택', en:'Choose a draw date to test' },
+  target_round_label: { kr:'대상 회차', en:'Target round' },
+  target_drawdate_label: { kr:'대상 추첨일', en:'Target draw date' },
+  mock_range_round: { kr:'모의테스트 가능 회차', en:'Rounds available for mock test' },
+  mock_range_date: { kr:'모의테스트 가능 기간', en:'Dates available for mock test' },
+  round_prefix: { kr:'제', en:'Round ' },
+  round_suffix: { kr:'회', en:'' },
+  round_range: { kr:'제1회 ~ 제{n}회', en:'Round 1 ~ Round {n}' },
+  waiting_draw: { kr:'(추첨대기)', en:'(waiting for draw)' },
+  none_yet: { kr:'아직 없음', en:'Not available yet' },
+  confirm_title_real: { kr:'실전테스트 등록 확인', en:'Confirm real test entry' },
+  confirm_title_mock: { kr:'모의테스트 등록 확인', en:'Confirm mock test entry' },
+  confirm_pick_target: { kr:'모의테스트할 회차/날짜를 선택해주세요.', en:'Please select a round/date to test.' },
+  entries_result_confirm: { kr:'채점 완료 후 이번 단계에서 자동으로 안내드립니다.', en:'You\'ll be notified once grading is complete.' },
+  detail_not_participant: { kr:'참가한 토너먼트가 아닙니다.', en:'You are not a participant.' },
+  cancel: { kr:'취소', en:'Cancel' },
+  confirm_and_register: { kr:'확인하고 등록', en:'Confirm & register' },
+  win_grade: { kr:'{g}등 · {p}원', en:'Grade {g} · {p}' },
+  win_tier: { kr:'{t}등', en:'Grade {t}' },
+  no_grade: { kr:'낙첨', en:'No win' },
+  top_n: { kr:'🏆 내 조합 중 Top{n}', en:'🏆 My Top {n}' },
+  rank_n: { kr:'{n}위', en:'#{n}' },
+  stats_by_grade: { kr:'등수별 통계', en:'Results by grade' },
+  no_winning_combo: { kr:'당첨된 조합이 없습니다.', en:'No winning combos.' },
+  all_results: { kr:'전체 조합 결과 ({n}개)', en:'All results ({n} combos)' },
+  pending_result: { kr:'아직 추첨 전입니다. 실제 추첨 후 자동으로 채점되면 여기서 결과를 볼 수 있어요.', en:'The draw hasn\'t happened yet. Once it\'s graded automatically, you can view results here.' },
+  entries_registered: { kr:'등록되었습니다.', en:'Registered.' },
+  next_round_waiting: { kr:'다음 회차 (추첨대기)', en:'Next round (waiting for draw)' },
+  next_drawdate_waiting: { kr:'다음 추첨일 (추첨대기)', en:'Next draw date (waiting for draw)' },
+  combos_registered_line: { kr:'{n}개 조합 등록', en:'{n} combos' },
+  entry_fee_line: { kr:'참가비: {c}P', en:'Entry fee: {c}P' },
+  mock_immediate_note: { kr:'등록 즉시 채점 결과를 보여드립니다.', en:'Results are shown right after you register.' },
+  real_wait_note: { kr:'실제 추첨 후 자동으로 채점됩니다.', en:'Automatically graded after the actual draw.' },
+  ask_check_now: { kr:'✅ 채점이 완료됐습니다!\n\n지금 바로 결과를 확인하시겠어요?\n\n[확인] 지금 결과 보기\n[취소] 나중에 "내 등록현황"에서 확인', en:'✅ Grading complete!\n\nWould you like to see the results now?\n\n[OK] View results now\n[Cancel] Check later in "My entries"' },
+  real_registered_alert: { kr:'✅ 등록 완료! 실제 추첨 후 자동으로 채점됩니다.', en:'✅ Registered! It will be graded automatically after the actual draw.' },
+  entry_status_waiting: { kr:'⏰ 추첨대기', en:'⏰ Waiting for draw' },
+  entry_status_graded: { kr:'✅ 채점완료', en:'✅ Graded' },
+  pending_detail: { kr:'아직 추첨 전입니다. 실제 추첨 후 자동으로 채점되면 여기서 결과를 볼 수 있어요.', en:'The draw hasn\'t happened yet. Once it\'s automatically graded, you can view results here.' },
+  no_result_data: { kr:'아직 결과 데이터가 없습니다.', en:'No result data yet.' },
+  no_past_data: { kr:'아직 등록된 과거 결과가 없습니다. (관리자가 CSV 업로드 후 이용 가능)', en:'No past results yet. (Available after the admin uploads data)' },
+  no_picks_alert: { kr:'번호조합을 1개 이상 등록해주세요.', en:'Please add at least one combination.' },
+  network_error: { kr:'네트워크 오류: {e}', en:'Network error: {e}' },
+  register_fail: { kr:'등록 실패: {e}', en:'Registration failed: {e}' },
+  countdown_days_hours: { kr:'{d}일 {h}시간 {m}분', en:'{d}d {h}h {m}m' },
+};
+function T(key, vars){
+  var row = STR[key];
+  var text = row ? (row[LANG] || row.kr) : key;
+  if (vars) Object.keys(vars).forEach(function(k){ text = text.replace('{'+k+'}', vars[k]); });
+  return text;
+}
+function applyLang(){
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var text = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if (text !== undefined) el.textContent = text;
+  });
+  var krBtn = document.getElementById('langKrBtn'), enBtn = document.getElementById('langEnBtn');
+  if (krBtn) { krBtn.style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface-2)'; krBtn.style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)'; }
+  if (enBtn) { enBtn.style.background = LANG==='en' ? 'var(--gold)' : 'var(--surface-2)'; enBtn.style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)'; }
+}
+function setLang(lang){
+  LANG = lang;
+  localStorage.setItem('mll_lang', lang);
+  applyLang();
+  if (window.MU && MU.rerenderCurrent) MU.rerenderCurrent();
+}
+
+// =====================================================
 // MT - API 통신 계층
 // =====================================================
 var MT = {};
 MT.API_BASE = 'https://my-lotto-lab-api.onrender.com';
 MT.GAMES = {
-  KR:           { nameKr:'한국로또',     flag:'kr', mainCount:6, mainMax:45, bonusCount:0, bonusMax:0 },
-  POWERBALL:    { nameKr:'파워볼',       flag:'us', mainCount:5, mainMax:69, bonusCount:1, bonusMax:26 },
-  MEGAMILLIONS: { nameKr:'메가밀리언스', flag:'us', mainCount:5, mainMax:70, bonusCount:1, bonusMax:25 },
-  EUROMILLIONS: { nameKr:'유로밀리언스', flag:'eu', mainCount:5, mainMax:50, bonusCount:2, bonusMax:12 },
+  KR:           { nameKr:'한국로또',     nameEn:'Korea Lotto',      flag:'kr', mainCount:6, mainMax:45, bonusCount:0, bonusMax:0 },
+  POWERBALL:    { nameKr:'파워볼',       nameEn:'Powerball',        flag:'us', mainCount:5, mainMax:69, bonusCount:1, bonusMax:26 },
+  MEGAMILLIONS: { nameKr:'메가밀리언스', nameEn:'Mega Millions',    flag:'us', mainCount:5, mainMax:70, bonusCount:1, bonusMax:25 },
+  EUROMILLIONS: { nameKr:'유로밀리언스', nameEn:'EuroMillions',     flag:'eu', mainCount:5, mainMax:50, bonusCount:2, bonusMax:12 },
 };
 MT.GAME_ORDER = ['KR','POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
 
@@ -271,6 +399,14 @@ MT.getJackpot = async function(gameCode){
     return r.ok ? r.json() : null;
   } catch(e) { return null; }
 };
+// 해외복권 실제 다음 회차 스케줄(등록 마감시각 registration_deadline_utc 포함) —
+// 마감 카운트다운을 우리가 추정하지 않고 기존 해외복권 시스템의 실제 값을 그대로 쓴다.
+MT.getGlobalSchedule = async function(gameCode){
+  try {
+    var r = await fetch(MT.API_BASE + '/api/global/schedule/' + gameCode);
+    return r.ok ? r.json() : null;
+  } catch(e) { return null; }
+};
 MT.getMyEntries = async function(gameCode, mode){
   var state = await mtAuthState();
   if (!state.type) return [];
@@ -293,20 +429,10 @@ MT.submitEntry = async function(payload){
       method: 'POST', headers: mtHeaders(state), body: JSON.stringify(mtAuthBody(state, payload)),
     });
     var d = await r.json();
-    if (!r.ok) { alert('등록 실패: ' + (d.error || '')); return { ok:false }; }
+    if (!r.ok) { alert(T('register_fail', { e: d.error || '' })); return { ok:false }; }
     if (d.entry && d.entry.combo_count !== undefined) MT._priceCache = MT._priceCache; // no-op, balance shown via badge separately
     return { ok:true, entry: d.entry, cost: d.cost };
-  } catch(e) { alert('네트워크 오류: ' + e.message); return { ok:false }; }
-};
-MT.check = async function(payload){
-  try {
-    var r = await fetch(MT.API_BASE + '/api/mocktest/check', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
-    });
-    var d = await r.json();
-    if (!r.ok) { alert(d.error || '조회 실패'); return null; }
-    return d;
-  } catch(e) { alert('네트워크 오류: ' + e.message); return null; }
+  } catch(e) { alert(T('network_error', { e: e.message })); return { ok:false }; }
 };
 
 // =====================================================
@@ -333,6 +459,7 @@ MU.init = async function(){
   var gameParam = (params.get('game') || '').toUpperCase();
 
   MU.renderMainTabs();
+  applyLang();
 
   if ((tabParam === 'REAL' || tabParam === 'MOCK') && MT.GAMES[gameParam]) {
     await MU.enterRegister(gameParam, tabParam);
@@ -340,6 +467,11 @@ MU.init = async function(){
     await MU.goNav('landing');
   }
   MU.refreshBalance();
+};
+// 언어 전환 시 현재 화면을 다시 그린다 (거의 전부 JS 렌더링이라 정적 스윕만으론 부족함)
+MU.rerenderCurrent = async function(){
+  if (MU.state.view === 'register') await MU.renderGameSection();
+  else await MU.renderLanding();
 };
 MU.refreshBalance = async function(){
   var state = await mtAuthState();
@@ -375,10 +507,10 @@ MU.enterRegister = async function(code, mode){
 // ⏱ 남은시간 표시용 — 여러 카드의 카운트다운을 1초마다 한�우번에 갱신 (landing 뷰일 때만 동작)
 MU.landingDeadlines = {};
 function formatCountdown(ms){
-  if (ms <= 0) return '마감';
+  if (ms <= 0) return T('deadline_over');
   var totalSec = Math.floor(ms/1000);
   var d = Math.floor(totalSec/86400), h = Math.floor((totalSec%86400)/3600), m = Math.floor((totalSec%3600)/60), s = totalSec%60;
-  if (d > 0) return d+'일 '+h+'시간 '+m+'분';
+  if (d > 0) return T('countdown_days_hours', {d:d, h:h, m:m});
   return (h<10?'0'+h:h)+':'+(m<10?'0'+m:m)+':'+(s<10?'0'+s:s);
 }
 function computeKRRegDeadline(){
@@ -402,7 +534,7 @@ if (!window._mtLandingInterval) {
 
 MU.renderLanding = async function(){
   var body = document.getElementById('mainTabBody');
-  body.innerHTML = '<div class="card"><div class="empty-state">불러오는 중...</div></div>';
+  body.innerHTML = '<div class="card"><div class="empty-state">' + T('loading') + '</div></div>';
   MU.landingDeadlines = {};
 
   var realCardsHtml = [], mockCardsHtml = [];
@@ -416,28 +548,31 @@ MU.renderLanding = async function(){
 
     if (isKR) {
       var meta = await MT.getKrMeta();
-      targetLabel = (meta && meta.nextRound) ? ('제' + meta.nextRound + '회') : '-';
+      targetLabel = (meta && meta.nextRound) ? (T('round_prefix') + meta.nextRound + T('round_suffix')) : '-';
       deadlineDate = computeKRRegDeadline();
     } else {
-      var meta2 = await MT.getGlobalMeta(code);
-      targetLabel = (meta2 && meta2.nextDrawDate) ? meta2.nextDrawDate : '-';
-      deadlineDate = (meta2 && meta2.nextDrawDate) ? new Date(meta2.nextDrawDate + 'T23:59:00+09:00') : null;
+      var schedule = await MT.getGlobalSchedule(code);
+      targetLabel = schedule && schedule.draw_date ? schedule.draw_date : '-';
+      deadlineDate = (schedule && schedule.registration_deadline_utc) ? new Date(schedule.registration_deadline_utc) : null;
     }
     if (deadlineDate) MU.landingDeadlines[realId] = deadlineDate;
+    // ⚠ 2026-07-12: 처음부터 "--"로 뒀다가 1초 뒤 인터벌이 채워주는 방식이었는데, 그 사이
+    // 어색한 공백이 보인다는 지적 — 렌더링하는 그 순간 바로 계산해서 첫 값부터 정확히 보여준다.
+    var initialCountdown = deadlineDate ? formatCountdown(deadlineDate.getTime() - Date.now()) : '--';
 
     var jackpotHtml = '';
     if (!isKR) {
       var jp = await MT.getJackpot(code);
       var jpVal = jp && (jp.jackpot_estimate || jp.jackpotEstimate);
-      jackpotHtml = '<div class="lc-jackpot">💰 예상 잭팟 ' + (jpVal ? ('$' + Number(jpVal).toLocaleString()) : '정보없음') + '</div>';
+      jackpotHtml = '<div class="lc-jackpot">' + T('lc_jackpot') + ' ' + (jpVal ? ('$' + Number(jpVal).toLocaleString()) : T('no_info')) + '</div>';
     }
 
     realCardsHtml.push(
       '<div class="landing-card real" onclick="MU.enterRegister(\'' + code + '\',\'REAL\')">' +
-        '<div class="lc-badge wait">⏰ 추첨대기</div>' +
-        '<div class="lc-name"><span class="flag-ic flag-' + g.flag + '"></span>' + g.nameKr + '</div>' +
+        '<div class="lc-badge wait">' + T('lc_wait') + '</div>' +
+        '<div class="lc-name"><span class="flag-ic flag-' + g.flag + '"></span>' + (LANG==='en'?g.nameEn:g.nameKr) + '</div>' +
         '<div class="lc-target font-num">' + targetLabel + '</div>' +
-        (deadlineDate ? '<div class="lc-countdown">마감까지 <span id="' + realId + '" class="font-num">--</span></div>' : '') +
+        (deadlineDate ? '<div class="lc-countdown">' + T('lc_deadline') + ' <span id="' + realId + '" class="font-num">' + initialCountdown + '</span></div>' : '') +
         jackpotHtml +
       '</div>'
     );
@@ -445,24 +580,24 @@ MU.renderLanding = async function(){
     var rangeLabel;
     if (isKR) {
       var meta3 = await MT.getKrMeta();
-      rangeLabel = (meta3 && meta3.maxRound) ? ('제1회 ~ 제' + meta3.maxRound + '회') : '데이터 없음';
+      rangeLabel = (meta3 && meta3.maxRound) ? T('round_range', { n: meta3.maxRound }) : T('no_data');
     } else {
       var meta4 = await MT.getGlobalMeta(code);
-      rangeLabel = (meta4 && meta4.minDrawDate) ? (meta4.minDrawDate + ' ~ ' + meta4.maxDrawDate) : '데이터 없음';
+      rangeLabel = (meta4 && meta4.minDrawDate) ? (meta4.minDrawDate + ' ~ ' + meta4.maxDrawDate) : T('no_data');
     }
     mockCardsHtml.push(
       '<div class="landing-card mock" onclick="MU.enterRegister(\'' + code + '\',\'MOCK\')">' +
-        '<div class="lc-badge ready">⚡ 즉시확인</div>' +
-        '<div class="lc-name"><span class="flag-ic flag-' + g.flag + '"></span>' + g.nameKr + '</div>' +
+        '<div class="lc-badge ready">' + T('lc_ready') + '</div>' +
+        '<div class="lc-name"><span class="flag-ic flag-' + g.flag + '"></span>' + (LANG==='en'?g.nameEn:g.nameKr) + '</div>' +
         '<div class="lc-target">' + rangeLabel + '</div>' +
       '</div>'
     );
   }
 
   body.innerHTML =
-    '<div class="landing-section-title">⏰ 실전테스트 — 다음 추첨을 기다리는 진짜 예행연습</div>' +
+    '<div class="landing-section-title">' + T('landing_real_title') + '</div>' +
     '<div class="landing-grid">' + realCardsHtml.join('') + '</div>' +
-    '<div class="landing-section-title" style="margin-top:22px;">⚡ 모의테스트 — 과거 회차로 즉시 채점</div>' +
+    '<div class="landing-section-title" style="margin-top:22px;">' + T('landing_mock_title') + '</div>' +
     '<div class="landing-grid">' + mockCardsHtml.join('') + '</div>';
 };
 
@@ -472,16 +607,16 @@ MU.renderGameSection = async function(){
     var g = MT.GAMES[code];
     var active = MU.state.game === code;
     return '<div class="game-tab' + (active?' active':'') + '" onclick="MU.selectGame(\'' + code + '\')">' +
-      '<div class="gt-name"><span class="flag-ic flag-' + g.flag + '"></span>' + g.nameKr + '</div>' +
-      '<div class="gt-sub">' + g.mainCount + '개' + (g.bonusCount ? ' + 보너스 ' + g.bonusCount + '개' : '') + '</div>' +
+      '<div class="gt-name"><span class="flag-ic flag-' + g.flag + '"></span>' + (LANG==='en'?g.nameEn:g.nameKr) + '</div>' +
+      '<div class="gt-sub">' + g.mainCount + (LANG==='en'?' numbers':'개') + (g.bonusCount ? T('bonus_suffix',{n:g.bonusCount}) : '') + '</div>' +
     '</div>';
   }).join('');
 
-  var modeLabel = MU.state.mainTab === 'REAL' ? '⏰ 실전테스트' : '⚡ 모의테스트';
+  var modeLabel = MU.state.mainTab === 'REAL' ? T('mode_real_label') : T('mode_mock_label');
   document.getElementById('mainTabBody').innerHTML =
-    '<div style="margin-bottom:12px;"><button class="btn btn-outline" onclick="MU.goNav(\'landing\')">← 처음으로</button> <span style="font-size:12.5px;color:var(--text-dim);margin-left:8px;">' + modeLabel + '</span></div>' +
+    '<div style="margin-bottom:12px;"><button class="btn btn-outline" onclick="MU.goNav(\'landing\')">' + T('back_to_landing') + '</button> <span style="font-size:12.5px;color:var(--text-dim);margin-left:8px;">' + modeLabel + '</span></div>' +
     '<div class="game-tabs">' + gameTabsHtml + '</div>' +
-    '<div id="gameInfoArea"><div class="card"><div class="empty-state">불러오는 중...</div></div></div>';
+    '<div id="gameInfoArea"><div class="card"><div class="empty-state">' + T('loading') + '</div></div></div>';
 
   await MU.loadGameInfoArea();
 };
@@ -504,18 +639,18 @@ MU.loadGameInfoArea = async function(){
     var meta = await MT.getKrMeta();
     MU.state.krMeta = meta;
     if (MU.state.mainTab === 'REAL') {
-      infoHtml = '<div class="info-item"><div class="k">대상 회차</div><div class="v accent">제' + (meta ? meta.nextRound : '-') + '회 (추첨대기)</div></div>';
+      infoHtml = '<div class="info-item"><div class="k">' + T('target_round_label') + '</div><div class="v accent">' + T('round_prefix') + (meta ? meta.nextRound : '-') + T('round_suffix') + ' ' + T('waiting_draw') + '</div></div>';
     } else {
       if (MU.state.mockTarget == null && meta) MU.state.mockTarget = meta.maxRound;
-      infoHtml = '<div class="info-item"><div class="k">모의테스트 가능 회차</div><div class="v accent">제1회 ~ 제' + (meta ? meta.maxRound : 0) + '회</div></div>';
+      infoHtml = '<div class="info-item"><div class="k">' + T('mock_range_round') + '</div><div class="v accent">' + T('round_range', {n: meta ? meta.maxRound : 0}) + '</div></div>';
     }
   } else {
     var meta2 = await MT.getGlobalMeta(code);
     MU.state.globalMeta[code] = meta2;
     if (MU.state.mainTab === 'REAL') {
-      infoHtml = '<div class="info-item"><div class="k">대상 추첨일</div><div class="v accent">' + (meta2 && meta2.nextDrawDate ? meta2.nextDrawDate : '아직 없음') + ' (추첨대기)</div></div>';
+      infoHtml = '<div class="info-item"><div class="k">' + T('target_drawdate_label') + '</div><div class="v accent">' + (meta2 && meta2.nextDrawDate ? meta2.nextDrawDate : T('none_yet')) + ' ' + T('waiting_draw') + '</div></div>';
     } else {
-      infoHtml = '<div class="info-item"><div class="k">모의테스트 가능 기간</div><div class="v accent">' + (meta2 && meta2.minDrawDate ? (meta2.minDrawDate + ' ~ ' + meta2.maxDrawDate) : '아직 데이터 없음') + '</div></div>';
+      infoHtml = '<div class="info-item"><div class="k">' + T('mock_range_date') + '</div><div class="v accent">' + (meta2 && meta2.minDrawDate ? (meta2.minDrawDate + ' ~ ' + meta2.maxDrawDate) : T('no_data')) + '</div></div>';
     }
   }
 
@@ -523,7 +658,7 @@ MU.loadGameInfoArea = async function(){
     '<div class="info-card">' + infoHtml + '</div>' +
     (MU.state.mainTab === 'MOCK' ? '<div class="card" id="mtTargetBox"></div>' : '') +
     '<div class="card">' + MU.registerPanelHtml() + '</div>' +
-    '<div class="card"><h3>내 등록현황</h3><div id="mtEntriesList"><div class="empty-state">불러오는 중...</div></div></div>';
+    '<div class="card"><h3>' + T('my_entries') + '</h3><div id="mtEntriesList"><div class="empty-state">' + T('loading') + '</div></div></div>';
 
   MU.renderBallGrid();
   MU.renderPicksList();
@@ -538,21 +673,21 @@ MU.registerPanelHtml = function(){
   var modeBtn = function(key, icon, label){
     return '<button class="mode-btn' + (mode===key?' active':'') + '" data-mode="' + key + '" onclick="MU.setInputMode(\'' + key + '\')">' + icon + ' ' + label + '</button>';
   };
-  return '<h3>번호조합 등록</h3>' +
-    '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">100개까지는 기본요금, 그 이후는 1개당 추가요금이 붙습니다. 개수 제한은 없어요.</p>' +
+  return '<h3>' + T('register_title') + '</h3>' +
+    '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">' + T('register_desc') + '</p>' +
     '<div class="input-mode-tabs">' +
-      modeBtn('manual','✋','수동') + modeBtn('auto','🎲','자동') + modeBtn('semi','🎯','반자동') + modeBtn('voice','🎙️','음성입력') +
+      modeBtn('manual','✋',T('mode_manual')) + modeBtn('auto','🎲',T('mode_auto')) + modeBtn('semi','🎯',T('mode_semi')) + modeBtn('voice','🎙️',T('mode_voice')) +
     '</div>' +
     '<div id="mtModeControls"></div>' +
     '<div class="register-cols">' +
       '<div class="reg-col-left">' +
-        '<div class="form-row"><label>메인번호 (' + g.mainCount + '개)</label></div>' +
+        '<div class="form-row"><label>' + T('main_numbers') + ' (' + g.mainCount + ')</label></div>' +
         '<div class="ball-grid" id="mtMainGrid"></div>' +
-        (g.bonusCount ? '<div class="form-row"><label>보너스번호 (' + g.bonusCount + '개)</label></div><div class="ball-grid" id="mtBonusGrid"></div>' : '') +
+        (g.bonusCount ? '<div class="form-row"><label>' + T('bonus_numbers') + ' (' + g.bonusCount + ')</label></div><div class="ball-grid" id="mtBonusGrid"></div>' : '') +
       '</div>' +
       '<div class="reg-col-right">' +
         '<div id="mtPicksList"></div>' +
-        '<button class="btn btn-accent" style="width:100%;margin-top:12px;" id="mtSubmitBtn" disabled onclick="MU.openConfirm()">등록하기</button>' +
+        '<button class="btn btn-accent" style="width:100%;margin-top:12px;" id="mtSubmitBtn" disabled onclick="MU.openConfirm()">' + T('register_btn') + '</button>' +
       '</div>' +
     '</div>';
 };
@@ -571,17 +706,17 @@ MU.renderModeControls = function(){
   var mode = MU.state.inputMode || 'manual';
 
   if (mode === 'manual') {
-    el.innerHTML = '<p style="font-size:11px;color:var(--text-faint);margin-bottom:6px;">아래 공을 직접 눌러서 메인 ' + g.mainCount + '개' + (g.bonusCount ? '·보너스 ' + g.bonusCount + '개' : '') + '를 채우면 조합이 자동으로 추가됩니다.</p>';
+    el.innerHTML = '<p style="font-size:11px;color:var(--text-faint);margin-bottom:6px;">' + T('manual_help', { main: g.mainCount, bonus: g.bonusCount ? T('bonus_suffix',{n:g.bonusCount}) : '' }) + '</p>';
   } else if (mode === 'auto') {
-    el.innerHTML = '<div class="form-row"><label>자동 생성 개수</label><input type="number" class="inp" id="mtGenCount" value="10" min="1" style="width:90px;"> <button class="btn btn-outline" onclick="MU.addAutoCombos()">+ 완전자동 추가</button></div>';
+    el.innerHTML = '<div class="form-row"><label>' + T('auto_gen_count') + '</label><input type="number" class="inp" id="mtGenCount" value="10" min="1" style="width:90px;"> <button class="btn btn-outline" onclick="MU.addAutoCombos()">' + T('auto_gen_btn') + '</button></div>';
   } else if (mode === 'semi') {
-    el.innerHTML = '<p style="font-size:11px;color:var(--text-faint);margin-bottom:6px;">아래 공에서 넣고 싶은 번호를 먼저 몇 개만 골라두세요(고정번호). 나머지는 자동으로 채워서 조합을 완성합니다.</p>' +
-      '<div class="form-row"><label>생성 개수</label><input type="number" class="inp" id="mtSemiCount" value="10" min="1" style="width:90px;"> <button class="btn btn-outline" onclick="MU.addSemiAutoCombos()">🎯 반자동으로 채우기</button></div>';
+    el.innerHTML = '<p style="font-size:11px;color:var(--text-faint);margin-bottom:6px;">' + T('semi_help') + '</p>' +
+      '<div class="form-row"><label>' + T('semi_gen_count') + '</label><input type="number" class="inp" id="mtSemiCount" value="10" min="1" style="width:90px;"> <button class="btn btn-outline" onclick="MU.addSemiAutoCombos()">' + T('semi_gen_btn') + '</button></div>';
   } else if (mode === 'voice') {
-    el.innerHTML = '<div class="form-row"><label>음성 언어</label>' +
+    el.innerHTML = '<div class="form-row"><label>' + T('voice_lang_label') + '</label>' +
       '<select class="inp" id="mtVoiceLang" style="width:130px;"><option value="ko-KR">한국어</option><option value="en-US">English</option></select>' +
-      '<button class="btn btn-outline" id="mtVoiceBtn" onclick="MU.startVoiceInput()">🎙️ 음성으로 입력</button></div>' +
-      '<div id="mtVoiceStatus" style="font-size:11.5px;color:var(--text-dim);margin-top:6px;line-height:1.6;">번호를 하나씩 순서대로 말씀해주세요 (예: "3, 12, 21, 28, 34, 41").</div>';
+      '<button class="btn btn-outline" id="mtVoiceBtn" onclick="MU.startVoiceInput()">' + T('voice_start_btn') + '</button></div>' +
+      '<div id="mtVoiceStatus" style="font-size:11.5px;color:var(--text-dim);margin-top:6px;line-height:1.6;">' + T('voice_default_status') + '</div>';
   }
 };
 
@@ -591,7 +726,7 @@ MU.addSemiAutoCombos = function(){
   var fixedMain = MU.state.selectedMain.slice();
   var fixedBonus = MU.state.selectedBonus.slice();
   if (fixedMain.length >= g.mainCount && (!g.bonusCount || fixedBonus.length >= g.bonusCount)) {
-    alert('번호를 이미 전부 고르셨어요. 반자동은 "일부만 고르고 나머지는 자동"인 방식입니다 — 전부 직접 고르셨다면 그냥 공을 마저 누르면 자동으로 조합이 추가됩니다.');
+    alert(T('semi_already_full'));
     return;
   }
   var count = Math.max(1, parseInt(document.getElementById('mtSemiCount').value) || 1);
@@ -626,7 +761,7 @@ MU.startVoiceInput = function(){
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   var statusEl = document.getElementById('mtVoiceStatus');
   if (!SpeechRecognition) {
-    if (statusEl) statusEl.textContent = '이 브라우저는 음성입력을 지원하지 않아요. (Chrome 권장)';
+    if (statusEl) statusEl.textContent = T('voice_unsupported');
     return;
   }
   var g = MT.GAMES[MU.state.game];
@@ -635,31 +770,31 @@ MU.startVoiceInput = function(){
   recog.lang = lang;
   recog.interimResults = false;
   recog.maxAlternatives = 1;
-  if (statusEl) statusEl.textContent = '🎙️ 듣고 있어요... 번호를 순서대로 말씀해주세요.';
+  if (statusEl) statusEl.textContent = T('voice_listening');
 
   recog.onresult = function(e){
     var transcript = e.results[0][0].transcript;
     var numbers = mtExtractNumbersFromSpeech(transcript);
     var needCount = g.mainCount + g.bonusCount;
     if (numbers.length < needCount) {
-      if (statusEl) statusEl.textContent = '인식됨: "' + transcript + '" — 번호를 ' + needCount + '개 이상 인식하지 못했어요. 다시 시도해주세요.';
+      if (statusEl) statusEl.textContent = T('voice_not_enough', { t: transcript, n: needCount });
       return;
     }
     var main = numbers.slice(0, g.mainCount);
     var bonus = g.bonusCount ? numbers.slice(g.mainCount, needCount) : [];
     if (new Set(main).size !== main.length || main.some(function(n){ return n<1 || n>g.mainMax; })) {
-      if (statusEl) statusEl.textContent = '인식됨: "' + transcript + '" — 번호가 중복되거나 범위(1~' + g.mainMax + ')를 벗어났어요. 다시 시도해주세요.';
+      if (statusEl) statusEl.textContent = T('voice_invalid_main', { t: transcript, max: g.mainMax });
       return;
     }
     if (g.bonusCount && (new Set(bonus).size !== bonus.length || bonus.some(function(n){ return n<1 || n>g.bonusMax; }))) {
-      if (statusEl) statusEl.textContent = '인식됨: "' + transcript + '" — 보너스번호가 중복되거나 범위를 벗어났어요. 다시 시도해주세요.';
+      if (statusEl) statusEl.textContent = T('voice_invalid_bonus', { t: transcript });
       return;
     }
     MU.state.picks.push({ main: main.slice().sort(function(a,b){return a-b;}), bonus: bonus.slice().sort(function(a,b){return a-b;}) });
     MU.renderPicksList();
-    if (statusEl) statusEl.textContent = '✅ 조합 추가됨: ' + main.join(', ') + (bonus.length ? (' + ' + bonus.join(',')) : '');
+    if (statusEl) statusEl.textContent = T('voice_added', { c: main.join(', ') + (bonus.length ? (' + ' + bonus.join(',')) : '') });
   };
-  recog.onerror = function(e){ if (statusEl) statusEl.textContent = '음성인식 오류: ' + e.error; };
+  recog.onerror = function(e){ if (statusEl) statusEl.textContent = T('voice_error', { e: e.error }); };
   recog.start();
 };
 
@@ -748,10 +883,10 @@ MU.renderPicksList = async function(){
   var listHtml = picks.map(function(c, i){
     var bonusStr = c.bonus && c.bonus.length ? (' + ' + c.bonus.join(',')) : '';
     return '<div class="participant-row"><span class="font-num">' + (i+1) + '. ' + c.main.join(', ') + bonusStr + '</span><span style="color:var(--red);cursor:pointer;" onclick="MU.removePick(' + i + ')">✕</span></div>';
-  }).join('') || '<div style="font-size:11.5px;color:var(--text-faint);padding:8px 0;">아직 담은 조합이 없습니다.</div>';
+  }).join('') || '<div style="font-size:11.5px;color:var(--text-faint);padding:8px 0;">' + T('no_picks_yet') + '</div>';
 
   var cost = await MU.calcCurrentCost();
-  el.innerHTML = '<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">담은 조합: <b style="color:var(--gold);">' + picks.length + '개</b> · 예상 참가비 <b style="color:var(--gold);">' + cost.toLocaleString() + 'P</b></div>' + listHtml;
+  el.innerHTML = '<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">' + T('staged_count') + ': <b style="color:var(--gold);">' + picks.length + '</b> · ' + T('estimated_cost') + ' <b style="color:var(--gold);">' + cost.toLocaleString() + 'P</b></div>' + listHtml;
   var btn = document.getElementById('mtSubmitBtn');
   if (btn) btn.disabled = picks.length === 0;
 };
@@ -763,20 +898,20 @@ MU.renderTargetSlider = async function(){
   if (MU.state.game === 'KR') {
     var meta = MU.state.krMeta || await MT.getKrMeta();
     MU.state.krMeta = meta;
-    if (!meta || !meta.maxRound) { box.innerHTML = '<div class="empty-state">아직 결과 데이터가 없습니다.</div>'; return; }
+    if (!meta || !meta.maxRound) { box.innerHTML = '<div class="empty-state">' + T('no_result_data') + '</div>'; return; }
     if (MU.state.mockTarget == null) MU.state.mockTarget = meta.maxRound;
-    box.innerHTML = '<h3 style="margin-bottom:6px;">모의테스트할 회차 선택</h3>' +
+    box.innerHTML = '<h3 style="margin-bottom:6px;">' + T('mock_select_round') + '</h3>' +
       '<div class="slider-row"><input type="range" min="1" max="' + meta.maxRound + '" value="' + MU.state.mockTarget + '" oninput="MU.onSliderChange(this.value)">' +
-      '<span class="font-num" style="font-weight:800;color:var(--gold);min-width:80px;text-align:right;">제' + MU.state.mockTarget + '회</span></div>';
+      '<span class="font-num" style="font-weight:800;color:var(--gold);min-width:80px;text-align:right;">' + T('round_prefix') + MU.state.mockTarget + T('round_suffix') + '</span></div>';
   } else {
     var code = MU.state.game;
     var dates = MU.state.globalDates[code];
     if (!dates) { dates = await MT.getGlobalDates(code); MU.state.globalDates[code] = dates; }
-    if (!dates.length) { box.innerHTML = '<div class="empty-state">아직 등록된 과거 결과가 없습니다. (관리자가 CSV 업로드 후 이용 가능)</div>'; return; }
+    if (!dates.length) { box.innerHTML = '<div class="empty-state">' + T('no_past_data') + '</div>'; return; }
     var idx = MU.state.mockTargetIdx != null ? MU.state.mockTargetIdx : dates.length - 1;
     MU.state.mockTargetIdx = idx;
     MU.state.mockTarget = dates[idx];
-    box.innerHTML = '<h3 style="margin-bottom:6px;">모의테스트할 추첨일 선택</h3>' +
+    box.innerHTML = '<h3 style="margin-bottom:6px;">' + T('mock_select_date') + '</h3>' +
       '<div class="slider-row"><input type="range" min="0" max="' + (dates.length-1) + '" value="' + idx + '" oninput="MU.onDateSliderChange(this.value)">' +
       '<span class="font-num" style="font-weight:800;color:var(--gold);min-width:110px;text-align:right;">' + MU.state.mockTarget + '</span></div>';
   }
@@ -791,19 +926,19 @@ MU.onDateSliderChange = function(v){
 
 // ── 등록 확인 → 실제 제출 ──
 MU.openConfirm = function(){
-  if (!MU.state.picks.length) { alert('번호조합을 1개 이상 등록해주세요.'); return; }
-  if (MU.state.mainTab === 'MOCK' && MU.state.mockTarget == null) { alert('모의테스트할 회차/날짜를 선택해주세요.'); return; }
+  if (!MU.state.picks.length) { alert(T('no_picks_alert')); return; }
+  if (MU.state.mainTab === 'MOCK' && MU.state.mockTarget == null) { alert(T('confirm_pick_target')); return; }
   MU.calcCurrentCost().then(function(cost){
     var g = MT.GAMES[MU.state.game];
     var targetLabel = MU.state.mainTab === 'MOCK'
-      ? (MU.state.game === 'KR' ? ('제' + MU.state.mockTarget + '회') : MU.state.mockTarget)
-      : (MU.state.game === 'KR' ? '다음 회차 (추첨대기)' : '다음 추첨일 (추첨대기)');
-    document.getElementById('confirmTitle').textContent = (MU.state.mainTab === 'REAL' ? '실전테스트' : '모의테스트') + ' 등록 확인';
+      ? (MU.state.game === 'KR' ? (T('round_prefix') + MU.state.mockTarget + T('round_suffix')) : MU.state.mockTarget)
+      : (MU.state.game === 'KR' ? T('next_round_waiting') : T('next_drawdate_waiting'));
+    document.getElementById('confirmTitle').textContent = (MU.state.mainTab === 'REAL' ? T('confirm_title_real') : T('confirm_title_mock'));
     document.getElementById('confirmBody').textContent =
-      g.nameKr + ' · ' + targetLabel + '\n' +
-      MU.state.picks.length + '개 조합 등록\n' +
-      '참가비: ' + cost.toLocaleString() + 'P\n\n' +
-      (MU.state.mainTab === 'MOCK' ? '등록 즉시 채점 결과를 보여드립니다.' : '실제 추첨 후 자동으로 채점됩니다.');
+      (LANG==='en'?g.nameEn:g.nameKr) + ' · ' + targetLabel + '\n' +
+      T('combos_registered_line', { n: MU.state.picks.length }) + '\n' +
+      T('entry_fee_line', { c: cost.toLocaleString() }) + '\n\n' +
+      (MU.state.mainTab === 'MOCK' ? T('mock_immediate_note') : T('real_wait_note'));
     document.getElementById('confirmModal').classList.add('show');
   });
 };
@@ -823,10 +958,10 @@ MU.confirmSubmit = async function(){
     await MU.renderMyEntries();
     // ⚠️ 2026-07-12: 예전엔 채점 즉시 결과창을 자동으로 열었는데, 원치 않을 때도 강제로
     // 보여지는 게 불편하다는 피드백 — "지금 확인 / 나중에 확인"을 직접 고르게 바꿨다.
-    var wantNow = confirm('✅ 채점이 완료됐습니다!\n\n지금 바로 결과를 확인하시겠어요?\n\n[확인] 지금 결과 보기\n[취소] 나중에 "내 등록현황"에서 확인');
+    var wantNow = confirm(T('ask_check_now'));
     if (wantNow) MU.openDetail(result.entry.id);
   } else {
-    alert('✅ 등록 완료! 실제 추첨 후 자동으로 채점됩니다.');
+    alert(T('real_registered_alert'));
     await MU.renderPicksList();
     await MU.renderMyEntries();
   }
@@ -838,20 +973,20 @@ MU.renderMyEntries = async function(){
   if (!el) return;
   var entries = await MT.getMyEntries(MU.state.game, MU.state.mainTab);
   MU.state.entriesCache = entries;
-  if (!entries.length) { el.innerHTML = '<div class="empty-state">등록내역이 없습니다.</div>'; return; }
+  if (!entries.length) { el.innerHTML = '<div class="empty-state">' + T('no_entries') + '</div>'; return; }
   el.innerHTML = entries.map(function(e){
     var isKR = e.game_code === 'KR';
-    var targetLabel = isKR ? ('제' + e.target_round + '회') : e.target_draw_date;
-    var statusHtml = e.status === 'pending' ? '<span style="color:var(--text-faint);">⏰ 추첨대기</span>' : '<span style="color:var(--green);">✅ 채점완료</span>';
+    var targetLabel = isKR ? (T('round_prefix') + e.target_round + T('round_suffix')) : e.target_draw_date;
+    var statusHtml = e.status === 'pending' ? ('<span style="color:var(--text-faint);">' + T('entry_status_waiting') + '</span>') : ('<span style="color:var(--green);">' + T('entry_status_graded') + '</span>');
     var statsStr = '';
     if (e.stats) {
-      statsStr = Object.keys(e.stats).sort(function(a,b){return a-b;}).map(function(k){ return k + '등 ' + e.stats[k] + '개'; }).join(' · ');
+      statsStr = Object.keys(e.stats).sort(function(a,b){return a-b;}).map(function(k){ return LANG==='en' ? ('Grade '+k+': '+e.stats[k]) : (k + '등 ' + e.stats[k] + '개'); }).join(' · ');
     }
     return '<div class="entry-card" onclick="MU.openDetail(\'' + e.id + '\')">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;">' +
         '<b>' + targetLabel + '</b>' + statusHtml +
       '</div>' +
-      '<div style="font-size:11.5px;color:var(--text-dim);margin-top:5px;">' + e.combo_count + '개 조합' + (statsStr ? ' · ' + statsStr : (e.status==='graded' ? ' · 당첨 없음' : '')) + '</div>' +
+      '<div style="font-size:11.5px;color:var(--text-dim);margin-top:5px;">' + e.combo_count + T('combo_count_suffix') + (statsStr ? ' · ' + statsStr : (e.status==='graded' ? ' · ' + T('no_win') : '')) + '</div>' +
     '</div>';
   }).join('');
 };
@@ -863,39 +998,39 @@ MU.openDetail = function(entryId){
   var box = document.getElementById('detailModalBox');
 
   var header = '<button class="modal-close-x" onclick="MU.closeDetail()">✕</button>' +
-    '<h3>' + MT.GAMES[entry.game_code].nameKr + ' · ' + (isKR ? ('제' + entry.target_round + '회') : entry.target_draw_date) + '</h3>';
+    '<h3>' + (LANG==='en'?MT.GAMES[entry.game_code].nameEn:MT.GAMES[entry.game_code].nameKr) + ' · ' + (isKR ? (T('round_prefix') + entry.target_round + T('round_suffix')) : entry.target_draw_date) + '</h3>';
 
   if (entry.status === 'pending') {
-    box.innerHTML = header + '<p>아직 추첨 전입니다. 실제 추첨 후 자동으로 채점되면 여기서 결과를 볼 수 있어요.</p>';
+    box.innerHTML = header + '<p>' + T('pending_detail') + '</p>';
     document.getElementById('detailModal').classList.add('show');
     return;
   }
 
   var top3Html = '';
   if (entry.top3 && entry.top3.length) {
-    top3Html = '<div class="card"><h3>🏆 내 조합 중 Top' + entry.top3.length + '</h3>' + entry.top3.map(function(r, i){
-      var label = isKR ? (r.grade + '등 · ' + (r.prize||0).toLocaleString() + '원') : (r.tier + '등');
-      return '<div class="participant-row"><span>' + (i+1) + '위</span><span style="color:var(--green);font-weight:700;">' + label + '</span></div>';
+    top3Html = '<div class="card"><h3>' + T('top_n', {n: entry.top3.length}) + '</h3>' + entry.top3.map(function(r, i){
+      var label = isKR ? T('win_grade', { g:r.grade, p:(r.prize||0).toLocaleString() + (LANG==='en'?' KRW':'원') }) : T('win_tier', {t:r.tier});
+      return '<div class="participant-row"><span>' + T('rank_n', {n:i+1}) + '</span><span style="color:var(--green);font-weight:700;">' + label + '</span></div>';
     }).join('') + '</div>';
   }
 
   var statsHtml = '';
   if (entry.stats && Object.keys(entry.stats).length) {
-    statsHtml = '<div class="card"><h3>등수별 통계</h3>' + Object.keys(entry.stats).sort(function(a,b){return a-b;}).map(function(k){
-      return '<div class="participant-row"><span>' + k + '등</span><span class="font-num">' + entry.stats[k] + '개</span></div>';
+    statsHtml = '<div class="card"><h3>' + T('stats_by_grade') + '</h3>' + Object.keys(entry.stats).sort(function(a,b){return a-b;}).map(function(k){
+      return '<div class="participant-row"><span>' + (LANG==='en'?('Grade '+k):(k+'등')) + '</span><span class="font-num">' + entry.stats[k] + '</span></div>';
     }).join('') + '</div>';
   } else {
-    statsHtml = '<div class="card"><div class="empty-state">당첨된 조합이 없습니다.</div></div>';
+    statsHtml = '<div class="card"><div class="empty-state">' + T('no_winning_combo') + '</div></div>';
   }
 
   var rowsHtml = (entry.results || []).map(function(r, i){
     var bonusStr = r.bonus && r.bonus.length ? (' + ' + r.bonus.join(',')) : '';
     var win = isKR ? r.grade : r.tier;
-    var label = isKR ? (r.grade ? (r.grade + '등') : '낙첨') : (r.tier ? (r.tier + '등') : '낙첨');
+    var label = isKR ? (r.grade ? T('win_tier',{t:r.grade}) : T('no_grade')) : (r.tier ? T('win_tier',{t:r.tier}) : T('no_grade'));
     return '<div class="participant-row"><span class="font-num">' + (i+1) + '. ' + r.main.join(',') + bonusStr + '</span><span style="color:' + (win?'var(--green)':'var(--text-faint)') + ';font-weight:700;">' + label + '</span></div>';
   }).join('');
 
-  box.innerHTML = header + top3Html + statsHtml + '<div class="card"><h3>전체 조합 결과 (' + entry.combo_count + '개)</h3>' + rowsHtml + '</div>';
+  box.innerHTML = header + top3Html + statsHtml + '<div class="card"><h3>' + T('all_results', {n: entry.combo_count}) + '</h3>' + rowsHtml + '</div>';
   document.getElementById('detailModal').classList.add('show');
 };
 MU.closeDetail = function(){ document.getElementById('detailModal').classList.remove('show'); };
