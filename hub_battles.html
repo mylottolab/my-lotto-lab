@@ -500,7 +500,12 @@ BATTLE.getMyNickname = async function(){
   if (state.type === 'guest') return state.nickname;
   if (BATTLE._myNicknameCache) return BATTLE._myNicknameCache;
   try {
-    var resp = await fetch(MLL.API_BASE + '/api/auth/me', { headers: { 'Authorization': 'Bearer ' + state.token } });
+    // ⚠ 2026-07-13: 여기만 다른 곳(_authRequest, _viewerFetch)과 다르게 ensureFreshToken() 없이
+    // state.token을 그대로 썼었다 — 토큰이 만료되면 이 요청만 조용히 실패해서 닉네임이 안 뜨는
+    // 버그가 있었음 (hub_lounge.html/global_lotto.html에서 발견된 것과 같은 패턴).
+    var freshToken = await MLL.ensureFreshToken();
+    if (!freshToken || freshToken === 'guest') return null;
+    var resp = await fetch(MLL.API_BASE + '/api/auth/me', { headers: { 'Authorization': 'Bearer ' + freshToken } });
     if (!resp.ok) return null;
     var data = await resp.json();
     BATTLE._myNicknameCache = data.nickname;
