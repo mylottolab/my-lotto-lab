@@ -143,6 +143,9 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
 .input-mode-tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
 .mode-btn{flex:1;min-width:76px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);border-radius:8px;padding:8px 6px;font-size:12px;font-weight:700;}
 .mode-btn.active{background:var(--game-accent);color:#fff;border-color:var(--game-accent);}
+.session-opts{display:flex;flex-direction:column;gap:6px;}
+.session-opt{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;color:var(--text-dim);}
+.session-opt.active{background:rgba(138,111,232,.14);border-color:var(--game-accent);color:var(--text);font-weight:700;}
 </style>
 </head>
 <body>
@@ -191,10 +194,11 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
 <div class="modal-overlay" id="confirmModal">
   <div class="modal-box">
     <h3 id="confirmTitle">등록 확인</h3>
-    <p id="confirmBody"></p>
-    <div style="display:flex;gap:8px;">
-      <button class="btn btn-outline" style="flex:1;" onclick="MU.closeConfirm()" data-i18n-kr="취소" data-i18n-en="Cancel">취소</button>
-      <button class="btn btn-accent" style="flex:2;" onclick="MU.confirmSubmit()" data-i18n-kr="확인하고 등록" data-i18n-en="Confirm & register">확인하고 등록</button>
+    <div id="confirmBody" style="font-size:13px;color:var(--text-dim);line-height:1.6;margin:0 0 18px;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn btn-outline" onclick="MU.closeConfirm()" data-i18n-kr="취소 (더 담기)" data-i18n-en="Cancel (add more)">취소 (더 담기)</button>
+      <button class="btn btn-outline" onclick="MU.confirmSubmit(false)" data-i18n-kr="등록 (나중에 이어서 추가 가능)" data-i18n-en="Register (can add more later)">등록 (나중에 이어서 추가 가능)</button>
+      <button class="btn btn-accent" onclick="MU.confirmSubmit(true)" data-i18n-kr="이대로 제출완료 (마감)" data-i18n-en="Submit & finish (locked)">이대로 제출완료 (마감)</button>
     </div>
   </div>
 </div>
@@ -304,6 +308,16 @@ var STR = {
   no_result_data: { kr:'아직 결과 데이터가 없습니다.', en:'No result data yet.' },
   no_past_data: { kr:'아직 등록된 과거 결과가 없습니다. (관리자가 CSV 업로드 후 이용 가능)', en:'No past results yet. (Available after the admin uploads data)' },
   no_picks_alert: { kr:'번호조합을 1개 이상 등록해주세요.', en:'Please add at least one combination.' },
+  underfill_warning: { kr:'⚠️ 지금 {n}개만 등록하면 {c}P가 그대로 빠져나가요. 100개까지는 추가요금 없이 더 넣을 수 있으니, 아직 다 안 채우셨다면 [취소]를 누르고 계속 추가해보세요.', en:'⚠️ Registering just {n} now still costs {c}P — you can add up to 100 combos for the same fee. If you\'re not done yet, tap [Cancel] and keep adding.' },
+  finality_warning: { kr:'제출한 조합은 수정·삭제할 수 없습니다. "이대로 제출완료"를 누르면 이 응시는 마감되어 더 이상 추가할 수 없고, 이후 다시 등록하면 새 참가비가 부과됩니다.', en:'Submitted combos can\'t be edited or deleted. Choosing "Submit & finish" locks this entry — after that, registering again will start a new, separately charged entry.' },
+  appending_note: { kr:'✓ 이미 {n}개 등록된 응시에 이어서 추가합니다 (같은 응시로 합쳐짐)', en:'✓ Adding to your existing entry of {n} combos (merged into the same entry)' },
+  total_after_line: { kr:'등록 후 총 {n}개', en:'{n} total after this' },
+  locked_suffix: { kr:'(마감)', en:'(locked)' },
+  open_suffix: { kr:'(추가 가능)', en:'(open for more)' },
+  new_session_note: { kr:'🆕 새 응시로 등록합니다.', en:'🆕 Registering as a new entry.' },
+  start_new_session: { kr:'🆕 새 응시로 시작', en:'🆕 Start a new entry' },
+  continue_session: { kr:'▶ 응시 #{id} 이어서 추가 ({n}개 등록됨)', en:'▶ Continue entry #{id} ({n} combos so far)' },
+  session_picker_label: { kr:'이미 진행 중인 응시가 있어요 — 이어서 추가할지 새로 시작할지 골라주세요', en:'You have an entry in progress — choose to continue it or start fresh' },
   network_error: { kr:'네트워크 오류: {e}', en:'Network error: {e}' },
   register_fail: { kr:'등록 실패: {e}', en:'Registration failed: {e}' },
   countdown_days_hours: { kr:'{d}일 {h}시간 {m}분', en:'{d}d {h}h {m}m' },
@@ -449,6 +463,7 @@ MU.state = {
   mockTarget: null, mockTargetIdx: null,
   krMeta: null, globalMeta: {}, globalDates: {},
   entriesCache: [],
+  activeEntryId: null,  // null=새 응시 시작 / 값 있으면 그 응시(고유id)에 이어붙임 — 같은 회차에도 여러 독립 응시를 만들 수 있다
 };
 
 MU.state.view = 'landing'; // 'landing' | 'register'
@@ -502,6 +517,7 @@ MU.enterRegister = async function(code, mode){
   MU.state.picks = []; MU.state.selectedMain = []; MU.state.selectedBonus = [];
   MU.state.mockTarget = null; MU.state.mockTargetIdx = null;
   MU.state.inputMode = 'manual';
+  MU.state.activeEntryId = null;
   MU.renderMainTabs();
   await MU.renderGameSection();
 };
@@ -632,6 +648,7 @@ MU.selectGame = async function(code){
   MU.state.picks = []; MU.state.selectedMain = []; MU.state.selectedBonus = [];
   MU.state.mockTarget = null; MU.state.mockTargetIdx = null;
   MU.state.inputMode = 'manual';
+  MU.state.activeEntryId = null;
   await MU.renderGameSection();
 };
 
@@ -671,6 +688,7 @@ MU.loadGameInfoArea = async function(){
   MU.renderModeControls();
   if (MU.state.mainTab === 'MOCK') await MU.renderTargetSlider();
   await MU.renderMyEntries();
+  MU.renderSessionPicker();
 };
 
 MU.registerPanelHtml = function(){
@@ -681,6 +699,7 @@ MU.registerPanelHtml = function(){
   };
   return '<h3>' + T('register_title') + '</h3>' +
     '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">' + T('register_desc') + '</p>' +
+    '<div id="mtSessionPicker" style="margin-bottom:12px;"></div>' +
     '<div class="input-mode-tabs">' +
       modeBtn('manual','✋',T('mode_manual')) + modeBtn('auto','🎲',T('mode_auto')) + modeBtn('semi','🎯',T('mode_semi')) + modeBtn('voice','🎙️',T('mode_voice')) +
     '</div>' +
@@ -881,6 +900,20 @@ MU.getCostNote = async function(gameCode, mode){
   return T('cost_note', { base: base, incr: incr });
 };
 
+// 서버(calcTieredCost)와 완전히 동일한 계산식 — 화면에 보여주는 "예상 참가비"가
+// 실제 청구액과 항상 일치하도록 클라이언트에도 같은 공식을 둔다.
+function calcTieredCostClient(n, base, incr){
+  if (n <= 0) return 0;
+  if (n <= 100) return base;
+  return base + (n - 100) * incr;
+}
+// 지금 이어붙일 응시로 "명시적으로 선택된" 것만 반환한다 (자동 추측하지 않음 —
+// 같은 회차라도 사용자가 일부러 여러 응시를 따로 만들고 싶을 수 있기 때문).
+MU.findExistingEntry = function(){
+  if (!MU.state.activeEntryId) return null;
+  var list = MU.state.entriesCache || [];
+  return list.find(function(e){ return e.id === MU.state.activeEntryId; }) || null;
+};
 MU.calcCurrentCost = async function(){
   var count = MU.state.picks.length;
   var isKR = MU.state.game === 'KR';
@@ -889,8 +922,11 @@ MU.calcCurrentCost = async function(){
   var base = await MT.getPrice(baseKey);
   var incr = await MT.getPrice(incrKey);
   if (count === 0) return 0;
-  if (count <= 100) return base;
-  return base + (count - 100) * incr;
+  var existing = MU.findExistingEntry();
+  var existingCount = existing ? existing.combo_count : 0;
+  var totalForNew = calcTieredCostClient(existingCount + count, base, incr);
+  var alreadyPaid = calcTieredCostClient(existingCount, base, incr);
+  return Math.max(0, totalForNew - alreadyPaid);
 };
 MU.renderPicksList = async function(){
   var el = document.getElementById('mtPicksList');
@@ -932,12 +968,14 @@ MU.renderTargetSlider = async function(){
       '<span class="font-num" style="font-weight:800;color:var(--gold);min-width:110px;text-align:right;">' + MU.state.mockTarget + '</span></div>';
   }
 };
-MU.onSliderChange = function(v){ MU.state.mockTarget = parseInt(v); MU.renderTargetSlider(); };
+MU.onSliderChange = function(v){ MU.state.mockTarget = parseInt(v); MU.state.activeEntryId = null; MU.renderTargetSlider(); MU.renderSessionPicker(); };
 MU.onDateSliderChange = function(v){
   var idx = parseInt(v);
   MU.state.mockTargetIdx = idx;
   MU.state.mockTarget = MU.state.globalDates[MU.state.game][idx];
+  MU.state.activeEntryId = null;
   MU.renderTargetSlider();
+  MU.renderSessionPicker();
 };
 
 // ── 등록 확인 → 실제 제출 ──
@@ -950,18 +988,35 @@ MU.openConfirm = function(){
       ? (MU.state.game === 'KR' ? (T('round_prefix') + MU.state.mockTarget + T('round_suffix')) : MU.state.mockTarget)
       : (MU.state.game === 'KR' ? T('next_round_waiting') : T('next_drawdate_waiting'));
     document.getElementById('confirmTitle').textContent = (MU.state.mainTab === 'REAL' ? T('confirm_title_real') : T('confirm_title_mock'));
-    document.getElementById('confirmBody').textContent =
-      (LANG==='en'?g.nameEn:g.nameKr) + ' · ' + targetLabel + '\n' +
-      T('combos_registered_line', { n: MU.state.picks.length }) + '\n' +
-      T('entry_fee_line', { c: cost.toLocaleString() }) + '\n\n' +
-      (MU.state.mainTab === 'MOCK' ? T('mock_immediate_note') : T('real_wait_note'));
+
+    var count = MU.state.picks.length;
+    var existing = MU.findExistingEntry();
+    var existingCount = existing ? existing.combo_count : 0;
+    var totalAfter = existingCount + count;
+    var lines = [];
+    // ⚠️ 2026-07-12: 100개까지는 요금이 똑같은데(예: 1개 등록해도 100개 등록해도 100P),
+    // 이걸 모르고 1개씩 여러 번 나눠 등록하다가 참가비만 반복해서 나가는 사고가 실제로
+    // 있었다. 이제는 같은 대상(회차/날짜)에 다시 들어오면 새로 청구하지 않고 이어붙이지만,
+    // 그래도 100개 미만으로 마감하려 할 때는 "더 채울 수 있다"는 걸 눈에 띄게 알려준다.
+    if (totalAfter < 100) {
+      lines.push('<div style="color:var(--gold);font-weight:700;margin-bottom:12px;line-height:1.6;">' + T('underfill_warning', { n: totalAfter, c: cost.toLocaleString() }) + '</div>');
+    }
+    if (existing) {
+      lines.push('<div style="color:var(--game-accent);margin-bottom:6px;">' + T('appending_note', { n: existingCount }) + '</div>');
+    }
+    lines.push('<div>' + (LANG==='en'?g.nameEn:g.nameKr) + ' · ' + targetLabel + '</div>');
+    lines.push('<div>' + T('combos_registered_line', { n: count }) + (existing ? (' (' + T('total_after_line', {n: totalAfter}) + ')') : '') + '</div>');
+    lines.push('<div>' + T('entry_fee_line', { c: cost.toLocaleString() }) + '</div>');
+    lines.push('<div style="margin-top:10px;">' + (MU.state.mainTab === 'MOCK' ? T('mock_immediate_note') : T('real_wait_note')) + '</div>');
+    lines.push('<div style="margin-top:10px;color:var(--text-faint);font-size:11.5px;">' + T('finality_warning') + '</div>');
+    document.getElementById('confirmBody').innerHTML = lines.join('');
     document.getElementById('confirmModal').classList.add('show');
   });
 };
 MU.closeConfirm = function(){ document.getElementById('confirmModal').classList.remove('show'); };
-MU.confirmSubmit = async function(){
+MU.confirmSubmit = async function(isFinal){
   MU.closeConfirm();
-  var payload = { game_code: MU.state.game, mode: MU.state.mainTab, picks_list: MU.state.picks };
+  var payload = { game_code: MU.state.game, mode: MU.state.mainTab, picks_list: MU.state.picks, final: !!isFinal, entry_id: MU.state.activeEntryId || undefined };
   if (MU.state.mainTab === 'MOCK') {
     if (MU.state.game === 'KR') payload.target_round = MU.state.mockTarget;
     else payload.target_draw_date = MU.state.mockTarget;
@@ -970,8 +1025,12 @@ MU.confirmSubmit = async function(){
   if (!result.ok) return;
   MU.state.picks = [];
   MU.refreshBalance();
+  // 제출완료(마감)가 아니면, 지금 방금 등록한 이 응시를 계속 이어붙일 대상으로 자동 지정한다
+  // (같은 화면에서 더 추가할 때 매번 "이어서 추가하기"를 다시 고르지 않아도 되게).
+  MU.state.activeEntryId = isFinal ? null : (result.entry ? result.entry.id : null);
   if (MU.state.mainTab === 'MOCK') {
     await MU.renderMyEntries();
+    MU.renderSessionPicker();
     // ⚠️ 2026-07-12: 예전엔 채점 즉시 결과창을 자동으로 열었는데, 원치 않을 때도 강제로
     // 보여지는 게 불편하다는 피드백 — "지금 확인 / 나중에 확인"을 직접 고르게 바꿨다.
     var wantNow = confirm(T('ask_check_now'));
@@ -980,6 +1039,7 @@ MU.confirmSubmit = async function(){
     alert(T('real_registered_alert'));
     await MU.renderPicksList();
     await MU.renderMyEntries();
+    MU.renderSessionPicker();
   }
 };
 
@@ -993,7 +1053,10 @@ MU.renderMyEntries = async function(){
   el.innerHTML = entries.map(function(e){
     var isKR = e.game_code === 'KR';
     var targetLabel = isKR ? (T('round_prefix') + e.target_round + T('round_suffix')) : e.target_draw_date;
-    var statusHtml = e.status === 'pending' ? ('<span style="color:var(--text-faint);">' + T('entry_status_waiting') + '</span>') : ('<span style="color:var(--green);">' + T('entry_status_graded') + '</span>');
+    var baseStatus = e.status === 'pending' ? T('entry_status_waiting') : T('entry_status_graded');
+    var lockSuffix = e.finalized ? T('locked_suffix') : T('open_suffix');
+    var statusColor = e.status === 'pending' ? 'var(--text-faint)' : 'var(--green)';
+    var statusHtml = '<span style="color:' + statusColor + ';">' + baseStatus + '</span> <span style="color:' + (e.finalized?'var(--text-faint)':'var(--game-accent)') + ';font-size:10.5px;">' + lockSuffix + '</span>';
     var statsStr = '';
     if (e.stats) {
       statsStr = Object.keys(e.stats).sort(function(a,b){return a-b;}).map(function(k){ return LANG==='en' ? ('Grade '+k+': '+e.stats[k]) : (k + '등 ' + e.stats[k] + '개'); }).join(' · ');
@@ -1005,6 +1068,42 @@ MU.renderMyEntries = async function(){
       '<div style="font-size:11.5px;color:var(--text-dim);margin-top:5px;">' + e.combo_count + T('combo_count_suffix') + (statsStr ? ' · ' + statsStr : (e.status==='graded' ? ' · ' + T('no_win') : '')) + '</div>' +
     '</div>';
   }).join('');
+};
+
+// ── 응시(세션) 선택: 같은 회차/날짜라도 사용자가 원하면 여러 개의 독립된 응시를 만들 수
+// 있어야 하므로, "새로 시작"과 "기존 미완료 응시에 이어붙이기"를 항상 명시적으로 고르게 한다. ──
+MU.getOpenEntriesForCurrentTarget = function(){
+  var list = MU.state.entriesCache || [];
+  var isKR = MU.state.game === 'KR';
+  return list.filter(function(e){
+    if (e.finalized) return false;
+    if (MU.state.mainTab === 'REAL') return true; // 실전은 대상이 "다음 회차/추첨일" 하나뿐
+    return isKR ? (e.target_round === MU.state.mockTarget) : (e.target_draw_date === MU.state.mockTarget);
+  });
+};
+MU.renderSessionPicker = function(){
+  var el = document.getElementById('mtSessionPicker');
+  if (!el) return;
+  var openEntries = MU.getOpenEntriesForCurrentTarget();
+  if (!openEntries.length) {
+    MU.state.activeEntryId = null;
+    el.innerHTML = '<div style="font-size:11px;color:var(--text-faint);">' + T('new_session_note') + '</div>';
+    return;
+  }
+  if (MU.state.activeEntryId && !openEntries.some(function(e){ return e.id === MU.state.activeEntryId; })) {
+    MU.state.activeEntryId = null; // 선택했던 응시가 더 이상 유효하지 않으면(마감 등) 초기화
+  }
+  var optsHtml = '<div class="session-opt' + (MU.state.activeEntryId===null?' active':'') + '" onclick="MU.selectSession(null)">' + T('start_new_session') + '</div>';
+  openEntries.forEach(function(e){
+    var shortId = e.id.slice(0,8);
+    optsHtml += '<div class="session-opt' + (MU.state.activeEntryId===e.id?' active':'') + '" onclick="MU.selectSession(\'' + e.id + '\')">' + T('continue_session', {id: shortId, n: e.combo_count}) + '</div>';
+  });
+  el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">' + T('session_picker_label') + '</div><div class="session-opts">' + optsHtml + '</div>';
+};
+MU.selectSession = function(entryId){
+  MU.state.activeEntryId = entryId;
+  MU.renderSessionPicker();
+  MU.renderPicksList();
 };
 
 MU.openDetail = function(entryId){
