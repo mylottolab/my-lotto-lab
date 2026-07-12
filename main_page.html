@@ -235,6 +235,57 @@ body{
 
 /* ── 푸터 ── */
 .footnote{max-width:1180px;margin:0 auto;padding:0 24px 40px;font-size:10.5px;color:var(--text-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+/* =====================================================================
+   📱 모바일 반응형 (max-width:680px) — PC 화면(위 CSS)은 전혀 건드리지 않음.
+   여기 아래 규칙들은 좁은 화면에서만 적용된다.
+   ===================================================================== */
+@media (max-width:680px){
+  .topbar-inner{padding:0 14px;height:54px;}
+  .brand{gap:8px;}
+  .brand-mark{width:28px;height:28px;}
+  .brand-mark svg{width:14px;height:14px;}
+  .brand-text .t1{font-size:13px;}
+  .brand-text .t2{display:none;}
+  .topbar-right{gap:8px;}
+  .lounge-mini-btn span:not(.soon-tag){display:none;}
+  .lounge-mini-btn{padding:6px 8px;}
+  .lounge-mini-btn .soon-tag{display:none;}
+  #langKrBtn,#langEnBtn{padding:6px 9px !important;font-size:11px !important;}
+
+  .hero{padding:22px 14px 0;}
+  .hero-title{font-size:19px;max-width:100%;}
+  .hero-eyebrow{font-size:10px;margin-bottom:7px;}
+
+  .ticker{margin-top:16px;padding:14px 14px 12px;border-radius:12px;}
+  .ticker-row1{gap:12px;}
+  .ticker-round .val{font-size:15px;}
+  .tball{width:23px;height:23px;font-size:9.5px;}
+  .ticker-checkcta{margin-left:0;width:100%;justify-content:center;order:99;}
+  .ticker-row2{gap:16px;}
+  .ticker-stat .val{font-size:12.5px;}
+
+  .hub{padding:22px 14px 40px;}
+  .hcard{padding:16px 16px 14px;min-height:auto;}
+  .hcard-icon{width:32px;height:32px;}
+  .hcard-icon svg{width:16px;height:16px;}
+  .hcard-name{font-size:14px;margin-top:11px;}
+  .hcard-desc{font-size:11px;}
+  .hcard-stat .num{font-size:17px;}
+
+  .genre-divider{margin:24px 0 16px;gap:10px;}
+  .gd-label{font-size:11px;white-space:nowrap;}
+
+  .globe-card,.lab-card,.stadium-card{padding:18px 16px;}
+  .globe-content{gap:12px;}
+  .globe-icon{font-size:24px;}
+  .globe-games{gap:6px;margin-top:9px;}
+  .gg-pill{font-size:9.5px;padding:4px 9px;}
+}
+@media (max-width:380px){
+  .lounge-mini-btn{display:none;}
+  .hero-title{font-size:17px;}
+  .tball{width:20px;height:20px;font-size:9px;}
+}
 </style>
 </head>
 <body>
