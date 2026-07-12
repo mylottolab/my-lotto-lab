@@ -79,13 +79,6 @@ body{background:#0f0f1a;color:#fff;font-size:13px;min-height:100vh;}
 /* 진행바 */
 .progress{height:6px;background:#333;border-radius:3px;margin:8px 0;display:none;}
 .progress-bar{height:100%;background:#e03131;border-radius:3px;transition:width 0.3s;}
-
-/* 역대 당첨번호 파일 관리 */
-.wfile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;}
-.wfile-card{background:#0f0f1a;border:1px solid #2a2a40;border-radius:8px;padding:12px;}
-.wfile-input{width:100%;background:#0f0f1a;border:1px solid #2a2a40;border-radius:5px;padding:6px 8px;color:#eee;font-size:10px;margin-bottom:5px;}
-.wfile-upload-area{border:2px dashed #333;border-radius:6px;padding:10px;text-align:center;cursor:pointer;margin-bottom:5px;transition:all 0.2s;}
-.wfile-upload-area:hover{border-color:#e03131;background:#1a0a0a;}
 </style>
 
 <script>
@@ -149,7 +142,6 @@ document.addEventListener('click',function(e){
     <div class="tab" onclick="switchTab(2)">🏆 당첨결과 업로드</div>
     <div class="tab" onclick="switchTab(3)">📋 당첨번호 현황</div>
     <div class="tab" onclick="switchTab(4)">⚙️ 관리</div>
-    <div class="tab" onclick="switchTab(5)">📄 역대 당첨번호 파일</div>
   </div>
 
   <!-- 탭1: 통계 -->
@@ -297,18 +289,6 @@ document.addEventListener('click',function(e){
     </div>
   </div>
 
-  <!-- 탭5: 역대 당첨번호 파일 -->
-  <div class="panel" id="tab5">
-    <div class="section">
-      <div class="section-title"><span>📄</span> 역대 당첨번호 파일 관리 (모의테스트 다운로드용, 2,500P 유료)</div>
-      <div class="msg msg-info">
-        여기서 올린 CSV가 사용자 다운로드용 파일로 그대로 서빙됩니다. 파싱/검증 없이 그대로 저장되니, 배포용으로 다 가공한 최종본만 올려주세요.<br>
-        같은 종목에 새로 올리면 <b style="color:#e0b341;">이전 파일이 즉시 덮어써집니다.</b>
-      </div>
-      <div class="wfile-grid" id="winningFilesGrid"></div>
-    </div>
-  </div>
-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -400,7 +380,6 @@ function switchTab(n) {
   document.querySelectorAll('.panel').forEach(function(p,i){ p.classList.toggle('active',i===n-1); });
   if (n===1) loadStats();
   if (n===3) loadResultsTable();
-  if (n===5) loadWinningFiles();
 }
 
 // ── 통계 로드 (서버: GET /api/lotto/entries/admin-stats) ──
@@ -652,185 +631,6 @@ function showMsg(id, type, text) {
   el.innerHTML = '<div class="msg '+cls+'">'+text+'</div>';
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 탭5: 역대 당첨번호 파일 관리 (routes/files.js 연동)
-// ═══════════════════════════════════════════════════════════════════
-var WINNING_FILE_TYPES = [
-  { type:'korea645',     label:'🇰🇷 한국로또' },
-  { type:'powerball',    label:'🇺🇸 파워볼' },
-  { type:'megamillions', label:'🇺🇸 메가밀리언스' },
-  { type:'euromillions', label:'🇪🇺 유로밀리언스' },
-];
-
-// ── CSV 첫 컬럼(회차 또는 날짜)에서 범위 자동추출 — 실제 4종 파일로 검증된 규칙 ──
-// korea645: 1열 = 회차(정수). global 3종: 1열 = 날짜, 파일마다 표기법이 다름(파워볼은
-// 심지어 한 파일 안에서도 옛날 데이터는 M/D/YYYY, 최근 데이터는 YYYY-MM-DD로 섞여있음).
-var CSV_RANGE_CONFIG = {
-  korea645:     { kind:'round' },
-  powerball:    { kind:'date', format:'mdy' }, // ISO(YYYY-MM-DD)는 아래서 자동으로 먼저 시도됨
-  megamillions: { kind:'date', format:'mdy' },
-  euromillions: { kind:'date', format:'dmy' },
-};
-
-function parseDateFlexible(str, format) {
-  str = (str || '').trim().replace(/^"|"$/g, '');
-  if (!str) return null;
-  var iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (iso) return new Date(Date.UTC(+iso[1], +iso[2]-1, +iso[3]));
-  if (format === 'mdy') {
-    var m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (m) return new Date(Date.UTC(+m[3], +m[1]-1, +m[2]));
-  } else if (format === 'dmy') {
-    var m2 = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-    if (m2) return new Date(Date.UTC(+m2[3], +m2[2]-1, +m2[1]));
-  }
-  return null;
-}
-
-// 파일을 브라우저에서 바로 읽어 첫 컬럼만 훑어 최소/최대를 계산한다 (서버 왕복 없음 — 즉시 표시됨)
-function extractRangeFromCsv(type, file) {
-  return new Promise(function(resolve) {
-    var config = CSV_RANGE_CONFIG[type];
-    var reader = new FileReader();
-    reader.onerror = function(){ resolve(null); };
-    reader.onload = function(e) {
-      try {
-        var lines = String(e.target.result).split(/\r\n|\n|\r/);
-        if (config.kind === 'round') {
-          var min = null, max = null;
-          for (var i = 1; i < lines.length; i++) {
-            var first = (lines[i].split(',')[0] || '').trim();
-            if (!/^\d+$/.test(first)) continue;
-            var n = parseInt(first, 10);
-            if (min === null || n < min) min = n;
-            if (max === null || n > max) max = n;
-          }
-          resolve(min === null ? null : { start: '제' + min + '회', end: '제' + max + '회' });
-        } else {
-          var minD = null, maxD = null;
-          for (var j = 1; j < lines.length; j++) {
-            var field0 = (lines[j].split(',')[0] || '');
-            var d = parseDateFlexible(field0, config.format);
-            if (!d) continue;
-            if (!minD || d < minD) minD = d;
-            if (!maxD || d > maxD) maxD = d;
-          }
-          resolve(!minD ? null : { start: minD.toISOString().slice(0,10), end: maxD.toISOString().slice(0,10) });
-        }
-      } catch (err) {
-        resolve(null);
-      }
-    };
-    reader.readAsText(file);
-  });
-}
-
-async function loadWinningFiles() {
-  var grid = document.getElementById('winningFilesGrid');
-  grid.innerHTML = '<div class="msg msg-info">불러오는 중...</div>';
-  var data;
-  try {
-    data = await adminGet('/api/files/admin/winning');
-  } catch (e) {
-    grid.innerHTML = '<div class="msg msg-error">조회 실패: ' + e.message + '</div>';
-    return;
-  }
-
-  var byType = {};
-  (data.items || []).forEach(function(it){ byType[it.game_type] = it; });
-
-  grid.innerHTML = WINNING_FILE_TYPES.map(function(g) {
-    var info = byType[g.type] || {};
-    var statusHtml = info.file_path
-      ? ('<div class="stat-row"><span>현재 범위</span><span class="val" style="font-size:10px;">' + (info.range_start||'-') + ' ~ ' + (info.range_end||'-') + '</span></div>' +
-         '<div class="stat-row"><span>파일 크기</span><span class="val">' + (info.file_size_kb||0) + ' KB</span></div>' +
-         '<div class="stat-row"><span>최종 수정</span><span class="val" style="font-size:9px;">' + (info.updated_at ? info.updated_at.slice(0,16).replace('T',' ') : '-') + '</span></div>')
-      : '<div class="stat-row"><span style="color:#e03131;">⚠️ 아직 업로드된 파일 없음</span></div>';
-
-    return '<div class="wfile-card">' +
-      '<div class="stat-card-title">' + g.label + '</div>' +
-      statusHtml +
-      '<div style="margin-top:10px;border-top:1px solid #2a2a40;padding-top:10px;">' +
-        '<input type="text" class="wfile-input" id="range_start_' + g.type + '" placeholder="시작 (예: 제1회 또는 2006-05-31)" value="' + (info.range_start||'') + '">' +
-        '<input type="text" class="wfile-input" id="range_end_' + g.type + '" placeholder="끝 (예: 제1233회 또는 2026-07-08)" value="' + (info.range_end||'') + '">' +
-        '<div class="wfile-upload-area" onclick="document.getElementById(\'csv_' + g.type + '\').click()">' +
-          '<div style="font-size:10px;color:#aaa;" id="csvLabel_' + g.type + '">📎 CSV 파일 선택 (클릭)</div>' +
-        '</div>' +
-        '<input type="file" id="csv_' + g.type + '" accept=".csv" style="display:none" onchange="onWinningCsvSelect(\'' + g.type + '\')">' +
-        '<button class="btn-process" id="btnUpload_' + g.type + '" onclick="uploadWinningFile(\'' + g.type + '\')" disabled>⬆ 업로드 (덮어쓰기)</button>' +
-        '<div id="uploadMsg_' + g.type + '" style="margin-top:5px;"></div>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
-
-async function onWinningCsvSelect(type) {
-  var input = document.getElementById('csv_' + type);
-  var label = document.getElementById('csvLabel_' + type);
-  var btn = document.getElementById('btnUpload_' + type);
-  var file = input.files && input.files[0];
-
-  if (!file) {
-    label.textContent = '📎 CSV 파일 선택 (클릭)';
-    btn.disabled = true;
-    return;
-  }
-
-  label.textContent = '⏳ ' + file.name + ' — 범위 분석 중...';
-  btn.disabled = true;
-
-  var range = await extractRangeFromCsv(type, file);
-  if (range) {
-    document.getElementById('range_start_' + type).value = range.start;
-    document.getElementById('range_end_' + type).value = range.end;
-    label.textContent = '✅ ' + file.name + ' — 범위 자동추출됨 (아래에서 확인·수정 가능)';
-  } else {
-    label.textContent = '⚠️ ' + file.name + ' — 범위를 자동으로 읽지 못했어요. 직접 입력해주세요.';
-  }
-  btn.disabled = false;
-}
-
-// multipart 업로드는 adminPost(JSON 전용)를 못 써서 별도로 fetch — 나머지(x-admin-key,
-// 403 처리)는 기존 adminPost/adminGet과 동일한 규칙을 그대로 따른다.
-async function uploadWinningFile(type) {
-  var input = document.getElementById('csv_' + type);
-  var file = input.files && input.files[0];
-  if (!file) return;
-  var rangeStart = document.getElementById('range_start_' + type).value.trim();
-  var rangeEnd = document.getElementById('range_end_' + type).value.trim();
-  var msgEl = document.getElementById('uploadMsg_' + type);
-  var btn = document.getElementById('btnUpload_' + type);
-
-  if (!confirm('현재 등록된 파일이 있다면 즉시 덮어씁니다. 계속할까요?')) return;
-
-  var originalText = btn.textContent;
-  btn.disabled = true; btn.textContent = '업로드 중...';
-  msgEl.innerHTML = '';
-
-  var formData = new FormData();
-  formData.append('csv', file);
-  formData.append('range_start', rangeStart);
-  formData.append('range_end', rangeEnd);
-
-  try {
-    var res = await fetch(API + '/api/files/admin/winning/' + type, {
-      method: 'POST',
-      headers: { 'x-admin-key': adminKey, 'x-admin-name': 'admin' },
-      body: formData
-    });
-    var data = await res.json();
-    if (res.status === 403) { alert('관리자 키가 올바르지 않습니다. 다시 로그인해 주세요.'); doLogout(); return; }
-    if (!res.ok) throw new Error(data.error || '업로드 실패');
-
-    msgEl.innerHTML = '<div class="msg msg-success">✅ 업로드 완료</div>';
-    input.value = '';
-    loadWinningFiles();
-  } catch (e) {
-    msgEl.innerHTML = '<div class="msg msg-error">⛔ ' + e.message + '</div>';
-  } finally {
-    btn.disabled = false; btn.textContent = originalText;
-  }
-}
 </script>
 
 </body>
