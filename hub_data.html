@@ -40,6 +40,15 @@ a{color:inherit;text-decoration:none;}
 @media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr);}}
 @media (max-width:560px){.grid{grid-template-columns:1fr;}}
 
+.grid-3col{grid-template-columns:repeat(3,1fr);}
+@media (max-width:900px){.grid-3col{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:560px){.grid-3col{grid-template-columns:1fr;}}
+
+@media (max-width:680px){
+  .topbar-inner{height:auto;min-height:54px;padding:10px 16px;}
+  .brand-text .t2{display:none;}
+}
+
 .card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:20px;cursor:pointer;transition:border-color .15s,transform .12s;position:relative;}
 .card:hover{border-color:var(--accent);transform:translateY(-2px);}
 .card .ico{width:38px;height:38px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:14px;}
@@ -121,7 +130,7 @@ a{color:inherit;text-decoration:none;}
 
   <div class="section-divider"><span class="lbl" data-i18n-kr="📋 입력 후에는" data-i18n-en="📋 After You've Entered Numbers">📋 입력 후에는</span><div class="line"></div></div>
 
-  <div class="grid" style="grid-template-columns:repeat(3,1fr);">
+  <div class="grid grid-3col">
     <div class="card print-card" onclick="location.href='lotto_slip_print.html'" style="grid-column: span 1;">
       <span class="print-badge" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
       <div class="ico">🖨️</div>
