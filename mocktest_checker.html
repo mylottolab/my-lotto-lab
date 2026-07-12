@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 당첨확인 (무료)</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f;
+  --green:#3fb37f; --red:#d4537e; --blue:#5b9bd5;
+  --game-accent:#8a6fe8;
+}
+*{box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;margin:0;}
+.font-num{font-variant-numeric:tabular-nums;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;}
+
+.topbar{border-bottom:1px solid var(--border-soft);}
+.topbar-inner{max-width:640px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;gap:11px;}
+.brand-mark{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #c3b2ff, var(--game-accent) 60%, #4a3a99);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;}
+.brand-name{font-size:14px;font-weight:700;}
+.brand-sub{font-size:10px;color:var(--text-faint);}
+
+.wrap{max-width:640px;margin:0 auto;padding:24px;}
+.free-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(63,179,127,.14);color:var(--green);margin-bottom:10px;}
+h1{font-size:19px;font-weight:700;margin:0 0 6px;}
+.desc{font-size:12.5px;color:var(--text-dim);margin-bottom:20px;line-height:1.6;}
+
+.game-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.game-tab{flex:1;min-width:130px;background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;padding:11px 14px;cursor:pointer;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px;}
+.game-tab.active{border-color:var(--game-accent);box-shadow:0 0 0 1px var(--game-accent);}
+.flag-ic{display:inline-block;width:18px;height:13px;border-radius:2px;background-size:cover;background-position:center;box-shadow:0 0 0 1px rgba(255,255,255,.08);flex-shrink:0;}
+.flag-kr{background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Crect width='30' height='20' fill='%23fff'/%3E%3Cg transform='translate(15,10)'%3E%3Ccircle r='4.2' fill='%23c60c30'/%3E%3Cpath d='M0,-4.2 A4.2,4.2 0 0 1 0,4.2 A2.1,2.1 0 0 1 0,0 A2.1,2.1 0 0 0 0,-4.2 Z' fill='%23003478'/%3E%3C/g%3E%3C/svg%3E");}
+.flag-us{background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Crect width='30' height='20' fill='%23b22234'/%3E%3Cg fill='%23fff'%3E%3Crect y='1.54' width='30' height='1.54'/%3E%3Crect y='4.62' width='30' height='1.54'/%3E%3Crect y='7.69' width='30' height='1.54'/%3E%3Crect y='10.77' width='30' height='1.54'/%3E%3Crect y='13.85' width='30' height='1.54'/%3E%3Crect y='16.92' width='30' height='1.54'/%3E%3C/g%3E%3Crect width='13' height='10.77' fill='%233c3b6e'/%3E%3C/svg%3E");}
+.flag-eu{background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Crect width='30' height='20' fill='%23003399'/%3E%3Cg fill='%23ffcc00'%3E%3Ccircle cx='15' cy='4.3' r='0.85'/%3E%3Ccircle cx='15' cy='15.7' r='0.85'/%3E%3Ccircle cx='9.8' cy='5.8' r='0.85'/%3E%3Ccircle cx='20.2' cy='5.8' r='0.85'/%3E%3Ccircle cx='9.8' cy='14.2' r='0.85'/%3E%3Ccircle cx='20.2' cy='14.2' r='0.85'/%3E%3Ccircle cx='7' cy='10' r='0.85'/%3E%3Ccircle cx='23' cy='10' r='0.85'/%3E%3C/g%3E%3C/svg%3E");}
+
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:20px;margin-bottom:16px;}
+.form-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--border-soft);}
+.form-row:last-child{border-bottom:none;}
+.form-row label{font-size:12.5px;font-weight:700;color:var(--text-dim);}
+.inp{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:8px 10px;font-size:13px;outline:none;}
+select.scroll-picker{width:100%;max-height:220px;overflow-y:auto;font-family:inherit;font-variant-numeric:tabular-nums;}
+select.scroll-picker option{padding:8px 10px;}
+select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
+
+.ball-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:10px 0;}
+.ball-btn{border:1px solid var(--border);background:var(--bg);color:var(--text-dim);border-radius:50%;aspect-ratio:1;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0;}
+.ball-btn.on{background:var(--game-accent);color:#fff;border-color:var(--game-accent);}
+.ball-btn:hover{border-color:var(--game-accent);}
+.ball-btn.bonus.on{background:var(--gold);color:#1a1305;border-color:var(--gold);}
+
+.btn{border-radius:9px;padding:11px 18px;font-size:13.5px;font-weight:700;border:1px solid var(--border);background:var(--surface-2);color:var(--text);}
+.btn-accent{background:var(--game-accent);color:#fff;border:none;}
+.btn:hover{filter:brightness(1.12);}
+.empty-state{text-align:center;padding:24px 16px;color:var(--text-faint);font-size:12.5px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand-mark">🎯</div>
+    <div>
+      <div class="brand-name">My Lotto Lab</div>
+      <div class="brand-sub">당첨확인 · 등록 없이 무료로 당첨여부만 확인</div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="free-badge">✓ 완전 무료 · 로그인 불필요 · 등록/저장 없음</div>
+  <h1>🎯 당첨확인</h1>
+  <div class="desc">종목을 고르고, 회차(또는 추첨일)와 번호를 넣으면 그 자리에서 바로 당첨여부만 확인해드립니다. 아무것도 저장되지 않아요. (한국로또는 QR 카메라 스캔으로도 확인할 수 있어요.)</div>
+
+  <div class="game-tabs" id="gameTabs"></div>
+
+  <div class="card" id="qrCard" style="display:none;">
+    <h3 style="margin:0 0 8px;font-size:13.5px;">📷 QR 스캔으로 바로 확인 (한국로또 전용)</h3>
+    <p style="font-size:11px;color:var(--text-faint);margin:0 0 10px;line-height:1.6;">로또 용지 QR코드를 카메라에 비추면 회차와 번호를 자동으로 읽어서 바로 당첨여부를 확인해드려요.</p>
+    <div id="qr-reader" style="display:none;width:100%;margin-bottom:8px;border-radius:8px;overflow:hidden;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-accent" id="btnQrStart" style="flex:1;" onclick="startCamScan()">📷 QR 스캔 시작</button>
+      <button class="btn" id="btnQrStop" style="flex:1;display:none;" onclick="stopCamScan()">⏹ 종료</button>
+    </div>
+    <div id="qrStatus" style="font-size:11.5px;color:var(--text-dim);margin-top:8px;"></div>
+  </div>
+
+  <div class="card">
+    <div id="checkTargetRow"></div>
+    <div class="form-row"><label>메인번호</label></div>
+    <div class="ball-grid" id="checkMainGrid"></div>
+    <div id="checkBonusRow"></div>
+    <button class="btn btn-accent" style="width:100%;margin-top:12px;" onclick="doCheck()">확인하기</button>
+    <div id="checkResultBox" style="margin-top:16px;"></div>
+  </div>
+</div>
+
+<script>
+var API_BASE = 'https://my-lotto-lab-api.onrender.com';
+var GAMES = {
+  KR:           { nameKr:'한국로또',     flag:'kr', mainCount:6, mainMax:45, bonusCount:0, bonusMax:0 },
+  POWERBALL:    { nameKr:'파워볼',       flag:'us', mainCount:5, mainMax:69, bonusCount:1, bonusMax:26 },
+  MEGAMILLIONS: { nameKr:'메가밀리언스', flag:'us', mainCount:5, mainMax:70, bonusCount:1, bonusMax:25 },
+  EUROMILLIONS: { nameKr:'유로밀리언스', flag:'eu', mainCount:5, mainMax:50, bonusCount:2, bonusMax:12 },
+};
+var GAME_ORDER = ['KR','POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
+
+var state = { game:'KR', main:[], bonus:[], round:null, date:null, globalDates:{} };
+
+async function getKrMeta(){
+  try { var r = await fetch(API_BASE + '/api/mocktest/kr/meta'); return r.ok ? r.json() : null; } catch(e){ return null; }
+}
+async function getGlobalDates(gameCode){
+  try {
+    var r = await fetch(API_BASE + '/api/mocktest/global/dates/' + gameCode);
+    var d = await r.json();
+    return d.dates || [];
+  } catch(e) { return []; }
+}
+async function check(payload){
+  try {
+    var r = await fetch(API_BASE + '/api/mocktest/check', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload),
+    });
+    var d = await r.json();
+    if (!r.ok) { alert(d.error || '조회 실패'); return null; }
+    return d;
+  } catch(e) { alert('네트워크 오류: ' + e.message); return null; }
+}
+
+function renderGameTabs(){
+  document.getElementById('gameTabs').innerHTML = GAME_ORDER.map(function(code){
+    var g = GAMES[code];
+    var active = state.game === code;
+    return '<div class="game-tab' + (active?' active':'') + '" onclick="selectGame(\'' + code + '\')">' +
+      '<span class="flag-ic flag-' + g.flag + '"></span>' + g.nameKr +
+    '</div>';
+  }).join('');
+}
+async function selectGame(code){
+  state.game = code;
+  state.main = []; state.bonus = []; state.round = null; state.date = null;
+  renderGameTabs();
+  document.getElementById('qrCard').style.display = (code === 'KR') ? 'block' : 'none';
+  if (code !== 'KR') await stopCamScan();
+  await renderTargetRow();
+  renderBallGrid();
+  document.getElementById('checkResultBox').innerHTML = '';
+}
+
+async function renderTargetRow(){
+  var el = document.getElementById('checkTargetRow');
+  el.innerHTML = '<div class="form-row"><label>' + (state.game==='KR'?'회차':'추첨일') + '</label></div><div class="empty-state" style="padding:10px;">불러오는 중...</div>';
+
+  if (state.game === 'KR') {
+    var meta = await getKrMeta();
+    var maxRound = meta ? meta.maxRound : 0;
+    if (!maxRound) { el.innerHTML = '<div class="empty-state">회차 데이터가 없습니다.</div>'; return; }
+    if (state.round == null) state.round = maxRound;
+    var optsHtml = '';
+    for (var r = maxRound; r >= 1; r--) {
+      optsHtml += '<option value="' + r + '"' + (r === state.round ? ' selected' : '') + '>제' + r + '회</option>';
+    }
+    el.innerHTML = '<div class="form-row"><label>회차 (스크롤해서 선택)</label></div>' +
+      '<select class="inp scroll-picker" size="8" onchange="state.round=parseInt(this.value)">' + optsHtml + '</select>';
+  } else {
+    var code = state.game;
+    var dates = state.globalDates[code];
+    if (!dates) { dates = await getGlobalDates(code); state.globalDates[code] = dates; }
+    if (!dates.length) { el.innerHTML = '<div class="empty-state">아직 등록된 결과가 없습니다.</div>'; return; }
+    var sortedDesc = dates.slice().reverse();
+    if (state.date == null) state.date = sortedDesc[0];
+    var optsHtml2 = sortedDesc.map(function(d){
+      return '<option value="' + d + '"' + (d === state.date ? ' selected' : '') + '>' + d + '</option>';
+    }).join('');
+    el.innerHTML = '<div class="form-row"><label>추첨일 (스크롤해서 선택)</label></div>' +
+      '<select class="inp scroll-picker" size="8" onchange="state.date=this.value">' + optsHtml2 + '</select>';
+  }
+}
+
+function renderBallGrid(){
+  var g = GAMES[state.game];
+  var mainEl = document.getElementById('checkMainGrid');
+  var h = '';
+  for (var n=1;n<=g.mainMax;n++){
+    var on = state.main.indexOf(n) >= 0;
+    h += '<button class="ball-btn' + (on?' on':'') + '" onclick="toggleMain(' + n + ')">' + n + '</button>';
+  }
+  mainEl.innerHTML = h;
+
+  var bonusRow = document.getElementById('checkBonusRow');
+  if (g.bonusCount) {
+    var h2 = '';
+    for (var n=1;n<=g.bonusMax;n++){
+      var on = state.bonus.indexOf(n) >= 0;
+      h2 += '<button class="ball-btn bonus' + (on?' on':'') + '" onclick="toggleBonus(' + n + ')">' + n + '</button>';
+    }
+    bonusRow.innerHTML = '<div class="form-row"><label>보너스번호</label></div><div class="ball-grid">' + h2 + '</div>';
+  } else {
+    bonusRow.innerHTML = '';
+  }
+}
+function toggleMain(n){
+  var g = GAMES[state.game];
+  var idx = state.main.indexOf(n);
+  if (idx >= 0) state.main.splice(idx, 1);
+  else if (state.main.length < g.mainCount) state.main.push(n);
+  renderBallGrid();
+}
+function toggleBonus(n){
+  var g = GAMES[state.game];
+  var idx = state.bonus.indexOf(n);
+  if (idx >= 0) state.bonus.splice(idx, 1);
+  else if (state.bonus.length < g.bonusCount) state.bonus.push(n);
+  renderBallGrid();
+}
+
+async function doCheck(){
+  var g = GAMES[state.game];
+  if (state.main.length !== g.mainCount) { alert('메인번호 ' + g.mainCount + '개를 선택해주세요.'); return; }
+  if (g.bonusCount && state.bonus.length !== g.bonusCount) { alert('보너스번호 ' + g.bonusCount + '개를 선택해주세요.'); return; }
+
+  var payload = { game_code: state.game, main: state.main, bonus: state.bonus };
+  if (state.game === 'KR') {
+    if (!state.round) { alert('회차를 선택해주세요.'); return; }
+    payload.round = state.round;
+  } else {
+    if (!state.date) { alert('추첨일을 선택해주세요.'); return; }
+    payload.draw_date = state.date;
+  }
+
+  var result = await check(payload);
+  var box = document.getElementById('checkResultBox');
+  if (!result) { box.innerHTML = ''; return; }
+
+  var isKR = state.game === 'KR';
+  var win = isKR ? result.grade : result.tier;
+  var drawStr = isKR
+    ? (result.drawNums.join(', ') + ' + 보너스 ' + result.drawBonus)
+    : (result.drawMain.join(', ') + (result.drawBonus.length ? ' + ' + result.drawBonus.join(',') : ''));
+  box.innerHTML = '<div class="card" style="background:' + (win ? 'rgba(63,179,127,.08)' : 'var(--surface-2)') + ';border-color:' + (win ? 'var(--green)' : 'var(--border-soft)') + ';margin-bottom:0;">' +
+    '<div style="font-size:16px;font-weight:800;color:' + (win ? 'var(--green)' : 'var(--text-dim)') + ';">' + (win ? ('🎉 ' + win + '등 당첨!') : '😢 낙첨') + '</div>' +
+    '<div style="font-size:11.5px;color:var(--text-faint);margin-top:8px;">당첨번호: ' + drawStr + '</div>' +
+  '</div>';
+}
+
+// =====================================================
+// 📷 QR 카메라 스캔 (한국로또 전용 — camera_qr.html의 파싱 로직 그대로 재사용)
+// =====================================================
+var html5Qr = null;
+
+async function startCamScan(){
+  try {
+    document.getElementById('qr-reader').style.display = 'block';
+    document.getElementById('btnQrStart').style.display = 'none';
+    document.getElementById('btnQrStop').style.display = 'block';
+    html5Qr = new Html5Qrcode('qr-reader');
+    await html5Qr.start(
+      { facingMode: 'environment' },
+      { fps: 15, qrbox: { width: 230, height: 230 }, aspectRatio: 1.0, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
+      function(text){ handleQrSuccess(text); }, function(){}
+    );
+    document.getElementById('qrStatus').textContent = '📷 QR코드를 화면 중앙에 맞춰주세요!';
+  } catch(e) {
+    document.getElementById('qr-reader').style.display = 'none';
+    document.getElementById('btnQrStart').style.display = 'block';
+    document.getElementById('btnQrStop').style.display = 'none';
+    document.getElementById('qrStatus').textContent = '카메라를 사용할 수 없습니다.';
+  }
+}
+async function stopCamScan(){
+  if (html5Qr) { try { await html5Qr.stop(); html5Qr.clear(); } catch(e){} html5Qr = null; }
+  var reader = document.getElementById('qr-reader');
+  if (reader) { reader.style.display = 'none'; reader.innerHTML = ''; }
+  var startBtn = document.getElementById('btnQrStart'), stopBtn = document.getElementById('btnQrStop');
+  if (startBtn) startBtn.style.display = 'block';
+  if (stopBtn) stopBtn.style.display = 'none';
+}
+
+// 동행복권 QR URL(예: http://qr.dhlottery.co.kr/?v=1232m...) 파싱 — camera_qr.html과 동일 로직
+function parseLottoQrUrl(url){
+  try {
+    var match = url.match(/[?&]v=([^&]+)/); if (!match) return null;
+    var v = match[1];
+    var roundMatch = v.match(/^(\d+)/); if (!roundMatch) return null;
+    var round = parseInt(roundMatch[1]);
+    var combos = []; var pat = /([mqs])(\d{12})/g; var m;
+    while ((m = pat.exec(v)) !== null) {
+      var type = m[1]==='m' ? '수동' : m[1]==='q' ? '자동' : '반자동';
+      var nums = []; for (var i=0;i<12;i+=2) nums.push(parseInt(m[2].slice(i,i+2)));
+      if (nums.length===6 && nums.every(function(n){return n>=1 && n<=45;}) && new Set(nums).size===6)
+        combos.push({ type: type, nums: nums });
+    }
+    if (!round || !combos.length) return null;
+    return { round: round, combos: combos };
+  } catch(e) { return null; }
+}
+
+async function handleQrSuccess(text){
+  if (!text) return;
+  if (!(text.indexOf('dhlottery') >= 0 || text.indexOf('qr.dh') >= 0)) return;
+  var parsed = parseLottoQrUrl(text);
+  var statusEl = document.getElementById('qrStatus');
+  if (!parsed) { if (statusEl) statusEl.textContent = 'QR 인식 실패 — 로또 QR이 아니거나 읽을 수 없어요. 다시 시도해주세요.'; return; }
+  if (navigator.vibrate) navigator.vibrate([100,50,100]);
+  await stopCamScan();
+  if (statusEl) statusEl.textContent = '✅ 인식 성공! 제' + parsed.round + '회 · ' + parsed.combos.length + '개 조합 확인 중...';
+  await checkQrCombos(parsed.round, parsed.combos);
+}
+
+// QR로 읽은 조합을 전부(최대 5게임) 한 번에 조회해서 목록으로 보여준다.
+async function checkQrCombos(round, combos){
+  state.round = round;
+  await renderTargetRow();
+  var box = document.getElementById('checkResultBox');
+  box.innerHTML = '<div class="empty-state">확인 중...</div>';
+  var rowsHtml = '';
+  for (var i=0;i<combos.length;i++){
+    var c = combos[i];
+    var result = await check({ game_code:'KR', round: round, main: c.nums, bonus: [] });
+    if (!result) continue;
+    var win = result.grade;
+    rowsHtml += '<div class="card" style="margin-bottom:8px;background:' + (win?'rgba(63,179,127,.08)':'var(--surface-2)') + ';border-color:' + (win?'var(--green)':'var(--border-soft)') + ';">' +
+      '<div style="font-size:11.5px;color:var(--text-dim);">' + c.type + ' · ' + c.nums.join(', ') + '</div>' +
+      '<div style="font-size:14px;font-weight:800;color:' + (win?'var(--green)':'var(--text-dim)') + ';margin-top:4px;">' + (win ? ('🎉 ' + win + '등 당첨!') : '😢 낙첨') + '</div>' +
+    '</div>';
+  }
+  box.innerHTML = '<h3 style="font-size:13px;margin-bottom:8px;">제' + round + '회 QR 스캔 결과 (' + combos.length + '개 조합)</h3>' + rowsHtml;
+}
+
+(async function init(){
+  renderGameTabs();
+  document.getElementById('qrCard').style.display = (state.game === 'KR') ? 'block' : 'none';
+  await renderTargetRow();
+  renderBallGrid();
+})();
+</script>
+
+</body>
+</html>
