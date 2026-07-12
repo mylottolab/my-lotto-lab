@@ -317,6 +317,7 @@ var STR = {
   open_suffix: { kr:'(추가 가능)', en:'(open for more)' },
   entry_status_draft: { kr:'📝 임시저장 (제출대기)', en:'📝 Draft (not submitted)' },
   draft_detail: { kr:'아직 제출완료 하지 않은 임시저장 상태입니다. 등록화면에서 "이대로 제출완료"를 눌러야 채점 결과를 볼 수 있어요.', en:'This is still a draft — you haven\'t submitted it yet. Choose "Submit & finish" on the registration screen to see graded results.' },
+  resume_entry_btn: { kr:'▶ 이어서 추가하기', en:'▶ Continue this entry' },
   new_session_note: { kr:'🆕 새 응시로 등록합니다.', en:'🆕 Registering as a new entry.' },
   start_new_session: { kr:'🆕 새 응시로 시작', en:'🆕 Start a new entry' },
   continue_session: { kr:'▶ 응시 #{id} 이어서 추가 ({n}개 등록됨)', en:'▶ Continue entry #{id} ({n} combos so far)' },
@@ -963,7 +964,15 @@ MU.renderTargetSlider = async function(){
     var dates = MU.state.globalDates[code];
     if (!dates) { dates = await MT.getGlobalDates(code); MU.state.globalDates[code] = dates; }
     if (!dates.length) { box.innerHTML = '<div class="empty-state">' + T('no_past_data') + '</div>'; return; }
-    var idx = MU.state.mockTargetIdx != null ? MU.state.mockTargetIdx : dates.length - 1;
+    var idx;
+    if (MU.state.mockTargetIdx != null) {
+      idx = MU.state.mockTargetIdx;
+    } else if (MU.state.mockTarget != null && dates.indexOf(MU.state.mockTarget) >= 0) {
+      // resumeEntry 등으로 날짜 문자열만 미리 세팅된 경우 — 그 날짜의 실제 인덱스를 찾아준다.
+      idx = dates.indexOf(MU.state.mockTarget);
+    } else {
+      idx = dates.length - 1;
+    }
     MU.state.mockTargetIdx = idx;
     MU.state.mockTarget = dates[idx];
     box.innerHTML = '<h3 style="margin-bottom:6px;">' + T('mock_select_date') + '</h3>' +
@@ -1127,7 +1136,10 @@ MU.openDetail = function(entryId){
 
   if (entry.status === 'pending') {
     var pendingMsg = (entry.mode === 'MOCK') ? T('draft_detail') : T('pending_detail');
-    box.innerHTML = header + '<p>' + pendingMsg + '</p>';
+    var resumeBtn = (entry.mode === 'MOCK' && !entry.finalized)
+      ? '<button class="btn btn-accent" style="width:100%;margin-top:14px;" onclick="MU.resumeEntry(\'' + entry.id + '\')">' + T('resume_entry_btn') + '</button>'
+      : '';
+    box.innerHTML = header + '<p>' + pendingMsg + '</p>' + resumeBtn;
     document.getElementById('detailModal').classList.add('show');
     return;
   }
@@ -1160,6 +1172,28 @@ MU.openDetail = function(entryId){
   document.getElementById('detailModal').classList.add('show');
 };
 MU.closeDetail = function(){ document.getElementById('detailModal').classList.remove('show'); };
+
+// 임시저장(draft) 응시를 등록화면으로 불러와서 바로 이어붙일 수 있게 한다 —
+// "내 등록현황"에서 클릭만 해선 아무 것도 못 하던 문제를 해결.
+MU.resumeEntry = async function(entryId){
+  var entry = MU.state.entriesCache.find(function(e){ return String(e.id) === String(entryId); });
+  if (!entry) return;
+  MU.closeDetail();
+  MU.state.view = 'register';
+  MU.state.game = entry.game_code;
+  MU.state.mainTab = entry.mode;
+  MU.state.picks = []; MU.state.selectedMain = []; MU.state.selectedBonus = [];
+  MU.state.inputMode = 'manual';
+  MU.state.activeEntryId = entry.id;
+  if (entry.mode === 'MOCK') {
+    MU.state.mockTarget = (entry.game_code === 'KR') ? entry.target_round : entry.target_draw_date;
+    MU.state.mockTargetIdx = null;
+  } else {
+    MU.state.mockTarget = null; MU.state.mockTargetIdx = null;
+  }
+  MU.renderMainTabs();
+  await MU.renderGameSection();
+};
 
 
 document.addEventListener('DOMContentLoaded', MU.init);
