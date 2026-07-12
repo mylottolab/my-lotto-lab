@@ -72,6 +72,12 @@ table.stbl tr.total-row:hover td{background:#fafafa;}
 @media print{
   .header,.filter-bar select,.filter-bar .gobtn{display:none !important;}
 }
+@media (max-width:680px){
+  .header-inner{padding:0 12px;height:auto;min-height:44px;}
+  .main{padding:10px;}
+  table.stbl{min-width:340px;}
+  .card:has(table.stbl){overflow-x:auto;}
+}
 </style>
 </head>
 <body>
