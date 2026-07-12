@@ -67,7 +67,7 @@ button{font-family:inherit;cursor:pointer;}
 
 .landing-section-title{font-size:13.5px;font-weight:700;color:var(--text-dim);margin-bottom:10px;}
 .landing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-.landing-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:16px;cursor:pointer;transition:transform .15s,border-color .15s;}
+.landing-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:20px 16px;cursor:pointer;transition:transform .15s,border-color .15s;}
 .landing-card:hover{transform:translateY(-2px);border-color:var(--game-accent);}
 .landing-card .lc-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;margin-bottom:10px;}
 .landing-card .lc-badge.wait{background:rgba(212,83,126,.14);color:var(--red);}
@@ -76,6 +76,7 @@ button{font-family:inherit;cursor:pointer;}
 .landing-card .lc-target{font-size:12px;color:var(--text-dim);margin-top:6px;}
 .landing-card .lc-countdown{font-size:11px;color:var(--gold);margin-top:8px;}
 .landing-card .lc-jackpot{font-size:11px;color:var(--green);margin-top:6px;}
+.landing-card .lc-cost{font-size:10.5px;color:var(--text-faint);margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);line-height:1.5;}
 @media (max-width:900px){ .landing-grid{grid-template-columns:repeat(2,1fr);} }
 @media (max-width:520px){ .landing-grid{grid-template-columns:1fr;} }
 
@@ -278,7 +279,8 @@ var STR = {
   detail_not_participant: { kr:'참가한 토너먼트가 아닙니다.', en:'You are not a participant.' },
   cancel: { kr:'취소', en:'Cancel' },
   confirm_and_register: { kr:'확인하고 등록', en:'Confirm & register' },
-  win_grade: { kr:'{g}등 · {p}원', en:'Grade {g} · {p}' },
+  win_grade: { kr:'{g}등 · {p}원', en:'Grade {g} · {p} KRW' },
+  cost_note: { kr:'응시료: 1~100개 등록시 {base}포인트 이후 1개 추가당 {incr}포인트', en:'Fee: {base}P for the first 1–100 entries, +{incr}P per extra' },
   win_tier: { kr:'{t}등', en:'Grade {t}' },
   no_grade: { kr:'낙첨', en:'No win' },
   top_n: { kr:'🏆 내 조합 중 Top{n}', en:'🏆 My Top {n}' },
@@ -566,6 +568,7 @@ MU.renderLanding = async function(){
       var jpVal = jp && (jp.jackpot_estimate || jp.jackpotEstimate);
       jackpotHtml = '<div class="lc-jackpot">' + T('lc_jackpot') + ' ' + (jpVal ? (g.currency + Number(jpVal).toLocaleString()) : T('no_info')) + '</div>';
     }
+    var realCostHtml = '<div class="lc-cost">' + await MU.getCostNote(code, 'REAL') + '</div>';
 
     realCardsHtml.push(
       '<div class="landing-card real" onclick="MU.enterRegister(\'' + code + '\',\'REAL\')">' +
@@ -574,6 +577,7 @@ MU.renderLanding = async function(){
         '<div class="lc-target font-num">' + targetLabel + '</div>' +
         (deadlineDate ? '<div class="lc-countdown">' + T('lc_deadline') + ' <span id="' + realId + '" class="font-num">' + initialCountdown + '</span></div>' : '') +
         jackpotHtml +
+        realCostHtml +
       '</div>'
     );
 
@@ -585,11 +589,13 @@ MU.renderLanding = async function(){
       var meta4 = await MT.getGlobalMeta(code);
       rangeLabel = (meta4 && meta4.minDrawDate) ? (meta4.minDrawDate + ' ~ ' + meta4.maxDrawDate) : T('no_data');
     }
+    var mockCostHtml = '<div class="lc-cost">' + await MU.getCostNote(code, 'MOCK') + '</div>';
     mockCardsHtml.push(
       '<div class="landing-card mock" onclick="MU.enterRegister(\'' + code + '\',\'MOCK\')">' +
         '<div class="lc-badge ready">' + T('lc_ready') + '</div>' +
         '<div class="lc-name"><span class="flag-ic flag-' + g.flag + '"></span>' + (LANG==='en'?g.nameEn:g.nameKr) + '</div>' +
         '<div class="lc-target">' + rangeLabel + '</div>' +
+        mockCostHtml +
       '</div>'
     );
   }
@@ -865,6 +871,16 @@ MU.addAutoCombos = function(){
 };
 MU.removePick = function(idx){ MU.state.picks.splice(idx, 1); MU.renderPicksList(); };
 
+// 랜딩카드에 표시할 "응시료 안내" 한 줄 — 실제 등록화면의 가격계산과 같은 단가를 그대로 조회한다.
+MU.getCostNote = async function(gameCode, mode){
+  var isKR = gameCode === 'KR';
+  var baseKey = isKR ? 'mocktest_kr_base' : (mode==='REAL' ? 'mocktest_global_real_base' : 'mocktest_global_mock_base');
+  var incrKey = isKR ? 'mocktest_kr_incr' : (mode==='REAL' ? 'mocktest_global_real_incr' : 'mocktest_global_mock_incr');
+  var base = await MT.getPrice(baseKey);
+  var incr = await MT.getPrice(incrKey);
+  return T('cost_note', { base: base, incr: incr });
+};
+
 MU.calcCurrentCost = async function(){
   var count = MU.state.picks.length;
   var isKR = MU.state.game === 'KR';
@@ -1009,7 +1025,7 @@ MU.openDetail = function(entryId){
   var top3Html = '';
   if (entry.top3 && entry.top3.length) {
     top3Html = '<div class="card"><h3>' + T('top_n', {n: entry.top3.length}) + '</h3>' + entry.top3.map(function(r, i){
-      var label = isKR ? T('win_grade', { g:r.grade, p:(r.prize||0).toLocaleString() + (LANG==='en'?' KRW':'원') }) : T('win_tier', {t:r.tier});
+      var label = isKR ? T('win_grade', { g:r.grade, p:(r.prize||0).toLocaleString() }) : T('win_tier', {t:r.tier});
       return '<div class="participant-row"><span>' + T('rank_n', {n:i+1}) + '</span><span style="color:var(--green);font-weight:700;">' + label + '</span></div>';
     }).join('') + '</div>';
   }
