@@ -125,10 +125,35 @@ table.data-table tbody tr:hover{background:var(--surface-2);}
 .admin-lock{display:flex;flex-direction:column;align-items:center;gap:12px;padding:30px;color:var(--text-faint);}
 .admin-lock input{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 14px;font-size:13px;text-align:center;}
 
+/* 프로토 등록화면 2단 레이아웃 (예전엔 인라인 style이었는데, 모바일에서 1단으로
+   바꾸려면 클래스가 있어야 media query로 제어할 수 있어서 옮겨왔다 — 데스크탑 값은 동일) */
+.proto-register-layout{display:grid;grid-template-columns:1.6fr 1fr;gap:18px;align-items:start;}
+.proto-combo-card{position:sticky;top:80px;}
+
 @media (max-width:680px){
   .main-tabs{flex-direction:column;}
   .match-row{grid-template-columns:28px 1fr;grid-template-rows:auto auto;}
   .match-row .pick-btn{grid-column:span 1;}
+
+  .topbar-inner{height:auto;min-height:56px;padding:10px 14px;flex-wrap:wrap;gap:8px 0;}
+  .brand{gap:8px;}
+  .brand-mark{width:28px;height:28px;font-size:13px;}
+  .brand-name{font-size:12.5px;}
+  .brand-sub{display:none;}
+  .topbar-right{gap:6px;width:100%;justify-content:flex-start;flex-wrap:wrap;}
+  .points-badge{padding:5px 10px;margin-left:auto;}
+  #langKrBtn,#langEnBtn{padding:5px 9px !important;font-size:11px !important;}
+
+  .card{padding:16px;}
+  .info-card{padding:14px 16px;gap:16px;}
+  .modal-box{padding:18px;}
+
+  /* 프로토 등록화면: 경기목록/내조합 2단 → 1단으로. sticky도 좁은 화면에선 해제 */
+  .proto-register-layout{grid-template-columns:1fr;}
+  .proto-combo-card{position:static;}
+
+  .card:has(table.data-table){overflow-x:auto;}
+  table.data-table{min-width:460px;}
 }
 </style>
 </head>
