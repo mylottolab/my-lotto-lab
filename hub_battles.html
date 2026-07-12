@@ -412,6 +412,33 @@ button{font-family:inherit;cursor:pointer;}
 .avail-empty{font-size:11px;color:var(--text-faint);padding:10px 0;}
 
 .my-progress-section{margin-top:32px;padding-top:24px;border-top:1px solid var(--border-soft);}
+
+@media (max-width:680px){
+  .topbar-inner{height:auto;min-height:56px;padding:10px 14px;flex-wrap:wrap;gap:8px 0;}
+  .brand{gap:8px;}
+  .brand-mark{width:28px;height:28px;font-size:13px;}
+  .brand-text .t1{font-size:13px;}
+  .brand-text .t2{display:none;}
+
+  .wrap{padding:14px;}
+  .page-head{gap:10px;}
+  .page-title{font-size:19px;}
+
+  .type-grid{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .card{padding:14px;}
+  .summary-card{padding:14px 16px;}
+  .modal-box{padding:18px;}
+
+  .form-row label{min-width:100%;}
+
+  .ball-grid{grid-template-columns:repeat(7,1fr);}
+
+  .room-list{grid-template-columns:1fr;}
+  .create-type-grid{grid-template-columns:1fr;}
+
+  .card:has(.all-rooms-table){overflow-x:auto;}
+  .all-rooms-table{min-width:480px;}
+}
 </style>
 
 <body>
