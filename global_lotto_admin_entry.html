@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>해외복권 관리자 수동입력</title>
 <style>
   body { font-family: -apple-system, sans-serif; max-width: 720px; margin: 30px auto; padding: 0 16px; color: #222; }
@@ -21,6 +22,10 @@
   .ref-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding: 10px; background: #eef3fb; border-radius: 6px; }
   .ref-btn { margin-top: 0; padding: 6px 12px; font-size: 13px; background: #2a5db0; }
   .ref-btn:hover { background: #1e4685; }
+
+@media (max-width:480px){
+  .row{flex-direction:column;}
+}
 </style>
 </head>
 <body>
