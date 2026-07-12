@@ -94,7 +94,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .success-desc{font-size:12.5px;color:var(--text-dim);line-height:1.7;max-width:320px;margin:0 auto 24px;}
 .login-row{text-align:center;margin-top:20px;font-size:12.5px;color:var(--text-dim);}
 .login-row a{color:var(--gold);cursor:pointer;font-weight:600;}
-@media(max-width:480px){.card{padding:22px 16px 20px;}.field-row{grid-template-columns:1fr;}.topbar-inner{padding:0 16px;}}
+@media(max-width:480px){
+  .card{padding:22px 16px 20px;}
+  .field-row{grid-template-columns:1fr;}
+  .topbar-inner{padding:0 16px;height:auto;min-height:54px;}
+  .brand-text .t2{display:none;}
+  .page-body{padding:24px 16px 40px;}
+  .step-label{font-size:9.5px;}
+}
 </style>
 </head>
 <body>
