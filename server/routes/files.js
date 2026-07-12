@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
 const { deductPoints } = require('./points');
 
@@ -9,14 +8,27 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
-
-const STORAGE_BUCKET = 'winning-files';
 const VALID_TYPES = ['korea645', 'powerball', 'megamillions', 'euromillions'];
 const FREE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const DOWNLOAD_ACTION_KEY = 'winning_file_download';
 
-// ─── 요청자 식별 (다른 라우터들과 동일한 규칙 — mocktest.js와 동일) ────────────
+// ⚠ 2026-07-12 설계 변경: 관리자가 CSV를 미리 만들어 업로드해두던 방식(Storage 버킷 +
+// winning_number_files 테이블)을 폐지했다. 매 회차 수동 갱신이 번거롭다는 지적에 따라,
+// 이미 실시간으로 채워지고 있는 결과 테이블(kr_lotto_results — 자동수집 / mocktest_global_draws
+// — "당첨결과 업로드" 화면에서 입력)에서 다운로드 시점에 그 자리에서 CSV를 생성해 서빙한다.
+// → 이 라우터는 더 이상 파일을 저장하지 않고, 매번 최신 DB 상태를 그대로 반영한다.
+const FILE_TYPE_TO_GAME_CODE = {
+  powerball: 'POWERBALL',
+  megamillions: 'MEGAMILLIONS',
+  euromillions: 'EUROMILLIONS',
+};
+const GLOBAL_COLS = {
+  POWERBALL: { main: 5, bonus: 1 },
+  MEGAMILLIONS: { main: 5, bonus: 1 },
+  EUROMILLIONS: { main: 5, bonus: 2 },
+};
+
+// ─── 요청자 식별 (다른 라우터들과 동일한 규칙 — mocktest.js/points.js와 동일) ────────
 async function resolveUser(req) {
   const authHeader = req.headers['authorization'];
   if (authHeader) {
@@ -38,60 +50,86 @@ async function resolveUser(req) {
   return null;
 }
 
-// ─── 관리자 인증 (admin.js와 동일한 공유키 방식) ─────────────────────────────
-function requireAdmin(req, res, next) {
-  const key = req.headers['x-admin-key'];
-  if (!process.env.ADMIN_API_KEY) {
-    console.error('[files] ADMIN_API_KEY 환경변수가 설정되지 않았습니다.');
-    return res.status(500).json({ error: '관리자 기능이 아직 설정되지 않았습니다.' });
-  }
-  if (!key || key !== process.env.ADMIN_API_KEY) {
-    return res.status(401).json({ error: '관리자 인증이 필요합니다.' });
-  }
-  next();
+// ─── 한국로또: kr_lotto_results에서 회차 범위 + 총 건수 계산 ────────────────────
+async function getKoreaRangeAndCount() {
+  const { count } = await supabase.from('kr_lotto_results').select('round', { count: 'exact', head: true });
+  const { data: minRow } = await supabase.from('kr_lotto_results').select('round').order('round', { ascending: true }).limit(1).maybeSingle();
+  const { data: maxRow } = await supabase.from('kr_lotto_results').select('round').order('round', { ascending: false }).limit(1).maybeSingle();
+  if (!minRow || !maxRow) return null;
+  return { range_start: `제${minRow.round}회`, range_end: `제${maxRow.round}회`, count: count || 0 };
 }
 
-// ─── [공개] 4종 메타정보 조회 (range 표시 + 로그인한 사용자의 24h 무료재다운로드 여부) ──
+// ─── 해외 3종: mocktest_global_draws에서 날짜 범위 + 총 건수 계산 ────────────────
+async function getGlobalRangeAndCount(gameCode) {
+  const { count } = await supabase.from('mocktest_global_draws').select('draw_date', { count: 'exact', head: true }).eq('game_code', gameCode);
+  const { data: minRow } = await supabase.from('mocktest_global_draws').select('draw_date').eq('game_code', gameCode).order('draw_date', { ascending: true }).limit(1).maybeSingle();
+  const { data: maxRow } = await supabase.from('mocktest_global_draws').select('draw_date').eq('game_code', gameCode).order('draw_date', { ascending: false }).limit(1).maybeSingle();
+  if (!minRow || !maxRow) return null;
+  return { range_start: minRow.draw_date, range_end: maxRow.draw_date, count: count || 0 };
+}
+
+async function getMetaFor(fileType) {
+  if (fileType === 'korea645') return getKoreaRangeAndCount();
+  return getGlobalRangeAndCount(FILE_TYPE_TO_GAME_CODE[fileType]);
+}
+
+// ─── CSV 생성 — 저장된 파일이 아니라 결과 DB를 그때그때 그대로 CSV로 변환한다 ──────
+// (앞에 \uFEFF BOM을 붙여서 엑셀에서 열었을 때 한글이 깨지지 않도록 함)
+async function generateCsv(fileType) {
+  if (fileType === 'korea645') {
+    const { data, error } = await supabase.from('kr_lotto_results').select('round, nums, bonus').order('round', { ascending: true });
+    if (error) throw new Error(error.message);
+    const header = '회차,번호1,번호2,번호3,번호4,번호5,번호6,보너스번호';
+    const rows = (data || [])
+      .filter(r => Array.isArray(r.nums) && r.nums.length === 6)
+      .map(r => [r.round, ...r.nums, r.bonus != null ? r.bonus : ''].join(','));
+    return '\uFEFF' + [header, ...rows].join('\n');
+  }
+
+  const gameCode = FILE_TYPE_TO_GAME_CODE[fileType];
+  const cols = GLOBAL_COLS[gameCode];
+  const { data, error } = await supabase
+    .from('mocktest_global_draws')
+    .select('draw_date, main_numbers, bonus_numbers')
+    .eq('game_code', gameCode)
+    .order('draw_date', { ascending: true });
+  if (error) throw new Error(error.message);
+
+  const mainHeaders = Array.from({ length: cols.main }, (_, i) => 'Number' + (i + 1));
+  const bonusHeaders = Array.from({ length: cols.bonus }, (_, i) => 'Bonus' + (i + 1));
+  const header = ['Draw Date', ...mainHeaders, ...bonusHeaders].join(',');
+  const rows = (data || [])
+    .filter(r => Array.isArray(r.main_numbers) && r.main_numbers.length === cols.main)
+    .map(r => [r.draw_date, ...r.main_numbers, ...(r.bonus_numbers || [])].join(','));
+  return '\uFEFF' + [header, ...rows].join('\n');
+}
+
+// ─── [공개] 4종 메타정보 — 관리자 업로드 없이, 결과 DB에서 즉시 계산 ──────────────
 // GET /api/files/winning  (비회원: ?nickname=&email=)
 router.get('/winning', async (req, res) => {
   try {
-    const { data: files, error } = await supabase
-      .from('winning_number_files')
-      .select('game_type, range_start, range_end, updated_at');
+    const items = await Promise.all(VALID_TYPES.map(async (type) => {
+      const meta = await getMetaFor(type);
+      return {
+        game_type: type,
+        range_start: meta ? meta.range_start : null,
+        range_end: meta ? meta.range_end : null,
+        count: meta ? meta.count : 0,
+      };
+    }));
 
-    if (error) {
-      console.error('[files] winning 메타 조회 오류:', error);
-      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
-    }
-
-    // 로그인 정보가 있으면(=선택적) 사용자의 유효한 구매기록을 붙여서 무료재다운로드 여부를 알려준다.
-    // 없어도(비로그인 상태로 랜딩만 보는 경우) 에러 내지 않고 그냥 range만 보여준다.
     let activeByType = {};
     const user = await resolveUser(req).catch(() => null);
     if (user) {
       const nowIso = new Date().toISOString();
       const { data: purchases } = await supabase
-        .from('file_purchases')
-        .select('game_type, expires_at')
-        .eq('user_id', user.id)
-        .gt('expires_at', nowIso);
+        .from('file_purchases').select('game_type, expires_at')
+        .eq('user_id', user.id).gt('expires_at', nowIso);
       (purchases || []).forEach(p => {
-        if (!activeByType[p.game_type] || p.expires_at > activeByType[p.game_type]) {
-          activeByType[p.game_type] = p.expires_at;
-        }
+        if (!activeByType[p.game_type] || p.expires_at > activeByType[p.game_type]) activeByType[p.game_type] = p.expires_at;
       });
     }
-
-    const items = VALID_TYPES.map(type => {
-      const f = (files || []).find(x => x.game_type === type);
-      return {
-        game_type: type,
-        range_start: f ? f.range_start : null,
-        range_end: f ? f.range_end : null,
-        updated_at: f ? f.updated_at : null,
-        freeRedownloadUntil: activeByType[type] || null,
-      };
-    });
+    items.forEach(it => { it.freeRedownloadUntil = activeByType[it.game_type] || null; });
 
     return res.json({ items });
   } catch (err) {
@@ -100,8 +138,8 @@ router.get('/winning', async (req, res) => {
   }
 });
 
-// ─── [인증 필요] 다운로드 (신규 구매 시 포인트 차감, 24h 이내 재요청이면 무과금) ──
-// POST /api/files/winning/:fileType/download
+// ─── [인증 필요] 다운로드 — 결제(또는 24h 무료) 처리 후 CSV를 그 자리에서 만들어 응답 ──
+// POST /api/files/winning/:fileType/download → 응답 자체가 CSV 파일(성공 시)
 router.post('/winning/:fileType/download', async (req, res) => {
   try {
     const fileType = req.params.fileType;
@@ -110,14 +148,10 @@ router.post('/winning/:fileType/download', async (req, res) => {
     const user = await resolveUser(req);
     if (!user) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
 
-    const { data: fileInfo, error: fileErr } = await supabase
-      .from('winning_number_files').select('file_path').eq('game_type', fileType).maybeSingle();
-    if (fileErr || !fileInfo) return res.status(404).json({ error: '아직 등록된 파일이 없습니다. 관리자에게 문의해주세요.' });
-
     const nowIso = new Date().toISOString();
     const { data: existing } = await supabase
       .from('file_purchases')
-      .select('id, expires_at')
+      .select('id')
       .eq('user_id', user.id)
       .eq('game_type', fileType)
       .gt('expires_at', nowIso)
@@ -152,78 +186,24 @@ router.post('/winning/:fileType/download', async (req, res) => {
         points_spent: Number(cost.cost_points), expires_at: expiresAt,
       });
       // ⚠ 포인트는 이미 차감됨 — 여기서 실패해도 사용자에게 오류를 주지 않고 로그만 남긴다
-      // (재다운로드 창구가 하루 안 열리는 것뿐, 돈을 냈는데 파일을 못 받는 상황은 아님)
       if (insErr) console.error('[files] file_purchases 기록 오류 (차감 자체는 정상 처리됨):', insErr);
     }
 
-    const { data: signed, error: signErr } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .createSignedUrl(fileInfo.file_path, 60);
-    if (signErr || !signed) {
-      console.error('[files] signed URL 발급 오류:', signErr);
-      return res.status(500).json({ error: '파일 다운로드 링크 생성에 실패했습니다.' });
+    let csv;
+    try {
+      csv = await generateCsv(fileType);
+    } catch (genErr) {
+      console.error('[files] CSV 생성 오류 (포인트는 이미 차감됨):', genErr);
+      return res.status(500).json({ error: 'CSV 생성 중 오류가 발생했습니다. 관리자에게 문의해주세요.' });
     }
 
-    return res.json({ url: signed.signedUrl, freeRedownload });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileType}_winning_numbers.csv"`);
+    res.setHeader('X-Free-Redownload', freeRedownload ? '1' : '0');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, X-Free-Redownload');
+    return res.send(csv);
   } catch (err) {
     console.error('[files] winning download 오류:', err);
-    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// 관리자 전용 — 파일 덮어쓰기
-// ═══════════════════════════════════════════════════════════════════
-
-// ─── [관리자] 4종 현재 파일 목록 (관리 화면용 — range/용량/수정일 전체) ─────────
-// GET /api/admin/files/winning
-router.get('/admin/winning', requireAdmin, async (req, res) => {
-  const { data, error } = await supabase.from('winning_number_files').select('*');
-  if (error) {
-    console.error('[files] admin winning 목록 조회 오류:', error);
-    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
-  }
-  const byType = {};
-  (data || []).forEach(r => { byType[r.game_type] = r; });
-  const items = VALID_TYPES.map(type => byType[type] || { game_type: type, file_path: null, range_start: null, range_end: null, updated_at: null });
-  return res.json({ items });
-});
-
-// ─── [관리자] CSV 업로드/덮어쓰기 ────────────────────────────────────────────
-// POST /api/admin/files/winning/:fileType   multipart/form-data: csv, range_start, range_end
-router.post('/admin/winning/:fileType', requireAdmin, upload.single('csv'), async (req, res) => {
-  try {
-    const fileType = req.params.fileType;
-    if (!VALID_TYPES.includes(fileType)) return res.status(400).json({ error: '알 수 없는 파일 종류입니다.' });
-    if (!req.file) return res.status(400).json({ error: 'CSV 파일이 필요합니다.' });
-
-    const filePath = `${fileType}.csv`;
-    const { error: upErr } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(filePath, req.file.buffer, { upsert: true, contentType: 'text/csv' });
-    if (upErr) {
-      console.error('[files] admin 업로드 오류:', upErr);
-      return res.status(500).json({ error: `파일 업로드 실패: ${upErr.message}` });
-    }
-
-    const { data, error: dbErr } = await supabase.from('winning_number_files').upsert({
-      game_type: fileType,
-      file_path: filePath,
-      range_start: req.body.range_start || null,
-      range_end: req.body.range_end || null,
-      file_size_kb: Math.round(req.file.size / 1024),
-      updated_at: new Date().toISOString(),
-      updated_by: req.headers['x-admin-name'] || 'admin',
-    }, { onConflict: 'game_type' }).select().maybeSingle();
-
-    if (dbErr) {
-      console.error('[files] admin 메타 저장 오류:', dbErr);
-      return res.status(500).json({ error: `메타정보 저장 실패: ${dbErr.message}` });
-    }
-
-    return res.json({ message: '업로드되었습니다.', item: data });
-  } catch (err) {
-    console.error('[files] admin winning 업로드 오류:', err);
     return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
   }
 });
