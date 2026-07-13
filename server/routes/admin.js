@@ -482,7 +482,7 @@ router.put('/settings/:key', requireAdmin, async (req, res) => {
 // profiles.is_guest를 날짜 단위로 집계만 하면 되는 요청이라 여기 추가했다.
 // ═══════════════════════════════════════════════════════════════════
 
-// KST(UTC+9) 기준으로 날짜를 그룹 키로 변환. groupBy: 'day' | 'week' | 'month'
+// KST(UTC+9) 기준으로 날짜를 그룹 키로 변환. groupBy: 'hour' | 'day' | 'week' | 'month'
 function toBucketKey(isoString, groupBy) {
   const d = new Date(new Date(isoString).getTime() + 9 * 60 * 60 * 1000); // KST 보정
   const y = d.getUTCFullYear();
@@ -499,6 +499,10 @@ function toBucketKey(isoString, groupBy) {
     const monday = new Date(Date.UTC(y, m, day + diffToMonday));
     return monday.toISOString().slice(0, 10) + ' 주';
   }
+  if (groupBy === 'hour') {
+    const hour = d.getUTCHours();
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}시`;
+  }
   // 기본: day
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
@@ -508,7 +512,7 @@ function toBucketKey(isoString, groupBy) {
 router.get('/stats/deposits-daily', requireAdmin, async (req, res) => {
   try {
     const { from, to } = req.query;
-    const groupBy = ['day', 'week', 'month'].includes(req.query.groupBy) ? req.query.groupBy : 'day';
+    const groupBy = ['hour', 'day', 'week', 'month'].includes(req.query.groupBy) ? req.query.groupBy : 'day';
 
     let query = supabase.from('point_ledger').select('source, amount, earned_at').eq('point_type', 'deposit');
     if (from) query = query.gte('earned_at', from);
@@ -547,7 +551,7 @@ router.get('/stats/deposits-daily', requireAdmin, async (req, res) => {
 router.get('/stats/signups-daily', requireAdmin, async (req, res) => {
   try {
     const { from, to } = req.query;
-    const groupBy = ['day', 'week', 'month'].includes(req.query.groupBy) ? req.query.groupBy : 'day';
+    const groupBy = ['hour', 'day', 'week', 'month'].includes(req.query.groupBy) ? req.query.groupBy : 'day';
 
     let query = supabase.from('profiles').select('is_guest, created_at');
     if (from) query = query.gte('created_at', from);
