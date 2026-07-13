@@ -377,6 +377,45 @@
     }
   };
 
+  // ── 방문 기록(트래킹) — 접속자수/접속경로/국가별 통계용, 2026-07-14 신규 ─────────
+  // 페이지가 열릴 때마다 한 번, 아주 가벼운 신호만 서버로 보낸다. 실패해도 절대
+  // 사용자 경험(페이지 로딩 등)에 영향을 주지 않도록 조용히 무시한다.
+  function getOrCreateVisitorId() {
+    var key = 'mll_vid';
+    try {
+      var vid = localStorage.getItem(key);
+      if (!vid) {
+        vid = 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+        localStorage.setItem(key, vid);
+      }
+      return vid;
+    } catch (e) {
+      return 'v_nostorage';
+    }
+  }
+
+  function trackVisit() {
+    try {
+      var payload = JSON.stringify({
+        path: window.location.pathname,
+        referrer: document.referrer || '',
+        visitorId: getOrCreateVisitorId()
+      });
+      var url = API + '/api/track/visit';
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+      } else {
+        fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(function () {});
+      }
+    } catch (e) { /* 트래킹 실패는 조용히 무시 */ }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', trackVisit);
+  } else {
+    trackVisit();
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', renderFab);
   } else {
