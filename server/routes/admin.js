@@ -476,4 +476,105 @@ router.put('/settings/:key', requireAdmin, async (req, res) => {
   return res.json({ message: '저장되었습니다.', item: data });
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// 통계: 일/주/월별 입금액(결제수단 구분), 가입자수(회원/비회원 구분)
+// ⚠ 2026-07-14 신규: 새 테이블/트래킹 없이, 이미 있는 point_ledger.source와
+// profiles.is_guest를 날짜 단위로 집계만 하면 되는 요청이라 여기 추가했다.
+// ═══════════════════════════════════════════════════════════════════
+
+// KST(UTC+9) 기준으로 날짜를 그룹 키로 변환. groupBy: 'day' | 'week' | 'month'
+function toBucketKey(isoString, groupBy) {
+  const d = new Date(new Date(isoString).getTime() + 9 * 60 * 60 * 1000); // KST 보정
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth(); // 0-based
+  const day = d.getUTCDate();
+
+  if (groupBy === 'month') {
+    return `${y}-${String(m + 1).padStart(2, '0')}`;
+  }
+  if (groupBy === 'week') {
+    // 그 주의 월요일 날짜를 키로 사용 (ISO 주 시작 = 월요일)
+    const dow = d.getUTCDay(); // 0=일 ... 6=토
+    const diffToMonday = (dow === 0 ? -6 : 1 - dow);
+    const monday = new Date(Date.UTC(y, m, day + diffToMonday));
+    return monday.toISOString().slice(0, 10) + ' 주';
+  }
+  // 기본: day
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// ─── 일/주/월별 입금액 통계 (신용카드/계좌이체/PayPal 구분) ────────────────────
+// GET /api/admin/stats/deposits-daily?from=&to=&groupBy=day|week|month
+router.get('/stats/deposits-daily', requireAdmin, async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const groupBy = ['day', 'week', 'month'].includes(req.query.groupBy) ? req.query.groupBy : 'day';
+
+    let query = supabase.from('point_ledger').select('source, amount, earned_at').eq('point_type', 'deposit');
+    if (from) query = query.gte('earned_at', from);
+    if (to) query = query.lte('earned_at', to);
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[admin] deposits-daily 조회 오류:', error);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    const byBucket = {};
+    (data || []).forEach(row => {
+      const key = toBucketKey(row.earned_at, groupBy);
+      if (!byBucket[key]) byBucket[key] = { bucket: key, inicis: 0, bank_transfer: 0, paypal: 0, other: 0, total: 0 };
+      const src = ['inicis', 'bank_transfer', 'paypal'].includes(row.source) ? row.source : 'other';
+      byBucket[key][src] += Number(row.amount);
+      byBucket[key].total += Number(row.amount);
+    });
+
+    const items = Object.values(byBucket).sort((a, b) => (a.bucket < b.bucket ? 1 : -1)); // 최신순
+    const grandTotal = items.reduce((acc, r) => {
+      acc.inicis += r.inicis; acc.bank_transfer += r.bank_transfer; acc.paypal += r.paypal; acc.other += r.other; acc.total += r.total;
+      return acc;
+    }, { inicis: 0, bank_transfer: 0, paypal: 0, other: 0, total: 0 });
+
+    return res.json({ items, grandTotal, groupBy });
+  } catch (err) {
+    console.error('[admin] deposits-daily 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
+// ─── 일/주/월별 회원·비회원 가입자수 통계 ───────────────────────────────────────
+// GET /api/admin/stats/signups-daily?from=&to=&groupBy=day|week|month
+router.get('/stats/signups-daily', requireAdmin, async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const groupBy = ['day', 'week', 'month'].includes(req.query.groupBy) ? req.query.groupBy : 'day';
+
+    let query = supabase.from('profiles').select('is_guest, created_at');
+    if (from) query = query.gte('created_at', from);
+    if (to) query = query.lte('created_at', to);
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[admin] signups-daily 조회 오류:', error);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    const byBucket = {};
+    (data || []).forEach(row => {
+      const key = toBucketKey(row.created_at, groupBy);
+      if (!byBucket[key]) byBucket[key] = { bucket: key, member: 0, guest: 0, total: 0 };
+      if (row.is_guest) byBucket[key].guest++; else byBucket[key].member++;
+      byBucket[key].total++;
+    });
+
+    const items = Object.values(byBucket).sort((a, b) => (a.bucket < b.bucket ? 1 : -1));
+    const grandTotal = items.reduce((acc, r) => { acc.member += r.member; acc.guest += r.guest; acc.total += r.total; return acc; }, { member: 0, guest: 0, total: 0 });
+
+    return res.json({ items, grandTotal, groupBy });
+  } catch (err) {
+    console.error('[admin] signups-daily 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
 module.exports = router;
