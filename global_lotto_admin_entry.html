@@ -22,6 +22,8 @@
   .ref-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding: 10px; background: #eef3fb; border-radius: 6px; }
   .ref-btn { margin-top: 0; padding: 6px 12px; font-size: 13px; background: #2a5db0; }
   .ref-btn:hover { background: #1e4685; }
+#prizeTiersTable input { padding: 5px 6px; margin-top: 0; font-size: 12.5px; }
+#prizeTiersTable td { padding: 4px 8px; border-bottom: 1px solid #eee; }
 
 @media (max-width:480px){
   .row{flex-direction:column;}
@@ -49,7 +51,7 @@
 <h2>① 확정 추첨결과 입력</h2>
 
 <label>게임</label>
-<select id="drawGameCode" onchange="toggleCashValueField('drawGameCode','cashValueBox')">
+<select id="drawGameCode" onchange="onDrawGameChange()">
   <option value="POWERBALL">파워볼</option>
   <option value="MEGAMILLIONS">메가밀리언스</option>
   <option value="EUROMILLIONS" selected>유로밀리언스</option>
@@ -80,9 +82,21 @@
   </div>
 </div>
 
-<label>등수별 상금표 (유로밀리언스 전용, JSON 형식 - 없으면 비워두세요)</label>
-<input type="text" id="prizeTiers" placeholder='[{"tier":2,"main_match":5,"bonus_match":1,"prize":500000,"winners":3}]'>
-<p class="hint">형식: tier(등수), main_match(메인 일치수), bonus_match(보너스 일치수), prize(당첨금액), winners(당첨건수 - 선택, 없으면 비워도 됨) 배열</p>
+<div id="prizeTiersSection">
+  <label>등수별 상금표 (유로밀리언스 전용)</label>
+  <p class="hint">1등(잭팟)은 위 "1등 당첨금" 칸에 이미 입력하셨으니 여기선 2등부터만 입력하시면 됩니다. 해당 없는 등수는 비워두세요.</p>
+  <table id="prizeTiersTable" style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px;">
+    <thead>
+      <tr style="background:#f2f2f2;text-align:left;">
+        <th style="padding:6px 8px;">등수</th>
+        <th style="padding:6px 8px;">맞춘 조합</th>
+        <th style="padding:6px 8px;">1인당 당첨금</th>
+        <th style="padding:6px 8px;">당첨자 수</th>
+      </tr>
+    </thead>
+    <tbody id="prizeTiersBody"></tbody>
+  </table>
+</div>
 
 <button onclick="submitDraw()">확정결과 저장</button>
 <div id="drawResult"></div>
@@ -167,9 +181,63 @@ function toggleCashValueField(selectId, boxId) {
   const box = document.getElementById(boxId);
   box.style.display = (gameCode === 'EUROMILLIONS') ? 'none' : 'block';
 }
+
+// ── 유로밀리언스 등수별 상금표 (2등~13등, 표준 고정 구조) ──
+// 1등(5+2, 잭팟)은 위쪽 jackpotWon/winnersCount 칸에서 이미 입력하므로 여기선 제외.
+const EUROMILLIONS_TIERS = [
+  { tier: 2,  main: 5, bonus: 1, label: '5 + 1' },
+  { tier: 3,  main: 5, bonus: 0, label: '5 + 0' },
+  { tier: 4,  main: 4, bonus: 2, label: '4 + 2' },
+  { tier: 5,  main: 4, bonus: 1, label: '4 + 1' },
+  { tier: 6,  main: 3, bonus: 2, label: '3 + 2' },
+  { tier: 7,  main: 4, bonus: 0, label: '4 + 0' },
+  { tier: 8,  main: 2, bonus: 2, label: '2 + 2' },
+  { tier: 9,  main: 3, bonus: 1, label: '3 + 1' },
+  { tier: 10, main: 3, bonus: 0, label: '3 + 0' },
+  { tier: 11, main: 1, bonus: 2, label: '1 + 2' },
+  { tier: 12, main: 2, bonus: 1, label: '2 + 1' },
+  { tier: 13, main: 2, bonus: 0, label: '2 + 0' },
+];
+
+function renderPrizeTiersTable() {
+  const body = document.getElementById('prizeTiersBody');
+  body.innerHTML = EUROMILLIONS_TIERS.map(function (t) {
+    return '<tr>' +
+      '<td>' + t.tier + '등</td>' +
+      '<td>' + t.label + '</td>' +
+      '<td><input type="number" id="tierPrize_' + t.tier + '" placeholder="당첨금액"></td>' +
+      '<td><input type="number" id="tierWinners_' + t.tier + '" placeholder="당첨자수(선택)"></td>' +
+      '</tr>';
+  }).join('');
+}
+
+// 위 표에 입력된 값들만 모아서, 서버가 기대하는 JSON 배열 형태로 조립한다.
+// (비워둔 등수는 자동으로 제외됨 - 그 회차에 당첨자가 없던 등수라고 보면 됨)
+function collectPrizeTiers() {
+  const result = [];
+  EUROMILLIONS_TIERS.forEach(function (t) {
+    const prizeVal = document.getElementById('tierPrize_' + t.tier).value;
+    if (prizeVal === '') return;
+    const winnersVal = document.getElementById('tierWinners_' + t.tier).value;
+    const entry = { tier: t.tier, main_match: t.main, bonus_match: t.bonus, prize: Number(prizeVal) };
+    if (winnersVal !== '') entry.winners = Number(winnersVal);
+    result.push(entry);
+  });
+  return result;
+}
+
+// 게임 선택에 따라: ① 현금가 칸(미국 2종만) ② 등수별 상금표(유로밀리언스만) 토글
+function onDrawGameChange() {
+  toggleCashValueField('drawGameCode', 'cashValueBox');
+  const gameCode = document.getElementById('drawGameCode').value;
+  document.getElementById('prizeTiersSection').style.display = (gameCode === 'EUROMILLIONS') ? 'block' : 'none';
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   toggleCashValueField('drawGameCode', 'cashValueBox');
   toggleCashValueField('jpGameCode', 'jpCashValueBox');
+  renderPrizeTiersTable();
+  onDrawGameChange();
 });
 
 
@@ -194,22 +262,14 @@ async function submitDraw() {
   const jackpotWon = document.getElementById('jackpotWon').value;
   const cashValue = document.getElementById('cashValue').value;
   const winnersCount = document.getElementById('winnersCount').value;
-  const prizeTiersRaw = document.getElementById('prizeTiers').value.trim();
 
   if (!drawDate || mainNumbers.length === 0 || bonusNumbers.length === 0) {
     showResult('drawResult', false, '추첨일, 메인번호, 보너스번호는 필수입니다.');
     return;
   }
 
-  let prizeTiers = null;
-  if (prizeTiersRaw) {
-    try {
-      prizeTiers = JSON.parse(prizeTiersRaw);
-    } catch (e) {
-      showResult('drawResult', false, '등수별 상금표 JSON 형식이 올바르지 않습니다: ' + e.message);
-      return;
-    }
-  }
+  // 유로밀리언스일 때만 표에서 등수별 상금표를 조립 (다른 게임은 이 개념이 없어 null)
+  const prizeTiers = (gameCode === 'EUROMILLIONS') ? collectPrizeTiers() : null;
 
   try {
     const res = await fetch(`${API_BASE}/api/admin/global/draws`, {
