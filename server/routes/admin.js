@@ -581,4 +581,192 @@ router.get('/stats/signups-daily', requireAdmin, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// 통계: 접속자수(시간/일/주/월별) · 접속경로별 · 국가별 (2026-07-14 신규)
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── 시간/일/주/월별 접속자수 (전체 방문 + 순방문자) ────────────────────────────
+// GET /api/admin/stats/visits-daily?from=&to=&groupBy=hour|day|week|month
+router.get('/stats/visits-daily', requireAdmin, async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const groupBy = ['hour', 'day', 'week', 'month'].includes(req.query.groupBy) ? req.query.groupBy : 'day';
+
+    let query = supabase.from('page_visits').select('visited_at, visitor_id');
+    if (from) query = query.gte('visited_at', from);
+    if (to) query = query.lte('visited_at', to);
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[admin] visits-daily 조회 오류:', error);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    const byBucket = {};
+    (data || []).forEach(row => {
+      const key = toBucketKey(row.visited_at, groupBy);
+      if (!byBucket[key]) byBucket[key] = { bucket: key, visits: 0, visitorSet: new Set() };
+      byBucket[key].visits++;
+      if (row.visitor_id) byBucket[key].visitorSet.add(row.visitor_id);
+    });
+
+    const items = Object.keys(byBucket).sort((a, b) => (a < b ? 1 : -1)).map(key => ({
+      bucket: key,
+      visits: byBucket[key].visits,
+      uniqueVisitors: byBucket[key].visitorSet.size,
+    }));
+
+    const grandTotal = {
+      visits: items.reduce((s, r) => s + r.visits, 0),
+      uniqueVisitors: new Set((data || []).map(r => r.visitor_id).filter(Boolean)).size,
+    };
+
+    return res.json({ items, grandTotal, groupBy });
+  } catch (err) {
+    console.error('[admin] visits-daily 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
+// ─── 접속경로(유입경로)별 통계 ─────────────────────────────────────────────────
+// GET /api/admin/stats/visits-by-source?from=&to=
+const REFERRER_SOURCE_LABEL = {
+  direct: '직접 접속/북마크', naver: '네이버', google: '구글', kakao_daum: '카카오/다음',
+  instagram: '인스타그램', facebook: '페이스북', youtube: '유튜브', internal: '사이트 내 이동', other: '기타'
+};
+router.get('/stats/visits-by-source', requireAdmin, async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    let query = supabase.from('page_visits').select('referrer_source, visitor_id');
+    if (from) query = query.gte('visited_at', from);
+    if (to) query = query.lte('visited_at', to);
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[admin] visits-by-source 조회 오류:', error);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    const bySource = {};
+    (data || []).forEach(row => {
+      const src = row.referrer_source || 'other';
+      if (!bySource[src]) bySource[src] = { source: src, visits: 0, visitorSet: new Set() };
+      bySource[src].visits++;
+      if (row.visitor_id) bySource[src].visitorSet.add(row.visitor_id);
+    });
+
+    const items = Object.values(bySource)
+      .map(r => ({ source: r.source, labelKr: REFERRER_SOURCE_LABEL[r.source] || r.source, visits: r.visits, uniqueVisitors: r.visitorSet.size }))
+      .sort((a, b) => b.visits - a.visits);
+
+    const grandTotal = items.reduce((s, r) => s + r.visits, 0);
+
+    return res.json({ items, grandTotal });
+  } catch (err) {
+    console.error('[admin] visits-by-source 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
+// ─── 국가별 통계 (국내/해외 + 국가별 상세) ─────────────────────────────────────
+// GET /api/admin/stats/visits-by-country?from=&to=
+const COUNTRY_NAME = {
+  KR: '한국', US: '미국', JP: '일본', CN: '중국', GB: '영국', DE: '독일', FR: '프랑스',
+  VN: '베트남', TH: '태국', PH: '필리핀', ID: '인도네시아', IN: '인도', CA: '캐나다',
+  AU: '호주', SG: '싱가포르', TW: '대만', HK: '홍콩', RU: '러시아', BR: '브라질', MX: '멕시코'
+};
+router.get('/stats/visits-by-country', requireAdmin, async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    let query = supabase.from('page_visits').select('country_code, visitor_id');
+    if (from) query = query.gte('visited_at', from);
+    if (to) query = query.lte('visited_at', to);
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[admin] visits-by-country 조회 오류:', error);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    const byCountry = {};
+    let domesticVisits = 0, foreignVisits = 0, unknownVisits = 0;
+    (data || []).forEach(row => {
+      const cc = row.country_code || 'XX';
+      if (!byCountry[cc]) byCountry[cc] = { country: cc, visits: 0, visitorSet: new Set() };
+      byCountry[cc].visits++;
+      if (row.visitor_id) byCountry[cc].visitorSet.add(row.visitor_id);
+      if (cc === 'KR') domesticVisits++;
+      else if (cc === 'XX') unknownVisits++;
+      else foreignVisits++;
+    });
+
+    const items = Object.values(byCountry)
+      .map(r => ({ country: r.country, countryName: COUNTRY_NAME[r.country] || (r.country === 'XX' ? '알 수 없음' : r.country), visits: r.visits, uniqueVisitors: r.visitorSet.size }))
+      .sort((a, b) => b.visits - a.visits);
+
+    return res.json({
+      items,
+      summary: { domestic: domesticVisits, foreign: foreignVisits, unknown: unknownVisits, total: domesticVisits + foreignVisits + unknownVisits }
+    });
+  } catch (err) {
+    console.error('[admin] visits-by-country 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
+// ─── 페이지 경로 → 큰 카테고리 매핑 (2026-07-14 신규) ──────────────────────────
+// 관리자 도구류를 최우선으로 걸러내고(파일명이 겹쳐도 관리자용이면 여기로), 그다음
+// 사용자 기능 카테고리 순으로 매칭한다. 새 페이지가 추가되면 이 목록에 한 줄만 추가하면 됨.
+function classifyPage(path) {
+  const p = (path || '').toLowerCase();
+  if (/admin|excel_upload|ai_input|qr_scan|camera_qr|lotto_data_|lotto_input_|lotto_regrade|lotto_result_quick|auto_update|apply_1228|fix_1228|restore_data|reset_admin_pw/.test(p)) return '관리자';
+  if (/main_page\.html|index\.html|^\/$/.test(p)) return '메인';
+  if (/mocktest_hub|mocktest_checker|mock_simulation/.test(p)) return '로또 모의테스트';
+  if (/toto_proto/.test(p)) return '토토·프로토';
+  if (/global_lotto/.test(p)) return '해외복권(파워볼 등)';
+  if (/hub_battles/.test(p)) return 'Battles';
+  if (/hub_race/.test(p)) return '100전략 레이스';
+  if (/hub_lounge/.test(p)) return '회원·포인트 라운지';
+  if (/login\.html|signup\.html|oauth_callback/.test(p)) return '로그인·회원가입';
+  if (/payment_|category_select|bank_transfer/.test(p)) return '결제';
+  if (/number_generator|round_stats|results_stats|strategy_|print_center|lotto_slip_print|hub_data|hub_results|hub_strategy|hub_print/.test(p)) return '한국로또 데이터·전략도구';
+  return '기타';
+}
+
+// ─── 큰 카테고리별 방문 통계 ────────────────────────────────────────────────
+// GET /api/admin/stats/visits-by-page?from=&to=
+router.get('/stats/visits-by-page', requireAdmin, async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    let query = supabase.from('page_visits').select('path, visitor_id');
+    if (from) query = query.gte('visited_at', from);
+    if (to) query = query.lte('visited_at', to);
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[admin] visits-by-page 조회 오류:', error);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    const byCategory = {};
+    (data || []).forEach(row => {
+      const cat = classifyPage(row.path);
+      if (!byCategory[cat]) byCategory[cat] = { category: cat, visits: 0, visitorSet: new Set() };
+      byCategory[cat].visits++;
+      if (row.visitor_id) byCategory[cat].visitorSet.add(row.visitor_id);
+    });
+
+    const items = Object.values(byCategory)
+      .map(r => ({ category: r.category, visits: r.visits, uniqueVisitors: r.visitorSet.size }))
+      .sort((a, b) => b.visits - a.visits);
+
+    const grandTotal = items.reduce((s, r) => s + r.visits, 0);
+
+    return res.json({ items, grandTotal });
+  } catch (err) {
+    console.error('[admin] visits-by-page 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
 module.exports = router;
