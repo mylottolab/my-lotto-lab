@@ -35,6 +35,21 @@ button{font-family:inherit;cursor:pointer;}
 .lotto-switch{display:flex;align-items:center;gap:6px;color:var(--text-dim);font-size:12px;cursor:pointer;border:1px solid var(--border);padding:6px 12px;border-radius:7px;background:none;font-family:inherit;}
 .lotto-switch:hover{border-color:var(--green-dim);color:var(--text);}
 .lotto-menu{display:none;position:absolute;right:0;top:42px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-width:200px;z-index:50;}
+@media (max-width:680px){
+  /* ⚠ 2026-07-14: 예전엔 이 메뉴가 버튼 기준 오른쪽 정렬(position:absolute;right:0)이라,
+     버튼이 화면 왼쪽에 있으면 메뉴가 화면 밖(왼쪽)으로 잘려나가 항목이 안 보이는
+     문제가 있었다. position:fixed로 뷰포트 기준 좌우 여백을 고정해서 항상 화면 안에 들어오게 한다. */
+  .lotto-menu{
+    position:fixed;
+    left:12px;
+    right:12px;
+    top:64px;
+    min-width:0;
+    width:auto;
+    max-height:70vh;
+    overflow-y:auto;
+  }
+}
 .lotto-menu.show{display:block;}
 .lotto-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;font-size:12.5px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border-soft);}
 .lotto-item > span:first-child{display:flex;align-items:center;gap:8px;}
