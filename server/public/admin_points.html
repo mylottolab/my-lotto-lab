@@ -85,6 +85,55 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <div class="card">
+    <h2>💰 일자별 입금액 통계 (결제수단 구분)</h2>
+    <p class="desc" style="margin-bottom:10px;">신용카드(이니시스)·계좌이체(무통장입금 승인분)·PayPal 별로 기간 내 입금액을 집계합니다.</p>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <label style="font-size:11.5px;color:var(--text-dim);">단위:</label>
+      <select id="depositsGroupBy" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+        <option value="day">일별</option>
+        <option value="week">주별</option>
+        <option value="month">월별</option>
+      </select>
+      <label style="font-size:11.5px;color:var(--text-dim);margin-left:8px;">기간:</label>
+      <input type="date" id="depositsFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <span style="color:var(--text-dim);font-size:12px;">~</span>
+      <input type="date" id="depositsTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <button onclick="loadDepositStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
+      <button onclick="clearDepositStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>기간</th><th>신용카드</th><th>계좌이체</th><th>PayPal</th><th>기타</th><th>합계</th></tr>
+      </thead>
+      <tbody id="depositStatsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>👥 일자별 가입자 수 통계 (회원/비회원 구분)</h2>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <label style="font-size:11.5px;color:var(--text-dim);">단위:</label>
+      <select id="signupsGroupBy" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+        <option value="day">일별</option>
+        <option value="week">주별</option>
+        <option value="month">월별</option>
+      </select>
+      <label style="font-size:11.5px;color:var(--text-dim);margin-left:8px;">기간:</label>
+      <input type="date" id="signupsFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <span style="color:var(--text-dim);font-size:12px;">~</span>
+      <input type="date" id="signupsTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <button onclick="loadSignupStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
+      <button onclick="clearSignupStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>기간</th><th>회원</th><th>비회원</th><th>합계</th></tr>
+      </thead>
+      <tbody id="signupStatsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
     <h2>👤 회원 명단</h2>
     <p class="desc" style="margin-bottom:12px;">최근 가입순 상위 200명(전체 목록 중 회원만). 전화번호는 아직 수집하는 곳이 없어 비어있습니다.</p>
     <table>
@@ -269,6 +318,8 @@ async function loadAll(){
     renderUsers(users.items);
 
     await loadRevenue();
+    await loadDepositStats();
+    await loadSignupStats();
 
     var footer = await apiGet('/api/admin/settings/marking_footer_text');
     document.getElementById('footerTextInput').value = footer.value || '';
@@ -462,6 +513,102 @@ function clearRevenueDates(){
   document.getElementById('revenueFrom').value = '';
   document.getElementById('revenueTo').value = '';
   loadRevenue();
+}
+
+// ── 일자별 입금액 통계 (결제수단 구분) ──
+var DEPOSIT_METHOD_LABEL = { inicis: '신용카드', bank_transfer: '계좌이체', paypal: 'PayPal', other: '기타' };
+
+async function loadDepositStats(){
+  var from = document.getElementById('depositsFrom').value;
+  var to = document.getElementById('depositsTo').value;
+  var groupBy = document.getElementById('depositsGroupBy').value;
+  var qs = ['groupBy=' + groupBy];
+  if (from) qs.push('from=' + from + 'T00:00:00');
+  if (to) qs.push('to=' + to + 'T23:59:59');
+  try {
+    var result = await apiGet('/api/admin/stats/deposits-daily?' + qs.join('&'));
+    renderDepositStats(result.items, result.grandTotal);
+  } catch(e) {}
+}
+
+function clearDepositStatsDates(){
+  document.getElementById('depositsFrom').value = '';
+  document.getElementById('depositsTo').value = '';
+  loadDepositStats();
+}
+
+function renderDepositStats(items, grand){
+  var body = document.getElementById('depositStatsBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 입금 내역이 없습니다.</td></tr>';
+    return;
+  }
+  var rows = items.map(function(r){
+    return (
+      '<tr>' +
+        '<td>' + r.bucket + '</td>' +
+        '<td>' + r.inicis.toLocaleString() + '원</td>' +
+        '<td>' + r.bank_transfer.toLocaleString() + '원</td>' +
+        '<td>' + r.paypal.toLocaleString() + '원</td>' +
+        '<td>' + r.other.toLocaleString() + '원</td>' +
+        '<td style="font-weight:700;">' + r.total.toLocaleString() + '원</td>' +
+      '</tr>'
+    );
+  }).join('');
+  rows += '<tr style="font-weight:700;">' +
+    '<td>합계</td>' +
+    '<td>' + (grand.inicis||0).toLocaleString() + '원</td>' +
+    '<td>' + (grand.bank_transfer||0).toLocaleString() + '원</td>' +
+    '<td>' + (grand.paypal||0).toLocaleString() + '원</td>' +
+    '<td>' + (grand.other||0).toLocaleString() + '원</td>' +
+    '<td>' + (grand.total||0).toLocaleString() + '원</td>' +
+  '</tr>';
+  body.innerHTML = rows;
+}
+
+// ── 일자별 가입자 수 통계 (회원/비회원 구분) ──
+async function loadSignupStats(){
+  var from = document.getElementById('signupsFrom').value;
+  var to = document.getElementById('signupsTo').value;
+  var groupBy = document.getElementById('signupsGroupBy').value;
+  var qs = ['groupBy=' + groupBy];
+  if (from) qs.push('from=' + from + 'T00:00:00');
+  if (to) qs.push('to=' + to + 'T23:59:59');
+  try {
+    var result = await apiGet('/api/admin/stats/signups-daily?' + qs.join('&'));
+    renderSignupStats(result.items, result.grandTotal);
+  } catch(e) {}
+}
+
+function clearSignupStatsDates(){
+  document.getElementById('signupsFrom').value = '';
+  document.getElementById('signupsTo').value = '';
+  loadSignupStats();
+}
+
+function renderSignupStats(items, grand){
+  var body = document.getElementById('signupStatsBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 가입 내역이 없습니다.</td></tr>';
+    return;
+  }
+  var rows = items.map(function(r){
+    return (
+      '<tr>' +
+        '<td>' + r.bucket + '</td>' +
+        '<td>' + r.member.toLocaleString() + '명</td>' +
+        '<td>' + r.guest.toLocaleString() + '명</td>' +
+        '<td style="font-weight:700;">' + r.total.toLocaleString() + '명</td>' +
+      '</tr>'
+    );
+  }).join('');
+  rows += '<tr style="font-weight:700;">' +
+    '<td>합계</td>' +
+    '<td>' + (grand.member||0).toLocaleString() + '명</td>' +
+    '<td>' + (grand.guest||0).toLocaleString() + '명</td>' +
+    '<td>' + (grand.total||0).toLocaleString() + '명</td>' +
+  '</tr>';
+  body.innerHTML = rows;
 }
 
 function renderRevenue(items, grandTotal){
