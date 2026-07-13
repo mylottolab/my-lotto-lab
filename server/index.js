@@ -262,6 +262,10 @@ app.use('/api/points', pointsRouter);
 const adminRouter = require('./routes/admin');
 app.use('/api/admin', adminRouter);
 
+// ─── 방문 기록(트래킹) — 접속자수/접속경로/국가별 통계용, 2026-07-14 신규 ─────────
+const trackRouter = require('./routes/track');
+app.use('/api/track', trackRouter);
+
 // ─── 무통장입금 ───────────────────────────────────────────────────────────────
 const bankTransferRouter = require('./routes/bank_transfer');
 app.use('/api/payment/bank-transfer', bankTransferRouter);
