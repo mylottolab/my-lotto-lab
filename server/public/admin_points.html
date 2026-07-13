@@ -86,10 +86,11 @@ tr:last-child td{border-bottom:none;}
 
   <div class="card">
     <h2>💰 일자별 입금액 통계 (결제수단 구분)</h2>
-    <p class="desc" style="margin-bottom:10px;">신용카드(이니시스)·계좌이체(무통장입금 승인분)·PayPal 별로 기간 내 입금액을 집계합니다.</p>
+    <p class="desc" style="margin-bottom:10px;">신용카드(이니시스)·계좌이체(무통장입금 승인분)·PayPal 별로 기간 내 입금액을 집계합니다.<br><span style="color:var(--text-faint);font-size:10.5px;">※ 시간대별 선택 시, 표가 너무 길어지지 않도록 기간을 하루~며칠 정도로 좁혀서 조회하시는 걸 추천드려요.</span></p>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
       <label style="font-size:11.5px;color:var(--text-dim);">단위:</label>
       <select id="depositsGroupBy" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+        <option value="hour">시간대별</option>
         <option value="day">일별</option>
         <option value="week">주별</option>
         <option value="month">월별</option>
@@ -114,6 +115,7 @@ tr:last-child td{border-bottom:none;}
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
       <label style="font-size:11.5px;color:var(--text-dim);">단위:</label>
       <select id="signupsGroupBy" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+        <option value="hour">시간대별</option>
         <option value="day">일별</option>
         <option value="week">주별</option>
         <option value="month">월별</option>
@@ -130,6 +132,90 @@ tr:last-child td{border-bottom:none;}
         <tr><th>기간</th><th>회원</th><th>비회원</th><th>합계</th></tr>
       </thead>
       <tbody id="signupStatsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>📈 시간대별/일별/주별/월별 접속자수</h2>
+    <p class="desc" style="margin-bottom:10px;">방문(페이지뷰) 총건수와 순방문자(같은 브라우저 중복 제외) 수를 함께 보여줍니다.</p>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <label style="font-size:11.5px;color:var(--text-dim);">단위:</label>
+      <select id="visitsGroupBy" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+        <option value="hour">시간대별</option>
+        <option value="day" selected>일별</option>
+        <option value="week">주별</option>
+        <option value="month">월별</option>
+      </select>
+      <label style="font-size:11.5px;color:var(--text-dim);margin-left:8px;">기간:</label>
+      <input type="date" id="visitsFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <span style="color:var(--text-dim);font-size:12px;">~</span>
+      <input type="date" id="visitsTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <button onclick="loadVisitStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
+      <button onclick="clearVisitStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>기간</th><th>방문(페이지뷰)</th><th>순방문자</th></tr>
+      </thead>
+      <tbody id="visitStatsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>🧭 접속경로별 통계</h2>
+    <p class="desc" style="margin-bottom:10px;">네이버·구글·카카오/다음·SNS·직접접속(북마크) 등 어디서 들어왔는지 집계합니다.</p>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <label style="font-size:11.5px;color:var(--text-dim);">기간:</label>
+      <input type="date" id="sourceFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <span style="color:var(--text-dim);font-size:12px;">~</span>
+      <input type="date" id="sourceTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <button onclick="loadSourceStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
+      <button onclick="clearSourceStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>유입경로</th><th>방문(페이지뷰)</th><th>순방문자</th></tr>
+      </thead>
+      <tbody id="sourceStatsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>🌏 국가별 접속 통계 (국내/해외 구분)</h2>
+    <p class="desc" style="margin-bottom:10px;">IP 기반 국가 판별이라 100% 정확하진 않지만(VPN 등 예외), 국가 단위로는 충분히 신뢰할 수 있는 수준입니다.</p>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <label style="font-size:11.5px;color:var(--text-dim);">기간:</label>
+      <input type="date" id="countryFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <span style="color:var(--text-dim);font-size:12px;">~</span>
+      <input type="date" id="countryTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <button onclick="loadCountryStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
+      <button onclick="clearCountryStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
+    </div>
+    <div id="countrySummary" style="display:flex;gap:16px;margin-bottom:12px;font-size:12.5px;color:var(--text-dim);"></div>
+    <table>
+      <thead>
+        <tr><th>국가</th><th>방문(페이지뷰)</th><th>순방문자</th></tr>
+      </thead>
+      <tbody id="countryStatsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>📂 방문페이지 통계 (큰 카테고리별)</h2>
+    <p class="desc" style="margin-bottom:10px;">메인/모의테스트/토토·프로토/해외복권/Battles/100전략레이스/회원라운지/결제/관리자 등으로 묶어서 어디가 많이 쓰이는지 보여줍니다.</p>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <label style="font-size:11.5px;color:var(--text-dim);">기간:</label>
+      <input type="date" id="pageFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <span style="color:var(--text-dim);font-size:12px;">~</span>
+      <input type="date" id="pageTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <button onclick="loadPageStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
+      <button onclick="clearPageStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>카테고리</th><th>방문(페이지뷰)</th><th>순방문자</th></tr>
+      </thead>
+      <tbody id="pageStatsBody"></tbody>
     </table>
   </div>
 
@@ -320,6 +406,10 @@ async function loadAll(){
     await loadRevenue();
     await loadDepositStats();
     await loadSignupStats();
+    await loadVisitStats();
+    await loadSourceStats();
+    await loadCountryStats();
+    await loadPageStats();
 
     var footer = await apiGet('/api/admin/settings/marking_footer_text');
     document.getElementById('footerTextInput').value = footer.value || '';
@@ -608,6 +698,175 @@ function renderSignupStats(items, grand){
     '<td>' + (grand.guest||0).toLocaleString() + '명</td>' +
     '<td>' + (grand.total||0).toLocaleString() + '명</td>' +
   '</tr>';
+  body.innerHTML = rows;
+}
+
+// ── 시간대별/일별/주별/월별 접속자수 ──
+async function loadVisitStats(){
+  var from = document.getElementById('visitsFrom').value;
+  var to = document.getElementById('visitsTo').value;
+  var groupBy = document.getElementById('visitsGroupBy').value;
+  var qs = ['groupBy=' + groupBy];
+  if (from) qs.push('from=' + from + 'T00:00:00');
+  if (to) qs.push('to=' + to + 'T23:59:59');
+  try {
+    var result = await apiGet('/api/admin/stats/visits-daily?' + qs.join('&'));
+    renderVisitStats(result.items, result.grandTotal);
+  } catch(e) {}
+}
+
+function clearVisitStatsDates(){
+  document.getElementById('visitsFrom').value = '';
+  document.getElementById('visitsTo').value = '';
+  loadVisitStats();
+}
+
+function renderVisitStats(items, grand){
+  var body = document.getElementById('visitStatsBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 방문 기록이 없습니다.</td></tr>';
+    return;
+  }
+  var rows = items.map(function(r){
+    return (
+      '<tr>' +
+        '<td>' + r.bucket + '</td>' +
+        '<td>' + r.visits.toLocaleString() + '건</td>' +
+        '<td>' + r.uniqueVisitors.toLocaleString() + '명</td>' +
+      '</tr>'
+    );
+  }).join('');
+  rows += '<tr style="font-weight:700;">' +
+    '<td>합계</td>' +
+    '<td>' + (grand.visits||0).toLocaleString() + '건</td>' +
+    '<td>' + (grand.uniqueVisitors||0).toLocaleString() + '명</td>' +
+  '</tr>';
+  body.innerHTML = rows;
+}
+
+// ── 접속경로별 통계 ──
+async function loadSourceStats(){
+  var from = document.getElementById('sourceFrom').value;
+  var to = document.getElementById('sourceTo').value;
+  var qs = [];
+  if (from) qs.push('from=' + from + 'T00:00:00');
+  if (to) qs.push('to=' + to + 'T23:59:59');
+  var path = '/api/admin/stats/visits-by-source' + (qs.length ? ('?' + qs.join('&')) : '');
+  try {
+    var result = await apiGet(path);
+    renderSourceStats(result.items, result.grandTotal);
+  } catch(e) {}
+}
+
+function clearSourceStatsDates(){
+  document.getElementById('sourceFrom').value = '';
+  document.getElementById('sourceTo').value = '';
+  loadSourceStats();
+}
+
+function renderSourceStats(items, grandTotal){
+  var body = document.getElementById('sourceStatsBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 방문 기록이 없습니다.</td></tr>';
+    return;
+  }
+  var rows = items.map(function(r){
+    return (
+      '<tr>' +
+        '<td>' + r.labelKr + '</td>' +
+        '<td>' + r.visits.toLocaleString() + '건</td>' +
+        '<td>' + r.uniqueVisitors.toLocaleString() + '명</td>' +
+      '</tr>'
+    );
+  }).join('');
+  rows += '<tr style="font-weight:700;"><td>합계</td><td>' + (grandTotal||0).toLocaleString() + '건</td><td></td></tr>';
+  body.innerHTML = rows;
+}
+
+// ── 국가별 통계 ──
+async function loadCountryStats(){
+  var from = document.getElementById('countryFrom').value;
+  var to = document.getElementById('countryTo').value;
+  var qs = [];
+  if (from) qs.push('from=' + from + 'T00:00:00');
+  if (to) qs.push('to=' + to + 'T23:59:59');
+  var path = '/api/admin/stats/visits-by-country' + (qs.length ? ('?' + qs.join('&')) : '');
+  try {
+    var result = await apiGet(path);
+    renderCountryStats(result.items, result.summary);
+  } catch(e) {}
+}
+
+function clearCountryStatsDates(){
+  document.getElementById('countryFrom').value = '';
+  document.getElementById('countryTo').value = '';
+  loadCountryStats();
+}
+
+function renderCountryStats(items, summary){
+  var summaryEl = document.getElementById('countrySummary');
+  if (summary) {
+    var domesticPct = summary.total ? (summary.domestic / summary.total * 100).toFixed(1) : '0.0';
+    var foreignPct = summary.total ? (summary.foreign / summary.total * 100).toFixed(1) : '0.0';
+    summaryEl.innerHTML =
+      '<span>🇰🇷 국내: <b style="color:var(--text);">' + summary.domestic.toLocaleString() + '건 (' + domesticPct + '%)</b></span>' +
+      '<span>🌍 해외: <b style="color:var(--text);">' + summary.foreign.toLocaleString() + '건 (' + foreignPct + '%)</b></span>' +
+      (summary.unknown ? '<span>❔ 판별불가: ' + summary.unknown.toLocaleString() + '건</span>' : '');
+  }
+
+  var body = document.getElementById('countryStatsBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 방문 기록이 없습니다.</td></tr>';
+    return;
+  }
+  body.innerHTML = items.map(function(r){
+    var flag = r.country === 'KR' ? '🇰🇷 ' : '';
+    return (
+      '<tr>' +
+        '<td>' + flag + r.countryName + ' (' + r.country + ')</td>' +
+        '<td>' + r.visits.toLocaleString() + '건</td>' +
+        '<td>' + r.uniqueVisitors.toLocaleString() + '명</td>' +
+      '</tr>'
+    );
+  }).join('');
+}
+
+// ── 방문페이지 통계 (큰 카테고리별) ──
+async function loadPageStats(){
+  var from = document.getElementById('pageFrom').value;
+  var to = document.getElementById('pageTo').value;
+  var qs = [];
+  if (from) qs.push('from=' + from + 'T00:00:00');
+  if (to) qs.push('to=' + to + 'T23:59:59');
+  var path = '/api/admin/stats/visits-by-page' + (qs.length ? ('?' + qs.join('&')) : '');
+  try {
+    var result = await apiGet(path);
+    renderPageStats(result.items, result.grandTotal);
+  } catch(e) {}
+}
+
+function clearPageStatsDates(){
+  document.getElementById('pageFrom').value = '';
+  document.getElementById('pageTo').value = '';
+  loadPageStats();
+}
+
+function renderPageStats(items, grandTotal){
+  var body = document.getElementById('pageStatsBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 방문 기록이 없습니다.</td></tr>';
+    return;
+  }
+  var rows = items.map(function(r){
+    return (
+      '<tr>' +
+        '<td>' + r.category + '</td>' +
+        '<td>' + r.visits.toLocaleString() + '건</td>' +
+        '<td>' + r.uniqueVisitors.toLocaleString() + '명</td>' +
+      '</tr>'
+    );
+  }).join('');
+  rows += '<tr style="font-weight:700;"><td>합계</td><td>' + (grandTotal||0).toLocaleString() + '건</td><td></td></tr>';
   body.innerHTML = rows;
 }
 
