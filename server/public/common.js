@@ -302,14 +302,17 @@ MLL.calcPrize = function(grade, result) {
 
 // =====================================================
 // 정렬 (추첨전 상단, 추첨후 하단, 각각 회차 내림차순)
-// 서버가 조회 시점에 항상 최신 status/grade/prizeMoney를 계산해서 내려주므로
-// (구버전에 있던) "추첨됐으나 미확인" 중간 단계는 더 이상 존재하지 않는다.
+// 서버가 조회 시점에 항상 최신 status/grade/prizeMoney를 계산해서 내려준다.
+// ⚠ 2026-07-15: "추첨됐으나 미확인('즉시확인' 안 누른 상태)"인 항목이 여기서
+// preDraw에도 post에도 안 걸려서 목록/정렬 결과에서 통째로 빠지는 버그가 있었다.
+// (지난 회차 번호를 저장해도 목록에 하나도 안 보이던 원인이 바로 이것이었음)
+// '추첨전'이 아니면 전부 post로 묶는다 — renderRow도 이미 그 기준으로 표시한다.
 // =====================================================
 
 MLL.sortEntries = function(entries) {
   var preDraw = entries.filter(function(e){ return e.status === '추첨전'; })
                         .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  var post    = entries.filter(function(e){ return e.status === '추첨후'; })
+  var post    = entries.filter(function(e){ return e.status !== '추첨전'; })
                         .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
   return preDraw.concat(post);
 };
@@ -451,7 +454,7 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
   if (!tbody) return;
 
   var preDraw  = sorted.filter(function(e){ return e.status === '추첨전'; });
-  var postDraw = sorted.filter(function(e){ return e.status === '추첨후'; });
+  var postDraw = sorted.filter(function(e){ return e.status !== '추첨전'; });
 
   // 배지 업데이트
   var badgeEl = document.getElementById('sectionBadge');
