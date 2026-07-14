@@ -43,7 +43,7 @@ router.post('/visit', async (req, res) => {
     // 트래킹은 실패해도 사용자 경험에 영향 주면 안 되므로, 항상 200으로 빠르게 응답부터.
     res.status(204).end();
 
-    const { path, referrer, visitorId } = req.body || {};
+    const { path, referrer, visitorId, entryDomain } = req.body || {};
     const ip = getClientIp(req);
     const geo = ip ? geoip.lookup(ip) : null;
     const countryCode = geo ? geo.country : null; // 'KR', 'US' 등, 조회 실패시 null
@@ -56,6 +56,7 @@ router.post('/visit', async (req, res) => {
       ip_address: ip,
       country_code: countryCode,
       user_agent: (req.headers['user-agent'] || '').slice(0, 300),
+      entry_domain: (entryDomain || '').slice(0, 100) || null,
     });
 
     if (error) console.error('[track] 방문기록 저장 오류:', error);
