@@ -750,10 +750,68 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
 @media (max-width:680px){
   .topbar-inner{height:auto;min-height:54px;padding:10px 16px;}
   .brand-text .t2{display:none;}
+  .tabbar{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    flex-wrap:nowrap;
+    padding:0 14px;
+    scrollbar-width:none;      /* Firefox: 스크롤바 숨김(터치 스와이프는 그대로 작동) */
+  }
+  .tabbar::-webkit-scrollbar{display:none;}  /* Chrome/Safari: 스크롤바 숨김 */
+  .tab-btn{white-space:nowrap;flex-shrink:0;padding:11px 12px;font-size:12px;}
+  .horse-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
+  .mybet-row{flex-direction:column;align-items:flex-start;gap:4px;}
+  .bet-box .bb-row{gap:8px;}
+  .bet-box .bb-row span[style*="margin-left:auto"]{margin-left:0;}
 }
 @media (max-width:420px){
   .stat-grid{grid-template-columns:1fr;}
+  .horse-grid{grid-template-columns:1fr 1fr;}
 }
+
+/* ── 🏇 경마장(베팅) 탭 — 눈에 띄게 다른 톤으로 ── */
+.tab-btn-hot{position:relative;color:var(--red);}
+.tab-btn-hot.active{color:var(--red);border-bottom-color:var(--red);}
+.tab-btn-hot.active .tab-badge{background:rgba(212,83,126,.15);color:var(--red);}
+.hot-badge{display:inline-block;font-size:8.5px;font-weight:800;background:var(--red);color:#fff;padding:1px 5px;border-radius:8px;margin-left:5px;vertical-align:top;animation:hotPulse 1.6s ease-in-out infinite;}
+@keyframes hotPulse{0%,100%{opacity:1;}50%{opacity:.55;}}
+
+.league-section{margin-bottom:26px;}
+.league-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.league-badge{font-size:13px;font-weight:800;padding:5px 14px;border-radius:20px;color:#fff;}
+.league-badge.l1{background:linear-gradient(135deg,#e0b341,#8a6f2f);}
+.league-badge.l2{background:linear-gradient(135deg,#8a9be8,#4b5aa8);}
+.league-badge.l3{background:linear-gradient(135deg,#3fb37f,#1e6b48);}
+.league-badge.l4{background:linear-gradient(135deg,#e8732f,#a3491a);}
+.league-badge.l5{background:linear-gradient(135deg,#7a7a8a,#45454f);}
+.horse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
+.horse-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s, transform .1s;}
+.horse-card:hover{transform:translateY(-2px);border-color:var(--red);}
+.horse-card.selected{border-color:var(--red);box-shadow:0 0 0 1px var(--red);background:rgba(212,83,126,.06);}
+.horse-card-disabled{cursor:not-allowed;opacity:.5;}
+.horse-card-disabled:hover{transform:none;border-color:var(--border-soft);}
+.horse-card .hc-rank{font-size:10px;color:var(--text-faint);}
+.horse-card .hc-name{font-size:13px;font-weight:700;margin-top:2px;}
+.horse-card .hc-prize{font-size:11px;color:var(--gold);margin-top:6px;}
+.horse-card .hc-change{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:8px;margin-top:6px;}
+.horse-card .hc-change.promoted{background:rgba(63,179,127,.15);color:var(--green);}
+.horse-card .hc-change.demoted{background:rgba(212,83,126,.15);color:var(--red);}
+
+.bet-box{position:sticky;bottom:0;background:var(--surface);border:1px solid var(--red);border-radius:14px;padding:16px 18px;margin-top:16px;box-shadow:0 -4px 18px rgba(0,0,0,.35);}
+.bet-box .bb-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.bet-box input[type=number]{width:90px;background:var(--bg);border:1px solid var(--border-soft);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;}
+.btn-bet{background:var(--red);color:#fff;border:none;border-radius:9px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-bet:disabled{opacity:.4;cursor:not-allowed;}
+
+.change-list{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media (max-width:680px){ .change-list{grid-template-columns:1fr;} }
+.change-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface);border-radius:8px;margin-bottom:6px;font-size:12.5px;}
+
+.mybet-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid var(--border-soft);font-size:12.5px;}
+.mybet-status{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.mybet-status.pending{background:rgba(224,179,65,.15);color:var(--gold);}
+.mybet-status.won{background:rgba(63,179,127,.15);color:var(--green);}
+.mybet-status.lost{background:rgba(212,83,126,.15);color:var(--red);}
 </style>
 </head>
 <body>
@@ -813,6 +871,7 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
   <button class="tab-btn" data-tab="round" onclick="RACE.switchTab('round')">📅 <span data-i18n-kr="회차별 결과" data-i18n-en="Results by Round">회차별 결과</span></button>
   <button class="tab-btn" data-tab="period" onclick="RACE.switchTab('period')">📊 <span data-i18n-kr="기간별 통계" data-i18n-en="Stats by Period">기간별 통계</span></button>
   <button class="tab-btn" data-tab="next" onclick="RACE.switchTab('next')">🎯 <span data-i18n-kr="다음회차 예상번호" data-i18n-en="Next Round Picks">다음회차 예상번호</span></button>
+  <button class="tab-btn tab-btn-hot" data-tab="betting" onclick="RACE.switchTab('betting')">🏇 <span data-i18n-kr="경마장" data-i18n-en="Racetrack">경마장</span><span class="hot-badge">NEW</span></button>
 </div>
 
 <div class="tabpanel" id="tabpanel" style="display:none;">
@@ -879,6 +938,63 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
     </div>
   </div>
 
+  <!-- 🏇 경마장(베팅) -->
+  <div class="tabpanel-section" id="panel-betting">
+    <div class="filter-row" style="justify-content:space-between;">
+      <span class="filter-label" id="bettingRoundLabel" style="font-size:13px;font-weight:700;color:var(--red);"></span>
+      <span class="filter-label" id="bettingPointsLabel" style="font-size:12px;"></span>
+    </div>
+
+    <div id="bettingEmptyMsg" class="empty-desc" style="display:none;text-align:center;padding:30px 10px;color:var(--text-dim);"></div>
+
+    <div id="bettingLeaguesWrap"></div>
+
+    <div class="bet-box" id="betBox" style="display:none;">
+      <div class="bb-row">
+        <span style="font-size:12.5px;color:var(--text-dim);">선택한 말:</span>
+        <b id="betSelectedHorse" style="color:var(--red);"></b>
+        <span style="font-size:12.5px;color:var(--text-dim);margin-left:auto;">구좌수(1구좌=100P)</span>
+        <input type="number" id="betUnits" value="1" min="1" step="1">
+        <button class="btn-bet" id="btnPlaceBet" onclick="RACE.placeBet()">🏇 베팅하기</button>
+      </div>
+    </div>
+
+    <div style="margin-top:34px;">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;">📢 이번 회차 승격·강등 소식</h3>
+      <div class="change-list">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:6px;">⬆️ 승격</div>
+          <div id="promotedList"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px;">⬇️ 강등</div>
+          <div id="demotedList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:34px;">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;">🎫 내 베팅내역</h3>
+      <div id="myBetsList"></div>
+    </div>
+
+    <div style="margin-top:34px;">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;">📜 리그별 우승마 이력</h3>
+      <div class="filter-row">
+        <span class="filter-label">부(리그)</span>
+        <select class="filter-select" id="historyLeagueSel" onchange="RACE.loadLeagueHistory()">
+          <option value="1">1부</option>
+          <option value="2">2부</option>
+          <option value="3">3부</option>
+          <option value="4">4부</option>
+          <option value="5">5부</option>
+        </select>
+      </div>
+      <div class="race-table-wrap">
+        <table class="race-table" id="leagueHistoryTable"></table>
+      </div>
+    </div>
+  </div>
 
 </div>
 
@@ -1912,6 +2028,232 @@ RACE.confirmAutoRun = function(){
 RACE.switchTab = function(tab){
   document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab===tab); });
   document.querySelectorAll('.tabpanel-section').forEach(function(p){ p.classList.toggle('active', p.id==='panel-'+tab); });
+  if (tab === 'betting') RACE.loadBettingTab();
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// 🏇 경마장 (100전략 레이스 베팅) — 2026-07-14 신규
+// ═══════════════════════════════════════════════════════════════════
+RACE.betting = { round: null, selectedLeague: null, selectedHorse: null, leagues: {} };
+
+RACE.loadBettingTab = async function(){
+  await Promise.all([
+    RACE.loadLeagues(),
+    RACE.loadLeagueChanges(),
+    RACE.loadMyBets(),
+    RACE.loadLeagueHistory(),
+    RACE.refreshBettingPoints(),
+  ]);
+};
+
+// ── 포인트 잔액 표시 (로그인 상태면) ──
+RACE.refreshBettingPoints = async function(){
+  var el = document.getElementById('bettingPointsLabel');
+  var state = (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type:null };
+  if (!state.type) { el.textContent = ''; return; }
+  try {
+    var qs = state.type==='guest' ? ('?nickname='+encodeURIComponent(state.nickname)+'&email='+encodeURIComponent(state.email)) : '';
+    var headers = {};
+    if (state.type==='member') {
+      var freshToken = await MLL.ensureFreshToken();
+      if (freshToken && freshToken !== 'guest') headers['Authorization'] = 'Bearer ' + freshToken;
+    }
+    var resp = await fetch(MLL.API_BASE + '/api/points/balance' + qs, { headers: headers });
+    var data = await resp.json();
+    if (resp.ok) el.textContent = '💰 보유 포인트: ' + (data.total||0).toLocaleString() + 'P';
+  } catch(e) {}
+};
+
+// ── 리그 편성(5부 x 20마리) 불러와서 그리기 ──
+RACE.loadLeagues = async function(){
+  var wrap = document.getElementById('bettingLeaguesWrap');
+  var emptyMsg = document.getElementById('bettingEmptyMsg');
+  wrap.innerHTML = '';
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/race-betting/leagues');
+    var data = await resp.json();
+    if (!resp.ok || !data.round) {
+      emptyMsg.style.display = 'block';
+      emptyMsg.textContent = '아직 리그가 편성되지 않았습니다. 다음 회차 편성 후 다시 확인해주세요.';
+      document.getElementById('bettingRoundLabel').textContent = '';
+      return;
+    }
+    emptyMsg.style.display = 'none';
+    RACE.betting.round = data.round;
+    RACE.betting.leagues = data.leagues;
+    RACE.betting.open = data.bettingOpen;
+
+    var statusHtml;
+    if (data.bettingOpen) {
+      var closeKst = new Date(new Date(data.nextCloseAt).getTime() + 9*3600*1000);
+      statusHtml = '🏇 ' + RACE.roundLabel(data.round) + ' 베팅 접수 중 <span style="color:var(--text-dim);font-weight:400;">(이번주 토요일 20:00 마감)</span>';
+    } else {
+      var openKst = new Date(new Date(data.nextOpenAt).getTime() + 9*3600*1000);
+      var openStr = (openKst.getUTCMonth()+1) + '/' + openKst.getUTCDate() + ' ' + String(openKst.getUTCHours()).padStart(2,'0') + ':00';
+      statusHtml = '⏸️ 지금은 베팅 마감 시간입니다 <span style="color:var(--text-dim);font-weight:400;">(' + openStr + '에 재개)</span>';
+    }
+    document.getElementById('bettingRoundLabel').textContent = '';
+    document.getElementById('bettingRoundLabel').innerHTML = statusHtml;
+
+    var leagueNames = { 1:'1부', 2:'2부', 3:'3부', 4:'4부', 5:'5부' };
+    wrap.innerHTML = [1,2,3,4,5].map(function(league){
+      var horses = data.leagues[league] || [];
+      var horsesHtml = horses.map(function(h){
+        var clickAttr = data.bettingOpen ? (' onclick="RACE.selectHorse('+league+','+h.strategyNo+',\''+h.name.replace(/'/g,"\\'")+'\')"') : '';
+        return '<div class="horse-card' + (data.bettingOpen ? '' : ' horse-card-disabled') + '" data-league="'+league+'" data-horse="'+h.strategyNo+'"' + clickAttr + '>' +
+          '<div class="hc-rank">랭킹 #' + h.rankInLeague + ' (전체 ' + h.overallRank + '위)</div>' +
+          '<div class="hc-name">🐎 ' + h.name + '</div>' +
+          '<div class="hc-prize">누적 ' + (h.cumulativePrize||0).toLocaleString() + 'P</div>' +
+        '</div>';
+      }).join('');
+      return '<div class="league-section">' +
+        '<div class="league-header"><span class="league-badge l'+league+'">' + leagueNames[league] + '</span>' +
+        '<span style="font-size:11.5px;color:var(--text-dim);">' + horses.length + '마리</span></div>' +
+        '<div class="horse-grid">' + horsesHtml + '</div>' +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    emptyMsg.style.display = 'block';
+    emptyMsg.textContent = '불러오는 중 오류가 발생했습니다.';
+  }
+};
+
+// ── 말 선택 (베팅 박스 표시) ──
+RACE.selectHorse = function(league, strategyNo, name){
+  if (!RACE.betting.open) { alert('지금은 베팅 마감 시간입니다.'); return; }
+  RACE.betting.selectedLeague = league;
+  RACE.betting.selectedHorse = strategyNo;
+  document.querySelectorAll('.horse-card').forEach(function(el){
+    el.classList.toggle('selected', Number(el.dataset.league)===league && Number(el.dataset.horse)===strategyNo);
+  });
+  document.getElementById('betSelectedHorse').textContent = (['','1부','2부','3부','4부','5부'][league]) + ' · 🐎 ' + name;
+  document.getElementById('betBox').style.display = 'block';
+  document.getElementById('betBox').scrollIntoView({ behavior:'smooth', block:'nearest' });
+};
+
+// ── 베팅 실행 ──
+RACE.placeBet = async function(){
+  var league = RACE.betting.selectedLeague;
+  var strategyNo = RACE.betting.selectedHorse;
+  var round = RACE.betting.round;
+  var units = Math.max(1, parseInt(document.getElementById('betUnits').value) || 1);
+  if (!league || !strategyNo || !round) { alert('베팅할 말을 먼저 선택해주세요.'); return; }
+
+  if (!confirm('이 베팅으로 ' + (units*100).toLocaleString() + 'P가 차감됩니다. 계속하시겠어요?')) return;
+
+  var state = (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type:null };
+  if (!state.type) { if (window.MLL && MLL.requireAuth) MLL.requireAuth(function(){}); return; }
+
+  var body = { round: round, league: league, strategyNo: strategyNo, units: units };
+  var headers = { 'Content-Type': 'application/json' };
+  if (state.type === 'member') {
+    var freshToken = await MLL.ensureFreshToken();
+    if (!freshToken || freshToken === 'guest') { alert('로그인이 만료됐습니다. 다시 로그인해주세요.'); return; }
+    headers['Authorization'] = 'Bearer ' + freshToken;
+  } else {
+    body.nickname = state.nickname; body.email = state.email;
+  }
+
+  var btn = document.getElementById('btnPlaceBet');
+  btn.disabled = true; var originalText = btn.textContent; btn.textContent = '처리 중...';
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/race-betting/bet', {
+      method: 'POST', headers: headers, body: JSON.stringify(body)
+    });
+    var data = await resp.json();
+    if (!resp.ok) {
+      if (resp.status === 402) alert('포인트가 부족합니다.\n현재 잔액: ' + ((data.balance&&data.balance.total)||0).toLocaleString() + 'P');
+      else if (resp.status === 403) alert(data.error);
+      else alert('베팅 실패: ' + (data.error || resp.status));
+      return;
+    }
+    alert('🏇 베팅이 등록되었습니다!');
+    document.getElementById('betBox').style.display = 'none';
+    RACE.betting.selectedLeague = null; RACE.betting.selectedHorse = null;
+    document.querySelectorAll('.horse-card').forEach(function(el){ el.classList.remove('selected'); });
+    await Promise.all([RACE.loadMyBets(), RACE.refreshBettingPoints()]);
+  } catch(e) {
+    alert('네트워크 오류: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = originalText;
+  }
+};
+
+// ── 승격/강등 목록 ──
+RACE.loadLeagueChanges = async function(){
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/race-betting/league-changes');
+    var data = await resp.json();
+    var promotedEl = document.getElementById('promotedList');
+    var demotedEl = document.getElementById('demotedList');
+    if (!resp.ok || !data.round) { promotedEl.innerHTML = demotedEl.innerHTML = '<div style="color:var(--text-faint);font-size:12px;">데이터 없음</div>'; return; }
+
+    var leagueNames = { 1:'1부', 2:'2부', 3:'3부', 4:'4부', 5:'5부' };
+    function itemHtml(h){
+      return '<div class="change-item"><span>🐎 ' + h.name + '</span><span style="color:var(--text-dim);">' + leagueNames[h.previousLeague] + ' → ' + leagueNames[h.newLeague] + '</span></div>';
+    }
+    promotedEl.innerHTML = data.promoted.length ? data.promoted.map(itemHtml).join('') : '<div style="color:var(--text-faint);font-size:12px;">이번엔 승격한 말이 없습니다.</div>';
+    demotedEl.innerHTML = data.demoted.length ? data.demoted.map(itemHtml).join('') : '<div style="color:var(--text-faint);font-size:12px;">이번엔 강등한 말이 없습니다.</div>';
+  } catch(e) {}
+};
+
+// ── 내 베팅내역 ──
+RACE.loadMyBets = async function(){
+  var el = document.getElementById('myBetsList');
+  var state = (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type:null };
+  if (!state.type) { el.innerHTML = '<div style="color:var(--text-faint);font-size:12.5px;">로그인하시면 내 베팅내역을 볼 수 있습니다.</div>'; return; }
+
+  try {
+    var qs = state.type==='guest' ? ('?nickname='+encodeURIComponent(state.nickname)+'&email='+encodeURIComponent(state.email)) : '';
+    var headers = {};
+    if (state.type==='member') {
+      var freshToken = await MLL.ensureFreshToken();
+      if (freshToken && freshToken !== 'guest') headers['Authorization'] = 'Bearer ' + freshToken;
+    }
+    var resp = await fetch(MLL.API_BASE + '/api/race-betting/my-bets' + qs, { headers: headers });
+    var data = await resp.json();
+    if (!resp.ok) { el.innerHTML = '<div style="color:var(--text-faint);font-size:12.5px;">조회 실패</div>'; return; }
+    if (!data.items.length) { el.innerHTML = '<div style="color:var(--text-faint);font-size:12.5px;">베팅 내역이 없습니다.</div>'; return; }
+
+    var leagueNames = { 1:'1부', 2:'2부', 3:'3부', 4:'4부', 5:'5부' };
+    var statusLabel = { pending:'추첨대기', won:'적중', lost:'낙첨' };
+    el.innerHTML = data.items.map(function(b){
+      return '<div class="mybet-row">' +
+        '<span>' + RACE.roundLabel(b.round) + ' · ' + leagueNames[b.league] + ' · 전략' + b.strategy_no + '번 · ' + b.units + '구좌(' + b.amount.toLocaleString() + 'P)</span>' +
+        '<span class="mybet-status ' + b.status + '">' + statusLabel[b.status] + (b.status==='won' ? ' +'+b.payout.toLocaleString()+'P' : '') + '</span>' +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="color:var(--text-faint);font-size:12.5px;">조회 중 오류가 발생했습니다.</div>';
+  }
+};
+
+// ── 리그별 우승마 이력 ──
+RACE.loadLeagueHistory = async function(){
+  var league = document.getElementById('historyLeagueSel').value;
+  var table = document.getElementById('leagueHistoryTable');
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/race-betting/history/' + league);
+    var data = await resp.json();
+    if (!resp.ok || !data.items.length) {
+      table.innerHTML = '<tr><td style="padding:16px;color:var(--text-faint);">아직 정산된 이력이 없습니다.</td></tr>';
+      return;
+    }
+    table.innerHTML =
+      '<tr><th>회차</th><th>우승마</th><th>획득상금</th><th>총 베팅금액</th><th>1구좌당 배당</th></tr>' +
+      data.items.map(function(h){
+        var winnerNames = h.winners.map(function(w){ return '🐎 '+w.name; }).join(', ');
+        return '<tr>' +
+          '<td>' + RACE.roundLabel(h.round) + '</td>' +
+          '<td>' + winnerNames + '</td>' +
+          '<td>' + h.roundPrize.toLocaleString() + 'P</td>' +
+          '<td>' + h.poolAmount.toLocaleString() + 'P (' + h.totalUnits + '구좌)</td>' +
+          '<td style="color:var(--gold);font-weight:700;">' + h.payoutPerUnit.toLocaleString() + 'P</td>' +
+        '</tr>';
+      }).join('');
+  } catch(e) {
+    table.innerHTML = '<tr><td style="padding:16px;color:var(--text-faint);">조회 중 오류가 발생했습니다.</td></tr>';
+  }
 };
 
 // 회차 선택 드롭다운들: "이미 시뮬레이션된 회차" = range.min ~ meta.lastSimulatedRound
