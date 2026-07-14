@@ -266,6 +266,13 @@ app.use('/api/admin', adminRouter);
 const trackRouter = require('./routes/track');
 app.use('/api/track', trackRouter);
 
+// ─── 누적 게시판 (본 사이트 이용법 / 공지 및 안내사항) — 2026-07-15 신규 ─────────
+const boardRouter = require('./routes/board');
+app.use('/api/board', boardRouter);
+
+const boardAdminRouter = require('./routes/board_admin');
+app.use('/api/admin/board', boardAdminRouter);
+
 // ─── 무통장입금 ───────────────────────────────────────────────────────────────
 const bankTransferRouter = require('./routes/bank_transfer');
 app.use('/api/payment/bank-transfer', bankTransferRouter);
