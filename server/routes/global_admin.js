@@ -101,6 +101,27 @@ router.post('/draws', requireAdmin, async (req, res) => {
 
     await checkTicketsForSchedule(schedule.id, inserted.id, game_code);
 
+    // ⚠ 2026-07-14 추가: 이 화면(실전테스트용 global_lottery_draws)과 모의테스트/
+    // 역대당첨번호 다운로드(2,500P)가 보는 mocktest_global_draws는 원래 서로 다른
+    // 테이블이라, 여기 입력해도 그쪽엔 반영이 안 되고 mocktest_admin_entry.html에
+    // 똑같은 걸 또 입력해야 하는 이중입력 상태였다. 한 번 입력으로 둘 다 채워지도록
+    // 같은 데이터를 mocktest_global_draws에도 그대로 미러링한다.
+    // (이 미러링이 실패해도 원래 목적인 실전테스트 결과 저장 자체는 이미 완료된
+    //  상태이므로, 요청 전체를 실패시키지 않고 경고만 남긴다.)
+    try {
+      const { error: mirrorErr } = await supabase
+        .from('mocktest_global_draws')
+        .upsert(
+          { game_code, draw_date, main_numbers, bonus_numbers },
+          { onConflict: 'game_code,draw_date' }
+        );
+      if (mirrorErr) {
+        console.error('[global-admin] mocktest_global_draws 미러링 오류 (실전테스트 저장은 정상 완료됨):', mirrorErr);
+      }
+    } catch (mirrorErr) {
+      console.error('[global-admin] mocktest_global_draws 미러링 예외 (실전테스트 저장은 정상 완료됨):', mirrorErr);
+    }
+
     return res.json({ success: true, draw: inserted });
   } catch (err) {
     console.error('[global-admin] 수동 확정결과 입력 오류:', err);
