@@ -962,7 +962,7 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
       <div class="bb-row">
         <span style="font-size:12.5px;color:var(--text-dim);">선택한 말:</span>
         <b id="betSelectedHorse" style="color:var(--red);"></b>
-        <span style="font-size:12.5px;color:var(--text-dim);margin-left:auto;">구좌수(1구좌=100P)</span>
+        <span id="betUnitPriceLabel" style="font-size:12.5px;color:var(--text-dim);margin-left:auto;">구좌수(1구좌=100P)</span>
         <input type="number" id="betUnits" value="1" min="1" step="1">
         <button class="btn-bet" id="btnPlaceBet" onclick="RACE.placeBet()">🏇 베팅하기</button>
       </div>
@@ -2043,7 +2043,7 @@ RACE.switchTab = function(tab){
 // ═══════════════════════════════════════════════════════════════════
 // 🏇 경마장 (100전략 레이스 베팅) — 2026-07-14 신규
 // ═══════════════════════════════════════════════════════════════════
-RACE.betting = { round: null, selectedLeague: null, selectedHorse: null, leagues: {} };
+RACE.betting = { round: null, selectedLeague: null, selectedHorse: null, leagues: {}, unitPrice: 100 };
 
 RACE.loadBettingTab = async function(){
   await Promise.all([
@@ -2091,6 +2091,8 @@ RACE.loadLeagues = async function(){
     RACE.betting.round = data.round;
     RACE.betting.leagues = data.leagues;
     RACE.betting.open = data.bettingOpen;
+    RACE.betting.unitPrice = data.unitPrice || 100;
+    document.getElementById('betUnitPriceLabel').textContent = '구좌수(1구좌=' + RACE.betting.unitPrice.toLocaleString() + 'P)';
 
     var statusHtml;
     if (data.bettingOpen) {
@@ -2149,7 +2151,7 @@ RACE.placeBet = async function(){
   var units = Math.max(1, parseInt(document.getElementById('betUnits').value) || 1);
   if (!league || !strategyNo || !round) { alert('베팅할 말을 먼저 선택해주세요.'); return; }
 
-  if (!confirm('이 베팅으로 ' + (units*100).toLocaleString() + 'P가 차감됩니다. 계속하시겠어요?')) return;
+  if (!confirm('이 베팅으로 ' + (units*RACE.betting.unitPrice).toLocaleString() + 'P가 차감됩니다. 계속하시겠어요?')) return;
 
   var state = (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type:null };
   if (!state.type) { if (window.MLL && MLL.requireAuth) MLL.requireAuth(function(){}); return; }
