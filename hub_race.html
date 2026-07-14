@@ -104,9 +104,9 @@ var STR = {
   th_win_count: { kr: '당첨건수', en: 'Win Count' },
   th_win_rate: { kr: '당첨율', en: 'Win Rate' },
   th_generated: { kr: '생성건수', en: 'Generated' },
-  th_detail: { kr: '상세', en: 'Detail' },
+  th_detail: { kr: '상세전략', en: 'Strategy Detail' },
   th_get_recommend: { kr: '이번주 추첨분<br>추천번호 받기', en: "Get This Week's<br>Recommended Numbers" },
-  btn_detail_view: { kr: '상세보기', en: 'View Detail' },
+  btn_detail_view: { kr: '상세전략', en: 'Strategy Detail' },
   no_data_table: { kr: '데이터가 없습니다', en: 'No data available' },
   th_grades_1to5: { kr: '1/2/3/4/5등', en: '1st/2nd/3rd/4th/5th' },
   btn_download: { kr: '📥 다운로드', en: '📥 Download' },
@@ -794,6 +794,8 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
 .horse-card .hc-rank{font-size:10px;color:var(--text-faint);}
 .horse-card .hc-name{font-size:13px;font-weight:700;margin-top:2px;}
 .horse-card .hc-prize{font-size:11px;color:var(--gold);margin-top:6px;}
+.hc-detail-btn{display:block;width:100%;margin-top:8px;background:var(--surface-2);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:7px;padding:5px 0;font-size:10.5px;font-weight:700;cursor:pointer;}
+.hc-detail-btn:hover{border-color:var(--gold-dim);color:var(--gold);}
 .hc-type{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;margin-top:6px;}
 .hc-type-cond{background:rgba(138,155,232,.15);color:#8a9be8;}   /* 전략중시형 - 파랑 */
 .hc-type-fixed{background:rgba(224,179,65,.15);color:var(--gold);}  /* 일편단심형 - 금색 */
@@ -2064,6 +2066,17 @@ RACE.switchTab = function(tab){
 // ═══════════════════════════════════════════════════════════════════
 // 🏇 경마장 (100전략 레이스 베팅) — 2026-07-14 신규
 // ═══════════════════════════════════════════════════════════════════
+// ── 경마장 카드 전용: 상세전략을 모달이 아니라 별도 창으로 열기 ──
+// (모바일에서는 브라우저가 window.open 크기를 대부분 무시하고 새 탭/전체화면으로
+//  열어주기 때문에, strategy_detail.html 자체를 반응형으로 만들어 자리를 잡도록 함)
+RACE.openStrategyWindow = function(strategyNo){
+  window.open(
+    'strategy_detail.html?no=' + strategyNo,
+    'mllStrategyDetail_' + strategyNo,
+    'width=460,height=720,scrollbars=yes,resizable=yes'
+  );
+};
+
 RACE.betting = { round: null, selectedLeague: null, selectedHorse: null, leagues: {}, unitPrice: 100, myBetsMap: {} };
 
 RACE.loadBettingTab = async function(){
@@ -2169,6 +2182,7 @@ RACE.loadLeagues = async function(){
           '<div class="hc-name">🐎 ' + h.name + '</div>' +
           '<span class="hc-type hc-type-' + h.horseType + '">' + h.horseTypeLabel + '</span>' +
           '<div class="hc-prize">누적 ' + (h.cumulativePrize||0).toLocaleString() + 'P</div>' +
+          '<button type="button" class="hc-detail-btn" onclick="event.stopPropagation();RACE.openStrategyWindow(' + h.strategyNo + ')">상세전략</button>' +
           myBetHtml +
         '</div>';
       }).join('');
@@ -2526,12 +2540,13 @@ RACE.renderRound = async function(){
       '<td class="font-num">'+RACE.fmtPct(winRate)+'</td>' +
       '<td class="font-num">'+x.gradeCounts[1]+' / '+x.gradeCounts[2]+' / '+x.gradeCounts[3]+' / '+x.gradeCounts[4]+' / '+x.gradeCounts[5]+'</td>' +
       '<td class="font-num"><a href="javascript:void(0)" class="combo-link" onclick="RACE.openComboDetail('+round+','+x.no+')">'+x.generated+T('combos_view_suffix')+'</a></td>' +
+      '<td><button class="dl-btn" onclick="RACE.openDetail('+x.no+')">'+T('btn_detail_view')+'</button></td>' +
       '</tr>';
   }).join('');
 
   document.getElementById('roundTable').innerHTML =
-    '<thead><tr><th>'+T('th_rank')+'</th><th>'+T('th_tendency')+'</th><th style="text-align:left;">'+T('th_name')+'</th><th>'+T('th_prize')+'</th><th>'+T('th_win_count')+'</th><th>'+T('th_win_rate')+'</th><th>'+T('th_grades_1to5')+'</th><th>'+T('th_submitted_combos')+'</th></tr></thead>' +
-    '<tbody>'+(rowsHtml || '<tr><td colspan="8" style="padding:30px;color:var(--text-faint);">'+T('no_data_table')+'</td></tr>')+'</tbody>';
+    '<thead><tr><th>'+T('th_rank')+'</th><th>'+T('th_tendency')+'</th><th style="text-align:left;">'+T('th_name')+'</th><th>'+T('th_prize')+'</th><th>'+T('th_win_count')+'</th><th>'+T('th_win_rate')+'</th><th>'+T('th_grades_1to5')+'</th><th>'+T('th_submitted_combos')+'</th><th>'+T('th_detail')+'</th></tr></thead>' +
+    '<tbody>'+(rowsHtml || '<tr><td colspan="9" style="padding:30px;color:var(--text-faint);">'+T('no_data_table')+'</td></tr>')+'</tbody>';
 };
 
 // ── 기간별 통계 탭 ──
@@ -2565,12 +2580,13 @@ RACE.renderPeriod = async function(){
       '<td class="font-num">'+RACE.fmtPct(winRate)+'</td>' +
       '<td class="font-num">'+x.gradeCounts[1]+' / '+x.gradeCounts[2]+' / '+x.gradeCounts[3]+' / '+x.gradeCounts[4]+' / '+x.gradeCounts[5]+'</td>' +
       '<td class="font-num">'+x.generated.toLocaleString()+T('combos_unit_no_space')+'</td>' +
+      '<td><button class="dl-btn" onclick="RACE.openDetail('+x.no+')">'+T('btn_detail_view')+'</button></td>' +
       '</tr>';
   }).join('');
 
   document.getElementById('periodTable').innerHTML =
-    '<thead><tr><th>'+T('th_rank')+'</th><th>'+T('th_tendency')+'</th><th style="text-align:left;">'+T('th_name')+'</th><th>'+T('th_cum_prize')+'</th><th>'+T('th_win_count')+'</th><th>'+T('th_win_rate')+'</th><th>'+T('th_grades_1to5')+'</th><th>'+T('th_generated')+'</th></tr></thead>' +
-    '<tbody>'+(rows || '<tr><td colspan="8" style="padding:30px;color:var(--text-faint);">'+T('no_data_table')+'</td></tr>')+'</tbody>';
+    '<thead><tr><th>'+T('th_rank')+'</th><th>'+T('th_tendency')+'</th><th style="text-align:left;">'+T('th_name')+'</th><th>'+T('th_cum_prize')+'</th><th>'+T('th_win_count')+'</th><th>'+T('th_win_rate')+'</th><th>'+T('th_grades_1to5')+'</th><th>'+T('th_generated')+'</th><th>'+T('th_detail')+'</th></tr></thead>' +
+    '<tbody>'+(rows || '<tr><td colspan="9" style="padding:30px;color:var(--text-faint);">'+T('no_data_table')+'</td></tr>')+'</tbody>';
 };
 
 // ── 다음회차 예상번호 탭 ──
