@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 게시판 관리</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px 80px; color: #222; background:#f7f8fb; }
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  .hint { font-size: 12.5px; color: #777; margin-bottom: 18px; }
+  .adminkey-box { background: #fff; border: 1px solid #ddd; padding: 14px; border-radius: 8px; margin-bottom: 22px; }
+  .adminkey-box label { display:block; font-size:12.5px; font-weight:700; color:#444; margin-bottom:6px; }
+  .adminkey-box input { width:100%; box-sizing:border-box; padding:9px; font-size:14px; border:1px solid #ccc; border-radius:6px; }
+
+  .board-tabs { display:flex; gap:8px; margin-bottom:18px; }
+  .board-tab { flex:1; text-align:center; padding:12px; background:#fff; border:1px solid #ddd; border-radius:8px; cursor:pointer; font-size:13.5px; font-weight:700; color:#666; }
+  .board-tab.active { background:#222; color:#fff; border-color:#222; }
+
+  .card { background:#fff; border:1px solid #e2e2e8; border-radius:10px; padding:20px; margin-bottom:22px; }
+  .card h2 { font-size:15px; margin-bottom:14px; }
+  label.field-label { display:block; font-size:12px; font-weight:700; color:#555; margin-top:12px; margin-bottom:4px; }
+  input[type=text], textarea {
+    width:100%; box-sizing:border-box; padding:9px; font-size:13.5px; border:1px solid #ccc; border-radius:6px; font-family:inherit;
+  }
+  textarea { min-height:220px; resize:vertical; font-family:Consolas,Menlo,monospace; font-size:12.5px; line-height:1.6; }
+  .content-hint { font-size:11px; color:#888; margin-top:4px; line-height:1.6; background:#f4f4f8; padding:8px 10px; border-radius:6px; }
+  button.btn { margin-top:18px; padding:10px 22px; font-size:13.5px; font-weight:700; background:#222; color:#fff; border:none; border-radius:7px; cursor:pointer; }
+  button.btn.cancel { background:#999; margin-left:8px; }
+  .result { margin-top:12px; padding:10px; border-radius:6px; font-size:12.5px; white-space:pre-wrap; }
+  .result.ok { background:#e6f7ee; color:#1a7d4a; }
+  .result.err { background:#fdeaea; color:#b91c1c; }
+
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { padding:9px 8px; border-bottom:1px solid #eee; text-align:left; vertical-align:top; }
+  th { color:#777; font-weight:700; font-size:11.5px; }
+  .row-actions button { padding:5px 10px; font-size:11.5px; margin:0 3px 0 0; border-radius:5px; border:1px solid #ccc; background:#fff; cursor:pointer; }
+  .row-actions button.danger { color:#b91c1c; border-color:#f0b8b8; }
+  .empty { text-align:center; color:#999; padding:24px; font-size:12.5px; }
+</style>
+</head>
+<body>
+
+<h1>📋 게시판 관리</h1>
+<p class="hint">"본 사이트 이용법" · "공지 및 안내사항" — 회원 라운지 상단에서 팝업으로 표시되는 누적 게시판입니다. 관리자만 작성·수정·삭제할 수 있고, 이용자는 읽기만 가능합니다(댓글 없음).</p>
+
+<div class="adminkey-box">
+  <label>관리자 키 (ADMIN_API_KEY)</label>
+  <input type="password" id="adminKeyInput" placeholder="관리자 키 입력 (이 브라우저에만 기억됨)">
+</div>
+
+<div class="board-tabs">
+  <div class="board-tab active" id="tabHowto" onclick="switchBoard('howto')">📖 본 사이트 이용법</div>
+  <div class="board-tab" id="tabNotice" onclick="switchBoard('notice')">📢 공지 및 안내사항</div>
+</div>
+
+<div class="card">
+  <h2 id="formTitle">✏️ 새 글 작성</h2>
+  <input type="hidden" id="editingId" value="">
+  <label class="field-label">제목</label>
+  <input type="text" id="postTitle" placeholder="게시글 제목">
+
+  <label class="field-label">내용</label>
+  <textarea id="postContent" placeholder="본문 내용을 입력하세요."></textarea>
+  <div class="content-hint">
+    💡 이미지: <code>&lt;img src="이미지주소" style="max-width:100%;"&gt;</code><br>
+    💡 유튜브 영상: <code>&lt;iframe width="100%" height="315" src="https://www.youtube.com/embed/영상ID" frameborder="0" allowfullscreen&gt;&lt;/iframe&gt;</code><br>
+    💡 줄바꿈: <code>&lt;br&gt;</code> 또는 <code>&lt;p&gt;문단&lt;/p&gt;</code>
+  </div>
+
+  <button class="btn" onclick="savePost()">저장</button>
+  <button class="btn cancel" id="btnCancelEdit" style="display:none;" onclick="cancelEdit()">취소</button>
+  <div id="formResult"></div>
+</div>
+
+<div class="card">
+  <h2 id="listTitle">📖 본 사이트 이용법 — 게시글 목록</h2>
+  <table>
+    <thead><tr><th>제목</th><th>작성일</th><th style="width:140px;"></th></tr></thead>
+    <tbody id="postsBody"></tbody>
+  </table>
+  <div id="emptyMsg" class="empty" style="display:none;">등록된 게시글이 없습니다.</div>
+</div>
+
+<script>
+var API = 'https://my-lotto-lab-api.onrender.com';
+var currentBoard = 'howto';
+var BOARD_LABEL = { howto: '본 사이트 이용법', notice: '공지 및 안내사항' };
+
+function getAdminKey(){ return document.getElementById('adminKeyInput').value.trim(); }
+
+window.addEventListener('DOMContentLoaded', function(){
+  var saved = sessionStorage.getItem('mll_admin_key_board');
+  if (saved) document.getElementById('adminKeyInput').value = saved;
+  document.getElementById('adminKeyInput').addEventListener('change', function(){
+    sessionStorage.setItem('mll_admin_key_board', getAdminKey());
+  });
+  loadPosts();
+});
+
+function switchBoard(board){
+  currentBoard = board;
+  document.getElementById('tabHowto').classList.toggle('active', board==='howto');
+  document.getElementById('tabNotice').classList.toggle('active', board==='notice');
+  document.getElementById('listTitle').textContent = (board==='howto' ? '📖' : '📢') + ' ' + BOARD_LABEL[board] + ' — 게시글 목록';
+  cancelEdit();
+  loadPosts();
+}
+
+async function apiCall(method, path, body){
+  var opts = { method: method, headers: { 'x-admin-key': getAdminKey() } };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  var res = await fetch(API + path, opts);
+  var data = await res.json();
+  if (!res.ok) throw new Error(data.error || ('오류 ' + res.status));
+  return data;
+}
+
+async function loadPosts(){
+  var body = document.getElementById('postsBody');
+  var emptyMsg = document.getElementById('emptyMsg');
+  try {
+    var data = await apiCall('GET', '/api/admin/board/' + currentBoard + '/posts');
+    var items = data.items || [];
+    if (!items.length) {
+      body.innerHTML = '';
+      emptyMsg.style.display = 'block';
+      return;
+    }
+    emptyMsg.style.display = 'none';
+    body.innerHTML = items.map(function(p){
+      var dateStr = new Date(p.created_at).toLocaleString('ko-KR');
+      return '<tr>' +
+        '<td>' + escapeHtml(p.title) + '</td>' +
+        '<td style="font-size:11px;color:#888;">' + dateStr + '</td>' +
+        '<td class="row-actions">' +
+          '<button onclick="editPost(' + p.id + ')">수정</button>' +
+          '<button class="danger" onclick="deletePost(' + p.id + ', \'' + escapeHtml(p.title).replace(/'/g,"") + '\')">삭제</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+    // 수정 버튼용으로 원본 데이터를 기억해둔다
+    window._boardPostsCache = items;
+  } catch (e) {
+    body.innerHTML = '';
+    emptyMsg.style.display = 'block';
+    emptyMsg.textContent = '조회 실패: ' + e.message;
+  }
+}
+
+function escapeHtml(s){
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function editPost(id){
+  var post = (window._boardPostsCache || []).find(function(p){ return p.id === id; });
+  if (!post) return;
+  document.getElementById('editingId').value = id;
+  document.getElementById('postTitle').value = post.title;
+  document.getElementById('postContent').value = post.content;
+  document.getElementById('formTitle').textContent = '✏️ 글 수정 (#' + id + ')';
+  document.getElementById('btnCancelEdit').style.display = 'inline-block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelEdit(){
+  document.getElementById('editingId').value = '';
+  document.getElementById('postTitle').value = '';
+  document.getElementById('postContent').value = '';
+  document.getElementById('formTitle').textContent = '✏️ 새 글 작성';
+  document.getElementById('btnCancelEdit').style.display = 'none';
+  document.getElementById('formResult').innerHTML = '';
+}
+
+async function savePost(){
+  var title = document.getElementById('postTitle').value.trim();
+  var content = document.getElementById('postContent').value.trim();
+  var editingId = document.getElementById('editingId').value;
+  var resultEl = document.getElementById('formResult');
+
+  if (!title || !content) {
+    resultEl.innerHTML = '<div class="result err">제목과 내용을 모두 입력해주세요.</div>';
+    return;
+  }
+  try {
+    if (editingId) {
+      await apiCall('PUT', '/api/admin/board/' + currentBoard + '/posts/' + editingId, { title: title, content: content });
+      resultEl.innerHTML = '<div class="result ok">✅ 수정되었습니다.</div>';
+    } else {
+      await apiCall('POST', '/api/admin/board/' + currentBoard + '/posts', { title: title, content: content });
+      resultEl.innerHTML = '<div class="result ok">✅ 등록되었습니다.</div>';
+    }
+    cancelEdit();
+    loadPosts();
+  } catch (e) {
+    resultEl.innerHTML = '<div class="result err">⛔ ' + e.message + '</div>';
+  }
+}
+
+async function deletePost(id, title){
+  if (!confirm('"' + title + '" 글을 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
+  try {
+    await apiCall('DELETE', '/api/admin/board/' + currentBoard + '/posts/' + id);
+    loadPosts();
+  } catch (e) {
+    alert('삭제 실패: ' + e.message);
+  }
+}
+</script>
+</body>
+</html>

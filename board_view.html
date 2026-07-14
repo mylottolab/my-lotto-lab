@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab</title>
+<style>
+*{box-sizing:border-box;}
+body{margin:0;background:#0f1120;color:#eef0f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:13px;}
+.topbar{position:sticky;top:0;background:#161a30;border-bottom:1px solid #232744;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;z-index:10;}
+.topbar h1{font-size:15px;margin:0;font-weight:700;}
+.topbar button{background:#1b2038;border:1px solid #2a3050;color:#c8cbe0;border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;}
+.wrap{max-width:680px;margin:0 auto;padding:20px 20px 60px;}
+
+/* 목록 화면 */
+.post-item{background:#161a30;border:1px solid #232744;border-radius:10px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;}
+.post-item:hover{border-color:#e0b341;}
+.post-item .pi-title{font-size:13.5px;font-weight:700;color:#eef0f6;}
+.post-item .pi-date{font-size:11px;color:#8b91ab;margin-top:5px;}
+.empty{text-align:center;color:#5a6080;padding:60px 20px;font-size:12.5px;}
+.loading{text-align:center;color:#5a6080;padding:40px 20px;font-size:12.5px;}
+
+/* 상세 화면 */
+.detail-title{font-size:17px;font-weight:700;margin-bottom:6px;}
+.detail-date{font-size:11.5px;color:#8b91ab;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #232744;}
+.detail-content{font-size:13.5px;line-height:1.9;color:#dfe1f0;}
+.detail-content img{max-width:100%;border-radius:8px;margin:10px 0;}
+.detail-content iframe{max-width:100%;border-radius:8px;margin:10px 0;}
+.back-link{display:inline-block;margin-bottom:16px;color:#8a9be8;font-size:12.5px;cursor:pointer;text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1 id="pageTitle">📖 본 사이트 이용법</h1>
+  <button onclick="window.close()">닫기 ✕</button>
+</div>
+<div class="wrap" id="wrap">
+  <div class="loading">불러오는 중...</div>
+</div>
+
+<script>
+var API = 'https://my-lotto-lab-api.onrender.com';
+var params = new URLSearchParams(location.search);
+var boardKey = params.get('board') === 'notice' ? 'notice' : 'howto';
+var BOARD_LABEL = { howto: '📖 본 사이트 이용법', notice: '📢 공지 및 안내사항' };
+document.getElementById('pageTitle').textContent = BOARD_LABEL[boardKey];
+document.title = 'My Lotto Lab - ' + BOARD_LABEL[boardKey].replace(/^\S+\s/, '');
+
+var wrap = document.getElementById('wrap');
+
+async function loadList(){
+  wrap.innerHTML = '<div class="loading">불러오는 중...</div>';
+  try {
+    var resp = await fetch(API + '/api/board/' + boardKey + '/posts');
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || '조회 실패');
+    var items = data.items || [];
+    if (!items.length) {
+      wrap.innerHTML = '<div class="empty">아직 등록된 글이 없습니다.</div>';
+      return;
+    }
+    wrap.innerHTML = items.map(function(p){
+      var dateStr = new Date(p.created_at).toLocaleDateString('ko-KR');
+      return '<div class="post-item" onclick="loadDetail(' + p.id + ')">' +
+        '<div class="pi-title">' + escapeHtml(p.title) + '</div>' +
+        '<div class="pi-date">' + dateStr + '</div>' +
+      '</div>';
+    }).join('');
+  } catch (e) {
+    wrap.innerHTML = '<div class="empty">불러오는 중 오류가 발생했습니다.<br>' + e.message + '</div>';
+  }
+}
+
+async function loadDetail(id){
+  wrap.innerHTML = '<div class="loading">불러오는 중...</div>';
+  try {
+    var resp = await fetch(API + '/api/board/' + boardKey + '/posts/' + id);
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || '조회 실패');
+    var p = data.item;
+    var dateStr = new Date(p.created_at).toLocaleString('ko-KR');
+    wrap.innerHTML =
+      '<span class="back-link" onclick="loadList()">← 목록으로</span>' +
+      '<div class="detail-title">' + escapeHtml(p.title) + '</div>' +
+      '<div class="detail-date">' + dateStr + '</div>' +
+      '<div class="detail-content">' + p.content + '</div>';
+  } catch (e) {
+    wrap.innerHTML = '<div class="empty">불러오는 중 오류가 발생했습니다.<br>' + e.message + '</div>';
+  }
+}
+
+function escapeHtml(s){
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadList();
+</script>
+</body>
+</html>
