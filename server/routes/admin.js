@@ -769,4 +769,40 @@ router.get('/stats/visits-by-page', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── 유입 도메인별 통계 (여러 도메인 포워딩 비교용, 2026-07-14 신규) ────────────
+// GET /api/admin/stats/visits-by-entry-domain?from=&to=
+router.get('/stats/visits-by-entry-domain', requireAdmin, async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    let query = supabase.from('page_visits').select('entry_domain, visitor_id');
+    if (from) query = query.gte('visited_at', from);
+    if (to) query = query.lte('visited_at', to);
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[admin] visits-by-entry-domain 조회 오류:', error);
+      return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    const byDomain = {};
+    (data || []).forEach(row => {
+      const domain = row.entry_domain || '(일반 접속 — 포워딩 도메인 아님)';
+      if (!byDomain[domain]) byDomain[domain] = { domain, visits: 0, visitorSet: new Set() };
+      byDomain[domain].visits++;
+      if (row.visitor_id) byDomain[domain].visitorSet.add(row.visitor_id);
+    });
+
+    const items = Object.values(byDomain)
+      .map(r => ({ domain: r.domain, visits: r.visits, uniqueVisitors: r.visitorSet.size }))
+      .sort((a, b) => b.visits - a.visits);
+
+    const grandTotal = items.reduce((s, r) => s + r.visits, 0);
+
+    return res.json({ items, grandTotal });
+  } catch (err) {
+    console.error('[admin] visits-by-entry-domain 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
 module.exports = router;
