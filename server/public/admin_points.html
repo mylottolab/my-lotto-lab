@@ -201,6 +201,25 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <div class="card">
+    <h2>🔗 유입 도메인별 통계 (포워딩 도메인 비교)</h2>
+    <p class="desc" style="margin-bottom:10px;">allimlotto.com·playlottogame.com 등 여러 도메인을 <code>?entry=도메인명</code> 파라미터로 포워딩해두면, 어디서 얼마나 들어오는지 여기서 비교할 수 있습니다.</p>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <label style="font-size:11.5px;color:var(--text-dim);">기간:</label>
+      <input type="date" id="entryDomainFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <span style="color:var(--text-dim);font-size:12px;">~</span>
+      <input type="date" id="entryDomainTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <button onclick="loadEntryDomainStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
+      <button onclick="clearEntryDomainStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>유입 도메인</th><th>방문(페이지뷰)</th><th>순방문자</th></tr>
+      </thead>
+      <tbody id="entryDomainStatsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
     <h2>📂 방문페이지 통계 (큰 카테고리별)</h2>
     <p class="desc" style="margin-bottom:10px;">메인/모의테스트/토토·프로토/해외복권/Battles/100전략레이스/회원라운지/결제/관리자 등으로 묶어서 어디가 많이 쓰이는지 보여줍니다.</p>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -409,6 +428,7 @@ async function loadAll(){
     await loadVisitStats();
     await loadSourceStats();
     await loadCountryStats();
+    await loadEntryDomainStats();
     await loadPageStats();
 
     var footer = await apiGet('/api/admin/settings/marking_footer_text');
@@ -829,6 +849,45 @@ function renderCountryStats(items, summary){
       '</tr>'
     );
   }).join('');
+}
+
+// ── 유입 도메인별 통계 ──
+async function loadEntryDomainStats(){
+  var from = document.getElementById('entryDomainFrom').value;
+  var to = document.getElementById('entryDomainTo').value;
+  var qs = [];
+  if (from) qs.push('from=' + from + 'T00:00:00');
+  if (to) qs.push('to=' + to + 'T23:59:59');
+  var path = '/api/admin/stats/visits-by-entry-domain' + (qs.length ? ('?' + qs.join('&')) : '');
+  try {
+    var result = await apiGet(path);
+    renderEntryDomainStats(result.items, result.grandTotal);
+  } catch(e) {}
+}
+
+function clearEntryDomainStatsDates(){
+  document.getElementById('entryDomainFrom').value = '';
+  document.getElementById('entryDomainTo').value = '';
+  loadEntryDomainStats();
+}
+
+function renderEntryDomainStats(items, grandTotal){
+  var body = document.getElementById('entryDomainStatsBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 방문 기록이 없습니다.</td></tr>';
+    return;
+  }
+  var rows = items.map(function(r){
+    return (
+      '<tr>' +
+        '<td>' + r.domain + '</td>' +
+        '<td>' + r.visits.toLocaleString() + '건</td>' +
+        '<td>' + r.uniqueVisitors.toLocaleString() + '명</td>' +
+      '</tr>'
+    );
+  }).join('');
+  rows += '<tr style="font-weight:700;"><td>합계</td><td>' + (grandTotal||0).toLocaleString() + '건</td><td></td></tr>';
+  body.innerHTML = rows;
 }
 
 // ── 방문페이지 통계 (큰 카테고리별) ──
