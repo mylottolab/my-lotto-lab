@@ -13,6 +13,13 @@ const LEAGUE_COUNT = 5;
 const UNIT_PRICE = 100;    // 1구좌 = 100P
 const PAYOUT_RATE = 0.8;   // 리그 총 베팅금액의 80%를 배당재원으로 사용
 
+// ─── 말(전략)의 성향 분류 — race_strategies.is_random / is_fixed_combo 기준 ────────
+function classifyHorseType(s) {
+  if (s.is_random) return { type: 'rand', label: '될대로되라형', labelEn: 'Pure Random' };
+  if (s.is_fixed_combo) return { type: 'fixed', label: '일편단심형', labelEn: 'Fixed-combo' };
+  return { type: 'cond', label: '전략중시형', labelEn: 'Strategy-based' };
+}
+
 // ─── 베팅 시간제한: 토요일 20:00(KST) ~ 일요일 06:00(KST) 사이엔 베팅 마감 ──────────
 // (한국로또 추첨 직전에 닫고, 리그 재배정이 끝나는 다음날 아침에 다시 연다)
 function nowKst() {
@@ -231,9 +238,9 @@ router.get('/leagues', async (req, res) => {
       .eq('round', round).order('league', { ascending: true }).order('rank_in_league', { ascending: true });
     if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
 
-    const { data: strategies } = await supabase.from('race_strategies').select('no, name, name_en');
+    const { data: strategies } = await supabase.from('race_strategies').select('no, name, name_en, is_random, is_fixed_combo');
     const nameByNo = {};
-    (strategies || []).forEach(s => { nameByNo[s.no] = { name: s.name, nameEn: s.name_en }; });
+    (strategies || []).forEach(s => { nameByNo[s.no] = { name: s.name, nameEn: s.name_en, ...classifyHorseType(s) }; });
 
     const leagues = { 1: [], 2: [], 3: [], 4: [], 5: [] };
     (assignments || []).forEach(a => {
@@ -242,6 +249,9 @@ router.get('/leagues', async (req, res) => {
         strategyNo: a.strategy_no,
         name: info.name || ('전략 ' + a.strategy_no + '번'),
         nameEn: info.nameEn || null,
+        horseType: info.type || 'cond',
+        horseTypeLabel: info.label || '전략중시형',
+        horseTypeLabelEn: info.labelEn || 'Strategy-based',
         rankInLeague: a.rank_in_league,
         overallRank: a.overall_rank,
         cumulativePrize: a.cumulative_prize_at_assignment,
@@ -280,9 +290,9 @@ router.get('/league-changes', async (req, res) => {
       .order('league', { ascending: true });
     if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
 
-    const { data: strategies } = await supabase.from('race_strategies').select('no, name, name_en');
+    const { data: strategies } = await supabase.from('race_strategies').select('no, name, name_en, is_random, is_fixed_combo');
     const nameByNo = {};
-    (strategies || []).forEach(s => { nameByNo[s.no] = { name: s.name, nameEn: s.name_en }; });
+    (strategies || []).forEach(s => { nameByNo[s.no] = { name: s.name, nameEn: s.name_en, ...classifyHorseType(s) }; });
 
     const toItem = (a) => {
       const info = nameByNo[a.strategy_no] || {};
@@ -290,6 +300,8 @@ router.get('/league-changes', async (req, res) => {
         strategyNo: a.strategy_no,
         name: info.name || ('전략 ' + a.strategy_no + '번'),
         nameEn: info.nameEn || null,
+        horseType: info.type || 'cond',
+        horseTypeLabel: info.label || '전략중시형',
         previousLeague: a.previous_league,
         newLeague: a.league,
         cumulativePrize: a.cumulative_prize_at_assignment,
