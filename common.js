@@ -1181,6 +1181,7 @@ MLL.renderAnnouncements = async function(pageKey){
       info:    { bg:'#16305c', border:'#2a4a8a', accent:'#7fa8ff', icon:'📘' },
       warning: { bg:'#4a3a10', border:'#8a6f2f', accent:'#e0b341', icon:'⚠️' },
       urgent:  { bg:'#4a1620', border:'#a13a4a', accent:'#ff6b7f', icon:'🚨' },
+      purple:  { bg:'#2e2060', border:'#6b4fc0', accent:'#c9b3ff', icon:'📢' },
     };
 
     items.forEach(function(a){
