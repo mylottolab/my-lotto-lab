@@ -21,6 +21,17 @@ a{color:inherit;text-decoration:none;}
 
 .wrap{max-width:900px;margin:0 auto;padding:32px 24px 60px;}
 
+.board-links-row{display:flex;gap:12px;margin-top:8px;}
+.board-link-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#1c2140,#161a30);border:1px solid var(--border-soft);border-radius:14px;padding:16px 12px;cursor:pointer;transition:border-color .15s,transform .1s;}
+.board-link-btn:hover{border-color:var(--gold-dim);transform:translateY(-1px);}
+.board-link-btn .blb-icon{font-size:18px;}
+.board-link-btn .blb-text{font-size:12.5px;font-weight:700;color:var(--text);}
+@media (max-width:480px){
+  .board-links-row{gap:8px;}
+  .board-link-btn{padding:13px 8px;flex-direction:column;gap:5px;}
+  .board-link-btn .blb-text{font-size:11px;text-align:center;}
+}
+
 .profile-card{background:linear-gradient(135deg,#161b35,#11152a);border:1px solid var(--border-soft);border-radius:20px;padding:32px;margin-bottom:24px;}
 .profile-top{display:flex;align-items:center;gap:16px;margin-bottom:26px;}
 .avatar{width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
@@ -99,9 +110,28 @@ a{color:inherit;text-decoration:none;}
   </div>
 </div>
 
+<div class="wrap" style="padding-bottom:0;">
+  <div class="board-links-row">
+    <div class="board-link-btn" onclick="openBoard('howto')">
+      <span class="blb-icon">📖</span>
+      <span class="blb-text">본 사이트 이용법</span>
+    </div>
+    <div class="board-link-btn" onclick="openBoard('notice')">
+      <span class="blb-icon">📢</span>
+      <span class="blb-text">공지 및 안내사항</span>
+    </div>
+  </div>
+</div>
+
 <div class="wrap" id="content">
   <div class="loading">불러오는 중...</div>
 </div>
+
+<script>
+function openBoard(boardKey){
+  window.open('board_view.html?board=' + boardKey, 'mllBoard_' + boardKey, 'width=480,height=720,scrollbars=yes,resizable=yes');
+}
+</script>
 
 <script>
 var API = 'https://my-lotto-lab-api.onrender.com';
