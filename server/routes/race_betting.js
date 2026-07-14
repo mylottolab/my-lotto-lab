@@ -10,8 +10,18 @@ const supabase = createClient(
 
 const LEAGUE_SIZE = 20;
 const LEAGUE_COUNT = 5;
-const UNIT_PRICE = 100;    // 1구좌 = 100P
+const UNIT_PRICE_DEFAULT = 100;    // 1구좌 기본값 = 100P (관리자가 안 바꿨을 때)
 const PAYOUT_RATE = 0.8;   // 리그 총 베팅금액의 80%를 배당재원으로 사용
+
+// ─── 1구좌당 포인트 — 관리자가 admin_points.html에서 바꿀 수 있도록 app_settings에서 읽음 ──
+// (다른 가격설정들, 예: race_pricing과 동일한 방식. 값이 없으면 기본 100P 사용)
+async function getUnitPrice() {
+  const { data, error } = await supabase
+    .from('app_settings').select('value').eq('key', 'race_betting_unit_price').maybeSingle();
+  if (error || !data || !data.value) return UNIT_PRICE_DEFAULT;
+  const n = Number(data.value);
+  return (n > 0) ? n : UNIT_PRICE_DEFAULT;
+}
 
 // ─── 말(전략)의 성향 분류 — race_strategies.is_random / is_fixed_combo 기준 ────────
 function classifyHorseType(s) {
@@ -261,6 +271,7 @@ router.get('/leagues', async (req, res) => {
     return res.json({
       round,
       leagues,
+      unitPrice: await getUnitPrice(),
       bettingOpen: isBettingOpen(),
       nextCloseAt: nextBettingBoundaryIso(true),
       nextOpenAt: nextBettingBoundaryIso(false),
@@ -349,7 +360,8 @@ router.post('/bet', async (req, res) => {
       return res.status(400).json({ error: '해당 회차에 그 리그·전략 조합이 존재하지 않습니다. 리그 편성이 아직 안 됐거나 마감된 회차일 수 있습니다.' });
     }
 
-    const amount = units * UNIT_PRICE;
+    const unitPrice = await getUnitPrice();
+    const amount = units * unitPrice;
     const pointResult = await deductPoints(userId, amount, {
       actionKey: 'race_betting', refId: `${round}-${league}-${strategyNo}`,
     });
