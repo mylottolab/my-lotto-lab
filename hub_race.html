@@ -794,6 +794,10 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
 .horse-card .hc-rank{font-size:10px;color:var(--text-faint);}
 .horse-card .hc-name{font-size:13px;font-weight:700;margin-top:2px;}
 .horse-card .hc-prize{font-size:11px;color:var(--gold);margin-top:6px;}
+.hc-type{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;margin-top:6px;}
+.hc-type-cond{background:rgba(138,155,232,.15);color:#8a9be8;}   /* 전략중시형 - 파랑 */
+.hc-type-fixed{background:rgba(224,179,65,.15);color:var(--gold);}  /* 일편단심형 - 금색 */
+.hc-type-rand{background:rgba(232,115,47,.15);color:var(--accent);} /* 될대로되라형 - 주황 */
 .horse-card .hc-change{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:8px;margin-top:6px;}
 .horse-card .hc-change.promoted{background:rgba(63,179,127,.15);color:var(--green);}
 .horse-card .hc-change.demoted{background:rgba(212,83,126,.15);color:var(--red);}
@@ -2108,6 +2112,7 @@ RACE.loadLeagues = async function(){
         return '<div class="horse-card' + (data.bettingOpen ? '' : ' horse-card-disabled') + '" data-league="'+league+'" data-horse="'+h.strategyNo+'"' + clickAttr + '>' +
           '<div class="hc-rank">랭킹 #' + h.rankInLeague + ' (전체 ' + h.overallRank + '위)</div>' +
           '<div class="hc-name">🐎 ' + h.name + '</div>' +
+          '<span class="hc-type hc-type-' + h.horseType + '">' + h.horseTypeLabel + '</span>' +
           '<div class="hc-prize">누적 ' + (h.cumulativePrize||0).toLocaleString() + 'P</div>' +
         '</div>';
       }).join('');
@@ -2195,7 +2200,7 @@ RACE.loadLeagueChanges = async function(){
 
     var leagueNames = { 1:'1부', 2:'2부', 3:'3부', 4:'4부', 5:'5부' };
     function itemHtml(h){
-      return '<div class="change-item"><span>🐎 ' + h.name + '</span><span style="color:var(--text-dim);">' + leagueNames[h.previousLeague] + ' → ' + leagueNames[h.newLeague] + '</span></div>';
+      return '<div class="change-item"><span>🐎 ' + h.name + ' <span class="hc-type hc-type-' + h.horseType + '" style="margin-top:0;">' + h.horseTypeLabel + '</span></span><span style="color:var(--text-dim);">' + leagueNames[h.previousLeague] + ' → ' + leagueNames[h.newLeague] + '</span></div>';
     }
     promotedEl.innerHTML = data.promoted.length ? data.promoted.map(itemHtml).join('') : '<div style="color:var(--text-faint);font-size:12px;">이번엔 승격한 말이 없습니다.</div>';
     demotedEl.innerHTML = data.demoted.length ? data.demoted.map(itemHtml).join('') : '<div style="color:var(--text-faint);font-size:12px;">이번엔 강등한 말이 없습니다.</div>';
