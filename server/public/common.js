@@ -254,6 +254,40 @@ MLL.addEntries = async function(items) {
 // 단건 등록 (내부적으로 addEntries 재사용)
 MLL.addEntry = async function(item) { return MLL.addEntries([item]); };
 
+// ⚠ 2026-07-15 신규: "즉시확인" 버튼(onclick="MLL.applyCheck(...)")이 그동안
+// 이 함수 자체가 없어서 눌러도 아무 반응이 없었다. 서버의 POST /api/lotto/entries/confirm
+// (미확인 → 확인완료 전환, 등수/당첨금 공개)를 실제로 호출하도록 구현.
+// sessionTag를 주면 그 세션(오늘 입력분)만, 생략하면 내 미확인 항목 전체를 확인한다.
+MLL.applyCheck = async function(sessionTag) {
+  var state = _mllAuthOrNull();
+  if (!state) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return { updated: 0 }; }
+
+  var body = {};
+  if (sessionTag) body.sessionTag = sessionTag;
+  if (state.type === 'guest') { body.nickname = state.nickname; body.email = state.email; }
+
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/confirm', {
+      method: 'POST', headers: _mllHeaders(state), body: JSON.stringify(body)
+    });
+    var data = await resp.json();
+    if (!resp.ok) {
+      alert('확인 처리 중 오류가 발생했습니다: ' + (data.error || resp.status));
+      return { updated: 0 };
+    }
+    await MLL.refreshEntries();
+    if (window.refreshTable) window.refreshTable();
+    alert(data.updated > 0
+      ? '✅ ' + data.updated + '개 항목의 당첨결과를 확인했습니다!'
+      : '확인할 새 결과가 없습니다. (아직 추첨 전이거나 이미 확인된 항목뿐입니다)');
+    return data;
+  } catch (e) {
+    console.error('[MLL.applyCheck] 오류:', e);
+    alert('네트워크 오류가 발생했습니다: ' + e.message);
+    return { updated: 0 };
+  }
+};
+
 // 항목 삭제
 MLL.deleteEntry = async function(id) {
   var state = _mllAuthOrNull();
@@ -455,13 +489,17 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
 
   var preDraw  = sorted.filter(function(e){ return e.status === '추첨전'; });
   var postDraw = sorted.filter(function(e){ return e.status !== '추첨전'; });
+  var unconfirmedCount = sorted.filter(function(e){ return e.status === '미확인'; }).length;
 
   // 배지 업데이트
   var badgeEl = document.getElementById('sectionBadge');
   if (badgeEl) {
     badgeEl.innerHTML =
       '<span style="color:#e03131;font-weight:700;">🔴추첨전 '+preDraw.length+'개</span>' +
-      ' &nbsp;|&nbsp; <span style="color:#555;">✅추첨후 '+postDraw.length+'개</span>';
+      ' &nbsp;|&nbsp; <span style="color:#555;">✅추첨후 '+postDraw.length+'개</span>' +
+      (unconfirmedCount > 0
+        ? ' &nbsp;|&nbsp; <span style="color:#e67700;font-weight:700;">⚡미확인 '+unconfirmedCount+'개</span>'
+        : '');
   }
 
   // 카운트 업데이트
