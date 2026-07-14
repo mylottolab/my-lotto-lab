@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
+const { assignLeaguesForRound, settleRoundBets } = require('./race_betting'); // 2026-07-14: 경마배팅 자동 정산/재배정
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -152,6 +153,20 @@ router.post('/results', requireAdmin, async (req, res) => {
     const { error: rpcErr } = await supabase.rpc('recompute_race_overall_summary');
     if (rpcErr) console.error('[race-admin] 누적집계 재계산 오류:', rpcErr);
 
+    // ── 경마배팅: 이번에 저장된 회차(들)의 베팅 정산 + 다음 회차 리그 재배정 (2026-07-14 신규) ──
+    // 실패해도 전략 결과 저장 자체(위 upsert)는 이미 끝난 상태이므로, 요청 전체를 실패시키지 않고 로그만 남긴다.
+    try {
+      const roundsInThisBatch = [...new Set(rows.map(r => r.round))];
+      for (const round of roundsInThisBatch) {
+        await settleRoundBets(round); // 그 회차에 걸린 베팅이 있었다면 정산 + 배당 지급
+      }
+      if (lastSimulatedRound != null) {
+        await assignLeaguesForRound(lastSimulatedRound + 1); // 다음 회차 베팅을 위한 리그 편성
+      }
+    } catch (bettingErr) {
+      console.error('[race-admin] 경마배팅 정산/재배정 오류 (전략 결과 저장 자체는 정상 완료됨):', bettingErr);
+    }
+
     // 메타(마지막 시뮬레이션 회차) 갱신
     if (lastSimulatedRound != null) {
       const metaValue = JSON.stringify({ lastSimulatedRound, updatedAt: Date.now() });
@@ -282,6 +297,26 @@ router.post('/pricing', requireAdmin, async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
 
   return res.json({ success: true, pricing });
+});
+
+/**
+ * [5] 경마배팅 최초 리그 편성 (2026-07-14 신규 — 비상용/최초 1회만)
+ * 평소엔 [3]번(회차결과 저장) 직후 자동으로 "다음 회차" 리그가 편성되지만,
+ * 베팅 기능을 맨 처음 켤 때는 그 자동 흐름이 아직 한 번도 안 돌았으므로
+ * 이 엔드포인트로 최초 1회만 수동으로 편성해주면 된다.
+ * POST /api/admin/race/betting/init-league
+ * body: { round: 1234 }  ← 이번주 베팅을 받을 회차 번호
+ */
+router.post('/betting/init-league', requireAdmin, async (req, res) => {
+  const round = Number(req.body.round);
+  if (!round) return res.status(400).json({ error: '베팅을 받을 회차(round)를 입력해주세요.' });
+  try {
+    await assignLeaguesForRound(round);
+    return res.json({ success: true, round });
+  } catch (err) {
+    console.error('[race-admin] 경마배팅 최초 리그편성 오류:', err);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
