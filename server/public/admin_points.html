@@ -1,1017 +1,442 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Lotto Lab - 관리자 화면</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0;}
-:root{--bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--green:#3fb37f;--red:#e05c5c;}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13.5px;padding:24px;}
-.wrap{max-width:960px;margin:0 auto;}
-h1{font-size:19px;font-weight:700;margin-bottom:4px;}
-.desc{font-size:12px;color:var(--text-dim);margin-bottom:20px;}
-.gate{max-width:360px;margin:80px auto;background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:28px;text-align:center;}
-.gate input{width:100%;background:var(--bg);border:1px solid var(--border-soft);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;margin:14px 0;outline:none;}
-.gate button{width:100%;padding:10px;border-radius:8px;border:none;background:var(--gold);color:#1a1305;font-weight:700;cursor:pointer;}
+const express = require('express');
+const router = express.Router();
+const { createClient } = require('@supabase/supabase-js');
+const { deductPoints, creditPoints } = require('./points');
 
-.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:18px 20px;margin-bottom:20px;}
-.card h2{font-size:14.5px;font-weight:700;margin-bottom:12px;}
-.rate-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.rate-row input{width:120px;background:var(--bg);border:1px solid var(--border-soft);border-radius:7px;padding:8px 10px;color:var(--text);font-size:13px;}
-.rate-row button{background:var(--gold);color:#1a1305;border:none;border-radius:7px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:12.5px;}
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
-table{width:100%;border-collapse:collapse;}
-th{text-align:left;font-size:11px;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--border-soft);font-weight:600;}
-td{padding:9px 10px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:12.5px;}
-tr:last-child td{border-bottom:none;}
-.label-cell .kr{font-weight:600;}
-.label-cell .en{font-size:10.5px;color:var(--text-faint);}
-.notes-cell{color:var(--text-dim);font-size:11px;max-width:260px;}
-.cost-input{width:80px;background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12.5px;}
-.save-btn{background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;}
-.save-btn:disabled{opacity:.4;cursor:default;}
-.add-form{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 14px;background:var(--bg);border:1px solid var(--border-soft);border-radius:10px;padding:14px;margin-bottom:14px;}
-.add-form label{font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;}
-.add-form input[type=text],.add-form input[type=number]{width:100%;background:var(--surface);border:1px solid var(--border-soft);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12.5px;}
-.add-form .full{grid-column:1 / -1;}
-.add-form .chk-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);}
-.toggle-add-btn{background:var(--surface);border:1px solid var(--border-soft);color:var(--text);border-radius:7px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;margin-bottom:12px;}
-.badge{font-size:9.5px;padding:2px 7px;border-radius:20px;font-weight:700;}
-.badge.free{background:rgba(63,179,127,.15);color:var(--green);}
-.badge.paid{background:rgba(224,179,65,.15);color:var(--gold);}
-.badge.bank_transfer{background:rgba(63,179,127,.15);color:var(--green);}
-.badge.inicis{background:rgba(91,110,232,.15);color:#8f9dfa;}
-.badge.paypal{background:rgba(224,179,65,.15);color:var(--gold);}
-.badge.activity_reward{background:rgba(139,145,171,.15);color:var(--text-dim);}
-.toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;padding:12px 18px;font-size:12.5px;display:none;}
-.toast.show{display:block;}
-.toast.ok{border-color:var(--green);color:var(--green);}
-.toast.err{border-color:var(--red);color:var(--red);}
-</style>
-</head>
-<body>
+const LEAGUE_SIZE = 20;
+const LEAGUE_COUNT = 5;
+const UNIT_PRICE_DEFAULT = 100;    // 1구좌 기본값 = 100P (관리자가 안 바꿨을 때)
+const PAYOUT_RATE = 0.8;   // 리그 총 베팅금액의 80%를 배당재원으로 사용
 
-<div class="gate" id="gate">
-  <h1>🔐 관리자 인증</h1>
-  <p class="desc">Render에 설정한 ADMIN_API_KEY를 입력하세요.</p>
-  <input type="password" id="adminKeyInput" placeholder="관리자 키">
-  <button onclick="unlock()">입장</button>
-</div>
-
-<div class="wrap" id="main" style="display:none;">
-  <h1>⚙️ 관리자 화면</h1>
-  <p class="desc">수정 후 저장하면 즉시 반영됩니다. (이미 발생한 결제/차감 내역은 소급 변경되지 않습니다)</p>
-
-  <div class="card">
-    <h2>🏦 무통장입금 대기 목록</h2>
-    <table>
-      <thead>
-        <tr><th>신청ID</th><th>닉네임</th><th>입금자명</th><th>금액</th><th>신청일시</th><th></th></tr>
-      </thead>
-      <tbody id="bankTransferBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>✅ 입금확인자 (적립 완료 내역)</h2>
-    <p class="desc" style="margin-bottom:12px;">계좌이체 승인·신용카드·PayPal 결제가 모두 이 목록 하나에 모입니다 (결제수단은 뱃지로 구분).</p>
-    <table>
-      <thead>
-        <tr><th>닉네임</th><th>결제수단</th><th>금액</th><th>적립일시</th></tr>
-      </thead>
-      <tbody id="depositsBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>💰 일자별 입금액 통계 (결제수단 구분)</h2>
-    <p class="desc" style="margin-bottom:10px;">신용카드(이니시스)·계좌이체(무통장입금 승인분)·PayPal 별로 기간 내 입금액을 집계합니다.<br><span style="color:var(--text-faint);font-size:10.5px;">※ 시간대별 선택 시, 표가 너무 길어지지 않도록 기간을 하루~며칠 정도로 좁혀서 조회하시는 걸 추천드려요.</span></p>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-      <label style="font-size:11.5px;color:var(--text-dim);">단위:</label>
-      <select id="depositsGroupBy" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-        <option value="hour">시간대별</option>
-        <option value="day">일별</option>
-        <option value="week">주별</option>
-        <option value="month">월별</option>
-      </select>
-      <label style="font-size:11.5px;color:var(--text-dim);margin-left:8px;">기간:</label>
-      <input type="date" id="depositsFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <span style="color:var(--text-dim);font-size:12px;">~</span>
-      <input type="date" id="depositsTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <button onclick="loadDepositStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
-      <button onclick="clearDepositStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
-    </div>
-    <table>
-      <thead>
-        <tr><th>기간</th><th>신용카드</th><th>계좌이체</th><th>PayPal</th><th>기타</th><th>합계</th></tr>
-      </thead>
-      <tbody id="depositStatsBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>👥 일자별 가입자 수 통계 (회원/비회원 구분)</h2>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-      <label style="font-size:11.5px;color:var(--text-dim);">단위:</label>
-      <select id="signupsGroupBy" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-        <option value="hour">시간대별</option>
-        <option value="day">일별</option>
-        <option value="week">주별</option>
-        <option value="month">월별</option>
-      </select>
-      <label style="font-size:11.5px;color:var(--text-dim);margin-left:8px;">기간:</label>
-      <input type="date" id="signupsFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <span style="color:var(--text-dim);font-size:12px;">~</span>
-      <input type="date" id="signupsTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <button onclick="loadSignupStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
-      <button onclick="clearSignupStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
-    </div>
-    <table>
-      <thead>
-        <tr><th>기간</th><th>회원</th><th>비회원</th><th>합계</th></tr>
-      </thead>
-      <tbody id="signupStatsBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>📈 시간대별/일별/주별/월별 접속자수</h2>
-    <p class="desc" style="margin-bottom:10px;">방문(페이지뷰) 총건수와 순방문자(같은 브라우저 중복 제외) 수를 함께 보여줍니다.</p>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-      <label style="font-size:11.5px;color:var(--text-dim);">단위:</label>
-      <select id="visitsGroupBy" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-        <option value="hour">시간대별</option>
-        <option value="day" selected>일별</option>
-        <option value="week">주별</option>
-        <option value="month">월별</option>
-      </select>
-      <label style="font-size:11.5px;color:var(--text-dim);margin-left:8px;">기간:</label>
-      <input type="date" id="visitsFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <span style="color:var(--text-dim);font-size:12px;">~</span>
-      <input type="date" id="visitsTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <button onclick="loadVisitStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
-      <button onclick="clearVisitStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
-    </div>
-    <table>
-      <thead>
-        <tr><th>기간</th><th>방문(페이지뷰)</th><th>순방문자</th></tr>
-      </thead>
-      <tbody id="visitStatsBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>🧭 접속경로별 통계</h2>
-    <p class="desc" style="margin-bottom:10px;">네이버·구글·카카오/다음·SNS·직접접속(북마크) 등 어디서 들어왔는지 집계합니다.</p>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-      <label style="font-size:11.5px;color:var(--text-dim);">기간:</label>
-      <input type="date" id="sourceFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <span style="color:var(--text-dim);font-size:12px;">~</span>
-      <input type="date" id="sourceTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <button onclick="loadSourceStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
-      <button onclick="clearSourceStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
-    </div>
-    <table>
-      <thead>
-        <tr><th>유입경로</th><th>방문(페이지뷰)</th><th>순방문자</th></tr>
-      </thead>
-      <tbody id="sourceStatsBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>🌏 국가별 접속 통계 (국내/해외 구분)</h2>
-    <p class="desc" style="margin-bottom:10px;">IP 기반 국가 판별이라 100% 정확하진 않지만(VPN 등 예외), 국가 단위로는 충분히 신뢰할 수 있는 수준입니다.</p>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-      <label style="font-size:11.5px;color:var(--text-dim);">기간:</label>
-      <input type="date" id="countryFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <span style="color:var(--text-dim);font-size:12px;">~</span>
-      <input type="date" id="countryTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <button onclick="loadCountryStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
-      <button onclick="clearCountryStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
-    </div>
-    <div id="countrySummary" style="display:flex;gap:16px;margin-bottom:12px;font-size:12.5px;color:var(--text-dim);"></div>
-    <table>
-      <thead>
-        <tr><th>국가</th><th>방문(페이지뷰)</th><th>순방문자</th></tr>
-      </thead>
-      <tbody id="countryStatsBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>🔗 유입 도메인별 통계 (포워딩 도메인 비교)</h2>
-    <p class="desc" style="margin-bottom:10px;">allimlotto.com·playlottogame.com 등 여러 도메인을 <code>?entry=도메인명</code> 파라미터로 포워딩해두면, 어디서 얼마나 들어오는지 여기서 비교할 수 있습니다.</p>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-      <label style="font-size:11.5px;color:var(--text-dim);">기간:</label>
-      <input type="date" id="entryDomainFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <span style="color:var(--text-dim);font-size:12px;">~</span>
-      <input type="date" id="entryDomainTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <button onclick="loadEntryDomainStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
-      <button onclick="clearEntryDomainStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
-    </div>
-    <table>
-      <thead>
-        <tr><th>유입 도메인</th><th>방문(페이지뷰)</th><th>순방문자</th></tr>
-      </thead>
-      <tbody id="entryDomainStatsBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>📂 방문페이지 통계 (큰 카테고리별)</h2>
-    <p class="desc" style="margin-bottom:10px;">메인/모의테스트/토토·프로토/해외복권/Battles/100전략레이스/회원라운지/결제/관리자 등으로 묶어서 어디가 많이 쓰이는지 보여줍니다.</p>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-      <label style="font-size:11.5px;color:var(--text-dim);">기간:</label>
-      <input type="date" id="pageFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <span style="color:var(--text-dim);font-size:12px;">~</span>
-      <input type="date" id="pageTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <button onclick="loadPageStats()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
-      <button onclick="clearPageStatsDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
-    </div>
-    <table>
-      <thead>
-        <tr><th>카테고리</th><th>방문(페이지뷰)</th><th>순방문자</th></tr>
-      </thead>
-      <tbody id="pageStatsBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>🏇 100전략레이스 경마배팅 — 최초 회차 지정</h2>
-    <p class="desc" style="margin-bottom:12px;">평소엔 매주 회차결과 저장 시 다음 회차 리그가 자동으로 편성되지만, <b style="color:var(--gold);">경마배팅 기능을 맨 처음 켤 때 딱 한 번만</b> 첫 베팅 회차를 여기서 지정해주셔야 합니다. (이미 한 번 지정하셨다면 다시 누르실 필요 없어요.)</p>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <input type="number" id="initLeagueRound" placeholder="베팅받을 회차번호 (예: 1234)" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;width:220px;">
-      <button onclick="initFirstLeagueRound()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;">리그 편성 실행</button>
-    </div>
-    <div id="initLeagueMsg" style="margin-top:10px;"></div>
-  </div>
-
-  <div class="card">
-    <h2>👤 회원 명단</h2>
-    <p class="desc" style="margin-bottom:12px;">최근 가입순 상위 200명(전체 목록 중 회원만). 전화번호는 아직 수집하는 곳이 없어 비어있습니다.</p>
-    <table>
-      <thead>
-        <tr><th>닉네임</th><th>이메일</th><th>전화번호</th><th>누적입금P</th><th>잔여입금P</th><th>잔여활동P</th><th>가입일</th></tr>
-      </thead>
-      <tbody id="memberUsersBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>🕶️ 비회원 명단</h2>
-    <p class="desc" style="margin-bottom:12px;">최근 가입순 상위 200명(전체 목록 중 비회원만). 잔여 포인트는 취득일로부터 30일 후 소멸됩니다.</p>
-    <table>
-      <thead>
-        <tr><th>닉네임</th><th>이메일</th><th>전화번호</th><th>누적입금P</th><th>잔여입금P</th><th>잔여활동P</th><th>가입일</th></tr>
-      </thead>
-      <tbody id="guestUsersBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>📊 항목별 매출현황</h2>
-    <p class="desc" style="margin-bottom:10px;">번호등록·토토·해외복권 등 포인트가 차감되는 모든 기능이 자동으로 여기 집계됩니다 (아직 안 만든 기능은 당연히 안 뜸).</p>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-      <label style="font-size:11.5px;color:var(--text-dim);">기간:</label>
-      <input type="date" id="revenueFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <span style="color:var(--text-dim);font-size:12px;">~</span>
-      <input type="date" id="revenueTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
-      <button onclick="loadRevenue()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
-      <button onclick="clearRevenueDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
-    </div>
-    <table>
-      <thead>
-        <tr><th>메뉴</th><th>누적 차감(P)</th><th>사용 횟수</th></tr>
-      </thead>
-      <tbody id="revenueBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>🖨️ 마킹용지 하단 광고</h2>
-    <p class="desc" style="margin-bottom:12px;">
-      마킹용지 PDF 하단에 들어갈 문구입니다. 저장하면 다음 생성분부터 바로 반영됩니다.<br>
-      이미지를 넣고 싶으면, GitHub 저장소의 <code>server/public/marking_footer.png</code> 경로에
-      그 파일명 그대로 이미지를 올려주세요 (PNG 파일만 지원, 자동으로 하단 중앙에 배치됩니다).
-      파일이 없으면 이미지 없이 문구만 표시됩니다.<br>
-      <span style="color:var(--gold);">⚠️ 실제 출력 위치/크기는 makinglotto.com 용지 형태에 따라 다를 수 있어, 처음엔 미세조정이 필요할 수 있습니다.</span>
-    </p>
-    <div style="display:flex;gap:10px;align-items:flex-start;">
-      <textarea id="footerTextInput" rows="2" placeholder="예: My Lotto Lab - mylottolab.github.io"
-        style="flex:1;background:var(--bg);border:1px solid var(--border-soft);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12.5px;font-family:inherit;resize:vertical;"></textarea>
-      <button onclick="saveFooterText()" style="background:var(--gold);color:#1a1305;border:none;border-radius:7px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:12.5px;white-space:nowrap;">저장</button>
-    </div>
-    <div id="footerTextUpdated" style="font-size:11px;color:var(--text-faint);margin-top:6px;"></div>
-  </div>
-
-  <div class="card">
-    <h2>📋 메뉴별 포인트 차감 단가</h2>
-    <button class="toggle-add-btn" onclick="toggleAddForm()" id="addToggleBtn">➕ 새 항목 추가</button>
-    <div class="add-form" id="addForm" style="display:none;">
-      <div>
-        <label>action_key (영문 소문자·숫자·밑줄만, 예: battle_ffa_entry)</label>
-        <input type="text" id="newActionKey" placeholder="battle_ffa_entry">
-      </div>
-      <div>
-        <label>단가(P)</label>
-        <input type="number" step="0.01" id="newCostPoints" placeholder="100">
-      </div>
-      <div>
-        <label>한글 라벨</label>
-        <input type="text" id="newLabelKr" placeholder="무제한 대결 참가비">
-      </div>
-      <div>
-        <label>영문 라벨 (비우면 한글과 동일)</label>
-        <input type="text" id="newLabelEn" placeholder="Unlimited Battle Entry Fee">
-      </div>
-      <div class="full chk-row">
-        <input type="checkbox" id="newGrantsActivity"> <label for="newGrantsActivity" style="margin:0;">활동포인트로 지급되는 항목입니다 (보상/적립성 항목에 체크)</label>
-      </div>
-      <div class="full">
-        <label>비고 (선택)</label>
-        <input type="text" id="newNotes" placeholder="예: 무제한 대결 1등에게만 지급, 공동1등이면 n분할">
-      </div>
-      <div class="full" style="display:flex;gap:8px;">
-        <button class="save-btn" onclick="submitNewCost()">추가하기</button>
-        <button class="save-btn" style="background:var(--surface);color:var(--text-dim);border:1px solid var(--border-soft);" onclick="toggleAddForm()">취소</button>
-      </div>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>메뉴</th>
-          <th>단가(P)</th>
-          <th>무료한도</th>
-          <th>활동P지급</th>
-          <th>비고</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="costsBody"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>💱 USD 환율 (1달러 = 몇 포인트)</h2>
-    <div class="rate-row">
-      <span>1 USD =</span>
-      <input type="number" id="rateInput" step="1">
-      <span>포인트</span>
-      <button onclick="saveRate()">저장</button>
-      <span id="rateUpdated" style="font-size:11px;color:var(--text-faint);"></span>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-var API = 'https://my-lotto-lab-api.onrender.com';
-var adminKey = '';
-
-function showToast(msg, ok){
-  var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + (ok ? 'ok' : 'err');
-  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+// ─── 1구좌당 포인트 — 관리자가 admin_points.html에서 바꿀 수 있도록 app_settings에서 읽음 ──
+// (다른 가격설정들, 예: race_pricing과 동일한 방식. 값이 없으면 기본 100P 사용)
+async function getUnitPrice() {
+  const { data, error } = await supabase
+    .from('app_settings').select('value').eq('key', 'race_betting_unit_price').maybeSingle();
+  if (error || !data || !data.value) return UNIT_PRICE_DEFAULT;
+  const n = Number(data.value);
+  return (n > 0) ? n : UNIT_PRICE_DEFAULT;
 }
 
-function unlock(){
-  adminKey = document.getElementById('adminKeyInput').value.trim();
-  if(!adminKey){ return; }
-  sessionStorage.setItem('mll_admin_key', adminKey);
-  document.getElementById('gate').style.display = 'none';
-  document.getElementById('main').style.display = 'block';
-  loadAll();
+// ─── 말(전략)의 성향 분류 — race_strategies.is_random / is_fixed_combo 기준 ────────
+function classifyHorseType(s) {
+  if (s.is_random) return { type: 'rand', label: '될대로되라형', labelEn: 'Pure Random' };
+  if (s.is_fixed_combo) return { type: 'fixed', label: '일편단심형', labelEn: 'Fixed-combo' };
+  return { type: 'cond', label: '전략중시형', labelEn: 'Strategy-based' };
 }
 
-async function apiGet(path){
-  var res = await fetch(API + path, { headers: { 'x-admin-key': adminKey } });
-  var data = await res.json();
-  if(!res.ok){ showToast(data.error || '조회 실패', false); throw new Error(data.error); }
-  return data;
+// ─── 베팅 시간제한: 토요일 20:00(KST) ~ 일요일 06:00(KST) 사이엔 베팅 마감 ──────────
+// (한국로또 추첨 직전에 닫고, 리그 재배정이 끝나는 다음날 아침에 다시 연다)
+function nowKst() {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000); // UTC → KST 보정된 Date (UTC 메서드로 KST값 읽기)
 }
-async function apiPut(path, body){
-  var res = await fetch(API + path, {
-    method: 'PUT',
-    headers: { 'Content-Type':'application/json', 'x-admin-key': adminKey },
-    body: JSON.stringify(body)
+function isBettingOpen() {
+  const kst = nowKst();
+  const day = kst.getUTCDay();   // 0=일 1=월 ... 6=토 (보정된 시각을 UTC 메서드로 읽으므로 실제로는 KST 요일)
+  const hour = kst.getUTCHours();
+  if (day === 6 && hour >= 20) return false; // 토요일 20시 이후
+  if (day === 0 && hour < 6) return false;   // 일요일 06시 이전
+  return true;
+}
+// 화면에 "마감까지/재개까지 남은 시간"을 보여주기 위한 다음 경계 시각(KST 기준을 다시 UTC ISO로 변환)
+function nextBettingBoundaryIso(closing) {
+  const kst = nowKst();
+  const y = kst.getUTCFullYear(), m = kst.getUTCMonth(), d = kst.getUTCDate(), day = kst.getUTCDay();
+  let target;
+  if (closing) {
+    // 다음 토요일 20:00(KST)
+    const daysUntilSat = (6 - day + 7) % 7;
+    const addDays = (day === 6 && kst.getUTCHours() < 20) ? 0 : daysUntilSat;
+    target = new Date(Date.UTC(y, m, d + addDays, 20, 0, 0));
+  } else {
+    // 다음 일요일 06:00(KST)
+    const daysUntilSun = (0 - day + 7) % 7;
+    const addDays = (day === 0 && kst.getUTCHours() < 6) ? 0 : (daysUntilSun === 0 ? 7 : daysUntilSun);
+    target = new Date(Date.UTC(y, m, d + addDays, 6, 0, 0));
+  }
+  return new Date(target.getTime() - 9 * 60 * 60 * 1000).toISOString(); // KST → UTC로 되돌려서 저장
+}
+
+// ─── 요청자 식별 (다른 라우터들과 동일한 규칙) ─────────────────────────────────
+async function resolveUserId(req) {
+  const authHeader = req.headers['authorization'];
+  if (authHeader) {
+    const token = authHeader.replace('Bearer ', '');
+    const { data, error } = await supabase.auth.getUser(token);
+    if (!error && data.user) return data.user.id;
+  }
+  const nickname = req.body?.nickname || req.query?.nickname;
+  const email = req.body?.email || req.query?.email;
+  if (nickname && email) {
+    const { data } = await supabase
+      .from('profiles').select('id')
+      .eq('nickname', nickname).eq('email', email).maybeSingle();
+    if (data) return data.id;
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 핵심 로직 (race_admin.js의 "회차결과 저장" 직후 자동으로 호출됨)
+// ═══════════════════════════════════════════════════════════════════
+
+// ── 누적순위(race_overall_summary) 기준으로 다음 베팅 대상 회차의 리그를 편성 ──
+// 1~20위=1부, 21~40위=2부, ... 81~100위=5부
+async function assignLeaguesForRound(round) {
+  const { data: overall, error } = await supabase
+    .from('race_overall_summary')
+    .select('strategy_no, total_prize')
+    .order('total_prize', { ascending: false });
+
+  if (error) throw new Error('누적순위 조회 실패: ' + error.message);
+  if (!overall || !overall.length) {
+    console.warn('[race-betting] race_overall_summary가 비어있어 리그 편성을 건너뜁니다.');
+    return;
+  }
+
+  // 직전 배정 회차(이번 회차보다 작은 것 중 가장 최근)를 찾아서, 리그 승격/강등 여부를 비교한다.
+  const { data: prevRoundRow } = await supabase
+    .from('race_league_assignments').select('round')
+    .lt('round', round).order('round', { ascending: false }).limit(1).maybeSingle();
+
+  let prevLeagueByStrategy = {};
+  if (prevRoundRow) {
+    const { data: prevAssignments } = await supabase
+      .from('race_league_assignments').select('strategy_no, league').eq('round', prevRoundRow.round);
+    (prevAssignments || []).forEach(a => { prevLeagueByStrategy[a.strategy_no] = a.league; });
+  }
+
+  const rows = overall.map((s, idx) => {
+    const overallRank = idx + 1;
+    const league = Math.min(LEAGUE_COUNT, Math.ceil(overallRank / LEAGUE_SIZE));
+    const rankInLeague = ((overallRank - 1) % LEAGUE_SIZE) + 1;
+    const prevLeague = prevLeagueByStrategy[s.strategy_no] ?? null;
+
+    let leagueChange = 'new'; // 이번에 처음 편성되는 전략(직전 배정 자체가 없던 경우)
+    if (prevLeague != null) {
+      if (league < prevLeague) leagueChange = 'promoted';   // 숫자가 작을수록 상위 리그(1부가 최상위)
+      else if (league > prevLeague) leagueChange = 'demoted';
+      else leagueChange = 'same';
+    }
+
+    return {
+      round,
+      strategy_no: s.strategy_no,
+      league,
+      rank_in_league: rankInLeague,
+      overall_rank: overallRank,
+      cumulative_prize_at_assignment: s.total_prize || 0,
+      previous_league: prevLeague,
+      league_change: leagueChange,
+    };
   });
-  var data = await res.json();
-  if(!res.ok){ showToast(data.error || '저장 실패', false); throw new Error(data.error); }
-  return data;
-}
-async function apiPost(path, body){
-  var res = await fetch(API + path, {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json', 'x-admin-key': adminKey },
-    body: JSON.stringify(body)
-  });
-  var data = await res.json();
-  if(!res.ok){ showToast(data.error || '생성 실패', false); throw new Error(data.error); }
-  return data;
+
+  const { error: upsertErr } = await supabase
+    .from('race_league_assignments')
+    .upsert(rows, { onConflict: 'round,strategy_no' });
+  if (upsertErr) throw new Error('리그 편성 저장 실패: ' + upsertErr.message);
+
+  const promotedCount = rows.filter(r => r.league_change === 'promoted').length;
+  const demotedCount = rows.filter(r => r.league_change === 'demoted').length;
+  console.log(`[race-betting] ${round}회차 리그 편성 완료 (${rows.length}개 전략, 승격 ${promotedCount}건, 강등 ${demotedCount}건)`);
 }
 
-// ── 100전략레이스 경마배팅: 최초 회차 리그 편성 ──
-async function initFirstLeagueRound(){
-  var round = parseInt(document.getElementById('initLeagueRound').value);
-  var msgEl = document.getElementById('initLeagueMsg');
-  if (!round) { msgEl.innerHTML = '<div class="msg msg-error">회차번호를 입력해주세요.</div>'; return; }
-  if (!confirm('제' + round + '회를 베팅받을 회차로 지정합니다. 계속할까요?')) return;
+// ── 특정 회차의 베팅을 정산 — "그 회차 개별성적(그 리그 20마리 중 최고 total_prize)"이 우승마 ──
+// 이미 정산된 회차는 중복 정산 방지를 위해 건너뜀(재실행해도 안전).
+async function settleRoundBets(round) {
+  const { data: already } = await supabase
+    .from('race_league_history').select('league').eq('round', round);
+  if (already && already.length >= LEAGUE_COUNT) {
+    console.log(`[race-betting] ${round}회차는 이미 정산 완료됨 — 건너뜀`);
+    return;
+  }
 
-  try {
-    var data = await apiPost('/api/admin/race/betting/init-league', { round: round });
-    msgEl.innerHTML = '<div class="msg msg-success">✅ 제' + data.round + '회 리그 편성 완료! 이제 hub_race.html의 "경마장" 탭에서 베팅을 받을 수 있습니다.</div>';
-  } catch (e) {
-    msgEl.innerHTML = '<div class="msg msg-error">⛔ ' + e.message + '</div>';
+  const { data: assignments, error: aErr } = await supabase
+    .from('race_league_assignments').select('*').eq('round', round);
+  if (aErr) throw new Error('리그배정 조회 실패: ' + aErr.message);
+  if (!assignments || !assignments.length) {
+    console.log(`[race-betting] ${round}회차는 리그배정 자체가 없어 정산을 건너뜁니다(베팅 시작 전 회차로 추정).`);
+    return;
+  }
+
+  const { data: results, error: rErr } = await supabase
+    .from('race_results').select('strategy_no, total_prize').eq('round', round);
+  if (rErr) throw new Error('회차결과 조회 실패: ' + rErr.message);
+  const prizeByStrategy = {};
+  (results || []).forEach(r => { prizeByStrategy[r.strategy_no] = r.total_prize || 0; });
+
+  const { data: bets, error: bErr } = await supabase
+    .from('race_bets').select('*').eq('round', round).eq('status', 'pending');
+  if (bErr) throw new Error('베팅내역 조회 실패: ' + bErr.message);
+
+  for (let league = 1; league <= LEAGUE_COUNT; league++) {
+    const members = assignments.filter(a => a.league === league);
+    if (!members.length) continue;
+
+    // 그 리그 20마리 중, 이번 회차 개별 획득상금(total_prize)이 가장 높은 말(들)이 우승마.
+    // 동률이면 전부 공동우승 처리 (베팅자에게 불리하지 않은 방향으로).
+    let maxPrize = -1;
+    members.forEach(m => { const p = prizeByStrategy[m.strategy_no] || 0; if (p > maxPrize) maxPrize = p; });
+    const winners = members
+      .filter(m => (prizeByStrategy[m.strategy_no] || 0) === maxPrize)
+      .map(m => m.strategy_no);
+
+    const leagueBets = (bets || []).filter(b => b.league === league);
+    const poolAmount = leagueBets.reduce((s, b) => s + b.amount, 0);
+    const totalUnits = leagueBets.reduce((s, b) => s + b.units, 0);
+    const payoutPerUnit = totalUnits > 0 ? Math.floor((poolAmount * PAYOUT_RATE) / totalUnits) : 0;
+
+    for (const bet of leagueBets) {
+      const isWin = winners.includes(bet.strategy_no);
+      const payout = isWin ? bet.units * payoutPerUnit : 0;
+
+      const { error: updErr } = await supabase
+        .from('race_bets')
+        .update({ status: isWin ? 'won' : 'lost', payout })
+        .eq('id', bet.id);
+      if (updErr) console.error(`[race-betting] 베팅 정산 반영 오류 (bet id=${bet.id}):`, updErr);
+
+      if (isWin && payout > 0) {
+        try {
+          await creditPoints(bet.user_id, payout, {
+            reason: `100전략레이스 ${round}회차 ${league}부 우승 배당`,
+            refId: String(bet.id),
+            expiresInDays: 365,
+          });
+        } catch (creditErr) {
+          console.error(`[race-betting] 배당 지급 오류 (bet id=${bet.id}, 정산 상태는 이미 반영됨):`, creditErr);
+        }
+      }
+    }
+
+    const { error: histErr } = await supabase.from('race_league_history').upsert({
+      round, league,
+      winning_strategy_nos: winners,
+      round_prize: maxPrize,
+      pool_amount: poolAmount,
+      total_units: totalUnits,
+      payout_per_unit: payoutPerUnit,
+    }, { onConflict: 'round,league' });
+    if (histErr) console.error(`[race-betting] 이력 저장 오류 (round=${round}, league=${league}):`, histErr);
+
+    console.log(`[race-betting] ${round}회차 ${league}부 정산 완료 — 우승마 #${winners.join(',#')}, 배팅${leagueBets.length}건, 1구좌당 ${payoutPerUnit}P`);
   }
 }
 
-async function loadAll(){
+// ═══════════════════════════════════════════════════════════════════
+// 공개 API
+// ═══════════════════════════════════════════════════════════════════
+
+// ── [공개] 현재 베팅 가능한(가장 최근에 편성된) 회차의 리그 편성 5부 x 20마리 ──
+// GET /api/race-betting/leagues
+router.get('/leagues', async (req, res) => {
   try {
-    var rate = await apiGet('/api/admin/exchange-rate');
-    document.getElementById('rateInput').value = rate.usd_to_point;
-    document.getElementById('rateUpdated').textContent = rate.updated_at ? ('최종수정: ' + new Date(rate.updated_at).toLocaleString('ko-KR')) : '';
+    const { data: maxRow } = await supabase
+      .from('race_league_assignments').select('round')
+      .order('round', { ascending: false }).limit(1).maybeSingle();
 
-    var costs = await apiGet('/api/admin/point-costs');
-    renderCosts(costs.items);
+    if (!maxRow) return res.json({ round: null, leagues: {} });
+    const round = maxRow.round;
 
-    var bankReqs = await apiGet('/api/admin/bank-transfer?status=pending');
-    renderBankTransfers(bankReqs.items);
+    const { data: assignments, error } = await supabase
+      .from('race_league_assignments').select('*')
+      .eq('round', round).order('league', { ascending: true }).order('rank_in_league', { ascending: true });
+    if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
 
-    var deposits = await apiGet('/api/admin/deposits?limit=50');
-    renderDeposits(deposits.items);
+    const { data: strategies } = await supabase.from('race_strategies').select('no, name, name_en, is_random, is_fixed_combo');
+    const nameByNo = {};
+    (strategies || []).forEach(s => { nameByNo[s.no] = { name: s.name, nameEn: s.name_en, ...classifyHorseType(s) }; });
 
-    var users = await apiGet('/api/admin/users?limit=200');
-    renderUsers(users.items);
-
-    await loadRevenue();
-    await loadDepositStats();
-    await loadSignupStats();
-    await loadVisitStats();
-    await loadSourceStats();
-    await loadCountryStats();
-    await loadEntryDomainStats();
-    await loadPageStats();
-
-    var footer = await apiGet('/api/admin/settings/marking_footer_text');
-    document.getElementById('footerTextInput').value = footer.value || '';
-    document.getElementById('footerTextUpdated').textContent = footer.updated_at ? ('최종수정: ' + new Date(footer.updated_at).toLocaleString('ko-KR')) : '';
-  } catch(e) {
-    console.error(e);
-  }
-}
-
-async function saveFooterText(){
-  var val = document.getElementById('footerTextInput').value;
-  try {
-    var result = await apiPut('/api/admin/settings/marking_footer_text', { value: val });
-    showToast('마킹용지 하단 광고 문구가 저장되었습니다.', true);
-    document.getElementById('footerTextUpdated').textContent = '최종수정: ' + new Date(result.item.updated_at).toLocaleString('ko-KR');
-  } catch(e){}
-}
-
-async function saveRate(){
-  var val = document.getElementById('rateInput').value;
-  try {
-    var result = await apiPut('/api/admin/exchange-rate', { usd_to_point: Number(val) });
-    showToast('환율이 저장되었습니다.', true);
-    document.getElementById('rateUpdated').textContent = '최종수정: ' + new Date(result.item.updated_at).toLocaleString('ko-KR');
-  } catch(e){}
-}
-
-function renderCosts(items){
-  var body = document.getElementById('costsBody');
-  body.innerHTML = items.map(function(item){
-    var freeInfo = item.free_quota
-      ? (item.free_quota_period === 'monthly' ? '매월 ' + item.free_quota + '개' : (item.free_quota_period === 'lifetime' ? '평생 ' + item.free_quota + '회' : item.free_quota))
-      : '-';
-    return (
-      '<tr>' +
-        '<td class="label-cell"><div class="kr">' + item.label_kr + '</div><div class="en">' + item.label_en + '</div></td>' +
-        '<td><input class="cost-input" type="number" step="0.01" value="' + item.cost_points + '" id="cost_' + item.action_key + '"></td>' +
-        '<td>' + freeInfo + '</td>' +
-        '<td><span class="badge ' + (item.grants_activity_point ? 'free' : 'paid') + '">' + (item.grants_activity_point ? 'O' : 'X') + '</span></td>' +
-        '<td class="notes-cell">' + (item.notes || '') + '</td>' +
-        '<td><button class="save-btn" onclick="saveCost(\'' + item.action_key + '\')">저장</button></td>' +
-      '</tr>'
-    );
-  }).join('');
-}
-
-async function saveCost(actionKey){
-  var input = document.getElementById('cost_' + actionKey);
-  var val = input.value;
-  try {
-    await apiPut('/api/admin/point-costs/' + actionKey, { cost_points: Number(val) });
-    showToast(actionKey + ' 저장되었습니다.', true);
-  } catch(e){}
-}
-
-function toggleAddForm(){
-  var form = document.getElementById('addForm');
-  var show = form.style.display === 'none';
-  form.style.display = show ? 'grid' : 'none';
-  document.getElementById('addToggleBtn').textContent = show ? '✕ 닫기' : '➕ 새 항목 추가';
-  if (show) {
-    ['newActionKey','newCostPoints','newLabelKr','newLabelEn','newNotes'].forEach(function(id){ document.getElementById(id).value = ''; });
-    document.getElementById('newGrantsActivity').checked = false;
-  }
-}
-
-async function submitNewCost(){
-  var actionKey = document.getElementById('newActionKey').value.trim();
-  var costPoints = document.getElementById('newCostPoints').value;
-  var labelKr = document.getElementById('newLabelKr').value.trim();
-  var labelEn = document.getElementById('newLabelEn').value.trim();
-  var grantsActivity = document.getElementById('newGrantsActivity').checked;
-  var notes = document.getElementById('newNotes').value.trim();
-
-  if (!actionKey) { showToast('action_key를 입력해주세요.', false); return; }
-  if (!labelKr) { showToast('한글 라벨을 입력해주세요.', false); return; }
-  if (costPoints === '' || isNaN(Number(costPoints)) || Number(costPoints) < 0) { showToast('단가를 올바르게 입력해주세요.', false); return; }
-
-  try {
-    await apiPost('/api/admin/point-costs', {
-      action_key: actionKey, label_kr: labelKr, label_en: labelEn,
-      cost_points: Number(costPoints), grants_activity_point: grantsActivity, notes: notes || null,
+    const leagues = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+    (assignments || []).forEach(a => {
+      const info = nameByNo[a.strategy_no] || {};
+      leagues[a.league].push({
+        strategyNo: a.strategy_no,
+        name: info.name || ('전략 ' + a.strategy_no + '번'),
+        nameEn: info.nameEn || null,
+        horseType: info.type || 'cond',
+        horseTypeLabel: info.label || '전략중시형',
+        horseTypeLabelEn: info.labelEn || 'Strategy-based',
+        rankInLeague: a.rank_in_league,
+        overallRank: a.overall_rank,
+        cumulativePrize: a.cumulative_prize_at_assignment,
+      });
     });
-    showToast(actionKey + ' 항목이 추가되었습니다.', true);
-    toggleAddForm();
-    var costs = await apiGet('/api/admin/point-costs');
-    renderCosts(costs.items);
-  } catch(e){}
-}
 
-function renderBankTransfers(items){
-  var body = document.getElementById('bankTransferBody');
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-faint);padding:20px;">대기중인 신청이 없습니다.</td></tr>';
-    return;
+    return res.json({
+      round,
+      leagues,
+      unitPrice: await getUnitPrice(),
+      bettingOpen: isBettingOpen(),
+      nextCloseAt: nextBettingBoundaryIso(true),
+      nextOpenAt: nextBettingBoundaryIso(false),
+    });
+  } catch (err) {
+    console.error('[race-betting] leagues 조회 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
   }
-  body.innerHTML = items.map(function(r){
-    var nickname = r.profiles ? r.profiles.nickname : '-';
-    var date = new Date(r.requested_at).toLocaleString('ko-KR');
-    return (
-      '<tr>' +
-        '<td>' + r.id + '</td>' +
-        '<td>' + nickname + '</td>' +
-        '<td>' + r.depositor_name + '</td>' +
-        '<td>' + Number(r.amount_krw).toLocaleString() + '원</td>' +
-        '<td style="font-size:11px;color:var(--text-faint);">' + date + '</td>' +
-        '<td>' +
-          '<button class="save-btn" style="margin-right:6px;" onclick="approveBankTransfer(' + r.id + ')">승인</button>' +
-          '<button class="save-btn" style="background:var(--red);color:#fff;" onclick="rejectBankTransfer(' + r.id + ')">거절</button>' +
-        '</td>' +
-      '</tr>'
-    );
-  }).join('');
-}
+});
 
-var DEPOSIT_SOURCE_LABEL = {
-  bank_transfer: '계좌이체',
-  inicis: '신용카드',
-  paypal: 'PayPal',
-  activity_reward: '활동적립'
-};
-
-function renderDeposits(items){
-  var body = document.getElementById('depositsBody');
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">입금확인(적립) 내역이 없습니다.</td></tr>';
-    return;
-  }
-  body.innerHTML = items.map(function(r){
-    var nickname = r.profiles ? r.profiles.nickname : '-';
-    var label = DEPOSIT_SOURCE_LABEL[r.source] || r.source;
-    var date = new Date(r.earned_at).toLocaleString('ko-KR');
-    return (
-      '<tr>' +
-        '<td>' + nickname + '</td>' +
-        '<td><span class="badge ' + r.source + '">' + label + '</span></td>' +
-        '<td>' + Number(r.amount).toLocaleString() + 'P</td>' +
-        '<td style="font-size:11px;color:var(--text-dim);">' + date + '</td>' +
-      '</tr>'
-    );
-  }).join('');
-}
-
-function renderUserRow(u){
-  var d = new Date(u.createdAt);
-  var dateStr = d.toLocaleDateString('ko-KR');
-  return (
-    '<tr>' +
-      '<td>' + u.nickname + '</td>' +
-      '<td>' + u.email + '</td>' +
-      '<td>' + (u.phone || '<span style="color:var(--text-dim);">미수집</span>') + '</td>' +
-      '<td>' + u.depositCumulative.toLocaleString() + 'P</td>' +
-      '<td>' + u.deposit.toLocaleString() + 'P</td>' +
-      '<td>' + u.activity.toLocaleString() + 'P</td>' +
-      '<td style="font-size:11px;color:var(--text-dim);">' + dateStr + '</td>' +
-    '</tr>'
-  );
-}
-
-function renderUsers(items){
-  var memberBody = document.getElementById('memberUsersBody');
-  var guestBody = document.getElementById('guestUsersBody');
-
-  var members = items.filter(function(u){ return !u.isGuest; });
-  var guests = items.filter(function(u){ return u.isGuest; });
-
-  memberBody.innerHTML = members.length
-    ? members.map(renderUserRow).join('')
-    : '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:20px;">회원이 없습니다.</td></tr>';
-
-  guestBody.innerHTML = guests.length
-    ? guests.map(renderUserRow).join('')
-    : '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:20px;">비회원이 없습니다.</td></tr>';
-}
-
-async function loadRevenue(){
-  var from = document.getElementById('revenueFrom').value;
-  var to = document.getElementById('revenueTo').value;
-  var qs = [];
-  if (from) qs.push('from=' + from + 'T00:00:00');
-  // to는 그 날짜 끝까지 포함되도록 23:59:59로 보정
-  if (to) qs.push('to=' + to + 'T23:59:59');
-  var path = '/api/admin/revenue' + (qs.length ? ('?' + qs.join('&')) : '');
+// ── [공개] 이번 회차 리그 승격/강등 내역 (round 생략 시 가장 최근 편성 회차) ──
+// GET /api/race-betting/league-changes?round=
+router.get('/league-changes', async (req, res) => {
   try {
-    var revenue = await apiGet(path);
-    renderRevenue(revenue.items, revenue.grandTotalPoints);
-  } catch(e) {}
-}
+    let round = Number(req.query.round);
+    if (!round) {
+      const { data: maxRow } = await supabase
+        .from('race_league_assignments').select('round')
+        .order('round', { ascending: false }).limit(1).maybeSingle();
+      if (!maxRow) return res.json({ round: null, promoted: [], demoted: [] });
+      round = maxRow.round;
+    }
 
-function clearRevenueDates(){
-  document.getElementById('revenueFrom').value = '';
-  document.getElementById('revenueTo').value = '';
-  loadRevenue();
-}
+    const { data: assignments, error } = await supabase
+      .from('race_league_assignments').select('*')
+      .eq('round', round).in('league_change', ['promoted', 'demoted'])
+      .order('league', { ascending: true });
+    if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
 
-// ── 일자별 입금액 통계 (결제수단 구분) ──
-var DEPOSIT_METHOD_LABEL = { inicis: '신용카드', bank_transfer: '계좌이체', paypal: 'PayPal', other: '기타' };
+    const { data: strategies } = await supabase.from('race_strategies').select('no, name, name_en, is_random, is_fixed_combo');
+    const nameByNo = {};
+    (strategies || []).forEach(s => { nameByNo[s.no] = { name: s.name, nameEn: s.name_en, ...classifyHorseType(s) }; });
 
-async function loadDepositStats(){
-  var from = document.getElementById('depositsFrom').value;
-  var to = document.getElementById('depositsTo').value;
-  var groupBy = document.getElementById('depositsGroupBy').value;
-  var qs = ['groupBy=' + groupBy];
-  if (from) qs.push('from=' + from + 'T00:00:00');
-  if (to) qs.push('to=' + to + 'T23:59:59');
+    const toItem = (a) => {
+      const info = nameByNo[a.strategy_no] || {};
+      return {
+        strategyNo: a.strategy_no,
+        name: info.name || ('전략 ' + a.strategy_no + '번'),
+        nameEn: info.nameEn || null,
+        horseType: info.type || 'cond',
+        horseTypeLabel: info.label || '전략중시형',
+        previousLeague: a.previous_league,
+        newLeague: a.league,
+        cumulativePrize: a.cumulative_prize_at_assignment,
+      };
+    };
+
+    const promoted = (assignments || []).filter(a => a.league_change === 'promoted').map(toItem);
+    const demoted = (assignments || []).filter(a => a.league_change === 'demoted').map(toItem);
+
+    return res.json({ round, promoted, demoted });
+  } catch (err) {
+    console.error('[race-betting] league-changes 조회 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
+// ── [인증 필요] 베팅 등록 ──
+// POST /api/race-betting/bet  body: { round, league, strategyNo, units, nickname, email }
+router.post('/bet', async (req, res) => {
   try {
-    var result = await apiGet('/api/admin/stats/deposits-daily?' + qs.join('&'));
-    renderDepositStats(result.items, result.grandTotal);
-  } catch(e) {}
-}
+    const userId = await resolveUserId(req);
+    if (!userId) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
 
-function clearDepositStatsDates(){
-  document.getElementById('depositsFrom').value = '';
-  document.getElementById('depositsTo').value = '';
-  loadDepositStats();
-}
+    if (!isBettingOpen()) {
+      return res.status(403).json({
+        error: '지금은 베팅 마감 시간입니다. 토요일 밤 8시에 마감되며, 일요일 아침 6시에 다시 열립니다.',
+        nextOpenAt: nextBettingBoundaryIso(false),
+      });
+    }
 
-function renderDepositStats(items, grand){
-  var body = document.getElementById('depositStatsBody');
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 입금 내역이 없습니다.</td></tr>';
-    return;
+    const round = Number(req.body.round);
+    const league = Number(req.body.league);
+    const strategyNo = Number(req.body.strategyNo);
+    const units = Number(req.body.units);
+
+    if (!round || ![1,2,3,4,5].includes(league) || !strategyNo || !units || units <= 0) {
+      return res.status(400).json({ error: 'round, league(1~5), strategyNo, units를 올바르게 입력해주세요.' });
+    }
+
+    // 그 말이 실제로 그 회차·그 리그에 배정되어 있는지 검증 (클라이언트 위조 방지)
+    const { data: assignment } = await supabase
+      .from('race_league_assignments').select('*')
+      .eq('round', round).eq('league', league).eq('strategy_no', strategyNo).maybeSingle();
+    if (!assignment) {
+      return res.status(400).json({ error: '해당 회차에 그 리그·전략 조합이 존재하지 않습니다. 리그 편성이 아직 안 됐거나 마감된 회차일 수 있습니다.' });
+    }
+
+    const unitPrice = await getUnitPrice();
+    const amount = units * unitPrice;
+    const pointResult = await deductPoints(userId, amount, {
+      actionKey: 'race_betting', refId: `${round}-${league}-${strategyNo}`,
+    });
+    if (!pointResult.success) {
+      return res.status(402).json({
+        error: '포인트가 부족합니다. 충전해주세요.',
+        shortfall: pointResult.shortfall, balance: pointResult.balance,
+        chargeUrl: '/pay/category_select.html',
+      });
+    }
+
+    const { data: bet, error: insertErr } = await supabase
+      .from('race_bets')
+      .insert({ user_id: userId, round, league, strategy_no: strategyNo, units, amount })
+      .select().single();
+
+    if (insertErr) {
+      // 포인트는 이미 차감됨 — TODO: 운영 전환 시 RPC 트랜잭션으로 개선
+      console.error('[race-betting] 베팅 등록 오류 (포인트는 이미 차감됨):', insertErr);
+      return res.status(500).json({ error: '등록 중 오류가 발생했습니다. 관리자에게 문의해주세요.' });
+    }
+
+    return res.status(201).json({ message: '베팅이 등록되었습니다.', bet });
+  } catch (err) {
+    console.error('[race-betting] bet 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
   }
-  var rows = items.map(function(r){
-    return (
-      '<tr>' +
-        '<td>' + r.bucket + '</td>' +
-        '<td>' + r.inicis.toLocaleString() + '원</td>' +
-        '<td>' + r.bank_transfer.toLocaleString() + '원</td>' +
-        '<td>' + r.paypal.toLocaleString() + '원</td>' +
-        '<td>' + r.other.toLocaleString() + '원</td>' +
-        '<td style="font-weight:700;">' + r.total.toLocaleString() + '원</td>' +
-      '</tr>'
-    );
-  }).join('');
-  rows += '<tr style="font-weight:700;">' +
-    '<td>합계</td>' +
-    '<td>' + (grand.inicis||0).toLocaleString() + '원</td>' +
-    '<td>' + (grand.bank_transfer||0).toLocaleString() + '원</td>' +
-    '<td>' + (grand.paypal||0).toLocaleString() + '원</td>' +
-    '<td>' + (grand.other||0).toLocaleString() + '원</td>' +
-    '<td>' + (grand.total||0).toLocaleString() + '원</td>' +
-  '</tr>';
-  body.innerHTML = rows;
-}
+});
 
-// ── 일자별 가입자 수 통계 (회원/비회원 구분) ──
-async function loadSignupStats(){
-  var from = document.getElementById('signupsFrom').value;
-  var to = document.getElementById('signupsTo').value;
-  var groupBy = document.getElementById('signupsGroupBy').value;
-  var qs = ['groupBy=' + groupBy];
-  if (from) qs.push('from=' + from + 'T00:00:00');
-  if (to) qs.push('to=' + to + 'T23:59:59');
+// ── [인증 필요] 내 베팅내역 (최근 100건) ──
+// GET /api/race-betting/my-bets
+router.get('/my-bets', async (req, res) => {
   try {
-    var result = await apiGet('/api/admin/stats/signups-daily?' + qs.join('&'));
-    renderSignupStats(result.items, result.grandTotal);
-  } catch(e) {}
-}
+    const userId = await resolveUserId(req);
+    if (!userId) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
 
-function clearSignupStatsDates(){
-  document.getElementById('signupsFrom').value = '';
-  document.getElementById('signupsTo').value = '';
-  loadSignupStats();
-}
+    const { data, error } = await supabase
+      .from('race_bets').select('*')
+      .eq('user_id', userId).order('placed_at', { ascending: false }).limit(100);
+    if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
 
-function renderSignupStats(items, grand){
-  var body = document.getElementById('signupStatsBody');
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 가입 내역이 없습니다.</td></tr>';
-    return;
+    return res.json({ items: data });
+  } catch (err) {
+    console.error('[race-betting] my-bets 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
   }
-  var rows = items.map(function(r){
-    return (
-      '<tr>' +
-        '<td>' + r.bucket + '</td>' +
-        '<td>' + r.member.toLocaleString() + '명</td>' +
-        '<td>' + r.guest.toLocaleString() + '명</td>' +
-        '<td style="font-weight:700;">' + r.total.toLocaleString() + '명</td>' +
-      '</tr>'
-    );
-  }).join('');
-  rows += '<tr style="font-weight:700;">' +
-    '<td>합계</td>' +
-    '<td>' + (grand.member||0).toLocaleString() + '명</td>' +
-    '<td>' + (grand.guest||0).toLocaleString() + '명</td>' +
-    '<td>' + (grand.total||0).toLocaleString() + '명</td>' +
-  '</tr>';
-  body.innerHTML = rows;
-}
+});
 
-// ── 시간대별/일별/주별/월별 접속자수 ──
-async function loadVisitStats(){
-  var from = document.getElementById('visitsFrom').value;
-  var to = document.getElementById('visitsTo').value;
-  var groupBy = document.getElementById('visitsGroupBy').value;
-  var qs = ['groupBy=' + groupBy];
-  if (from) qs.push('from=' + from + 'T00:00:00');
-  if (to) qs.push('to=' + to + 'T23:59:59');
-  try {
-    var result = await apiGet('/api/admin/stats/visits-daily?' + qs.join('&'));
-    renderVisitStats(result.items, result.grandTotal);
-  } catch(e) {}
-}
+// ── [공개] 리그별 그간 우승마 이력 (최근 50회차) ──
+// GET /api/race-betting/history/:league
+router.get('/history/:league', async (req, res) => {
+  const league = Number(req.params.league);
+  if (![1,2,3,4,5].includes(league)) return res.status(400).json({ error: '올바른 리그(1~5)가 아닙니다.' });
 
-function clearVisitStatsDates(){
-  document.getElementById('visitsFrom').value = '';
-  document.getElementById('visitsTo').value = '';
-  loadVisitStats();
-}
+  const { data, error } = await supabase
+    .from('race_league_history').select('*')
+    .eq('league', league).order('round', { ascending: false }).limit(50);
+  if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
 
-function renderVisitStats(items, grand){
-  var body = document.getElementById('visitStatsBody');
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 방문 기록이 없습니다.</td></tr>';
-    return;
-  }
-  var rows = items.map(function(r){
-    return (
-      '<tr>' +
-        '<td>' + r.bucket + '</td>' +
-        '<td>' + r.visits.toLocaleString() + '건</td>' +
-        '<td>' + r.uniqueVisitors.toLocaleString() + '명</td>' +
-      '</tr>'
-    );
-  }).join('');
-  rows += '<tr style="font-weight:700;">' +
-    '<td>합계</td>' +
-    '<td>' + (grand.visits||0).toLocaleString() + '건</td>' +
-    '<td>' + (grand.uniqueVisitors||0).toLocaleString() + '명</td>' +
-  '</tr>';
-  body.innerHTML = rows;
-}
+  const { data: strategies } = await supabase.from('race_strategies').select('no, name');
+  const nameByNo = {};
+  (strategies || []).forEach(s => { nameByNo[s.no] = s.name; });
 
-// ── 접속경로별 통계 ──
-async function loadSourceStats(){
-  var from = document.getElementById('sourceFrom').value;
-  var to = document.getElementById('sourceTo').value;
-  var qs = [];
-  if (from) qs.push('from=' + from + 'T00:00:00');
-  if (to) qs.push('to=' + to + 'T23:59:59');
-  var path = '/api/admin/stats/visits-by-source' + (qs.length ? ('?' + qs.join('&')) : '');
-  try {
-    var result = await apiGet(path);
-    renderSourceStats(result.items, result.grandTotal);
-  } catch(e) {}
-}
+  const items = (data || []).map(h => ({
+    round: h.round,
+    winners: (h.winning_strategy_nos || []).map(no => ({ strategyNo: no, name: nameByNo[no] || ('전략 ' + no + '번') })),
+    roundPrize: h.round_prize,
+    poolAmount: h.pool_amount,
+    totalUnits: h.total_units,
+    payoutPerUnit: h.payout_per_unit,
+  }));
 
-function clearSourceStatsDates(){
-  document.getElementById('sourceFrom').value = '';
-  document.getElementById('sourceTo').value = '';
-  loadSourceStats();
-}
+  return res.json({ items });
+});
 
-function renderSourceStats(items, grandTotal){
-  var body = document.getElementById('sourceStatsBody');
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 방문 기록이 없습니다.</td></tr>';
-    return;
-  }
-  var rows = items.map(function(r){
-    return (
-      '<tr>' +
-        '<td>' + r.labelKr + '</td>' +
-        '<td>' + r.visits.toLocaleString() + '건</td>' +
-        '<td>' + r.uniqueVisitors.toLocaleString() + '명</td>' +
-      '</tr>'
-    );
-  }).join('');
-  rows += '<tr style="font-weight:700;"><td>합계</td><td>' + (grandTotal||0).toLocaleString() + '건</td><td></td></tr>';
-  body.innerHTML = rows;
-}
-
-// ── 국가별 통계 ──
-async function loadCountryStats(){
-  var from = document.getElementById('countryFrom').value;
-  var to = document.getElementById('countryTo').value;
-  var qs = [];
-  if (from) qs.push('from=' + from + 'T00:00:00');
-  if (to) qs.push('to=' + to + 'T23:59:59');
-  var path = '/api/admin/stats/visits-by-country' + (qs.length ? ('?' + qs.join('&')) : '');
-  try {
-    var result = await apiGet(path);
-    renderCountryStats(result.items, result.summary);
-  } catch(e) {}
-}
-
-function clearCountryStatsDates(){
-  document.getElementById('countryFrom').value = '';
-  document.getElementById('countryTo').value = '';
-  loadCountryStats();
-}
-
-function renderCountryStats(items, summary){
-  var summaryEl = document.getElementById('countrySummary');
-  if (summary) {
-    var domesticPct = summary.total ? (summary.domestic / summary.total * 100).toFixed(1) : '0.0';
-    var foreignPct = summary.total ? (summary.foreign / summary.total * 100).toFixed(1) : '0.0';
-    summaryEl.innerHTML =
-      '<span>🇰🇷 국내: <b style="color:var(--text);">' + summary.domestic.toLocaleString() + '건 (' + domesticPct + '%)</b></span>' +
-      '<span>🌍 해외: <b style="color:var(--text);">' + summary.foreign.toLocaleString() + '건 (' + foreignPct + '%)</b></span>' +
-      (summary.unknown ? '<span>❔ 판별불가: ' + summary.unknown.toLocaleString() + '건</span>' : '');
-  }
-
-  var body = document.getElementById('countryStatsBody');
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 방문 기록이 없습니다.</td></tr>';
-    return;
-  }
-  body.innerHTML = items.map(function(r){
-    var flag = r.country === 'KR' ? '🇰🇷 ' : '';
-    return (
-      '<tr>' +
-        '<td>' + flag + r.countryName + ' (' + r.country + ')</td>' +
-        '<td>' + r.visits.toLocaleString() + '건</td>' +
-        '<td>' + r.uniqueVisitors.toLocaleString() + '명</td>' +
-      '</tr>'
-    );
-  }).join('');
-}
-
-// ── 유입 도메인별 통계 ──
-async function loadEntryDomainStats(){
-  var from = document.getElementById('entryDomainFrom').value;
-  var to = document.getElementById('entryDomainTo').value;
-  var qs = [];
-  if (from) qs.push('from=' + from + 'T00:00:00');
-  if (to) qs.push('to=' + to + 'T23:59:59');
-  var path = '/api/admin/stats/visits-by-entry-domain' + (qs.length ? ('?' + qs.join('&')) : '');
-  try {
-    var result = await apiGet(path);
-    renderEntryDomainStats(result.items, result.grandTotal);
-  } catch(e) {}
-}
-
-function clearEntryDomainStatsDates(){
-  document.getElementById('entryDomainFrom').value = '';
-  document.getElementById('entryDomainTo').value = '';
-  loadEntryDomainStats();
-}
-
-function renderEntryDomainStats(items, grandTotal){
-  var body = document.getElementById('entryDomainStatsBody');
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 방문 기록이 없습니다.</td></tr>';
-    return;
-  }
-  var rows = items.map(function(r){
-    return (
-      '<tr>' +
-        '<td>' + r.domain + '</td>' +
-        '<td>' + r.visits.toLocaleString() + '건</td>' +
-        '<td>' + r.uniqueVisitors.toLocaleString() + '명</td>' +
-      '</tr>'
-    );
-  }).join('');
-  rows += '<tr style="font-weight:700;"><td>합계</td><td>' + (grandTotal||0).toLocaleString() + '건</td><td></td></tr>';
-  body.innerHTML = rows;
-}
-
-// ── 방문페이지 통계 (큰 카테고리별) ──
-async function loadPageStats(){
-  var from = document.getElementById('pageFrom').value;
-  var to = document.getElementById('pageTo').value;
-  var qs = [];
-  if (from) qs.push('from=' + from + 'T00:00:00');
-  if (to) qs.push('to=' + to + 'T23:59:59');
-  var path = '/api/admin/stats/visits-by-page' + (qs.length ? ('?' + qs.join('&')) : '');
-  try {
-    var result = await apiGet(path);
-    renderPageStats(result.items, result.grandTotal);
-  } catch(e) {}
-}
-
-function clearPageStatsDates(){
-  document.getElementById('pageFrom').value = '';
-  document.getElementById('pageTo').value = '';
-  loadPageStats();
-}
-
-function renderPageStats(items, grandTotal){
-  var body = document.getElementById('pageStatsBody');
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 방문 기록이 없습니다.</td></tr>';
-    return;
-  }
-  var rows = items.map(function(r){
-    return (
-      '<tr>' +
-        '<td>' + r.category + '</td>' +
-        '<td>' + r.visits.toLocaleString() + '건</td>' +
-        '<td>' + r.uniqueVisitors.toLocaleString() + '명</td>' +
-      '</tr>'
-    );
-  }).join('');
-  rows += '<tr style="font-weight:700;"><td>합계</td><td>' + (grandTotal||0).toLocaleString() + '건</td><td></td></tr>';
-  body.innerHTML = rows;
-}
-
-function renderRevenue(items, grandTotal){
-  var body = document.getElementById('revenueBody');
-  if (!items.length) {
-    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">차감 내역이 없습니다.</td></tr>';
-    return;
-  }
-  var rows = items.map(function(r){
-    return (
-      '<tr>' +
-        '<td>' + r.labelKr + '</td>' +
-        '<td>' + r.totalPoints.toLocaleString() + 'P</td>' +
-        '<td>' + r.count.toLocaleString() + '회</td>' +
-      '</tr>'
-    );
-  }).join('');
-  rows += '<tr style="font-weight:700;"><td>합계</td><td>' + (grandTotal||0).toLocaleString() + 'P</td><td></td></tr>';
-  body.innerHTML = rows;
-}
-
-async function approveBankTransfer(id){
-  if (!confirm('입금을 확인하셨나요? 승인하면 즉시 포인트가 적립됩니다.')) return;
-  try {
-    var result = await apiPost('/api/admin/bank-transfer/' + id + '/approve', {});
-    showToast(result.message, true);
-    loadAll();
-  } catch(e){}
-}
-
-async function rejectBankTransfer(id){
-  if (!confirm('이 신청을 거절하시겠습니까?')) return;
-  try {
-    await apiPost('/api/admin/bank-transfer/' + id + '/reject', {});
-    showToast('거절 처리되었습니다.', true);
-    loadAll();
-  } catch(e){}
-}
-
-async function apiPost(path, body){
-  var res = await fetch(API + path, {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json', 'x-admin-key': adminKey },
-    body: JSON.stringify(body)
-  });
-  var data = await res.json();
-  if(!res.ok){ showToast(data.error || '처리 실패', false); throw new Error(data.error); }
-  return data;
-}
-
-// 세션에 저장된 키가 있으면 자동 입장
-(function(){
-  var saved = sessionStorage.getItem('mll_admin_key');
-  if (saved) {
-    adminKey = saved;
-    document.getElementById('gate').style.display = 'none';
-    document.getElementById('main').style.display = 'block';
-    loadAll();
-  }
-})();
-</script>
-</body>
-</html>
+module.exports = router;
+module.exports.assignLeaguesForRound = assignLeaguesForRound;
+module.exports.settleRoundBets = settleRoundBets;
