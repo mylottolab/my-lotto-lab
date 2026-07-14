@@ -450,8 +450,13 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
   var tbody   = document.getElementById(tbodyId);
   if (!tbody) return;
 
+  // ⚠ 2026-07-15: 예전엔 postDraw를 status==='추첨후'로만 걸러서, '미확인'
+  // 상태(=지난 회차라 결과는 있지만 "즉시확인"을 아직 안 누른 상태)인 항목이
+  // preDraw에도 postDraw에도 안 걸려 목록에서 통째로 사라지는 버그가 있었다.
+  // renderRow는 이미 '추첨전'이 아니면 전부 "추첨후"로 표시하도록 돼 있으므로
+  // (실시간 재판단 로직 참고), 여기도 그 기준에 맞춰 '추첨전이 아닌 것'을 전부 담는다.
   var preDraw  = sorted.filter(function(e){ return e.status === '추첨전'; });
-  var postDraw = sorted.filter(function(e){ return e.status === '추첨후'; });
+  var postDraw = sorted.filter(function(e){ return e.status !== '추첨전'; });
 
   // 배지 업데이트
   var badgeEl = document.getElementById('sectionBadge');
