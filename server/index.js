@@ -304,6 +304,10 @@ app.use('/api/race', raceRouter);
 const raceAdminRouter = require('./routes/race_admin');
 app.use('/api/admin/race', raceAdminRouter);
 
+// ─── 100전략 레이스 - 경마배팅 (2026-07-14 신규) ───────────────────────────────
+const raceBettingRouter = require('./routes/race_betting');
+app.use('/api/race-betting', raceBettingRouter);
+
 // ─── 모의실전시뮬레이션 ────────────────────────────────────────────────────
 const mockRouter = require('./routes/mock');
 app.use('/api/mock', mockRouter);
