@@ -250,6 +250,13 @@ body{
 
 /* ── 푸터 ── */
 .footnote{max-width:1180px;margin:0 auto;padding:0 24px 40px;font-size:10.5px;color:var(--text-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+
+.biz-info{max-width:1180px;margin:0 auto;padding:14px 24px 40px;font-size:10px;line-height:1.9;color:var(--text-faint);border-top:1px solid var(--border-soft);}
+.biz-terms-link{cursor:pointer;text-decoration:underline;color:var(--text-dim);}
+.biz-terms-link:hover{color:var(--gold);}
+@media (max-width:680px){
+  .biz-info{font-size:9.5px;padding:12px 14px 32px;line-height:2;}
+}
 /* =====================================================================
    📱 모바일 반응형 (max-width:680px) — PC 화면(위 CSS)은 전혀 건드리지 않음.
    여기 아래 규칙들은 좁은 화면에서만 적용된다.
@@ -557,6 +564,22 @@ body{
   <span data-i18n-kr="My Lotto Lab — 번호는 회원이 정합니다. 우리는 기록하고 분석합니다." data-i18n-en="My Lotto Lab — You choose the numbers. We record and analyze.">My Lotto Lab — 번호는 회원이 정합니다. 우리는 기록하고 분석합니다.</span>
   <span id="footYear"></span>
 </div>
+
+<div class="biz-info">
+  <span data-i18n-kr="위브앱솔루션" data-i18n-en="WeApp Solution">위브앱솔루션</span> ·
+  <span data-i18n-kr="대표 이미화" data-i18n-en="CEO Lee Mi-hwa">대표 이미화</span> ·
+  <span data-i18n-kr="사업자등록번호 206-08-71754" data-i18n-en="Biz. Reg. No. 206-08-71754">사업자등록번호 206-08-71754</span> ·
+  <span data-i18n-kr="경기도 수원시 권선구 수성로47 10동 501호" data-i18n-en="10-501, Suseong-ro 47, Gwonseon-gu, Suwon-si, Gyeonggi-do, Korea">경기도 수원시 권선구 수성로47 10동 501호</span> ·
+  <span>010-9237-9042</span> ·
+  <span data-i18n-kr="통신판매업신고 2022-수원권선-1701" data-i18n-en="Mail-order Biz. No. 2022-수원권선-1701">통신판매업신고 2022-수원권선-1701</span> ·
+  <span class="biz-terms-link" onclick="openTerms()" data-i18n-kr="거래약관" data-i18n-en="Terms of Service">거래약관</span>
+</div>
+
+<script>
+function openTerms(){
+  window.open('terms.html', 'mllTerms', 'width=720,height=820,scrollbars=yes,resizable=yes');
+}
+</script>
 
 <script>
 var LANG = localStorage.getItem('mll_lang') || 'kr';
