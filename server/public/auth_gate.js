@@ -394,12 +394,30 @@
     }
   }
 
+  // 포워딩 도메인으로 들어왔을 때(?entry=도메인명) 최초 1회 잡아서 세션 내내 유지.
+  // 예: allimlotto.com이 mylottolab.github.io/.../main_page.html?entry=allimlotto 로
+  // 포워딩되도록 설정해두면, 그 방문(및 이어지는 같은 세션의 다른 페이지들)이
+  // 전부 "allimlotto.com에서 들어온 방문"으로 집계된다.
+  function getEntryDomain() {
+    try {
+      var fromUrl = new URLSearchParams(window.location.search).get('entry');
+      if (fromUrl) {
+        sessionStorage.setItem('mll_entry_domain', fromUrl);
+        return fromUrl;
+      }
+      return sessionStorage.getItem('mll_entry_domain') || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
   function trackVisit() {
     try {
       var payload = JSON.stringify({
         path: window.location.pathname,
         referrer: document.referrer || '',
-        visitorId: getOrCreateVisitorId()
+        visitorId: getOrCreateVisitorId(),
+        entryDomain: getEntryDomain()
       });
       var url = API + '/api/track/visit';
       if (navigator.sendBeacon) {
