@@ -434,6 +434,85 @@
     trackVisit();
   }
 
+  // ── 안내게시판 — admin_announcements.html에서 등록한 공지를 자동으로 상단에 표시 ────
+  // (2026-07-14 신규) 관리자 전용 알림 게시 기능. 페이지별로 지정(pages)했으면 그 페이지에서만,
+  // 안 했으면 전체 사이트에서 뜬다. 사용자가 닫으면 같은 브라우저 세션 동안엔 다시 안 뜬다.
+  function getAnnPageKey() {
+    var file = window.location.pathname.split('/').pop() || 'main_page';
+    return file.replace(/\.html$/, '') || 'main_page';
+  }
+
+  var ANN_STATE = { items: [], index: 0 };
+
+  function renderAnnouncementItem(bar) {
+    var a = ANN_STATE.items[ANN_STATE.index];
+    var lang = localStorage.getItem('mll_lang') || 'kr';
+    var title = (lang === 'en' && a.title_en) ? a.title_en : a.title_kr;
+    var body = (lang === 'en' && a.body_en) ? a.body_en : (a.body_kr || '');
+    var linkLabel = (lang === 'en' && a.link_label_en) ? a.link_label_en : (a.link_label_kr || (lang === 'en' ? 'Learn more' : '자세히 보기'));
+
+    bar.innerHTML =
+      '<span style="flex-shrink:0;">📢</span>' +
+      '<span style="font-weight:700;flex-shrink:0;">' + title + '</span>' +
+      '<span style="opacity:.92;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">' + body + '</span>' +
+      (a.link_url ? ('<a href="' + a.link_url + '" target="_blank" rel="noopener" style="flex-shrink:0;color:#fff;text-decoration:underline;font-weight:700;">' + linkLabel + '</a>') : '') +
+      (ANN_STATE.items.length > 1 ? ('<span style="flex-shrink:0;font-size:11px;opacity:.8;">' + (ANN_STATE.index + 1) + '/' + ANN_STATE.items.length + '</span>') : '') +
+      '<span id="mllAnnClose" style="flex-shrink:0;cursor:pointer;font-size:16px;line-height:1;opacity:.85;padding:0 2px;">×</span>';
+
+    document.getElementById('mllAnnClose').onclick = function () {
+      try {
+        var dismissed = JSON.parse(sessionStorage.getItem('mll_ann_dismissed') || '[]');
+        dismissed.push(a.id);
+        sessionStorage.setItem('mll_ann_dismissed', JSON.stringify(dismissed));
+      } catch (e) {}
+      ANN_STATE.items.splice(ANN_STATE.index, 1);
+      if (!ANN_STATE.items.length) { bar.remove(); return; }
+      if (ANN_STATE.index >= ANN_STATE.items.length) ANN_STATE.index = 0;
+      renderAnnouncementItem(bar);
+    };
+  }
+
+  function renderAnnouncementBar(items) {
+    var dismissed = [];
+    try { dismissed = JSON.parse(sessionStorage.getItem('mll_ann_dismissed') || '[]'); } catch (e) {}
+    items = items.filter(function (a) { return dismissed.indexOf(a.id) === -1; });
+    if (!items.length) return;
+
+    ANN_STATE.items = items;
+    ANN_STATE.index = 0;
+
+    var bar = document.createElement('div');
+    bar.id = 'mllAnnBar';
+    bar.style.cssText = 'position:sticky;top:0;left:0;right:0;z-index:9999;background:linear-gradient(90deg,#5b3fa8,#8a3fd0);color:#fff;font-size:12.5px;padding:9px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.25);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;';
+    if (document.body.firstChild) document.body.insertBefore(bar, document.body.firstChild);
+    else document.body.appendChild(bar);
+    renderAnnouncementItem(bar);
+
+    if (items.length > 1) {
+      setInterval(function () {
+        if (!document.getElementById('mllAnnBar')) return;
+        ANN_STATE.index = (ANN_STATE.index + 1) % ANN_STATE.items.length;
+        renderAnnouncementItem(bar);
+      }, 6000);
+    }
+  }
+
+  async function loadAnnouncements() {
+    try {
+      var pageKey = getAnnPageKey();
+      var resp = await fetch(API + '/api/announcements/active?page=' + encodeURIComponent(pageKey));
+      var data = await resp.json();
+      if (!resp.ok || !data.items || !data.items.length) return;
+      renderAnnouncementBar(data.items);
+    } catch (e) { /* 공지 로딩 실패는 조용히 무시 — 페이지 사용에 지장 주면 안 됨 */ }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadAnnouncements);
+  } else {
+    loadAnnouncements();
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', renderFab);
   } else {
