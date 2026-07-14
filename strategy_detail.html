@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 상세전략</title>
+<style>
+*{box-sizing:border-box;}
+:root{
+  --bg:#0f1120;--surface:#161a30;--surface-2:#1c2140;--border-soft:#232744;
+  --text:#eef0f6;--text-dim:#8b91ab;--text-faint:#5a6080;
+  --gold:#e0b341;--gold-dim:#8a6f2f;--green:#3fb37f;--red:#d4537e;--accent:#e8732f;
+}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:13px;}
+.topbar{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border-soft);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;z-index:10;}
+.topbar h1{font-size:15px;margin:0;font-weight:700;}
+.topbar button{background:var(--surface-2);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;}
+.wrap{max-width:520px;margin:0 auto;padding:20px 18px 50px;}
+.loading, .error-msg{text-align:center;color:var(--text-faint);padding:60px 20px;font-size:12.5px;}
+
+.horse-header{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
+.horse-name{font-size:18px;font-weight:800;}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:10px;}
+.tag-cond{background:rgba(138,155,232,.15);color:#8a9be8;}
+.tag-fixed{background:rgba(224,179,65,.15);color:var(--gold);}
+.tag-rand{background:rgba(232,115,47,.15);color:var(--accent);}
+
+.stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:18px 0 22px;}
+.stat-box{background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;padding:12px 8px;text-align:center;}
+.stat-box .label{font-size:10px;color:var(--text-faint);margin-bottom:5px;}
+.stat-box .value{font-size:14px;font-weight:800;}
+.stat-box .value.gold{color:var(--gold);}
+.stat-box .value.green{color:var(--green);}
+
+.cond-title{font-size:12.5px;font-weight:700;color:var(--text-dim);margin:22px 0 10px;padding-top:16px;border-top:1px solid var(--border-soft);}
+.modal-row{display:flex;justify-content:space-between;align-items:center;padding:9px 4px;border-bottom:1px solid var(--border-soft);font-size:12.5px;}
+.modal-row:last-child{border-bottom:none;}
+.modal-row .k{color:var(--text-dim);}
+.modal-row .v{font-weight:700;color:var(--text);text-align:right;}
+
+@media (max-width:420px){
+  .wrap{padding:16px 14px 40px;}
+  .horse-name{font-size:16px;}
+  .stat-grid{gap:6px;}
+  .stat-box{padding:10px 6px;}
+  .stat-box .value{font-size:12.5px;}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🐎 상세전략</h1>
+  <button onclick="window.close()">닫기 ✕</button>
+</div>
+<div class="wrap" id="wrap">
+  <div class="loading">불러오는 중...</div>
+</div>
+
+<script>
+var API = 'https://my-lotto-lab-api.onrender.com';
+var params = new URLSearchParams(location.search);
+var strategyNo = parseInt(params.get('no'));
+
+var COND_LABEL = {
+  odd_even: '홀짝비율', consecutive_limit: '연속제한', number_sum: '번호합 범위',
+  top_range: '상위빈도범위', top_use: '상위번호사용', recent_rounds: '최근분석회차', bonus_include: '보너스포함'
+};
+
+function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function load(){
+  var wrap = document.getElementById('wrap');
+  if (!strategyNo) { wrap.innerHTML = '<div class="error-msg">전략 번호가 없습니다.</div>'; return; }
+
+  try {
+    var [stratResp, overallResp] = await Promise.all([
+      fetch(API + '/api/race/strategies'),
+      fetch(API + '/api/race/results/overall')
+    ]);
+    var stratData = await stratResp.json();
+    var overallData = await overallResp.json();
+    if (!stratResp.ok || !overallResp.ok) throw new Error('조회 실패');
+
+    var s = (stratData.items || []).find(function(x){ return x.no === strategyNo; });
+    if (!s) { wrap.innerHTML = '<div class="error-msg">해당 전략을 찾을 수 없습니다.</div>'; return; }
+
+    // 누적상금 순으로 정렬해서 전체 순위 계산
+    var overall = (overallData.items || []).slice().sort(function(a,b){ return (b.total_prize||0) - (a.total_prize||0); });
+    var rank = overall.findIndex(function(x){ return x.strategy_no === strategyNo; }) + 1;
+    var mySummary = overall.find(function(x){ return x.strategy_no === strategyNo; }) || {};
+
+    var tagCls = s.is_random ? (s.is_fixed_combo ? 'tag-fixed' : 'tag-rand') : 'tag-cond';
+    var tagLabel = s.is_random ? (s.is_fixed_combo ? '일편단심형' : '될대로되라형') : '전략중시형';
+
+    var condHtml;
+    if (s.is_random) {
+      condHtml = '<div class="modal-row"><span class="k">조건</span><span class="v">' +
+        (s.is_fixed_combo ? '조건 없음 · 일편단심형(1회 생성한 100개를 모든 회차에 동일하게 사용)' : '조건 없음 · 될대로되라(회차마다 새로 추첨)') +
+        '</span></div>';
+    } else {
+      var rows = [
+        [COND_LABEL.odd_even, s.odd_even || '무관'],
+        [COND_LABEL.consecutive_limit, s.consecutive_limit || '-'],
+        [COND_LABEL.number_sum, (s.sum_min||'-') + ' ~ ' + (s.sum_max||'-')],
+        [COND_LABEL.top_range, s.top_range || '-'],
+        [COND_LABEL.top_use, s.top_use || '-'],
+        [COND_LABEL.recent_rounds, (s.recent_rounds===0 || !s.recent_rounds) ? '전체기간' : (s.recent_rounds + '회')],
+        [COND_LABEL.bonus_include, (s.bonus_include === 'Y') ? 'Y' : 'N'],
+      ];
+      condHtml = rows.map(function(r){
+        return '<div class="modal-row"><span class="k">' + r[0] + '</span><span class="v">' + escapeHtml(r[1]) + '</span></div>';
+      }).join('');
+    }
+
+    wrap.innerHTML =
+      '<div class="horse-header">' +
+        '<span class="horse-name">🐎 ' + escapeHtml(s.name) + '</span>' +
+        '<span class="tag ' + tagCls + '">' + tagLabel + '</span>' +
+      '</div>' +
+      '<div class="stat-grid">' +
+        '<div class="stat-box"><div class="label">전체 순위</div><div class="value">' + (rank || '-') + ' / 100</div></div>' +
+        '<div class="stat-box"><div class="label">누적 당첨금</div><div class="value gold">' + Number(mySummary.total_prize||0).toLocaleString() + 'P</div></div>' +
+        '<div class="stat-box"><div class="label">누적 당첨횟수</div><div class="value green">' + Number(mySummary.win_count||0).toLocaleString() + '건</div></div>' +
+      '</div>' +
+      '<div class="cond-title">📐 전략 조건</div>' +
+      condHtml;
+
+  } catch (e) {
+    wrap.innerHTML = '<div class="error-msg">불러오는 중 오류가 발생했습니다.<br>' + e.message + '</div>';
+  }
+}
+
+load();
+</script>
+</body>
+</html>
