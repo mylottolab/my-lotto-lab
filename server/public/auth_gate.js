@@ -218,6 +218,17 @@
   document.head.appendChild(style);
 
   // ── 등록 유도 모달 ───────────────────────────────────────────
+  // ⚠ 2026-07-15: 로그인/비회원등록 버튼이 그냥 LOGIN_URL/GUEST_URL로만 이동해서,
+  // 로그인 후 항상 category_select.html("어디로 가시겠어요?")로 떨어지는 문제가 있었다.
+  // (예: 경마배팅 중 로그인이 필요해 이 모달이 뜬 경우에도 원래 보던 화면으로 못 돌아옴.)
+  // login.html/guest_test.html이 ?redirect=원래주소 를 지원하므로, 현재 페이지 주소를
+  // 실어 보내 로그인/등록 후 다시 여기로 돌아오게 한다.
+  function withRedirect(url) {
+    var current = window.location.href;
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return url + sep + 'redirect=' + encodeURIComponent(current);
+  }
+
   function showAuthModal() {
     var overlay = document.createElement('div');
     overlay.className = 'mll-overlay';
@@ -225,8 +236,8 @@
       '<div class="mll-modal">' +
         '<h2>회원등록이 필요합니다</h2>' +
         '<p>입력·조회·배틀참가 등의 기능은 회원가입 또는 비회원 임시등록 후 이용하실 수 있습니다.</p>' +
-        '<a class="mll-btn mll-primary" href="' + LOGIN_URL + '">로그인</a>' +
-        '<a class="mll-btn mll-secondary" href="' + GUEST_URL + '">비회원 등록 / 로그인 (간편)</a>' +
+        '<a class="mll-btn mll-primary" href="' + withRedirect(LOGIN_URL) + '">로그인</a>' +
+        '<a class="mll-btn mll-secondary" href="' + withRedirect(GUEST_URL) + '">비회원 등록 / 로그인 (간편)</a>' +
         '<p style="margin:12px 0 0;font-size:11.5px;color:var(--text-dim,#8b91ab);">' +
           '아직 계정이 없으신가요? <a href="' + SIGNUP_URL + '" style="color:var(--gold,#e0b341);font-weight:600;text-decoration:none;">회원가입</a>' +
         '</p>' +
