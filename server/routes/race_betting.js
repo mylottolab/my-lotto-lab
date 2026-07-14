@@ -24,9 +24,15 @@ async function getUnitPrice() {
 }
 
 // ─── 말(전략)의 성향 분류 — race_strategies.is_random / is_fixed_combo 기준 ────────
+// ⚠ 2026-07-15 수정: 처음엔 is_random부터 확인해서 바로 "될대로되라형"으로 단정했는데,
+// 실제 규칙은 이렇다 — 69~100번(조건없음형=is_random)에서만 is_fixed_combo로
+// "일편단심형"과 "될대로되라형"이 갈리고, 1~68번(조건 있음)은 항상 "전략중시형".
+// 순서를 잘못 짜서 is_fixed_combo=true인 말도 무조건 "될대로되라형"으로 잘못 표시되던 버그 수정.
 function classifyHorseType(s) {
-  if (s.is_random) return { type: 'rand', label: '될대로되라형', labelEn: 'Pure Random' };
-  if (s.is_fixed_combo) return { type: 'fixed', label: '일편단심형', labelEn: 'Fixed-combo' };
+  if (s.is_random) {
+    if (s.is_fixed_combo) return { type: 'fixed', label: '일편단심형', labelEn: 'Fixed-combo' };
+    return { type: 'rand', label: '될대로되라형', labelEn: 'Pure Random' };
+  }
   return { type: 'cond', label: '전략중시형', labelEn: 'Strategy-based' };
 }
 
