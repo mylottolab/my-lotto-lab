@@ -239,6 +239,16 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <div class="card">
+    <h2>🏇 100전략레이스 경마배팅 — 최초 회차 지정</h2>
+    <p class="desc" style="margin-bottom:12px;">평소엔 매주 회차결과 저장 시 다음 회차 리그가 자동으로 편성되지만, <b style="color:var(--gold);">경마배팅 기능을 맨 처음 켤 때 딱 한 번만</b> 첫 베팅 회차를 여기서 지정해주셔야 합니다. (이미 한 번 지정하셨다면 다시 누르실 필요 없어요.)</p>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <input type="number" id="initLeagueRound" placeholder="베팅받을 회차번호 (예: 1234)" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;width:220px;">
+      <button onclick="initFirstLeagueRound()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;">리그 편성 실행</button>
+    </div>
+    <div id="initLeagueMsg" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card">
     <h2>👤 회원 명단</h2>
     <p class="desc" style="margin-bottom:12px;">최근 가입순 상위 200명(전체 목록 중 회원만). 전화번호는 아직 수집하는 곳이 없어 비어있습니다.</p>
     <table>
@@ -402,6 +412,21 @@ async function apiPost(path, body){
   var data = await res.json();
   if(!res.ok){ showToast(data.error || '생성 실패', false); throw new Error(data.error); }
   return data;
+}
+
+// ── 100전략레이스 경마배팅: 최초 회차 리그 편성 ──
+async function initFirstLeagueRound(){
+  var round = parseInt(document.getElementById('initLeagueRound').value);
+  var msgEl = document.getElementById('initLeagueMsg');
+  if (!round) { msgEl.innerHTML = '<div class="msg msg-error">회차번호를 입력해주세요.</div>'; return; }
+  if (!confirm('제' + round + '회를 베팅받을 회차로 지정합니다. 계속할까요?')) return;
+
+  try {
+    var data = await apiPost('/api/admin/race/betting/init-league', { round: round });
+    msgEl.innerHTML = '<div class="msg msg-success">✅ 제' + data.round + '회 리그 편성 완료! 이제 hub_race.html의 "경마장" 탭에서 베팅을 받을 수 있습니다.</div>';
+  } catch (e) {
+    msgEl.innerHTML = '<div class="msg msg-error">⛔ ' + e.message + '</div>';
+  }
 }
 
 async function loadAll(){
