@@ -71,6 +71,28 @@ router.post('/draws', requireAdmin, async (req, res) => {
       });
     }
 
+    // ⚠ 2026-07-16 추가: 이전엔 upsert가 "행 전체 덮어쓰기"라서, 이미 데이터가 있는
+    // 회차에 대해 일부 항목(예: 1등 당첨금)만 고치려고 나머지 칸을 비워둔 채 저장하면
+    // 그 빈 칸들이 null로 밀려서 기존에 입력해둔 값(특히 유로밀리언스 등수별 상금표)이
+    // 통째로 사라지는 문제가 있었다. 자료가 순서 없이 들쭉날쭉 들어오는 운영 특성상
+    // "이번에 값을 준 항목만 갱신하고, 비워둔 항목은 기존 값을 그대로 유지"하는
+    // 진짜 부분수정(PATCH) 방식으로 바꾼다. 기존 행이 없으면(신규 입력) 그냥 그대로 저장.
+    const { data: existingDraw } = await supabase
+      .from('global_lottery_draws')
+      .select('jackpot_won, jackpot_winners_count, cash_value, prize_tiers')
+      .eq('game_code', game_code)
+      .eq('draw_date', draw_date)
+      .maybeSingle();
+
+    const mergedJackpotWon = (jackpot_won !== null && jackpot_won !== undefined) ? jackpot_won : (existingDraw ? existingDraw.jackpot_won : null);
+    const mergedWinnersCount = (jackpot_winners_count !== null && jackpot_winners_count !== undefined) ? jackpot_winners_count : (existingDraw ? existingDraw.jackpot_winners_count : null);
+    const mergedCashValue = (cash_value !== null && cash_value !== undefined) ? cash_value : (existingDraw ? existingDraw.cash_value : null);
+    // prize_tiers는 표 전체 단위 입력이라, 이번에 하나라도 채워서 보냈으면(빈 배열이 아니면)
+    // 그 표 전체로 교체하고, 아예 비워서 보냈으면(빈 배열/null) 기존 표를 그대로 유지한다.
+    const mergedPrizeTiers = (Array.isArray(prize_tiers) && prize_tiers.length > 0)
+      ? prize_tiers
+      : (existingDraw ? existingDraw.prize_tiers : null);
+
     const { data: inserted, error: insertErr } = await supabase
       .from('global_lottery_draws')
       .upsert(
@@ -79,10 +101,10 @@ router.post('/draws', requireAdmin, async (req, res) => {
           draw_date,
           main_numbers,
           bonus_numbers,
-          jackpot_won: jackpot_won ?? null,
-          jackpot_winners_count: jackpot_winners_count ?? null,
-          cash_value: cash_value ?? null,
-          prize_tiers: prize_tiers ?? null,
+          jackpot_won: mergedJackpotWon,
+          jackpot_winners_count: mergedWinnersCount,
+          cash_value: mergedCashValue,
+          prize_tiers: mergedPrizeTiers,
           source: 'manual_admin',
         },
         { onConflict: 'game_code,draw_date' }
