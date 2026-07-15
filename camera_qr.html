@@ -238,14 +238,14 @@ document.addEventListener('click',function(e){
     <table>
       <thead><tr>
         <th style="width:28px;"><input type="checkbox" id="checkAllSlip" onclick="toggleAllSlipCheck(this.checked)" title="전표작성용 체크"></th>
-        <th class="sh" style="width:52px;" onclick="MLL.setSort('round')">회차<span class="sa" id="sa-round"></span></th>
+        <th class="sh" style="width:48px;white-space:nowrap;" onclick="MLL.setSort('round')">회차<span class="sa" id="sa-round"></span></th>
         <th style="width:140px;">번호</th>
-        <th class="sh" style="width:70px;" onclick="MLL.setSort('memo')">메모<span class="sa" id="sa-memo"></span></th>
-        <th class="sh" style="width:54px;" onclick="MLL.setSort('type')">구매형태<span class="sa" id="sa-type"></span></th>
-        <th style="width:50px;">구분</th>
-        <th class="sh" style="width:50px;" onclick="MLL.setSort('status')">추첨<span class="sa" id="sa-status"></span></th>
-        <th class="sh" style="width:40px;" onclick="MLL.setSort('grade')">결과<span class="sa" id="sa-grade"></span></th>
-        <th class="sh" style="width:75px;" onclick="MLL.setSort('prizeMoney')">당첨금<span class="sa" id="sa-prizeMoney"></span></th>
+        <th class="sh" style="width:56px;" onclick="MLL.setSort('memo')">메모<span class="sa" id="sa-memo"></span></th>
+        <th class="sh" style="width:44px;" onclick="MLL.setSort('type')">구매형태<span class="sa" id="sa-type"></span></th>
+        <th style="width:42px;">구분</th>
+        <th class="sh" style="width:42px;" onclick="MLL.setSort('status')">추첨<span class="sa" id="sa-status"></span></th>
+        <th class="sh" style="width:34px;" onclick="MLL.setSort('grade')">결과<span class="sa" id="sa-grade"></span></th>
+        <th class="sh" style="width:64px;" onclick="MLL.setSort('prizeMoney')">당첨금<span class="sa" id="sa-prizeMoney"></span></th>
         <th style="width:28px;">삭제</th>
       </tr></thead>
       <tbody id="tb"></tbody>
