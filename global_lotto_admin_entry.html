@@ -38,7 +38,15 @@
 
 <div class="adminkey-box">
   <label>관리자 키 (ADMIN_API_KEY)</label>
-  <input type="password" id="adminKey" placeholder="관리자 키 입력 (이 브라우저에만 기억됨)">
+  <input type="password" id="adminKey" placeholder="관리자 키 입력 (이 브라우저에만 기억됨)" oninput="saveAdminKeyToStorage()" onchange="loadCurrentStatus()">
+</div>
+
+<div class="adminkey-box" style="margin-top:14px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <label style="margin-top:0;">📊 현재 사이트에 표시 중인 데이터</label>
+    <button type="button" class="ref-btn" style="margin-top:0;" onclick="loadCurrentStatus()">🔄 새로고침</button>
+  </div>
+  <div id="statusBox"><p class="hint">관리자 키를 입력하면 현재 표시 중인 데이터를 여기서 바로 확인할 수 있어요.</p></div>
 </div>
 
 <div class="ref-toolbar">
@@ -174,6 +182,74 @@ function getAdminKey() {
   return key;
 }
 
+// ⚠ 2026-07-16: placeholder에는 "이 브라우저에만 기억됨"이라고 써있었지만
+// 실제로는 저장하는 코드가 없어서, 새로고침할 때마다 매번 다시 입력해야 했다.
+// localStorage에 저장해서 이 브라우저에서는 계속 유지되도록 한다.
+const ADMIN_KEY_STORAGE = 'mll_global_admin_key';
+function saveAdminKeyToStorage() {
+  const key = document.getElementById('adminKey').value.trim();
+  if (key) localStorage.setItem(ADMIN_KEY_STORAGE, key);
+}
+function restoreAdminKeyFromStorage() {
+  const saved = localStorage.getItem(ADMIN_KEY_STORAGE);
+  if (saved) document.getElementById('adminKey').value = saved;
+}
+
+// ── 현재 사이트에 표시 중인 데이터 (수동입력 전 참고용) ──────────────────────
+// global_lotto.html에 실제로 노출되는 잭팟예상액/현금가/최근확정결과가 지금
+// 어떤 값이고, 그게 스크래핑으로 언제(fetched_at) 들어온 건지, 혹시 스크래핑
+// 자체가 실패한 상태인지를 한눈에 보여줘서 - 수동입력 시 "지금 몇 회차, 얼마가
+// 표시 중인지" 찾아 헤매는 시간을 줄이기 위한 패널.
+const GAME_LABELS = { POWERBALL: '파워볼', MEGAMILLIONS: '메가밀리언스', EUROMILLIONS: '유로밀리언스' };
+const SCRAPE_STATUS_LABELS = { OK: '✅ 정상', MANUAL_ADMIN: '✍️ 수동입력', };
+
+function fmtMoney(n) {
+  if (n === null || n === undefined) return '-';
+  return Number(n).toLocaleString() + '원';
+}
+function fmtTime(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') +
+    ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+async function loadCurrentStatus() {
+  const adminKey = document.getElementById('adminKey').value.trim();
+  const box = document.getElementById('statusBox');
+  if (!adminKey) { box.innerHTML = '<p class="hint">관리자 키를 입력하면 현재 표시 중인 데이터를 여기서 바로 확인할 수 있어요.</p>'; return; }
+
+  box.innerHTML = '<p class="hint">불러오는 중...</p>';
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/global/status`, {
+      headers: { 'x-admin-key': adminKey },
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      box.innerHTML = '<p class="hint" style="color:#c0392b;">조회 실패: ' + (data.error || res.status) + '</p>';
+      return;
+    }
+
+    box.innerHTML = data.items.map(function (item) {
+      const snap = item.jackpotSnapshot;
+      const draw = item.latestDraw;
+      const scrapeLabel = snap ? (SCRAPE_STATUS_LABELS[snap.scrape_status] || snap.scrape_status) : '데이터 없음';
+      return '<div style="border:1px solid #ddd;border-radius:6px;padding:10px 12px;margin-top:8px;font-size:12.5px;">' +
+        '<div style="font-weight:bold;margin-bottom:4px;">' + GAME_LABELS[item.game_code] + '</div>' +
+        '<div>실시간 잭팟예상액: <b>' + (snap ? fmtMoney(snap.jackpot_estimate) : '-') + '</b>' +
+          (snap && snap.cash_value != null ? ' (현금가 ' + fmtMoney(snap.cash_value) + ')' : '') +
+        '</div>' +
+        '<div>스크래핑 시각: <b>' + (snap ? fmtTime(snap.fetched_at) : '-') + '</b> · 상태: ' + scrapeLabel + '</div>' +
+        '<div style="margin-top:4px;border-top:1px dashed #ddd;padding-top:4px;">최근 확정결과: <b>' + (draw ? draw.draw_date : '없음') + '</b>' +
+          (draw ? (' · 당첨금 ' + fmtMoney(draw.jackpot_won) + (draw.jackpot_winners_count != null ? (' · 당첨인원 ' + draw.jackpot_winners_count + '명') : '') + ' · 출처: ' + (draw.source || '-')) : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+  } catch (err) {
+    box.innerHTML = '<p class="hint" style="color:#c0392b;">네트워크 오류: ' + err.message + '</p>';
+  }
+}
+
 // 유로밀리언스는 "현금가치(일시불 수령액)" 개념 자체가 없음(파리뮤추얼 상금풀 구조라
 // 잭팟 전액이 그대로 현금 상금임) - 미국 2종(파워볼/메가밀리언스)에서만 필드를 보여줌
 function toggleCashValueField(selectId, boxId) {
@@ -234,10 +310,12 @@ function onDrawGameChange() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+  restoreAdminKeyFromStorage();
   toggleCashValueField('drawGameCode', 'cashValueBox');
   toggleCashValueField('jpGameCode', 'jpCashValueBox');
   renderPrizeTiersTable();
   onDrawGameChange();
+  loadCurrentStatus();
 });
 
 
@@ -291,6 +369,7 @@ async function submitDraw() {
       showResult('drawResult', false, '실패: ' + (data.error || res.status));
     } else {
       showResult('drawResult', true, '저장 완료!\n' + JSON.stringify(data.draw, null, 2));
+      loadCurrentStatus();
     }
   } catch (err) {
     showResult('drawResult', false, '네트워크 오류: ' + err.message);
@@ -327,6 +406,7 @@ async function submitJackpot() {
       showResult('jackpotResult', false, '실패: ' + (data.error || res.status));
     } else {
       showResult('jackpotResult', true, '저장 완료!\n' + JSON.stringify(data.jackpot, null, 2));
+      loadCurrentStatus();
     }
   } catch (err) {
     showResult('jackpotResult', false, '네트워크 오류: ' + err.message);
