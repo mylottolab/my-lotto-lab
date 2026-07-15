@@ -26,6 +26,51 @@ function requireAdmin(req, res, next) {
 }
 
 /**
+ * [0] 현재 사이트에 표시 중인 데이터 조회 (수동입력 화면에 참고용으로 보여주기 위함)
+ * GET /api/admin/global/status
+ * 게임 3종 각각에 대해:
+ *  - 가장 최근 잭팟 스냅샷 (예상액/현금가/스크래핑시각/스크래핑상태)
+ *  - 가장 최근 확정 추첨결과 (당첨금/현금가/당첨인원/회차/출처)
+ * 를 한 번에 내려준다. 스크래핑이 실패했는지, 언제 기준 데이터인지를 수동입력
+ * 전에 바로 확인할 수 있게 하기 위함 (2026-07-16 추가).
+ */
+router.get('/status', requireAdmin, async (req, res) => {
+  const GAME_CODES = ['POWERBALL', 'MEGAMILLIONS', 'EUROMILLIONS'];
+
+  try {
+    const results = await Promise.all(GAME_CODES.map(async (game_code) => {
+      const [{ data: snapshot }, { data: latestDraw }] = await Promise.all([
+        supabase
+          .from('global_lottery_jackpot_snapshot')
+          .select('jackpot_estimate, cash_value, next_draw_date, scrape_status, fetched_at')
+          .eq('game_code', game_code)
+          .order('fetched_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('global_lottery_draws')
+          .select('draw_date, jackpot_won, cash_value, jackpot_winners_count, source')
+          .eq('game_code', game_code)
+          .order('draw_date', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      return {
+        game_code,
+        jackpotSnapshot: snapshot || null,   // 실시간 예상액 (스크래핑 또는 수동입력 최신값)
+        latestDraw: latestDraw || null,       // 가장 최근 확정 추첨결과
+      };
+    }));
+
+    return res.json({ items: results });
+  } catch (err) {
+    console.error('[global-admin] status 조회 오류:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * [1] 해외복권 확정 추첨결과 수동입력 (비상 안전장치)
  * POST /api/admin/global/draws
  * body: {
