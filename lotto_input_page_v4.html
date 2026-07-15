@@ -193,7 +193,10 @@ document.addEventListener('click',function(e){
     <div style="line-height:1.5;">
       등록을 마치셨나요?<br>클릭하시면 결과확인 풍선이 뜨고 계정이 업데이트 됩니다.
     </div>
-    <span onclick="MLL.applyCheck(SESSION_TAG)" style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0;background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;font-size:11px;font-weight:700;padding:7px 12px;border-radius:9px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2);animation:pulse-btn 1.5s infinite;white-space:nowrap;">⚡ 즉시확인 Click!</span>
+    <!-- ⚠ 2026-07-15: 예전엔 applyCheck(SESSION_TAG)로 "이번 세션분만" 확인해서,
+         다른 세션에 저장됐던 미확인 항목은 이 버튼을 눌러도 확인이 안 되는 문제가 있었다.
+         서버 API가 sessionTag를 안 주면 "내 미확인 항목 전체"를 확인해주므로, 인자 없이 호출한다. -->
+    <span onclick="MLL.applyCheck()" style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0;background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;font-size:11px;font-weight:700;padding:7px 12px;border-radius:9px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2);animation:pulse-btn 1.5s infinite;white-space:nowrap;">⚡ 즉시확인 Click!</span>
   </div>
 </div>
 
@@ -223,7 +226,7 @@ document.addEventListener('click',function(e){
   </div>
   <div style="font-size:10px;color:#222;margin-top:8px;line-height:1.5;display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
     <span style="flex:1;min-width:0;padding-top:1px;">추첨일이 경과한 번호를 새롭게 등록하셨다면 당첨결과를 바로 아실 수 있습니다.</span>
-    <span onclick="MLL.applyCheck(SESSION_TAG)" style="display:inline-flex;align-items:center;gap:2px;flex-shrink:0;background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;font-size:9px;font-weight:700;padding:4px 7px;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.2);animation:pulse-btn 1.5s infinite;white-space:nowrap;">⚡ 즉시확인 Click!</span>
+    <span onclick="MLL.applyCheck()" style="display:inline-flex;align-items:center;gap:2px;flex-shrink:0;background:linear-gradient(135deg,#e03131,#c92a2a);color:#fff;font-size:9px;font-weight:700;padding:4px 7px;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.2);animation:pulse-btn 1.5s infinite;white-space:nowrap;">⚡ 즉시확인 Click!</span>
   </div>
 </div>
 </div>
