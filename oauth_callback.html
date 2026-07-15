@@ -7,57 +7,145 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#0a0d18;color:#eef0f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
-.box{text-align:center;max-width:340px;width:100%;}
-.spinner{width:32px;height:32px;border:3px solid #1b2038;border-top-color:#e0b341;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px;}
+:root{--bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--accent:#5b6ee8;--green:#3fb37f;--red:#e05c5c;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:40px 32px;max-width:400px;width:100%;text-align:center;}
+.icon{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
+.icon.ok{background:rgba(63,179,127,.10);border:2px solid var(--green);}
+.icon.err{background:rgba(224,92,92,.10);border:2px solid var(--red);}
+.icon.loading{border:2px solid var(--border-soft);}
+.icon svg{width:26px;height:26px;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+.icon.ok svg{stroke:var(--green);}
+.icon.err svg{stroke:var(--red);}
+h1{font-size:18px;font-weight:700;margin-bottom:8px;}
+.desc{font-size:12.5px;color:var(--text-dim);line-height:1.6;margin-bottom:24px;}
+.spinner{width:24px;height:24px;border:2px solid var(--border-soft);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto;}
 @keyframes spin{to{transform:rotate(360deg);}}
-p{font-size:13px;color:#8b91ab;line-height:1.6;}
-.err{color:#f08080;}
-.nick-card{background:#11152a;border:1px solid #1b2038;border-radius:14px;padding:24px;text-align:left;display:none;}
-.nick-card.show{display:block;}
-.nick-card h2{font-size:15px;margin-bottom:6px;}
-.nick-card p{margin-bottom:14px;}
-.nick-card input{width:100%;background:#0a0d18;border:1px solid #1b2038;border-radius:9px;padding:10px 13px;font-size:13.5px;color:#eef0f6;outline:none;margin-bottom:10px;font-family:inherit;}
-.nick-card button{width:100%;padding:11px;border-radius:9px;border:none;background:#e0b341;color:#1a1305;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;}
-.nick-err{font-size:11.5px;color:#f08080;margin-bottom:10px;display:none;}
-.nick-err.show{display:block;}
+.field{margin-bottom:14px;text-align:left;}
+.field label{display:block;font-size:11.5px;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+.field input{width:100%;background:var(--bg);border:1px solid var(--border-soft);border-radius:9px;padding:10px 13px;font-size:13.5px;color:var(--text);outline:none;font-family:inherit;}
+.field input:focus{border-color:var(--accent);}
+.field-err{font-size:11px;color:var(--red);margin-top:5px;display:none;}
+.field-err.show{display:block;}
+.btn{width:100%;padding:11px;border-radius:9px;border:none;background:var(--gold);color:#1a1305;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.err-banner{background:rgba(224,92,92,.10);border:1px solid rgba(224,92,92,.25);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--red);margin-bottom:14px;display:none;text-align:left;}
+.err-banner.show{display:block;}
 </style>
 </head>
 <body>
-<div class="box">
-  <div id="loadingBox">
-    <div class="spinner" id="spinner"></div>
-    <p id="msg">로그인 처리 중입니다...</p>
-  </div>
-
-  <div class="nick-card" id="nickCard">
-    <h2>닉네임을 설정해 주세요</h2>
-    <p>My Lotto Lab에서 처음 뵙네요! 리더보드·Battles에 표시될 닉네임을 정해주세요.</p>
-    <div class="nick-err" id="nickErr"></div>
-    <input type="text" id="nickInput" placeholder="2~20자 사이 닉네임" maxlength="20">
-    <button onclick="submitNickname()">시작하기</button>
-  </div>
+<div class="card" id="card">
+  <div class="icon loading"><div class="spinner"></div></div>
+  <h1>로그인 처리 중입니다...</h1>
+  <p class="desc">잠시만 기다려 주세요.</p>
 </div>
 
 <script>
-// ⚠ login.html과 동일한 값으로 교체하세요.
+var API = 'https://my-lotto-lab-api.onrender.com';
+
+// ⚠ 2026-07-16 신규: login.html의 구글/카카오 버튼이 이 페이지로 사용자를 돌려보내는데,
+// 정작 이 페이지 자체가 없어서 소셜 로그인이 "승인은 됐는데 그 다음이 없는" 상태로
+// 실패하고 있었다. 백엔드의 /api/auth/finalize-profile은 이미 준비되어 있었으므로,
+// 여기서는 ① Supabase가 URL에 실어준 세션을 읽고 ② finalize-profile을 호출해 신규
+// 소셜계정이면 닉네임을 받아 profiles에 등록하고 ③ 우리 앱이 쓰는 토큰 저장 방식
+// (mll_token/mll_refresh_token)으로 맞춰 저장한 뒤 ④ 원래 있던 화면으로 돌려보낸다.
+
 var SUPABASE_URL = 'https://lgwzueyhtxiywoqwshxy.supabase.co';
 var SUPABASE_ANON_KEY = 'sb_publishable_7a7XwW2R64-2n5NEbYVCFg_zPj-iQ8a';
-var API = 'https://my-lotto-lab-api.onrender.com';
-var CATEGORY_URL = API + '/pay/category_select.html';
+var supabaseClient = (typeof supabase !== 'undefined')
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 
-var accessToken = null;
+var session = null; // { accessToken, refreshToken, email }
 
-function showError(text){
-  document.getElementById('spinner').style.display = 'none';
-  var msg = document.getElementById('msg');
-  msg.className = 'err';
-  msg.textContent = text;
-  setTimeout(function(){ location.href = 'login.html'; }, 2200);
+function render(html){
+  document.getElementById('card').innerHTML = html;
 }
 
-async function finalizeProfile(nickname){
-  var body = { accessToken: accessToken };
+function renderError(title, desc){
+  render(
+    '<div class="icon err"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>' +
+    '<h1>' + title + '</h1>' +
+    '<p class="desc">' + desc + '</p>' +
+    '<a class="btn" style="display:block;text-decoration:none;" href="login.html">로그인 화면으로</a>'
+  );
+}
+
+function renderSuccess(){
+  render(
+    '<div class="icon ok"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>' +
+    '<h1>로그인되었습니다!</h1>' +
+    '<p class="desc">잠시 후 이동합니다...</p>'
+  );
+}
+
+// 신규 소셜 로그인 사용자 → 닉네임 입력 폼
+function renderNicknameForm(){
+  render(
+    '<div class="icon ok"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>' +
+    '<h1>거의 다 됐어요!</h1>' +
+    '<p class="desc">My Lotto Lab에서 사용할 닉네임을 정해주세요. (2~20자, 다른 사용자와 중복될 수 없어요)</p>' +
+    '<div class="err-banner" id="nickErr"></div>' +
+    '<div class="field">' +
+      '<label>닉네임</label>' +
+      '<input type="text" id="nickInput" placeholder="예: 로또사냥꾼" maxlength="20">' +
+    '</div>' +
+    '<button class="btn" id="nickSubmitBtn" onclick="submitNickname()">시작하기</button>'
+  );
+  document.getElementById('nickInput').focus();
+}
+
+async function submitNickname(){
+  var errBox = document.getElementById('nickErr');
+  errBox.classList.remove('show');
+  var nickname = document.getElementById('nickInput').value.trim();
+  if (nickname.length < 2 || nickname.length > 20) {
+    errBox.textContent = '닉네임은 2~20자 사이여야 합니다.';
+    errBox.classList.add('show');
+    return;
+  }
+
+  var btn = document.getElementById('nickSubmitBtn');
+  btn.disabled = true; btn.textContent = '처리 중...';
+
+  try {
+    await callFinalizeProfile(nickname);
+  } catch (e) {
+    errBox.textContent = e.message || '오류가 발생했습니다.';
+    errBox.classList.add('show');
+    btn.disabled = false; btn.textContent = '시작하기';
+  }
+}
+
+// 원래 있던 화면으로 복귀 (login.html의 redirect 처리 로직과 동일한 화이트리스트 방식)
+function goToRedirectTarget(){
+  var ALLOWED_HOSTS = ['mylottolab.github.io', 'my-lotto-lab-api.onrender.com'];
+  var params = new URLSearchParams(window.location.search);
+  var redirectParam = params.get('redirect');
+  var redirectUrl = null;
+  if (redirectParam) {
+    try { redirectUrl = new URL(redirectParam, window.location.href); } catch (e) { redirectUrl = null; }
+  }
+  var isSafe = redirectUrl && ALLOWED_HOSTS.indexOf(redirectUrl.hostname) >= 0;
+
+  var target;
+  if (isSafe && redirectUrl.hostname === window.location.hostname) {
+    target = redirectUrl.href;
+  } else if (isSafe) {
+    var sep = redirectUrl.href.indexOf('?') >= 0 ? '&' : '?';
+    target = redirectUrl.href + sep +
+      'mll_auth=member&mll_tok=' + encodeURIComponent(session.accessToken) +
+      '&mll_rt=' + encodeURIComponent(session.refreshToken);
+  } else {
+    target = 'https://my-lotto-lab-api.onrender.com/pay/category_select.html' +
+      '?mll_auth=member&mll_tok=' + encodeURIComponent(session.accessToken) +
+      '&mll_rt=' + encodeURIComponent(session.refreshToken);
+  }
+  setTimeout(function(){ location.href = target; }, 700);
+}
+
+async function callFinalizeProfile(nickname){
+  var body = { accessToken: session.accessToken };
   if (nickname) body.nickname = nickname;
 
   var res = await fetch(API + '/api/auth/finalize-profile', {
@@ -68,62 +156,49 @@ async function finalizeProfile(nickname){
   var data = await res.json();
 
   if (!res.ok) {
-    if (nickname) {
-      var errBox = document.getElementById('nickErr');
-      errBox.textContent = data.error || '오류가 발생했습니다.';
-      errBox.classList.add('show');
-    } else {
-      showError('처리 중 오류가 발생했습니다.');
-    }
-    return;
+    throw new Error(data.error || '처리 중 오류가 발생했습니다.');
   }
-
   if (data.needsNickname) {
-    document.getElementById('loadingBox').style.display = 'none';
-    document.getElementById('nickCard').classList.add('show');
+    renderNicknameForm();
     return;
   }
 
-  // 닉네임 확정 완료 → 카테고리 화면으로 이동
-  // ⚠ CATEGORY_URL은 다른 도메인(Render)이라 방금 이 페이지(github.io)의 localStorage에
-  // 저장한 토큰을 그대로는 못 읽는다. URL에 토큰을 실어 보내면 도착 페이지에서
-  // common.js/auth_gate.js의 부트스트랩이 받아 자기 도메인 localStorage에 다시 저장한다.
-  location.href = CATEGORY_URL + '?mll_auth=member&mll_tok=' + encodeURIComponent(accessToken);
+  // 성공 - 우리 앱이 쓰는 저장 방식(mll_token 등)으로 세션 저장
+  localStorage.setItem('mll_token', session.accessToken);
+  localStorage.setItem('mll_refresh_token', session.refreshToken);
+
+  renderSuccess();
+  goToRedirectTarget();
 }
 
-function submitNickname(){
-  var val = document.getElementById('nickInput').value.trim();
-  document.getElementById('nickErr').classList.remove('show');
-  if (val.length < 2 || val.length > 20) {
-    var errBox = document.getElementById('nickErr');
-    errBox.textContent = '닉네임은 2~20자 사이여야 합니다.';
-    errBox.classList.add('show');
+async function init(){
+  if (!supabaseClient) {
+    renderError('오류가 발생했습니다', '인증 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
     return;
   }
-  finalizeProfile(val);
-}
 
-(async function(){
+  // Supabase 클라이언트가 URL(해시 또는 ?code=)에서 세션을 자동으로 파싱해서
+  // 내부 저장소에 담아준다 (detectSessionInUrl 기본값 true) - 그걸 꺼내온다.
+  var { data, error } = await supabaseClient.auth.getSession();
+
+  if (error || !data.session) {
+    renderError('로그인에 실패했습니다', '인증 정보가 만료되었거나 취소되었습니다. 처음부터 다시 시도해 주세요.');
+    return;
+  }
+
+  session = {
+    accessToken: data.session.access_token,
+    refreshToken: data.session.refresh_token
+  };
+
   try {
-    var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    var { data, error } = await supabaseClient.auth.getSession();
-
-    if (error || !data.session) {
-      showError('로그인에 실패했습니다. 다시 시도해 주세요.');
-      return;
-    }
-
-    accessToken = data.session.access_token;
-    // 기존 이메일/비밀번호 로그인과 동일한 방식으로 토큰 저장 (auth_gate.js가 이 키를 읽음)
-    localStorage.setItem('mll_token', accessToken);
-
-    await finalizeProfile(null); // 먼저 닉네임 등록 여부만 확인
+    await callFinalizeProfile(null);
   } catch (e) {
-    console.error(e);
-    showError('오류가 발생했습니다. 다시 시도해 주세요.');
+    renderError('오류가 발생했습니다', e.message || '잠시 후 다시 시도해 주세요.');
   }
-})();
+}
+
+init();
 </script>
 </body>
 </html>
-
