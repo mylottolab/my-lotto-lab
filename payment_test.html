@@ -268,12 +268,22 @@ async function submitBankTransfer(){
     var data = await res.json();
     if (!res.ok) {
       showResultMsg(err, (LANG==='en' ? data.errorEn : data.error) || data.error || '오류가 발생했습니다.');
+      btn.classList.remove('loading'); btn.disabled = false;
       return;
     }
-    showResultMsg(ok, LANG==='en' ? (data.messageEn || data.message) : data.message);
+    // ⚠ 2026-07-16: 예전엔 성공해도 finally에서 버튼이 바로 다시 눌리는 상태로 풀려서,
+    // 사용자가 "됐나?" 싶어 다시 누르고, 그때마다 관리자 화면에 중복 신청이 쌓이는 문제가 있었다.
+    // 성공하면 버튼을 그대로 비활성 상태로 두고, 안내 메시지를 보여준 뒤 메인으로 이동시켜서
+    // 같은 화면에서 다시 누를 수 없게 만든다.
+    showResultMsg(ok, LANG==='en'
+      ? 'Deposit request submitted! We will confirm it shortly.'
+      : '입금신청 완료하였습니다. 빠른 시간내 확인처리 하겠습니다.');
+    setTimeout(function(){
+      location.href = 'category_select.html';
+    }, 1800);
+    return; // finally에서 버튼을 다시 활성화하지 않도록 여기서 종료
   } catch(e){
     showResultMsg(err, LANG==='en' ? 'An error occurred.' : '오류가 발생했습니다.');
-  } finally {
     btn.classList.remove('loading'); btn.disabled = false;
   }
 }
