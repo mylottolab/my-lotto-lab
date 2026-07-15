@@ -1,263 +1,271 @@
-const express = require('express');
-const router = express.Router();
-const { createClient } = require('@supabase/supabase-js');
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 포인트 충전 (달러)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--accent:#5b6ee8;--green:#3fb37f;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13.5px;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px;}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:22px 22px;max-width:400px;width:100%;}
+.top-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+h1{font-size:17px;font-weight:700;}
+.lang-toggle{display:flex;border:1px solid var(--border-soft);border-radius:7px;overflow:hidden;flex-shrink:0;}
+.lang-toggle button{background:var(--bg);color:var(--text-dim);border:none;padding:4px 9px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;}
+.lang-toggle button.active{background:var(--gold);color:#1a1305;}
+.desc{font-size:11.5px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;}
+.my-balance{background:var(--bg);border:1px solid var(--border-soft);border-radius:8px;padding:8px 11px;font-size:11px;color:var(--gold);margin-bottom:14px;display:none;line-height:1.5;}
+.my-balance.show{display:block;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:5px;}
+.field input{width:100%;background:var(--bg);border:1px solid var(--border-soft);border-radius:8px;padding:8px 11px;font-size:13px;color:var(--text);outline:none;font-family:inherit;}
+.field input:focus{border-color:var(--accent);}
+.amount-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;}
+.amount-btn{background:var(--bg);border:1px solid var(--border-soft);border-radius:7px;padding:8px 2px;font-size:11.5px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;}
+.amount-btn:hover{border-color:var(--accent);}
+.amount-btn.active{background:var(--gold);border-color:var(--gold);color:#1a1305;}
+.amount-input-wrap{position:relative;max-width:200px;margin:0 auto;}
+.amount-input-wrap input{text-align:right;padding-right:22px;}
+.amount-input-wrap .unit{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text-dim);pointer-events:none;}
+.err{background:rgba(224,92,92,.10);border:1px solid rgba(224,92,92,.25);border-radius:8px;padding:8px 11px;font-size:11.5px;color:#f08080;margin-bottom:12px;display:none;}
+.err.show{display:block;}
+.ok{background:rgba(63,179,127,.10);border:1px solid rgba(63,179,127,.25);border-radius:8px;padding:8px 11px;font-size:11.5px;color:var(--green);margin-bottom:12px;display:none;line-height:1.5;}
+.ok.show{display:block;}
+.est-points{font-size:11px;color:var(--text-dim);text-align:center;margin-top:6px;}
+.est-points b{color:var(--gold);}
+#paypal-button-container{margin-top:16px;min-height:45px;}
+.loading-msg{font-size:11.5px;color:var(--text-dim);text-align:center;padding:10px 0;}
+.notice{font-size:10.5px;color:var(--text-dim);line-height:1.5;margin-top:12px;}
+.notice b{color:#f0c060;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="top-row">
+    <h1 data-i18n-kr="💳 포인트 충전 (달러)" data-i18n-en="💳 Charge Points (USD)">💳 포인트 충전 (달러)</h1>
+    <div class="lang-toggle">
+      <button id="langKrBtn" onclick="setLang('kr')">KR</button>
+      <button id="langEnBtn" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+  <p class="desc" data-i18n-kr="PayPal로 포인트를 충전합니다. 환율은 실시간으로 반영되며, 결제 시점 환율로 적립 포인트가 고정됩니다." data-i18n-en="Charge points via PayPal. The exchange rate is applied in real time, and your points are fixed at the rate when you pay.">PayPal로 포인트를 충전합니다. 환율은 실시간으로 반영되며, 결제 시점 환율로 적립 포인트가 고정됩니다.</p>
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+  <div class="my-balance" id="myBalance"></div>
+  <div class="err" id="errMsg"></div>
+  <div class="ok" id="okMsg"></div>
 
-// ─── 설정 ──────────────────────────────────────────────────────────────────
-const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
-const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
-const PAYPAL_MODE = process.env.PAYPAL_MODE || 'sandbox'; // 'sandbox' | 'live'
+  <div class="field">
+    <label data-i18n-kr="충전금액 (달러)" data-i18n-en="Amount (USD)">충전금액 (달러)</label>
+    <div class="amount-grid" id="amountGrid"></div>
+    <div class="amount-input-wrap">
+      <input type="text" id="priceDisplay" inputmode="numeric" value="10">
+      <span class="unit">$</span>
+    </div>
+    <p class="est-points" id="estPoints"></p>
+  </div>
 
-const PAYPAL_API_BASE = PAYPAL_MODE === 'live'
-  ? 'https://api-m.paypal.com'
-  : 'https://api-m.sandbox.paypal.com';
+  <div id="paypal-button-container"></div>
+  <p class="loading-msg" id="loadingMsg" data-i18n-kr="결제 모듈을 불러오는 중..." data-i18n-en="Loading payment module...">결제 모듈을 불러오는 중...</p>
 
-// USD → 포인트 환산 비율은 관리자 화면(admin.js)에서 DB의 exchange_rate
-// 테이블을 수정하면 실시간 반영됩니다. 여기서는 매 주문 생성 시점에 조회합니다.
-// (DB 조회 실패 시에만 대비용 기본값 사용)
-const FALLBACK_EXCHANGE_RATE = 1400;
+  <p class="notice">
+    <b>※</b>
+    <span data-i18n-kr="최소 $1 ~ 최대 $1,000까지 충전 가능합니다." data-i18n-en="You can charge between $1 and $1,000.">최소 $1 ~ 최대 $1,000까지 충전 가능합니다.</span><br>
+    <b>※</b>
+    <span data-i18n-kr="결제 전 로그인 또는 비회원 등록이 필요합니다." data-i18n-en="You must log in or register as a guest before paying.">결제 전 로그인 또는 비회원 등록이 필요합니다.</span>
+  </p>
+</div>
 
-async function getExchangeRate() {
-  const { data, error } = await supabase
-    .from('exchange_rate')
-    .select('usd_to_point')
-    .eq('id', 1)
-    .maybeSingle();
+<script>
+var API = 'https://my-lotto-lab-api.onrender.com';
+var AMOUNTS = [5, 10, 20, 50, 100, 200];
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+var paypalButtonsRendered = false;
 
-  if (error || !data) {
-    console.error('[PayPal] 환율 조회 실패, 기본값 사용:', error);
-    return FALLBACK_EXCHANGE_RATE;
-  }
-  return Number(data.usd_to_point);
-}
-
-// 결제 한도 (USD 기준) - 국내 카드결제 한도(최소 1,000원~최대 100만원)와
-// 균형을 맞춰 대략적으로 설정. 필요시 조정하세요.
-const MIN_USD = 1;
-const MAX_USD = 1000;
-
-// ─── 주문 상태 저장소 ─────────────────────────────────────────────────────────
-// PayPal 주문번호(orderID)를 키로, 결제 준비~완료 상태를 잠깐 저장합니다.
-// (서버 재시작 시 초기화됨 — 운영 전환 시 DB로 교체 필요, 이니시스 orderStore와 동일한 패턴)
-const orderStore = new Map();
-
-setInterval(() => {
-  const oneHourAgo = Date.now() - 60 * 60 * 1000;
-  for (const [orderId, info] of orderStore.entries()) {
-    if (info.createdAt < oneHourAgo) orderStore.delete(orderId);
-  }
-}, 10 * 60 * 1000);
-
-// ─── 결제자(회원/비회원) 식별 ────────────────────────────────────────────────
-async function resolvePayerId(req) {
-  const authHeader = req.headers['authorization'];
-  if (authHeader) {
-    const token = authHeader.replace('Bearer ', '');
-    const { data, error } = await supabase.auth.getUser(token);
-    if (!error && data.user) return data.user.id;
-  }
-  const { nickname, email } = req.body;
-  if (nickname && email) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('nickname', nickname)
-      .eq('email', email)
-      .maybeSingle();
-    if (data) return data.id;
-  }
-  return null;
-}
-
-// ─── 입금포인트 적립 (취득일로부터 30일 후 소멸) ───────────────────────────────
-async function creditDepositPoints(userId, points, meta) {
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const { error } = await supabase.from('point_ledger').insert({
-    user_id: userId,
-    point_type: 'deposit',
-    amount: points,
-    remaining: points,
-    source: meta.source,
-    order_id: meta.orderId,
-    earned_at: now.toISOString(),
-    expires_at: expiresAt.toISOString()
+function applyLang(){
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    el.textContent = LANG==='en' ? el.getAttribute('data-i18n-en') : el.getAttribute('data-i18n-kr');
   });
-  if (error) {
-    console.error('[PayPal] 포인트 적립 오류:', error);
-    return false;
-  }
-  console.log(`[PayPal] 포인트 적립 완료: user=${userId}, ${points}P, orderId=${meta.orderId}`);
-  return true;
+  document.getElementById('langKrBtn').classList.toggle('active', LANG==='kr');
+  document.getElementById('langEnBtn').classList.toggle('active', LANG==='en');
 }
+function setLang(lang){ LANG=lang; localStorage.setItem('mll_lang',lang); applyLang(); updateEstimatedPoints(); }
 
-// ─── PayPal OAuth 액세스 토큰 발급 ─────────────────────────────────────────────
-async function getAccessToken() {
-  if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
-    throw new Error('PAYPAL_CLIENT_ID 또는 PAYPAL_CLIENT_SECRET 환경변수가 설정되지 않았습니다.');
-  }
-  const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString('base64');
-
-  const res = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: 'grant_type=client_credentials'
+(function renderAmountButtons(){
+  var grid = document.getElementById('amountGrid');
+  grid.innerHTML = AMOUNTS.map(function(a){
+    return '<button type="button" class="amount-btn" data-amt="' + a + '">$' + a.toLocaleString() + '</button>';
+  }).join('');
+  grid.querySelectorAll('.amount-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      grid.querySelectorAll('.amount-btn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('priceDisplay').value = btn.getAttribute('data-amt');
+      updateEstimatedPoints();
+    });
   });
+})();
 
-  const data = await res.json();
-  if (!res.ok) {
-    console.error('PayPal 토큰 발급 실패:', JSON.stringify(data));
-    throw new Error('PayPal 인증 토큰 발급 실패');
-  }
-  return data.access_token;
-}
-
-// ─── 1) 주문 생성 (프론트에서 PayPal 버튼 렌더링 시 호출) ─────────────────────────
-// 요청: { usdAmount: number }
-// 응답: { id: PayPal 주문ID }  ← 프론트 PayPal Buttons SDK가 그대로 사용
-router.post('/create-order', async (req, res) => {
-  try {
-    const usdAmount = Number(req.body.usdAmount);
-
-    if (!usdAmount || isNaN(usdAmount)) {
-      return res.status(400).json({ error: '결제 금액이 올바르지 않습니다.' });
-    }
-    if (!Number.isInteger(usdAmount)) {
-      return res.status(400).json({ error: '충전 금액은 정수(소수점 없이)여야 합니다.' });
-    }
-    if (usdAmount < MIN_USD || usdAmount > MAX_USD) {
-      return res.status(400).json({ error: `결제 금액은 $${MIN_USD} ~ $${MAX_USD} 사이여야 합니다.` });
-    }
-
-    const payerId = await resolvePayerId(req);
-    if (!payerId) {
-      return res.status(401).json({ error: '결제 전 로그인 또는 비회원 등록이 필요합니다.' });
-    }
-
-    const accessToken = await getAccessToken();
-    const amountStr = usdAmount.toFixed(2);
-
-    const orderRes = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({
-        intent: 'CAPTURE',
-        purchase_units: [{
-          amount: {
-            currency_code: 'USD',
-            value: amountStr
-          },
-          description: 'My Lotto Lab 포인트 충전'
-        }]
-      })
-    });
-
-    const orderData = await orderRes.json();
-    if (!orderRes.ok) {
-      console.error('PayPal 주문 생성 실패:', JSON.stringify(orderData));
-      return res.status(500).json({ error: '결제 주문 생성에 실패했습니다.' });
-    }
-
-    // 적립될 포인트 미리 계산해서 저장 (승인 시점에 이 값을 그대로 사용 —
-    // 승인 시점 환율 변동과 무관하게 결제(주문 생성) 시점 환율로 고정됩니다.
-    // ※ 이미 계산된 포인트는 이후 관리자가 환율을 바꿔도 소급 변경되지 않습니다.
-    const exchangeRate = await getExchangeRate();
-    const points = Math.round(usdAmount * exchangeRate);
-
-    orderStore.set(orderData.id, {
-      usdAmount,
-      points,
-      payerId,
-      status: 'created',
-      createdAt: Date.now()
-    });
-
-    console.log(`[PayPal] 주문 생성: orderID=${orderData.id}, $${amountStr}, ${points}P`);
-
-    return res.json({ id: orderData.id });
-  } catch (err) {
-    console.error('[PayPal] create-order 오류:', err);
-    return res.status(500).json({ error: '결제 주문 생성 중 오류가 발생했습니다.' });
-  }
+document.getElementById('priceDisplay').addEventListener('input', function(){
+  this.value = this.value.replace(/[^0-9]/g, '');
+  document.querySelectorAll('.amount-btn').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-amt') === document.getElementById('priceDisplay').value);
+  });
+  updateEstimatedPoints();
 });
 
-// ─── 2) 주문 승인/캡처 (사용자가 PayPal 결제창에서 승인 완료 후 호출) ──────────────
-// 요청: { orderID: string }
-router.post('/capture-order', async (req, res) => {
+function getUsdAmount(){ return Number(document.getElementById('priceDisplay').value.replace(/[^0-9]/g, '')); }
+
+function showResultMsg(el, text){
+  el.textContent = text;
+  el.classList.add('show');
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function clearMsgs(){
+  document.getElementById('errMsg').classList.remove('show');
+  document.getElementById('okMsg').classList.remove('show');
+}
+
+// ⚠ 참고용 예상 포인트 표시: 실제 적립 포인트는 서버가 결제(주문 생성) 시점
+// 환율로 다시 계산해서 고정하므로, 여기 표시되는 값은 대략적인 참고치입니다.
+var cachedExchangeRate = null;
+async function updateEstimatedPoints(){
+  var box = document.getElementById('estPoints');
+  var usd = getUsdAmount();
+  if (!usd) { box.textContent = ''; return; }
+  if (cachedExchangeRate == null) {
+    try {
+      var res = await fetch(API + '/api/payment/exchange-rate');
+      var data = await res.json();
+      if (res.ok && data.usd_to_point) cachedExchangeRate = Number(data.usd_to_point);
+    } catch(e){}
+  }
+  if (cachedExchangeRate) {
+    var pts = Math.round(usd * cachedExchangeRate);
+    box.innerHTML = (LANG==='en' ? 'Approx. ' : '약 ') + '<b>' + pts.toLocaleString() + 'P</b>' + (LANG==='en' ? ' will be credited' : ' 적립 예정 (결제 시점 환율 기준)');
+  }
+}
+
+async function loadBalance(){
+  if (typeof MLL === 'undefined') return;
+  var state = MLL.getAuthState();
+  var box = document.getElementById('myBalance');
+  if (!state.type) return;
+
+  var headers = {};
+  var qs = '';
+  if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
+  else qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+
   try {
-    const { orderID } = req.body;
-    if (!orderID) {
-      return res.status(400).json({ error: 'orderID가 필요합니다.' });
+    var res = await fetch(API + '/api/points/balance' + qs, { headers: headers });
+    var data = await res.json();
+    if (res.ok) {
+      box.innerHTML = (LANG==='en' ? 'Current balance: ' : '현재 보유 포인트: ') + '<b>' + data.total.toLocaleString() + 'P</b> (' + (LANG==='en'?'deposit ':'입금 ') + data.deposit.toLocaleString() + ' · ' + (LANG==='en'?'activity ':'활동 ') + data.activity.toLocaleString() + ')';
+      box.classList.add('show');
     }
+  } catch(e){}
+}
 
-    const orderInfo = orderStore.get(orderID);
-    if (!orderInfo) {
-      console.error('[PayPal] 저장된 주문 정보를 찾을 수 없음:', orderID);
-      return res.status(400).json({ error: '주문 정보를 찾을 수 없습니다.' });
-    }
+// ── 결제자(회원/비회원) 인증 정보를 헤더/바디에 실어보내기 위한 공통 헬퍼 ──
+function buildAuthPayload(){
+  if (typeof MLL === 'undefined') return null;
+  var state = MLL.getAuthState();
+  if (!state.type) return null;
+  if (state.type === 'member') {
+    return { headers: { 'Authorization': 'Bearer ' + state.token }, body: {} };
+  }
+  return { headers: {}, body: { nickname: state.nickname, email: state.email } };
+}
 
-    // ── 멱등성 처리: 이미 완료 처리된 주문이면 재적립하지 않고 바로 성공 응답 ──
-    if (orderInfo.status === 'completed') {
-      return res.json({
-        status: 'success',
-        points: orderInfo.points,
-        message: '이미 처리된 결제입니다.'
-      });
-    }
+// ── PayPal Buttons SDK 동적 로드 + 렌더링 ────────────────────────────────────
+// client-id는 스크립트 태그의 쿼리 파라미터로 넘겨야 하는 SDK 특성상,
+// 서버에서 공개 Client ID를 먼저 받아온 뒤 <script>를 동적으로 만들어 붙인다.
+async function initPaypalButtons(){
+  var loadingMsg = document.getElementById('loadingMsg');
+  try {
+    var res = await fetch(API + '/api/payment/paypal/client-id');
+    var data = await res.json();
+    if (!res.ok || !data.clientId) throw new Error(data.error || 'PayPal 설정을 불러올 수 없습니다.');
 
-    const accessToken = await getAccessToken();
+    var script = document.createElement('script');
+    script.src = 'https://www.paypal.com/sdk/js?client-id=' + encodeURIComponent(data.clientId) + '&currency=USD&intent=capture';
+    script.onload = function(){
+      loadingMsg.style.display = 'none';
+      renderPaypalButtons();
+    };
+    script.onerror = function(){
+      loadingMsg.textContent = LANG==='en' ? 'Failed to load PayPal. Please refresh.' : 'PayPal 로딩에 실패했습니다. 새로고침해 주세요.';
+    };
+    document.head.appendChild(script);
+  } catch (e) {
+    loadingMsg.textContent = (LANG==='en' ? 'Error: ' : '오류: ') + e.message;
+  }
+}
 
-    const captureRes = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderID}/capture`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
+function renderPaypalButtons(){
+  if (paypalButtonsRendered || typeof paypal === 'undefined') return;
+  paypalButtonsRendered = true;
+
+  paypal.Buttons({
+    createOrder: async function(){
+      clearMsgs();
+      var usd = getUsdAmount();
+      if (!usd || usd < 1 || usd > 1000) {
+        showResultMsg(document.getElementById('errMsg'), LANG==='en' ? 'Amount must be between $1 and $1,000.' : '충전금액은 $1 ~ $1,000 사이여야 합니다.');
+        throw new Error('invalid amount');
       }
-    });
+      var auth = buildAuthPayload();
+      if (!auth) {
+        if (typeof MLL !== 'undefined' && MLL.requireAuth) MLL.requireAuth(function(){});
+        showResultMsg(document.getElementById('errMsg'), LANG==='en' ? 'Please log in or register as a guest before paying.' : '결제 전 로그인 또는 비회원 등록이 필요합니다.');
+        throw new Error('auth required');
+      }
 
-    const captureData = await captureRes.json();
-    console.log('[PayPal] 캡처 응답:', JSON.stringify(captureData));
-
-    // PayPal이 이미 캡처된 주문에 대해 422(ORDER_ALREADY_CAPTURED)를 줄 수 있음 → 멱등 처리
-    if (captureRes.status === 422 && captureData.details?.[0]?.issue === 'ORDER_ALREADY_CAPTURED') {
-      orderInfo.status = 'completed';
-      return res.json({ status: 'success', points: orderInfo.points, message: '이미 처리된 결제입니다.' });
+      var res = await fetch(API + '/api/payment/paypal/create-order', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, auth.headers),
+        body: JSON.stringify(Object.assign({ usdAmount: usd }, auth.body))
+      });
+      var data = await res.json();
+      if (!res.ok) {
+        showResultMsg(document.getElementById('errMsg'), data.error || (LANG==='en' ? 'Failed to create order.' : '주문 생성에 실패했습니다.'));
+        throw new Error(data.error || 'create-order failed');
+      }
+      return data.id;
+    },
+    onApprove: async function(data){
+      try {
+        var res = await fetch(API + '/api/payment/paypal/capture-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderID: data.orderID })
+        });
+        var result = await res.json();
+        if (!res.ok || result.status !== 'success') {
+          showResultMsg(document.getElementById('errMsg'), result.error || (LANG==='en' ? 'Payment approval failed.' : '결제 승인에 실패했습니다.'));
+          return;
+        }
+        showResultMsg(document.getElementById('okMsg'), LANG==='en'
+          ? ('Payment complete! ' + result.points.toLocaleString() + ' points credited.')
+          : ('결제가 완료되었습니다! ' + result.points.toLocaleString() + 'P가 적립됩니다.'));
+        loadBalance();
+      } catch (e) {
+        showResultMsg(document.getElementById('errMsg'), (LANG==='en' ? 'Error: ' : '오류: ') + e.message);
+      }
+    },
+    onError: function(err){
+      console.error('[PayPal] Buttons 오류:', err);
+      showResultMsg(document.getElementById('errMsg'), LANG==='en' ? 'A PayPal error occurred. Please try again.' : 'PayPal 처리 중 오류가 발생했습니다. 다시 시도해 주세요.');
     }
+  }).render('#paypal-button-container');
+}
 
-    if (!captureRes.ok || captureData.status !== 'COMPLETED') {
-      console.error('[PayPal] 캡처 실패:', JSON.stringify(captureData));
-      orderInfo.status = 'failed';
-      return res.status(400).json({ error: '결제 승인에 실패했습니다.' });
-    }
-
-    // ── 서버 간 통신으로 확정된 결제만 신뢰하여 포인트 적립 ──────────────────────
-    await creditDepositPoints(orderInfo.payerId, orderInfo.points, { source: 'paypal', orderId: orderID });
-
-    orderInfo.status = 'completed';
-    orderInfo.tid = captureData.purchase_units?.[0]?.payments?.captures?.[0]?.id;
-
-    console.log(`[PayPal] 결제 완료: orderID=${orderID}, ${orderInfo.points}P 적립 예정, tid=${orderInfo.tid}`);
-
-    return res.json({
-      status: 'success',
-      points: orderInfo.points,
-      usdAmount: orderInfo.usdAmount,
-      tid: orderInfo.tid
-    });
-  } catch (err) {
-    console.error('[PayPal] capture-order 오류:', err);
-    return res.status(500).json({ error: '결제 승인 처리 중 오류가 발생했습니다.' });
-  }
-});
-
-module.exports = router;
+applyLang();
+loadBalance();
+updateEstimatedPoints();
+initPaypalButtons();
+</script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
+</body>
+</html>
