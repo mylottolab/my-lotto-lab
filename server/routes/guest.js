@@ -2,9 +2,17 @@ const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 
+// ⚠ 2026-07-16: createClient()에 flowType을 지정하지 않으면 최신 supabase-js
+// 기본값인 'pkce' 방식으로 인증메일 링크가 만들어진다. PKCE는 "인증을 요청한
+// 바로 그 기기"에만 있는 값이 있어야 링크가 성립하는 방식이라, 휴대폰에서
+// 비회원등록을 신청하고 PC(다른 기기)에서 메일의 링크를 열면 "잘못된 경로"
+// 같은 오류로 실패한다. guest_confirm.html은 URL의 #access_token을 직접
+// 읽는 'implicit' 방식을 전제로 만들어져 있으므로, 여기서도 명시적으로
+// implicit을 지정해 기기가 달라도 정상 작동하게 한다.
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
+  process.env.SUPABASE_SERVICE_KEY,
+  { auth: { flowType: 'implicit' } }
 );
 
 const NICKNAME_REGEX = /^[a-zA-Z0-9가-힣_-]{2,20}$/;
