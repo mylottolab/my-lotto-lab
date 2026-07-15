@@ -119,6 +119,17 @@ async function getAccessToken() {
   return data.access_token;
 }
 
+// ─── 0) 공개 Client ID 조회 (프론트가 PayPal Buttons SDK 스크립트를 동적으로
+//     로드할 때 필요 - CLIENT_ID는 비밀값이 아니라 공개해도 안전함. CLIENT_SECRET만
+//     서버에만 남아있으면 됨) ───────────────────────────────────────────────
+// GET /api/payment/paypal/client-id
+router.get('/client-id', (req, res) => {
+  if (!PAYPAL_CLIENT_ID) {
+    return res.status(500).json({ error: 'PAYPAL_CLIENT_ID 환경변수가 설정되지 않았습니다.' });
+  }
+  return res.json({ clientId: PAYPAL_CLIENT_ID, mode: PAYPAL_MODE });
+});
+
 // ─── 1) 주문 생성 (프론트에서 PayPal 버튼 렌더링 시 호출) ─────────────────────────
 // 요청: { usdAmount: number }
 // 응답: { id: PayPal 주문ID }  ← 프론트 PayPal Buttons SDK가 그대로 사용
