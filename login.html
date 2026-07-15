@@ -326,10 +326,18 @@ async function socialLogin(provider){
     alert(t('networkErr'));
     return;
   }
+  // ⚠ 2026-07-16: login.html이 ?redirect=원래주소 로 열린 경우(예: 경마배팅 중
+  // 로그인 요구), 소셜 로그인 완료 후에도 그 원래 화면으로 돌아갈 수 있도록
+  // oauth_callback.html에도 같은 redirect 값을 그대로 이어서 전달한다.
+  var params = new URLSearchParams(window.location.search);
+  var redirectParam = params.get('redirect');
+  var callbackUrl = 'https://mylottolab.github.io/my-lotto-lab/oauth_callback.html';
+  if (redirectParam) callbackUrl += '?redirect=' + encodeURIComponent(redirectParam);
+
   var { error } = await supabaseClient.auth.signInWithOAuth({
     provider: provider, // 'google' | 'kakao'
     options: {
-      redirectTo: 'https://mylottolab.github.io/my-lotto-lab/oauth_callback.html'
+      redirectTo: callbackUrl
     }
   });
   if (error) {
