@@ -201,11 +201,13 @@ function restoreAdminKeyFromStorage() {
 // 자체가 실패한 상태인지를 한눈에 보여줘서 - 수동입력 시 "지금 몇 회차, 얼마가
 // 표시 중인지" 찾아 헤매는 시간을 줄이기 위한 패널.
 const GAME_LABELS = { POWERBALL: '파워볼', MEGAMILLIONS: '메가밀리언스', EUROMILLIONS: '유로밀리언스' };
+const GAME_CURRENCY = { POWERBALL: '$', MEGAMILLIONS: '$', EUROMILLIONS: '€' };
 const SCRAPE_STATUS_LABELS = { OK: '✅ 정상', MANUAL_ADMIN: '✍️ 수동입력', };
 
-function fmtMoney(n) {
+function fmtMoney(n, currency) {
   if (n === null || n === undefined) return '-';
-  return Number(n).toLocaleString() + '원';
+  const symbol = currency || '';
+  return symbol + Number(n).toLocaleString();
 }
 function fmtTime(iso) {
   if (!iso) return '-';
@@ -233,15 +235,16 @@ async function loadCurrentStatus() {
     box.innerHTML = data.items.map(function (item) {
       const snap = item.jackpotSnapshot;
       const draw = item.latestDraw;
+      const currency = GAME_CURRENCY[item.game_code] || '';
       const scrapeLabel = snap ? (SCRAPE_STATUS_LABELS[snap.scrape_status] || snap.scrape_status) : '데이터 없음';
       return '<div style="border:1px solid #ddd;border-radius:6px;padding:10px 12px;margin-top:8px;font-size:12.5px;">' +
         '<div style="font-weight:bold;margin-bottom:4px;">' + GAME_LABELS[item.game_code] + '</div>' +
-        '<div>실시간 잭팟예상액: <b>' + (snap ? fmtMoney(snap.jackpot_estimate) : '-') + '</b>' +
-          (snap && snap.cash_value != null ? ' (현금가 ' + fmtMoney(snap.cash_value) + ')' : '') +
+        '<div>실시간 잭팟예상액: <b>' + (snap ? fmtMoney(snap.jackpot_estimate, currency) : '-') + '</b>' +
+          (snap && snap.cash_value != null ? ' (현금가 ' + fmtMoney(snap.cash_value, currency) + ')' : '') +
         '</div>' +
         '<div>스크래핑 시각: <b>' + (snap ? fmtTime(snap.fetched_at) : '-') + '</b> · 상태: ' + scrapeLabel + '</div>' +
         '<div style="margin-top:4px;border-top:1px dashed #ddd;padding-top:4px;">최근 확정결과: <b>' + (draw ? draw.draw_date : '없음') + '</b>' +
-          (draw ? (' · 당첨금 ' + fmtMoney(draw.jackpot_won) + (draw.jackpot_winners_count != null ? (' · 당첨인원 ' + draw.jackpot_winners_count + '명') : '') + ' · 출처: ' + (draw.source || '-')) : '') +
+          (draw ? (' · 당첨금 ' + fmtMoney(draw.jackpot_won, currency) + (draw.jackpot_winners_count != null ? (' · 당첨인원 ' + draw.jackpot_winners_count + '명') : '') + ' · 출처: ' + (draw.source || '-')) : '') +
         '</div>' +
       '</div>';
     }).join('');
