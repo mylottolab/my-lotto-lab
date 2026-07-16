@@ -68,15 +68,20 @@ function decodeEmailFromJwt(token){
 }
 
 (async function(){
-  var query = new URLSearchParams(window.location.search);
-  var nickname = query.get('nickname');
   var hashData = parseHash();
 
   if (hashData.error) {
     render(false, '인증에 실패했습니다', '링크가 만료되었거나 이미 사용된 링크입니다. 처음부터 다시 시도해 주세요.');
     return;
   }
-  if (!hashData.accessToken || !nickname) {
+  // ⚠ 2026-07-16: 예전엔 여기서 URL의 ?nickname= 값도 필수로 요구했는데,
+  // 백엔드(routes/guest.js)는 Supabase 허용목록과 문자열을 정확히 맞추기 위해
+  // redirectTo에 애초에 쿼리파라미터를 절대 붙이지 않도록 만들어져 있다.
+  // 즉 이 값은 실제 메일 링크에 영원히 존재할 수 없는 값이라, 모든 사용자가
+  // 예외 없이 "잘못된 접근입니다"로 실패하고 있었다. 게다가 finalize-link
+  // 백엔드도 이 값을 쓰지 않고 토큰(user_metadata)에서 직접 닉네임을 꺼내므로,
+  // 애초에 불필요한 체크였다 - 완전히 제거한다.
+  if (!hashData.accessToken) {
     render(false, '잘못된 접근입니다', '이메일에서 받은 링크를 통해 접속해 주세요.');
     return;
   }
@@ -85,7 +90,7 @@ function decodeEmailFromJwt(token){
     var res = await fetch(API + '/api/guest/finalize-link', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accessToken: hashData.accessToken, nickname: nickname })
+      body: JSON.stringify({ accessToken: hashData.accessToken })
     });
     var data = await res.json();
 
@@ -99,7 +104,7 @@ function decodeEmailFromJwt(token){
     // 보이는 문제가 있었다. 여기서 반드시 저장해야 auth_gate.js/common.js가 인식한다.
     var email = data.email || decodeEmailFromJwt(hashData.accessToken);
     if (email) {
-      localStorage.setItem('mll_guest_nickname', data.nickname || nickname);
+      localStorage.setItem('mll_guest_nickname', data.nickname);
       localStorage.setItem('mll_guest_email', email);
     } else {
       console.error('[guest_confirm] email을 확인할 수 없어 로그인 상태를 저장하지 못했습니다.');
