@@ -2506,7 +2506,7 @@ RACE.renderRound = async function(){
   var list = strategies.map(function(s){
     var r = byNo[s.no] || {};
     return {
-      no: s.no, name: s.name, nameEn: s.nameEn, isRandom: s.isRandom,
+      no: s.no, name: s.name, nameEn: s.nameEn, isRandom: s.isRandom, isFixedCombo: s.isFixedCombo,
       generated: r.generated||0, winCount: r.win_count||0, totalPrize: r.total_prize||0,
       gradeCounts: { 1: r.grade1_count||0, 2: r.grade2_count||0, 3: r.grade3_count||0, 4: r.grade4_count||0, 5: r.grade5_count||0, fail: r.fail_count||0 }
     };
