@@ -224,11 +224,23 @@ MLL.getResult   = function(round) {
   return MLL._resultsCache[round] || MLL._resultsCache[String(round)] || null;
 };
 
-// "⚡ 즉시확인 Click!" 버튼에서 호출. 최신 당첨결과와 내 등록내역 전체를
-// 서버에서 다시 받아와 화면을 갱신한다. (2026-07-15: sessionTag 없이 호출하면
-// 서버가 "내 미확인 항목 전체"를 돌려주므로 인자 없이 호출)
+// "⚡ 즉시확인 Click!" 버튼에서 호출. 서버의 kr_lotto_entries.confirmed 플래그를
+// true로 바꿔야("추첨결과 공개") 미확인 상태가 풀리므로, 반드시 POST
+// /api/lotto/entries/confirm을 먼저 호출한 다음 최신 상태를 다시 받아와 화면을 갱신한다.
+// (⚠ 2026-07-18: 이전 버전은 refreshResults/refreshEntries만 호출하고 정작 confirm
+// API를 부르지 않아서, 재채점을 해도 "미확인" 상태가 절대 안 풀리는 문제가 있었다.)
 MLL.applyCheck = async function() {
   try {
+    var state = _mllAuthOrNull();
+    if (state) {
+      var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/confirm', {
+        method: 'POST', headers: _mllHeaders(state), body: JSON.stringify({})
+      });
+      if (!resp.ok) {
+        var errData = await resp.json().catch(function(){ return {}; });
+        console.error('[MLL] entries/confirm 실패:', errData.error || resp.status);
+      }
+    }
     await MLL.refreshResults();
     await MLL.refreshEntries();
     if (typeof window.refreshTable === 'function') window.refreshTable();
