@@ -224,6 +224,19 @@ MLL.getResult   = function(round) {
   return MLL._resultsCache[round] || MLL._resultsCache[String(round)] || null;
 };
 
+// "⚡ 즉시확인 Click!" 버튼에서 호출. 최신 당첨결과와 내 등록내역 전체를
+// 서버에서 다시 받아와 화면을 갱신한다. (2026-07-15: sessionTag 없이 호출하면
+// 서버가 "내 미확인 항목 전체"를 돌려주므로 인자 없이 호출)
+MLL.applyCheck = async function() {
+  try {
+    await MLL.refreshResults();
+    await MLL.refreshEntries();
+    if (typeof window.refreshTable === 'function') window.refreshTable();
+  } catch (e) {
+    console.error('[MLL] applyCheck 오류:', e);
+  }
+};
+
 // 번호조합 등록 (여러 개 한번에) — 서버가 포인트(data_entry)를 차감하고 저장한다.
 // 성공시 { success:true, items } / 인증필요시 { success:false, needAuth:true } /
 // 포인트부족시 { success:false, insufficientPoints:true, shortfall, message } 를 반환.
@@ -302,14 +315,17 @@ MLL.calcPrize = function(grade, result) {
 
 // =====================================================
 // 정렬 (추첨전 상단, 추첨후 하단, 각각 회차 내림차순)
-// 서버가 조회 시점에 항상 최신 status/grade/prizeMoney를 계산해서 내려주므로
-// (구버전에 있던) "추첨됐으나 미확인" 중간 단계는 더 이상 존재하지 않는다.
+// 서버가 조회 시점에 항상 최신 status/grade/prizeMoney를 계산해서 내려준다.
+// ⚠ 2026-07-15: "추첨됐으나 미확인('즉시확인' 안 누른 상태)"인 항목이 여기서
+// preDraw에도 post에도 안 걸려서 목록/정렬 결과에서 통째로 빠지는 버그가 있었다.
+// (지난 회차 번호를 저장해도 목록에 하나도 안 보이던 원인이 바로 이것이었음)
+// '추첨전'이 아니면 전부 post로 묶는다 — renderRow도 이미 그 기준으로 표시한다.
 // =====================================================
 
 MLL.sortEntries = function(entries) {
   var preDraw = entries.filter(function(e){ return e.status === '추첨전'; })
                         .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
-  var post    = entries.filter(function(e){ return e.status === '추첨후'; })
+  var post    = entries.filter(function(e){ return e.status !== '추첨전'; })
                         .sort(function(a,b){ return b.round-a.round || b.createdAt-a.createdAt; });
   return preDraw.concat(post);
 };
@@ -417,7 +433,7 @@ MLL.renderRow = function(entry, sessionTag, opts) {
 
   return '<tr id="slip_row_'+entry.id+'" style="'+rowStyle+'">' +
     '<td style="text-align:center;padding:4px 4px;">'+slipCheckHtml+'</td>' +
-    '<td style="text-align:center;padding:4px 4px;"><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;">'+entry.round+'회</span></td>' +
+    '<td style="text-align:center;padding:4px 4px;"><span style="background:'+rcColor+';color:#fff;border-radius:3px;padding:1px 4px;font-size:8px;font-weight:700;white-space:nowrap;">'+entry.round+'회</span></td>' +
     '<td style="padding:4px 6px;"><div style="display:flex;gap:1px;align-items:center;flex-wrap:nowrap;">'+ballsHTML+'</div></td>' +
     '<td style="text-align:left;padding:4px 5px;font-size:9px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(entry.memo||'')+'</td>' +
     '<td style="text-align:center;padding:4px 4px;">'+typeHTML+'</td>' +
@@ -450,11 +466,6 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
   var tbody   = document.getElementById(tbodyId);
   if (!tbody) return;
 
-  // ⚠ 2026-07-15: 예전엔 postDraw를 status==='추첨후'로만 걸러서, '미확인'
-  // 상태(=지난 회차라 결과는 있지만 "즉시확인"을 아직 안 누른 상태)인 항목이
-  // preDraw에도 postDraw에도 안 걸려 목록에서 통째로 사라지는 버그가 있었다.
-  // renderRow는 이미 '추첨전'이 아니면 전부 "추첨후"로 표시하도록 돼 있으므로
-  // (실시간 재판단 로직 참고), 여기도 그 기준에 맞춰 '추첨전이 아닌 것'을 전부 담는다.
   var preDraw  = sorted.filter(function(e){ return e.status === '추첨전'; });
   var postDraw = sorted.filter(function(e){ return e.status !== '추첨전'; });
 
@@ -1157,7 +1168,7 @@ MLL._checkSum = function(nums, min, max) {
 // 관리자 화면에서 그 키를 골라 게시위치로 지정하면 그 페이지에서만 뜨고, 안 고르면 전체 사이트에 뜸)
 // =====================================================
 
-// (닫기 버튼은 저장하지 않고 그 화면에서만 잠깐 숨깁니다 — 새로고침하면 다시 보임)
+MLL.ANN_DISMISS_PREFIX = 'mll_ann_dismissed_'; // sessionStorage — 이 브라우저 탭에서만 "닫기" 유지(새로 들어오면 다시 보임)
 
 MLL.renderAnnouncements = async function(pageKey){
   try {
@@ -1190,6 +1201,9 @@ MLL.renderAnnouncements = async function(pageKey){
     };
 
     items.forEach(function(a){
+      var dismissKey = MLL.ANN_DISMISS_PREFIX + a.id;
+      if (sessionStorage.getItem(dismissKey)) return; // 이 탭에서 이미 닫은 공지
+
       var title = (lang === 'en' && a.title_en) ? a.title_en : a.title_kr;
       var body  = (lang === 'en' && a.body_en) ? a.body_en : a.body_kr;
       var linkLabel = (lang === 'en' && a.link_label_en) ? a.link_label_en : (a.link_label_kr || (lang==='en' ? 'Learn more' : '자세히 보기'));
@@ -1210,9 +1224,8 @@ MLL.renderAnnouncements = async function(pageKey){
         (a.link_url ? '<a href="'+a.link_url+'" target="_blank" rel="noopener" style="flex-shrink:0;font-size:'+sz.bodySize+';font-weight:700;color:'+tn.accent+';border:1px solid '+tn.accent+';padding:4px 12px;border-radius:20px;text-decoration:none;white-space:nowrap;">'+linkLabel+' →</a>' : '') +
         '<button type="button" aria-label="close" style="flex-shrink:0;background:none;border:none;color:#8b91ab;font-size:16px;cursor:pointer;padding:0 4px;">✕</button>';
 
-      // 닫기는 "지금 이 화면에서만" 잠깐 안 보이게 할 뿐, 따로 저장하지 않습니다.
-      // 새로고침하거나 다른 페이지에서 다시 들어오면 (관리자가 게시중지하지 않는 한) 다시 보입니다 — 긴급공지 특성상 의도된 동작.
       el.querySelector('button').addEventListener('click', function(){
+        sessionStorage.setItem(dismissKey, '1');
         el.remove();
       });
 
