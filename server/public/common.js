@@ -480,13 +480,17 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
 
   var preDraw  = sorted.filter(function(e){ return e.status === '추첨전'; });
   var postDraw = sorted.filter(function(e){ return e.status !== '추첨전'; });
+  var unconfirmed = postDraw.filter(function(e){ return e.status === '미확인'; });
 
   // 배지 업데이트
   var badgeEl = document.getElementById('sectionBadge');
   if (badgeEl) {
     badgeEl.innerHTML =
       '<span style="color:#e03131;font-weight:700;">🔴추첨전 '+preDraw.length+'개</span>' +
-      ' &nbsp;|&nbsp; <span style="color:#555;">✅추첨후 '+postDraw.length+'개</span>';
+      ' &nbsp;|&nbsp; <span style="color:#555;">✅추첨후 '+postDraw.length+'개</span>' +
+      (unconfirmed.length
+        ? ' &nbsp;<span onclick="MLL.applyCheck()" style="cursor:pointer;color:#fff;background:linear-gradient(135deg,#e03131,#c92a2a);font-weight:700;padding:1px 7px;border-radius:8px;font-size:9px;" title="클릭하면 즉시확인이 실행됩니다">⚡미확인 '+unconfirmed.length+'개</span>'
+        : '');
   }
 
   // 카운트 업데이트
@@ -504,7 +508,10 @@ MLL.renderTable = function(tbodyId, sessionTag, filterRound) {
       preDraw.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
     }
     if (postDraw.length) {
-      html += MLL.renderDivider('✅ 추첨 후', postDraw.length);
+      var unconfirmedExtra = unconfirmed.length
+        ? ' <span onclick="MLL.applyCheck()" style="cursor:pointer;color:#e03131;font-weight:700;">(⚡미확인 '+unconfirmed.length+'개 — 클릭하여 확인)</span>'
+        : '';
+      html += MLL.renderDivider('✅ 추첨 후', postDraw.length, unconfirmedExtra);
       postDraw.forEach(function(e){ html += MLL.renderRow(e, sessionTag); });
     }
   }
