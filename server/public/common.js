@@ -224,6 +224,19 @@ MLL.getResult   = function(round) {
   return MLL._resultsCache[round] || MLL._resultsCache[String(round)] || null;
 };
 
+// "⚡ 즉시확인 Click!" 버튼에서 호출. 최신 당첨결과와 내 등록내역 전체를
+// 서버에서 다시 받아와 화면을 갱신한다. (2026-07-15: sessionTag 없이 호출하면
+// 서버가 "내 미확인 항목 전체"를 돌려주므로 인자 없이 호출)
+MLL.applyCheck = async function() {
+  try {
+    await MLL.refreshResults();
+    await MLL.refreshEntries();
+    if (typeof window.refreshTable === 'function') window.refreshTable();
+  } catch (e) {
+    console.error('[MLL] applyCheck 오류:', e);
+  }
+};
+
 // 번호조합 등록 (여러 개 한번에) — 서버가 포인트(data_entry)를 차감하고 저장한다.
 // 성공시 { success:true, items } / 인증필요시 { success:false, needAuth:true } /
 // 포인트부족시 { success:false, insufficientPoints:true, shortfall, message } 를 반환.
