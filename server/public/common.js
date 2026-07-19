@@ -1189,67 +1189,92 @@ MLL._checkSum = function(nums, min, max) {
 
 MLL.ANN_DISMISS_PREFIX = 'mll_ann_dismissed_'; // sessionStorage — 이 브라우저 탭에서만 "닫기" 유지(새로 들어오면 다시 보임)
 
+function _mllCurrentLang() {
+  return (typeof window.LANG !== 'undefined' && window.LANG) ? window.LANG : (localStorage.getItem('mll_lang') || 'kr');
+}
+
+// 실제 배너 DOM을 (다시) 그리는 부분. 서버 재조회 없이 캐시된 items로 다시 그릴 수 있도록 분리.
+function _mllBuildAnnouncements(items, lang) {
+  var container = document.getElementById('mllAnnouncementsWrap');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'mllAnnouncementsWrap';
+    container.style.cssText = 'position:relative;z-index:9998;';
+    document.body.insertBefore(container, document.body.firstChild);
+  }
+  container.innerHTML = ''; // 언어 전환 시 재호출되므로 항상 비우고 새로 그림
+
+  var sizeMap = {
+    small:  { pad:'7px 16px',  titleSize:'12.5px', bodySize:'11.5px' },
+    medium: { pad:'11px 20px', titleSize:'13.5px', bodySize:'12.5px' },
+    large:  { pad:'16px 26px', titleSize:'15.5px', bodySize:'13.5px' },
+  };
+  var toneMap = {
+    info:    { bg:'#16305c', border:'#2a4a8a', accent:'#7fa8ff', icon:'📘' },
+    warning: { bg:'#4a3a10', border:'#8a6f2f', accent:'#e0b341', icon:'⚠️' },
+    urgent:  { bg:'#4a1620', border:'#a13a4a', accent:'#ff6b7f', icon:'🚨' },
+    purple:  { bg:'#2e2060', border:'#6b4fc0', accent:'#c9b3ff', icon:'📢' },
+  };
+
+  items.forEach(function(a){
+    var dismissKey = MLL.ANN_DISMISS_PREFIX + a.id;
+    if (sessionStorage.getItem(dismissKey)) return; // 이 탭에서 이미 닫은 공지
+
+    var title = (lang === 'en' && a.title_en) ? a.title_en : a.title_kr;
+    var body  = (lang === 'en' && a.body_en) ? a.body_en : a.body_kr;
+    var linkLabel = (lang === 'en' && a.link_label_en) ? a.link_label_en : (a.link_label_kr || (lang==='en' ? 'Learn more' : '자세히 보기'));
+    var sz = sizeMap[a.size] || sizeMap.medium;
+    var tn = toneMap[a.tone] || toneMap.info;
+
+    var el = document.createElement('div');
+    el.setAttribute('data-ann-id', a.id);
+    el.style.cssText =
+      'background:'+tn.bg+';border-bottom:1px solid '+tn.border+';padding:'+sz.pad+';' +
+      'display:flex;align-items:center;gap:12px;font-family:inherit;';
+    el.innerHTML =
+      '<span style="font-size:'+sz.titleSize+';flex-shrink:0;">'+tn.icon+'</span>' +
+      '<div style="flex:1;min-width:0;color:#eef0f6;">' +
+        '<span style="font-weight:700;font-size:'+sz.titleSize+';color:'+tn.accent+';">'+title+'</span>' +
+        '<span style="font-size:'+sz.bodySize+';color:#c8cce0;margin-left:8px;">'+body+'</span>' +
+      '</div>' +
+      (a.link_url ? '<a href="'+a.link_url+'" target="_blank" rel="noopener" style="flex-shrink:0;font-size:'+sz.bodySize+';font-weight:700;color:'+tn.accent+';border:1px solid '+tn.accent+';padding:4px 12px;border-radius:20px;text-decoration:none;white-space:nowrap;">'+linkLabel+' →</a>' : '') +
+      '<button type="button" aria-label="close" style="flex-shrink:0;background:none;border:none;color:#8b91ab;font-size:16px;cursor:pointer;padding:0 4px;">✕</button>';
+
+    el.querySelector('button').addEventListener('click', function(){
+      sessionStorage.setItem(dismissKey, '1');
+      el.remove();
+    });
+
+    container.appendChild(el);
+  });
+}
+
 MLL.renderAnnouncements = async function(pageKey){
   try {
     var resp = await fetch(MLL.API_BASE + '/api/announcements/active?page=' + encodeURIComponent(pageKey || ''));
     if (!resp.ok) return;
     var data = await resp.json();
     var items = data.items || [];
+    MLL._annCache = items; // 언어 전환 시 재조회 없이 재사용
+
+    var lang = _mllCurrentLang();
+    MLL._annLastLang = lang;
     if (!items.length) return;
+    _mllBuildAnnouncements(items, lang);
 
-    var lang = (typeof LANG !== 'undefined') ? LANG : (localStorage.getItem('mll_lang') || 'kr');
-
-    var container = document.getElementById('mllAnnouncementsWrap');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'mllAnnouncementsWrap';
-      container.style.cssText = 'position:relative;z-index:9998;';
-      document.body.insertBefore(container, document.body.firstChild);
+    // ⚠ 2026-07-19: KR/EN 버튼을 눌러도 이 함수가 다시 호출되지 않아 배너만 예전 언어로
+    // 남아있던 문제 — 각 페이지의 언어전환 버튼을 일일이 고치는 대신, 여기서 LANG 값을
+    // 짧은 주기로 스스로 감시하다가 바뀌면 캐시된 데이터로 배너만 조용히 다시 그린다.
+    if (!MLL._annWatcherStarted) {
+      MLL._annWatcherStarted = true;
+      setInterval(function(){
+        var cur = _mllCurrentLang();
+        if (cur !== MLL._annLastLang) {
+          MLL._annLastLang = cur;
+          if (MLL._annCache && MLL._annCache.length) _mllBuildAnnouncements(MLL._annCache, cur);
+        }
+      }, 300);
     }
-
-    var sizeMap = {
-      small:  { pad:'7px 16px',  titleSize:'12.5px', bodySize:'11.5px' },
-      medium: { pad:'11px 20px', titleSize:'13.5px', bodySize:'12.5px' },
-      large:  { pad:'16px 26px', titleSize:'15.5px', bodySize:'13.5px' },
-    };
-    var toneMap = {
-      info:    { bg:'#16305c', border:'#2a4a8a', accent:'#7fa8ff', icon:'📘' },
-      warning: { bg:'#4a3a10', border:'#8a6f2f', accent:'#e0b341', icon:'⚠️' },
-      urgent:  { bg:'#4a1620', border:'#a13a4a', accent:'#ff6b7f', icon:'🚨' },
-      purple:  { bg:'#2e2060', border:'#6b4fc0', accent:'#c9b3ff', icon:'📢' },
-    };
-
-    items.forEach(function(a){
-      var dismissKey = MLL.ANN_DISMISS_PREFIX + a.id;
-      if (sessionStorage.getItem(dismissKey)) return; // 이 탭에서 이미 닫은 공지
-
-      var title = (lang === 'en' && a.title_en) ? a.title_en : a.title_kr;
-      var body  = (lang === 'en' && a.body_en) ? a.body_en : a.body_kr;
-      var linkLabel = (lang === 'en' && a.link_label_en) ? a.link_label_en : (a.link_label_kr || (lang==='en' ? 'Learn more' : '자세히 보기'));
-      var sz = sizeMap[a.size] || sizeMap.medium;
-      var tn = toneMap[a.tone] || toneMap.info;
-
-      var el = document.createElement('div');
-      el.setAttribute('data-ann-id', a.id);
-      el.style.cssText =
-        'background:'+tn.bg+';border-bottom:1px solid '+tn.border+';padding:'+sz.pad+';' +
-        'display:flex;align-items:center;gap:12px;font-family:inherit;';
-      el.innerHTML =
-        '<span style="font-size:'+sz.titleSize+';flex-shrink:0;">'+tn.icon+'</span>' +
-        '<div style="flex:1;min-width:0;color:#eef0f6;">' +
-          '<span style="font-weight:700;font-size:'+sz.titleSize+';color:'+tn.accent+';">'+title+'</span>' +
-          '<span style="font-size:'+sz.bodySize+';color:#c8cce0;margin-left:8px;">'+body+'</span>' +
-        '</div>' +
-        (a.link_url ? '<a href="'+a.link_url+'" target="_blank" rel="noopener" style="flex-shrink:0;font-size:'+sz.bodySize+';font-weight:700;color:'+tn.accent+';border:1px solid '+tn.accent+';padding:4px 12px;border-radius:20px;text-decoration:none;white-space:nowrap;">'+linkLabel+' →</a>' : '') +
-        '<button type="button" aria-label="close" style="flex-shrink:0;background:none;border:none;color:#8b91ab;font-size:16px;cursor:pointer;padding:0 4px;">✕</button>';
-
-      el.querySelector('button').addEventListener('click', function(){
-        sessionStorage.setItem(dismissKey, '1');
-        el.remove();
-      });
-
-      container.appendChild(el);
-    });
   } catch(e) {
     console.error('[MLL] 공지 로드 오류:', e);
   }
