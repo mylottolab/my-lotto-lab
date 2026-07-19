@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab - 로또 모의테스트 및 실험</title>
 <script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/common.js?v=20260719b"></script>
 <style>
 :root{
   --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
@@ -1360,7 +1361,12 @@ MU.resumeEntry = async function(entryId){
 };
 
 
-document.addEventListener('DOMContentLoaded', MU.init);
+document.addEventListener('DOMContentLoaded', function(){
+  MU.init();
+  if (typeof MLL !== 'undefined' && MLL.renderAnnouncements) {
+    MLL.renderAnnouncements('mocktest_hub');
+  }
+});
 
 function toggleLottoMenu(){
   var m = document.getElementById('lottoMenu');
