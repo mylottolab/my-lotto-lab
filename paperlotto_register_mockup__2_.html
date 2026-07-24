@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>번호 등록 — PaperLotto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --board:#0c1020; --board-2:#111731; --board-line:#242c4d;
+  --paper:#f6f1e4; --paper-2:#efe8d6; --ink:#1c2130; --ink-dim:#5b5646;
+  --gold:#b8862e; --gold-bright:#e0aa4e;
+  --text-hi:#f2efe4; --text-mid:#a7adc7; --text-dim:#6b7195;
+  --err:#c65a2e;
+  --kr:#c8203a; --jp:#2a3a7a; --us:#2c4fa3; --ca:#d8232a; --au:#1f7a6e; --eu:#2451c4;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--board); color:var(--text-hi);
+  font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;
+  word-break:keep-all; overflow-wrap:break-word;
+  background-image:linear-gradient(var(--board-line) 1px, transparent 1px), linear-gradient(90deg, var(--board-line) 1px, transparent 1px);
+  background-size:64px 64px; background-color:var(--board);
+  padding-bottom:100px;
+}
+h1,h2,h3{ font-family:'Fraunces',serif; margin:0; }
+.mono{ font-family:'IBM Plex Mono',monospace; }
+a{ color:inherit; }
+button{ font-family:'Inter',sans-serif; }
+:focus-visible{ outline:2px solid var(--gold-bright); outline-offset:2px; border-radius:4px; }
+
+header{
+  position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between;
+  padding:18px 32px; border-bottom:1px solid var(--board-line);
+  background:rgba(12,16,32,0.92); backdrop-filter:blur(6px);
+}
+.brand{ display:flex; align-items:center; gap:10px; text-decoration:none; cursor:pointer; }
+.brand-mark{ width:32px; height:32px; border-radius:7px; background:linear-gradient(135deg, var(--gold-bright), var(--gold)); display:flex; align-items:center; justify-content:center; color:var(--ink); font-family:'Fraunces',serif; font-weight:700; font-size:16px; transform:rotate(-4deg); }
+.brand-name{ font-size:18px; font-weight:600; }
+.brand-name em{ font-style:normal; color:var(--gold-bright); }
+.points-chip{
+  display:flex; align-items:center; gap:8px; background:var(--board-2); border:1px solid var(--board-line);
+  padding:8px 16px; border-radius:20px; font-size:13px;
+}
+.points-chip b{ color:var(--gold-bright); font-family:'IBM Plex Mono',monospace; }
+.lang-toggle{ display:flex; border:1px solid var(--board-line); border-radius:20px; overflow:hidden; }
+.lang-toggle button{
+  border:none; background:transparent; color:var(--text-dim); font-size:12px; font-weight:600;
+  padding:6px 12px; cursor:pointer; font-family:'Inter',sans-serif;
+}
+.lang-toggle button.active{ background:var(--gold); color:var(--ink); }
+
+.breadcrumb{ max-width:900px; margin:20px auto 0; padding:0 24px; font-size:13px; color:var(--text-dim); }
+.breadcrumb a{ text-decoration:none; color:var(--text-mid); }
+.breadcrumb a:hover{ color:var(--gold-bright); }
+
+main{ max-width:900px; margin:0 auto; padding:16px 24px 0; }
+
+/* ── 게임 선택 스트립 ── */
+.game-select-wrap{ margin-top:20px; }
+.section-label{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:1.4px; color:var(--gold-bright); margin-bottom:10px; }
+.game-strip{ display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; scrollbar-width:thin; }
+.game-chip{
+  flex-shrink:0; display:flex; flex-direction:column; gap:2px; padding:10px 16px; border-radius:10px;
+  background:var(--board-2); border:1.5px solid var(--board-line); cursor:pointer; min-width:118px;
+}
+.game-chip.active{ border-color:var(--accent); background:rgba(255,255,255,0.03); }
+.game-chip .gc-name{ font-size:13px; font-weight:600; color:var(--text-hi); }
+.game-chip .gc-sub{ font-size:10.5px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; }
+
+/* ── 선택 게임 정보 카드 ── */
+.game-info{
+  margin-top:18px; background:var(--paper); color:var(--ink); border-radius:12px; padding:20px 22px;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;
+  border-left:6px solid var(--accent);
+}
+.game-info-name{ font-size:19px; font-weight:600; }
+.game-info-sub{ font-size:11.5px; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; margin-top:2px; }
+.game-info-gate{ text-align:right; }
+.gate-label{ font-size:10.5px; color:var(--ink-dim); }
+.gate-cd{ font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:700; color:#8a5b1c; }
+.gate-cd.closed{ color:#a13a1c; }
+
+/* ── 모드 탭 ── */
+.mode-tabs{ display:flex; gap:8px; margin-top:24px; }
+.mode-tab{
+  flex:1; padding:13px; border-radius:10px; border:1.5px solid var(--board-line); background:var(--board-2);
+  color:var(--text-mid); font-size:14px; font-weight:600; cursor:pointer; text-align:center;
+}
+.mode-tab .mt-en{ display:block; font-size:10px; font-family:'IBM Plex Mono',monospace; font-weight:400; margin-top:2px; opacity:0.7; }
+.mode-tab.active{ background:var(--gold); border-color:var(--gold); color:var(--ink); }
+
+/* ── 작업 패널 (종이 카드) ── */
+.work-panel{ margin-top:18px; background:var(--paper); color:var(--ink); border-radius:14px; padding:26px; }
+.panel-title{ font-size:15px; font-weight:600; margin-bottom:4px; }
+.panel-desc{ font-size:12.5px; color:var(--ink-dim); margin-bottom:18px; line-height:1.6; }
+
+.num-grid{ display:grid; grid-template-columns:repeat(9, 1fr); gap:6px; margin-bottom:14px; }
+.num-pip{
+  aspect-ratio:1; border-radius:50%; border:none; background:rgba(28,33,48,0.07); color:var(--ink);
+  font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; min-width:0;
+}
+.num-pip.selected{ background:var(--accent); color:#fff; }
+.num-pip:disabled{ opacity:0.3; cursor:not-allowed; }
+
+.bonus-label{ font-size:11.5px; font-weight:600; color:var(--ink-dim); margin:14px 0 8px; }
+.num-grid.bonus-grid .num-pip.selected{ background:var(--gold); color:#fff; }
+
+.sel-status{ display:flex; align-items:center; justify-content:space-between; margin:14px 0; font-size:12.5px; color:var(--ink-dim); }
+.sel-status b{ color:var(--ink); font-family:'IBM Plex Mono',monospace; }
+
+.memo-input{
+  width:100%; padding:10px 13px; border:1.5px solid rgba(28,33,48,0.15); border-radius:8px;
+  font-size:13px; margin-bottom:14px; font-family:'Inter',sans-serif;
+}
+
+.qty-row{ display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.qty-row label{ font-size:13px; font-weight:600; color:var(--ink-dim); }
+.qty-row input[type="number"]{
+  width:90px; padding:10px 12px; border:1.5px solid rgba(28,33,48,0.15); border-radius:8px; font-size:14px;
+  font-family:'IBM Plex Mono',monospace;
+}
+.qty-cost{ font-size:12.5px; color:#8a5b1c; font-weight:600; }
+
+.btn-row{ display:flex; gap:10px; }
+.btn-primary{
+  padding:12px 22px; border:none; border-radius:9px; background:var(--ink); color:var(--paper);
+  font-size:14px; font-weight:600; cursor:pointer;
+}
+.btn-primary:hover{ background:#2a3145; }
+.btn-primary:disabled{ opacity:0.35; cursor:not-allowed; }
+.btn-ghost{
+  padding:12px 18px; border:1.5px solid rgba(28,33,48,0.2); border-radius:9px; background:transparent;
+  color:var(--ink-dim); font-size:13.5px; font-weight:600; cursor:pointer;
+}
+
+/* ── 등록 예정 목록 ── */
+.pending-wrap{ margin-top:28px; }
+.pending-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.pending-head h3{ font-size:16px; color:var(--text-hi); }
+.pending-count{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-dim); }
+
+.pending-list{ display:flex; flex-direction:column; gap:8px; }
+.pending-row{
+  display:flex; align-items:center; gap:12px; background:var(--paper); border-radius:10px; padding:12px 16px;
+}
+.pr-method{
+  font-size:10px; font-weight:700; padding:3px 8px; border-radius:10px; flex-shrink:0;
+  font-family:'IBM Plex Mono',monospace;
+}
+.pr-method.manual{ background:rgba(44,79,163,0.12); color:#2c4fa3; }
+.pr-method.semi{ background:rgba(184,134,46,0.15); color:#8a5b1c; }
+.pr-method.auto{ background:rgba(31,122,110,0.13); color:#1f7a6e; }
+.pr-pips{ display:flex; gap:5px; flex:1; flex-wrap:wrap; }
+.pr-pip{
+  width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600; background:rgba(28,33,48,0.08); color:var(--ink);
+}
+.pr-pip.bonus{ background:var(--gold); color:#fff; }
+.pr-del{
+  width:26px; height:26px; border-radius:50%; border:none; background:rgba(198,90,46,0.12); color:#a13a1c;
+  cursor:pointer; font-size:14px; flex-shrink:0;
+}
+.pending-empty{ text-align:center; padding:36px 20px; color:var(--text-dim); font-size:13px; background:rgba(255,255,255,0.02); border-radius:12px; border:1.5px dashed var(--board-line); }
+
+/* ── 하단 고정 결제 요약바 ── */
+.checkout-bar{
+  position:fixed; left:0; right:0; bottom:0; z-index:30;
+  background:rgba(17,23,49,0.96); backdrop-filter:blur(8px); border-top:1px solid var(--board-line);
+  padding:16px 24px;
+}
+.checkout-inner{ max-width:900px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.co-summary{ font-size:13px; color:var(--text-mid); }
+.co-summary b{ color:var(--gold-bright); font-family:'IBM Plex Mono',monospace; font-size:15px; }
+.co-warn{ color:var(--err); font-size:12px; margin-top:2px; }
+.co-btn{
+  padding:14px 30px; border:none; border-radius:9px; background:var(--gold); color:var(--ink);
+  font-size:14.5px; font-weight:700; cursor:pointer; white-space:nowrap;
+}
+.co-btn:disabled{ background:var(--board-line); color:var(--text-dim); cursor:not-allowed; }
+
+@media (max-width:640px){
+  header{ padding:14px 18px; }
+  main{ padding:12px 16px 0; }
+  .num-grid{ grid-template-columns:repeat(6,1fr); }
+  .work-panel{ padding:18px; }
+  .checkout-bar{ padding:12px 16px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="brand" href="paperlotto_hub_mockup.html" aria-label="PaperLotto — 홈으로">
+    <div class="brand-mark">P</div>
+    <div class="brand-name">Paper<em>Lotto</em></div>
+  </a>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <div class="lang-toggle">
+      <button data-lang="ko" type="button">KR</button>
+      <button data-lang="en" class="active" type="button">EN</button>
+      <button data-lang="ja" type="button">JA</button>
+    </div>
+    <div class="points-chip">💰 <span data-i18n="pointsLabel">보유 포인트</span> <b id="balanceLabel">340</b>P</div>
+  </div>
+</header>
+
+<div class="breadcrumb"><a href="paperlotto_hub_mockup.html" data-i18n="breadcrumbBack">← 전체 게임</a> / <span data-i18n="breadcrumbHere">번호 등록</span></div>
+
+<main>
+
+  <div class="game-select-wrap">
+    <div class="section-label"><span data-i18n="step1">STEP 1 · 게임 선택</span></div>
+    <div class="game-strip" id="gameStrip"></div>
+  </div>
+
+  <div class="game-info" id="gameInfo"></div>
+
+  <div class="section-label" style="margin-top:26px;"><span data-i18n="step2">STEP 2 · 입력 방식</span></div>
+  <div class="mode-tabs">
+    <div class="mode-tab active" data-mode="manual"><span data-i18n="modeManual">수동</span><span class="mt-en">MANUAL</span></div>
+    <div class="mode-tab" data-mode="semi"><span data-i18n="modeSemi">반자동</span><span class="mt-en">SEMI-AUTO</span></div>
+    <div class="mode-tab" data-mode="auto"><span data-i18n="modeAuto">자동</span><span class="mt-en">AUTO</span></div>
+  </div>
+
+  <!-- 수동/반자동 패널 -->
+  <div class="work-panel" id="pickPanel">
+    <div class="panel-title" id="pickTitle" data-i18n="pickTitleManual">번호를 직접 선택하세요</div>
+    <div class="panel-desc" id="pickDesc" data-i18n="pickDescManual">메인 번호를 모두 선택하면 "이 조합 추가"가 활성화됩니다.</div>
+
+    <div class="num-grid" id="mainGrid"></div>
+    <div id="bonusSection" style="display:none;">
+      <div class="bonus-label" id="bonusLabel">보너스 번호</div>
+      <div class="num-grid bonus-grid" id="bonusGrid"></div>
+    </div>
+
+    <div class="sel-status">
+      <span><span data-i18n="selected">선택됨</span>: <b id="selCount">0</b> / <b id="selNeed">6</b></span>
+      <span id="semiQtyWrap" style="display:none;"><span data-i18n="genCount">생성 개수</span>: <input type="number" id="semiQty" value="5" min="1" max="100" style="width:60px;padding:4px 8px;border-radius:6px;border:1px solid rgba(28,33,48,0.2);font-family:'IBM Plex Mono',monospace;"></span>
+    </div>
+
+    <input type="text" class="memo-input" id="pickMemo" data-i18n-placeholder="memoPlaceholder" placeholder="메모 (선택, 예: 홀짝균형전략)">
+
+    <div class="btn-row">
+      <button class="btn-primary" id="pickAddBtn" disabled data-i18n="addComboBtn">이 조합 추가 →</button>
+      <button class="btn-ghost" id="pickResetBtn" data-i18n="resetBtn">초기화</button>
+    </div>
+  </div>
+
+  <!-- 자동 패널 -->
+  <div class="work-panel" id="autoPanel" style="display:none;">
+    <div class="panel-title" data-i18n="autoTitle">몇 개 조합을 만들까요?</div>
+    <div class="panel-desc" data-i18n="autoDesc">번호는 시스템이 무작위로 생성합니다. 대량 등록에 가장 편한 방식이에요.</div>
+
+    <div class="qty-row">
+      <label data-i18n="genCount">생성 개수</label>
+      <input type="number" id="autoQty" value="10" min="1" max="500">
+      <span class="qty-cost" id="autoCost">= 50P</span>
+    </div>
+    <input type="text" class="memo-input" id="autoMemo" data-i18n-placeholder="autoMemoPlaceholder" placeholder="메모 (선택, 예: 이번주 자동 대량등록)">
+
+    <div class="btn-row">
+      <button class="btn-primary" id="autoAddBtn" data-i18n="genComboBtn">조합 생성하기 →</button>
+    </div>
+  </div>
+
+  <div class="pending-wrap">
+    <div class="pending-head">
+      <h3 data-i18n="pendingTitle">등록 예정 목록</h3>
+      <span class="pending-count" id="pendingCount">0개</span>
+    </div>
+    <div class="pending-list" id="pendingList">
+      <div class="pending-empty" data-i18n="pendingEmpty">아직 등록 예정인 조합이 없어요. 위에서 번호를 추가해보세요.</div>
+    </div>
+  </div>
+
+</main>
+
+<div class="checkout-bar">
+  <div class="checkout-inner">
+    <div>
+      <div class="co-summary" id="coSummary"></div>
+      <div class="co-warn" id="coWarn" style="display:none;" data-i18n="insufficientWarn">보유 포인트가 부족합니다. 개수를 줄이거나 포인트를 충전해주세요.</div>
+      <a class="co-warn" id="coWarnLink" href="paperlotto_recharge_mockup.html" style="display:none; text-decoration:underline; font-weight:600;" data-i18n="rechargeLink">충전하러 가기 →</a>
+    </div>
+    <button class="co-btn" id="submitBtn" disabled data-i18n="registerBtn">번호 등록하기</button>
+  </div>
+</div>
+
+<script>
+// ─── 12개 게임 스펙 (games 테이블 값 기준) ─────────────────────────────
+const GAMES = [
+  { id:'kr_lotto645', accent:'kr', nameKo:'로또 6/45', nameEn:'Lotto 6/45', nameJa:'韓国ロト6/45', sub:'KR', main:6, range:45, bonus:1, days:[6] },
+  { id:'us_powerball', accent:'us', nameKo:'파워볼', nameEn:'Powerball', nameJa:'パワーボール', sub:'US', main:5, range:69, bonus:1, bonusRange:26, days:[1,3,6] },
+  { id:'us_megamillions', accent:'us', nameKo:'메가밀리언스', nameEn:'Mega Millions', nameJa:'メガミリオンズ', sub:'US', main:5, range:70, bonus:1, bonusRange:24, days:[2,5] },
+  { id:'eu_euromillions', accent:'eu', nameKo:'유로밀리언스', nameEn:'EuroMillions', nameJa:'ユーロミリオンズ', sub:'EU', main:5, range:50, bonus:2, bonusRange:12, days:[2,5] },
+  { id:'jp_miniloto', accent:'jp', nameKo:'미니로또', nameEn:'Mini Loto', nameJa:'ミニロト', sub:'JP', main:5, range:31, bonus:1, days:[2] },
+  { id:'jp_loto7', accent:'jp', nameKo:'로또7', nameEn:'Loto 7', nameJa:'ロト7', sub:'JP', main:7, range:37, bonus:2, days:[5] },
+  { id:'jp_loto6', accent:'jp', nameKo:'로또6', nameEn:'Loto 6', nameJa:'ロト6', sub:'JP', main:6, range:43, bonus:1, days:[1,4] },
+  { id:'ca_lottomax', accent:'ca', nameKo:'로또맥스', nameEn:'Lotto Max', nameJa:'ロトマックス', sub:'CA', main:7, range:52, bonus:1, days:[2,5] },
+  { id:'ca_lotto649', accent:'ca', nameKo:'로또 6/49', nameEn:'Lotto 6/49', nameJa:'ロト 6/49', sub:'CA', main:6, range:49, bonus:1, days:[3,6] },
+  { id:'au_powerball', accent:'au', nameKo:'호주 파워볼', nameEn:'Australia Powerball', nameJa:'豪パワーボール', sub:'AU', main:7, range:35, bonus:1, bonusRange:20, days:[4] },
+  { id:'au_ozlotto', accent:'au', nameKo:'오즈로또', nameEn:'Oz Lotto', nameJa:'オズロト', sub:'AU', main:7, range:47, bonus:3, days:[2] },
+  { id:'au_tattslotto', accent:'au', nameKo:'새터데이로또(Tatts Lotto)', nameEn:'Saturday Lotto (Tatts Lotto)', nameJa:'サタデーロト（Tatts Lotto）', sub:'AU', main:6, range:45, bonus:2, days:[6] },
+];
+
+// =====================================================
+// 다국어(i18n)
+// =====================================================
+const i18n = {
+  ko: {
+    pointsLabel:"보유 포인트", breadcrumbBack:"← 전체 게임", breadcrumbHere:"번호 등록",
+    step1:"STEP 1 · 게임 선택", step2:"STEP 2 · 입력 방식",
+    modeManual:"수동", modeSemi:"반자동", modeAuto:"자동",
+    pickTitleManual:"번호를 직접 선택하세요", pickDescManual:'메인 번호를 모두 선택하면 "이 조합 추가"가 활성화됩니다.',
+    pickTitleSemi:"고정하고 싶은 번호만 선택하세요", pickDescSemi:"선택한 번호는 고정되고, 나머지는 생성할 때마다 무작위로 채워집니다.",
+    selected:"선택됨", genCount:"생성 개수",
+    memoPlaceholder:"메모 (선택, 예: 홀짝균형전략)", autoMemoPlaceholder:"메모 (선택, 예: 이번주 자동 대량등록)",
+    addComboBtn:"이 조합 추가 →", resetBtn:"초기화", semiAddBtn:"나머지 자동채움으로 생성 →",
+    autoTitle:"몇 개 조합을 만들까요?", autoDesc:"번호는 시스템이 무작위로 생성합니다. 대량 등록에 가장 편한 방식이에요.",
+    genComboBtn:"조합 생성하기 →",
+    pendingTitle:"등록 예정 목록", pendingEmpty:"아직 등록 예정인 조합이 없어요. 위에서 번호를 추가해보세요.",
+    insufficientWarn:"보유 포인트가 부족합니다. 개수를 줄이거나 포인트를 충전해주세요.",
+    rechargeLink:"충전하러 가기 →",
+    registerBtn:"번호 등록하기", insufficientBtn:"포인트 부족",
+    mNumSelect:"개 선택", mBonusAdd:"+ 보너스", mNextDraw:"다음 추첨",
+    mBonusLabel:"보너스 번호", mSamePool:"메인과 같은 풀",
+    mSemiMax:"최대", mSemiPartial:"(일부만)",
+    mMethodManual:"수동", mMethodSemi:"반자동", mMethodAuto:"자동",
+    coSummary:(count,cost,price)=>`총 ${count}개 조합 · ${cost}P (1조합당 ${price}P)`,
+    registerBtnWithCost:(cost)=>`번호 등록하기 (${cost}P 사용)`,
+    submitAlert:(count,cost)=>`${count}개 조합이 등록되었습니다. (${cost}P 사용)\n\n※ 데모 화면입니다 — 실제 저장은 아직 연결되지 않았습니다.`,
+    unit:"개", monthDay:(m,d)=>`${m}월 ${d}일`,
+    nameKey:"nameKo",
+  },
+  en: {
+    pointsLabel:"Points balance", breadcrumbBack:"← All Games", breadcrumbHere:"Register Numbers",
+    step1:"STEP 1 · Choose Game", step2:"STEP 2 · Input Method",
+    modeManual:"Manual", modeSemi:"Semi-auto", modeAuto:"Auto",
+    pickTitleManual:"Select your numbers", pickDescManual:'Select all main numbers to enable "Add this combination."',
+    pickTitleSemi:"Select only the numbers you want to lock in", pickDescSemi:"Selected numbers stay fixed; the rest are randomly filled each time you generate.",
+    selected:"Selected", genCount:"Number to generate",
+    memoPlaceholder:"Memo (optional, e.g. odd/even balance strategy)", autoMemoPlaceholder:"Memo (optional, e.g. this week's bulk auto entry)",
+    addComboBtn:"Add this combination →", resetBtn:"Reset", semiAddBtn:"Generate with random fill →",
+    autoTitle:"How many combinations?", autoDesc:"Numbers are generated randomly by the system. The easiest way to register in bulk.",
+    genComboBtn:"Generate combinations →",
+    pendingTitle:"Pending Entries", pendingEmpty:"No pending combinations yet. Add numbers above to get started.",
+    insufficientWarn:"Insufficient points balance. Reduce the quantity or top up your points.",
+    rechargeLink:"Go recharge →",
+    registerBtn:"Register Numbers", insufficientBtn:"Insufficient points",
+    mNumSelect:" picks", mBonusAdd:"+ bonus", mNextDraw:"Next draw",
+    mBonusLabel:"Bonus number(s)", mSamePool:"same pool as main",
+    mSemiMax:"Up to", mSemiPartial:"(partial)",
+    mMethodManual:"Manual", mMethodSemi:"Semi", mMethodAuto:"Auto",
+    coSummary:(count,cost,price)=>`Total ${count} combos · ${cost}P (${price}P per combo)`,
+    registerBtnWithCost:(cost)=>`Register Numbers (${cost}P)`,
+    submitAlert:(count,cost)=>`${count} combination(s) registered. (${cost}P used)\n\n※ This is a demo screen — saving isn't connected yet.`,
+    unit:"", monthDay:(m,d)=>{const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];return `${months[m-1]} ${d}`;},
+    nameKey:"nameEn",
+  },
+  ja: {
+    pointsLabel:"保有ポイント", breadcrumbBack:"← すべてのゲーム", breadcrumbHere:"番号登録",
+    step1:"STEP 1 · ゲーム選択", step2:"STEP 2 · 入力方式",
+    modeManual:"手動", modeSemi:"半自動", modeAuto:"自動",
+    pickTitleManual:"番号を直接選んでください", pickDescManual:'メイン番号をすべて選ぶと「この組み合わせを追加」が有効になります。',
+    pickTitleSemi:"固定したい番号だけ選んでください", pickDescSemi:"選んだ番号は固定され、残りは生成のたびにランダムで埋められます。",
+    selected:"選択済み", genCount:"生成数",
+    memoPlaceholder:"メモ（任意、例：奇偶バランス戦略）", autoMemoPlaceholder:"メモ（任意、例：今週の自動一括登録）",
+    addComboBtn:"この組み合わせを追加 →", resetBtn:"リセット", semiAddBtn:"残りを自動で埋めて生成 →",
+    autoTitle:"いくつ組み合わせを作りますか？", autoDesc:"番号はシステムがランダムに生成します。大量登録に最も便利な方法です。",
+    genComboBtn:"組み合わせを生成 →",
+    pendingTitle:"登録予定リスト", pendingEmpty:"まだ登録予定の組み合わせがありません。上で番号を追加してください。",
+    insufficientWarn:"保有ポイントが不足しています。数を減らすかポイントをチャージしてください。",
+    rechargeLink:"チャージしに行く →",
+    registerBtn:"番号を登録する", insufficientBtn:"ポイント不足",
+    mNumSelect:"個選択", mBonusAdd:"+ ボーナス", mNextDraw:"次回抽選",
+    mBonusLabel:"ボーナス番号", mSamePool:"メインと同じプール",
+    mSemiMax:"最大", mSemiPartial:"（一部のみ）",
+    mMethodManual:"手動", mMethodSemi:"半自動", mMethodAuto:"自動",
+    coSummary:(count,cost,price)=>`合計 ${count}組 · ${cost}P（1組${price}P）`,
+    registerBtnWithCost:(cost)=>`番号を登録する（${cost}P使用）`,
+    submitAlert:(count,cost)=>`${count}組の組み合わせが登録されました。（${cost}P使用）\n\n※デモ画面です — 実際の保存はまだ接続されていません。`,
+    unit:"", monthDay:(m,d)=>`${m}月${d}日`,
+    nameKey:"nameJa",
+  },
+};
+
+let currentLang = localStorage.getItem('paperlotto_lang') || 'en';
+
+function applyLang(lang){
+  currentLang = i18n[lang] ? lang : 'en';
+  localStorage.setItem('paperlotto_lang', currentLang);
+  document.documentElement.lang = currentLang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const t = i18n[currentLang][key];
+    if (typeof t === 'string') el.textContent = t;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    const t = i18n[currentLang][key];
+    if (typeof t === 'string') el.setAttribute('placeholder', t);
+  });
+  document.querySelectorAll('.lang-toggle button').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === currentLang);
+  });
+  renderAll();
+  renderPending();
+}
+document.querySelectorAll('.lang-toggle button').forEach(btn => {
+  btn.addEventListener('click', () => applyLang(btn.dataset.lang));
+});
+
+const PRICING_FUNCTION_URL = 'https://wzrqaozlbfyejsbvnrxk.supabase.co/functions/v1/pricing';
+let PRICE_PER_COMBO = 5; // 기본값 — loadPricing()이 성공하면 실제 값으로 교체됨
+async function loadPricing(){
+  try {
+    const resp = await fetch(PRICING_FUNCTION_URL);
+    const data = await resp.json();
+    if (data.pricePerCombo != null) PRICE_PER_COMBO = data.pricePerCombo;
+  } catch (e) {
+    console.warn('[PaperLotto] 가격 조회 실패, 기본값(5P) 사용:', e);
+  }
+  updateAutoCost(); updateCheckout();
+}
+let balance = 340; // 데모용 — 실제로는 profiles.points_balance에서 fetch
+let selectedGame = GAMES[0];
+let mode = 'manual';
+let pickedMain = [];
+let pickedBonus = [];
+let pending = []; // {gameId, main:[], bonus:[], method, memo}
+
+// ─── 게임 선택 스트립 렌더 ───────────────────────────────────────────
+function renderGameStrip(){
+  const strip = document.getElementById('gameStrip');
+  const t = i18n[currentLang];
+  strip.innerHTML = GAMES.map(g => `
+    <div class="game-chip ${g.id===selectedGame.id?'active':''}" style="--accent:var(--${g.accent})" data-id="${g.id}">
+      <span class="gc-name">${g[t.nameKey]}</span>
+      <span class="gc-sub">${g.sub} · ${g.main}/${g.range}${g.bonus? '+'+g.bonus:''}</span>
+    </div>`).join('');
+  strip.querySelectorAll('.game-chip').forEach(el => {
+    el.addEventListener('click', () => {
+      selectedGame = GAMES.find(g => g.id === el.dataset.id);
+      pickedMain = []; pickedBonus = [];
+      renderAll();
+    });
+  });
+}
+
+// ─── 선택 게임 정보 카드 ─────────────────────────────────────────────
+function nextDrawText(days){
+  const now = new Date();
+  let best = null;
+  days.forEach(d => {
+    const c = new Date(now); c.setHours(20,0,0,0);
+    let diff = (d - now.getDay() + 7) % 7;
+    if (diff === 0 && c <= now) diff = 7;
+    c.setDate(c.getDate() + diff);
+    if (!best || c < best) best = c;
+  });
+  return best;
+}
+function renderGameInfo(){
+  const el = document.getElementById('gameInfo');
+  const t = i18n[currentLang];
+  el.style.setProperty('--accent', `var(--${selectedGame.accent})`);
+  const next = nextDrawText(selectedGame.days);
+  const dstr = t.monthDay(next.getMonth()+1, next.getDate());
+  el.innerHTML = `
+    <div>
+      <div class="game-info-name">${selectedGame[t.nameKey]}</div>
+      <div class="game-info-sub">${selectedGame.main}${t.mNumSelect} (1~${selectedGame.range})${selectedGame.bonus?` ${t.mBonusAdd} ${selectedGame.bonus}`:''}</div>
+    </div>
+    <div class="game-info-gate">
+      <div class="gate-label">${t.mNextDraw}</div>
+      <div class="gate-cd">${dstr}</div>
+    </div>`;
+}
+
+// ─── 번호 그리드 렌더 (수동/반자동 공용) ────────────────────────────
+function renderGrids(){
+  const mainGrid = document.getElementById('mainGrid');
+  mainGrid.innerHTML = Array.from({length:selectedGame.range}, (_,i) => i+1).map(n =>
+    `<button type="button" class="num-pip ${pickedMain.includes(n)?'selected':''}" data-n="${n}">${n}</button>`
+  ).join('');
+  mainGrid.querySelectorAll('.num-pip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const n = +btn.dataset.n;
+      const idx = pickedMain.indexOf(n);
+      const maxPick = mode === 'semi' ? selectedGame.main - 1 : selectedGame.main; // 반자동은 최소 1개는 자동채움용으로 남김
+      if (idx >= 0) pickedMain.splice(idx,1);
+      else if (pickedMain.length < selectedGame.main) pickedMain.push(n);
+      renderGrids(); updateStatus();
+    });
+  });
+
+  const bonusSection = document.getElementById('bonusSection');
+  if (selectedGame.bonus && mode !== 'semi') {
+    bonusSection.style.display = 'block';
+    const sharedPool = !selectedGame.bonusRange;
+    const bRange = selectedGame.bonusRange || selectedGame.range;
+    const bGrid = document.getElementById('bonusGrid');
+    document.getElementById('bonusLabel').textContent = `${i18n[currentLang].mBonusLabel} (${selectedGame.bonus}, 1~${bRange}${sharedPool?', '+i18n[currentLang].mSamePool:''})`;
+    bGrid.innerHTML = Array.from({length:bRange}, (_,i) => i+1).map(n => {
+      const usedInMain = sharedPool && pickedMain.includes(n);
+      return `<button type="button" class="num-pip ${pickedBonus.includes(n)?'selected':''}" data-n="${n}" ${usedInMain?'disabled':''}>${n}</button>`;
+    }).join('');
+    bGrid.querySelectorAll('.num-pip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const n = +btn.dataset.n;
+        const idx = pickedBonus.indexOf(n);
+        if (idx >= 0) pickedBonus.splice(idx,1);
+        else if (pickedBonus.length < selectedGame.bonus) pickedBonus.push(n);
+        renderGrids(); updateStatus();
+      });
+    });
+  } else {
+    bonusSection.style.display = 'none';
+  }
+}
+
+function updateStatus(){
+  const t = i18n[currentLang];
+  const need = mode === 'semi' ? Math.max(1, selectedGame.main - 1) : selectedGame.main + (mode==='manual'?selectedGame.bonus||0:0);
+  document.getElementById('selCount').textContent = pickedMain.length + (mode!=='semi' ? pickedBonus.length : 0);
+  document.getElementById('selNeed').textContent = mode === 'semi' ? `${t.mSemiMax} ${selectedGame.main-1}${t.mSemiPartial}` : need;
+
+  const addBtn = document.getElementById('pickAddBtn');
+  if (mode === 'manual') {
+    addBtn.disabled = !(pickedMain.length === selectedGame.main && pickedBonus.length === (selectedGame.bonus||0));
+    addBtn.textContent = t.addComboBtn;
+  } else if (mode === 'semi') {
+    addBtn.disabled = pickedMain.length === 0 || pickedMain.length >= selectedGame.main;
+    addBtn.textContent = t.semiAddBtn;
+  }
+}
+
+// ─── 모드 전환 ───────────────────────────────────────────────────────
+function setMode(m){
+  mode = m;
+  pickedMain = []; pickedBonus = [];
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === m));
+  document.getElementById('pickPanel').style.display = (m === 'auto') ? 'none' : 'block';
+  document.getElementById('autoPanel').style.display = (m === 'auto') ? 'block' : 'none';
+  document.getElementById('semiQtyWrap').style.display = (m === 'semi') ? 'inline' : 'none';
+
+  const title = document.getElementById('pickTitle');
+  const desc = document.getElementById('pickDesc');
+  const t = i18n[currentLang];
+  if (m === 'manual') {
+    title.textContent = t.pickTitleManual;
+    desc.textContent = t.pickDescManual;
+  } else {
+    title.textContent = t.pickTitleSemi;
+    desc.textContent = t.pickDescSemi;
+  }
+  renderGrids(); updateStatus();
+}
+
+// ─── 조합 추가 (수동/반자동) ────────────────────────────────────────
+function randomFill(fixed, count, range, exclude){
+  const pool = Array.from({length:range}, (_,i)=>i+1).filter(n => !fixed.includes(n) && !(exclude||[]).includes(n));
+  const picked = [];
+  while (picked.length < count && pool.length) {
+    const idx = Math.floor(Math.random()*pool.length);
+    picked.push(pool.splice(idx,1)[0]);
+  }
+  return picked;
+}
+
+document.getElementById('pickAddBtn').addEventListener('click', () => {
+  const memo = document.getElementById('pickMemo').value.trim();
+  if (mode === 'manual') {
+    pending.push({ gameId:selectedGame.id, main:[...pickedMain].sort((a,b)=>a-b), bonus:[...pickedBonus].sort((a,b)=>a-b), method:'manual', memo });
+    pickedMain = []; pickedBonus = [];
+  } else if (mode === 'semi') {
+    const qty = Math.max(1, +document.getElementById('semiQty').value || 1);
+    for (let i=0;i<qty;i++){
+      const fillMain = randomFill(pickedMain, selectedGame.main - pickedMain.length, selectedGame.range);
+      const fullMain = [...pickedMain, ...fillMain];
+      const sharedPool = !selectedGame.bonusRange;
+      const bonus = selectedGame.bonus ? randomFill([], selectedGame.bonus, selectedGame.bonusRange || selectedGame.range, sharedPool ? fullMain : []) : [];
+      pending.push({ gameId:selectedGame.id, main:fullMain.sort((a,b)=>a-b), bonus:bonus.sort((a,b)=>a-b), method:'semi', memo });
+    }
+  }
+  renderGrids(); updateStatus(); renderPending();
+});
+
+document.getElementById('pickResetBtn').addEventListener('click', () => {
+  pickedMain = []; pickedBonus = []; renderGrids(); updateStatus();
+});
+
+// ─── 자동 생성 ───────────────────────────────────────────────────────
+document.getElementById('autoAddBtn').addEventListener('click', () => {
+  const qty = Math.max(1, Math.min(500, +document.getElementById('autoQty').value || 1));
+  const memo = document.getElementById('autoMemo').value.trim();
+  for (let i=0;i<qty;i++){
+    const main = randomFill([], selectedGame.main, selectedGame.range).sort((a,b)=>a-b);
+    const sharedPool = !selectedGame.bonusRange;
+    const bonus = selectedGame.bonus ? randomFill([], selectedGame.bonus, selectedGame.bonusRange || selectedGame.range, sharedPool ? main : []).sort((a,b)=>a-b) : [];
+    pending.push({ gameId:selectedGame.id, main, bonus, method:'auto', memo });
+  }
+  renderPending();
+});
+document.getElementById('autoQty').addEventListener('input', updateAutoCost);
+function updateAutoCost(){
+  const qty = Math.max(0, +document.getElementById('autoQty').value || 0);
+  document.getElementById('autoCost').textContent = `= ${qty*PRICE_PER_COMBO}P`;
+}
+
+// ─── 등록 예정 목록 렌더 ─────────────────────────────────────────────
+function renderPending(){
+  const t = i18n[currentLang];
+  const list = document.getElementById('pendingList');
+  document.getElementById('pendingCount').textContent = `${pending.length}${t.unit}`;
+  if (!pending.length) {
+    list.innerHTML = `<div class="pending-empty">${t.pendingEmpty}</div>`;
+  } else {
+    list.innerHTML = pending.map((e, i) => {
+      const g = GAMES.find(x => x.id === e.gameId);
+      const pips = e.main.map(n => `<span class="pr-pip">${n}</span>`).join('') +
+        e.bonus.map(n => `<span class="pr-pip bonus">${n}</span>`).join('');
+      const mLabel = {manual:t.mMethodManual, semi:t.mMethodSemi, auto:t.mMethodAuto}[e.method];
+      return `<div class="pending-row">
+        <span class="pr-method ${e.method}">${mLabel}</span>
+        <span style="font-size:11px;color:var(--ink-dim);width:64px;flex-shrink:0;">${g.sub}</span>
+        <div class="pr-pips">${pips}</div>
+        <button class="pr-del" data-idx="${i}">✕</button>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.pr-del').forEach(btn => {
+      btn.addEventListener('click', () => { pending.splice(+btn.dataset.idx,1); renderPending(); });
+    });
+  }
+  updateCheckout();
+}
+
+// ─── 하단 결제 요약 ──────────────────────────────────────────────────
+function updateCheckout(){
+  const t = i18n[currentLang];
+  const count = pending.length;
+  const cost = count * PRICE_PER_COMBO;
+  document.getElementById('coSummary').textContent = t.coSummary(count, cost, PRICE_PER_COMBO);
+  document.getElementById('balanceLabel').textContent = balance;
+
+  const warn = document.getElementById('coWarn');
+  const warnLink = document.getElementById('coWarnLink');
+  const insufficient = cost > balance;
+  warn.style.display = insufficient ? 'block' : 'none';
+  warnLink.style.display = insufficient ? 'inline-block' : 'none';
+
+  const submitBtn = document.getElementById('submitBtn');
+  submitBtn.disabled = count === 0 || insufficient;
+  submitBtn.textContent = insufficient ? t.insufficientBtn : t.registerBtnWithCost(cost);
+}
+
+document.getElementById('submitBtn').addEventListener('click', () => {
+  const t = i18n[currentLang];
+  const cost = pending.length * PRICE_PER_COMBO;
+  balance -= cost;
+  alert(t.submitAlert(pending.length, cost));
+  pending = [];
+  renderPending();
+});
+
+// ─── 초기화 ──────────────────────────────────────────────────────────
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => setMode(tab.dataset.mode));
+});
+
+function renderAll(){
+  renderGameStrip();
+  renderGameInfo();
+  renderGrids();
+  updateStatus();
+  updateAutoCost();
+}
+applyLang(currentLang);
+loadPricing();
+</script>
+
+</body>
+</html>

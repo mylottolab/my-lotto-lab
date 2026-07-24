@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>유로밀리언스 (EuroMillions) — PaperLotto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --board:#0c1020; --board-2:#111731; --board-line:#242c4d;
+  --paper:#f6f1e4; --paper-2:#efe8d6; --ink:#1c2130; --ink-dim:#5b5646;
+  --gold:#b8862e; --gold-bright:#e0aa4e;
+  --text-hi:#f2efe4; --text-mid:#a7adc7; --text-dim:#6b7195;
+  --eu:#2451c4;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--board); color:var(--text-hi);
+  font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;
+  word-break:keep-all; overflow-wrap:break-word;
+  background-image:linear-gradient(var(--board-line) 1px, transparent 1px), linear-gradient(90deg, var(--board-line) 1px, transparent 1px);
+  background-size:64px 64px; background-color:var(--board);
+}
+h1,h2,h3{ font-family:'Fraunces',serif; margin:0; }
+.mono{ font-family:'IBM Plex Mono',monospace; }
+a{ color:inherit; }
+:focus-visible{ outline:2px solid var(--gold-bright); outline-offset:3px; border-radius:4px; }
+
+header{
+  position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between;
+  padding:20px 32px; border-bottom:1px solid var(--board-line);
+  background:rgba(12,16,32,0.9); backdrop-filter:blur(6px);
+}
+.brand{ display:flex; align-items:center; gap:10px; text-decoration:none; cursor:pointer; }
+.brand-mark{ width:34px; height:34px; border-radius:7px; background:linear-gradient(135deg, var(--gold-bright), var(--gold)); display:flex; align-items:center; justify-content:center; color:var(--ink); font-family:'Fraunces',serif; font-weight:700; font-size:17px; transform:rotate(-4deg); }
+.brand-name{ font-size:20px; font-weight:600; }
+.brand-name em{ font-style:normal; color:var(--gold-bright); }
+.brand-tag{ font-size:11px; color:var(--text-dim); margin-top:1px; letter-spacing:0.4px; }
+nav{ display:flex; align-items:center; gap:22px; font-size:14px; color:var(--text-mid); }
+nav a{ text-decoration:none; } nav a:hover{ color:var(--text-hi); }
+.lang-toggle{ display:flex; border:1px solid var(--board-line); border-radius:20px; overflow:hidden; }
+.lang-toggle button{ border:none; background:transparent; color:var(--text-dim); font-size:12px; font-weight:600; padding:6px 14px; cursor:pointer; font-family:'Inter',sans-serif; }
+.lang-toggle button.active{ background:var(--gold); color:var(--ink); }
+
+.breadcrumb{ max-width:760px; margin:22px auto 0; padding:0 24px; font-size:13px; color:var(--text-dim); display:flex; align-items:center; gap:8px; }
+.breadcrumb a{ text-decoration:none; color:var(--text-mid); } .breadcrumb a:hover{ color:var(--gold-bright); }
+
+.game-hero{ max-width:760px; margin:20px auto 0; padding:0 24px; }
+.hero-ticket{ position:relative; background:var(--paper); color:var(--ink); border-radius:14px; padding:34px 34px 30px; box-shadow:0 20px 44px -20px rgba(0,0,0,0.6); overflow:hidden; }
+.hero-ticket::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:7px; background:var(--eu); }
+.hero-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.hero-country{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:700; letter-spacing:1.4px; color:var(--eu); }
+.hero-title{ font-size:clamp(30px,4.4vw,42px); font-weight:600; margin-top:8px; line-height:1.1; }
+.hero-title-en{ font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink-dim); margin-top:6px; }
+.live-badge{ display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:600; color:#8a5b1c; background:rgba(184,134,46,0.13); padding:7px 13px; border-radius:20px; white-space:nowrap; }
+.live-badge .dot{ width:6px; height:6px; border-radius:50%; background:#c65a2e; animation:pulse 1.6s ease-in-out infinite; }
+.reg-cta-open{ display:inline-flex; align-items:center; gap:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:15px; padding:14px 30px; border-radius:9px; text-decoration:none; }
+.reg-cta-open:hover{ background:#2a3145; }
+.reg-cta-closed{ display:block; background:rgba(28,33,48,0.12); border:1.5px dashed rgba(28,33,48,0.3); color:var(--ink); border-radius:10px; padding:16px 20px; font-size:13.5px; line-height:1.7; text-align:left; }
+.reg-cta-closed b{ display:block; font-size:14px; margin-bottom:4px; }
+.draw-gate{ margin-top:20px; padding-top:20px; border-top:1px dashed rgba(28,33,48,0.18); display:flex; flex-direction:column; gap:12px; }
+.gate-row{ display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:9px; background:rgba(28,33,48,0.04); }
+.gate-icon{ font-size:17px; flex-shrink:0; }
+.gate-text{ flex:1; min-width:0; }
+.gate-label{ font-size:11px; color:var(--ink-dim); letter-spacing:0.2px; margin-bottom:2px; }
+.gate-sublabel{ font-size:9.5px; color:var(--ink-dim); opacity:0.75; margin-bottom:4px; }
+.gate-countdown{ font-size:16px; font-weight:600; color:var(--ink); }
+.gate-abs{ font-size:11px; color:var(--ink-dim); text-align:right; flex-shrink:0; line-height:1.5; }
+.gate-row.closed{ background:rgba(198,90,46,0.1); }
+.gate-row.closed .gate-countdown{ color:#a13a1c; }
+.gate-row.urgent .gate-countdown{ color:#a13a1c; }
+@keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+
+.hero-pips{ margin-top:26px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.pip{ width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; background:rgba(28,33,48,0.07); color:var(--ink-dim); }
+.pip.bonus{ background:var(--eu); color:var(--paper); }
+.pip-plus{ font-size:15px; color:var(--ink-dim); margin:0 3px; }
+.pip-caption{ font-size:11.5px; color:var(--ink-dim); margin-left:8px; }
+
+.hero-stats{ margin-top:28px; display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:16px; padding-top:22px; border-top:1px dashed rgba(28,33,48,0.18); }
+.stat-label{ font-size:11px; color:var(--ink-dim); letter-spacing:0.3px; margin-bottom:4px; }
+.stat-value{ font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:600; color:var(--ink); }
+
+main{ max-width:760px; margin:0 auto; padding:8px 24px 100px; }
+.sheet{ margin-top:34px; }
+.sheet-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:1.6px; color:var(--gold-bright); margin-bottom:10px; }
+.sheet h2{ font-size:24px; font-weight:600; color:var(--text-hi); margin-bottom:16px; }
+.sheet-body{ background:var(--paper); color:var(--ink); border-radius:12px; padding:28px 30px; box-shadow:0 14px 30px -18px rgba(0,0,0,0.55); line-height:1.75; font-size:15px; }
+.sheet-body p{ margin:0 0 14px; } .sheet-body p:last-child{ margin-bottom:0; }
+.sheet-body strong{ color:#8a5b1c; }
+
+table.prize-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:4px; }
+table.prize-table th{ text-align:left; font-size:10.5px; letter-spacing:0.3px; color:var(--ink-dim); font-weight:600; padding:0 8px 9px 0; border-bottom:1px solid rgba(28,33,48,0.15); }
+table.prize-table td{ padding:9px 8px 9px 0; border-bottom:1px solid rgba(28,33,48,0.08); font-family:'IBM Plex Mono',monospace; }
+table.prize-table td:first-child{ font-family:'Inter',sans-serif; font-weight:600; }
+table.prize-table tr:last-child td{ border-bottom:none; }
+table.prize-table tr:hover td{ background:rgba(184,134,46,0.06); }
+
+table.tax-table{ width:100%; border-collapse:collapse; font-size:13.5px; margin-top:14px; }
+table.tax-table th{ text-align:left; font-size:11px; color:var(--ink-dim); font-weight:600; padding:0 10px 9px 0; border-bottom:1px solid rgba(28,33,48,0.15); }
+table.tax-table td{ padding:10px 10px 10px 0; border-bottom:1px solid rgba(28,33,48,0.08); }
+table.tax-table tr:last-child td{ border-bottom:none; }
+.tag-free{ display:inline-block; font-size:11px; font-weight:700; color:#1f7a4f; background:rgba(31,122,79,0.12); padding:2px 9px; border-radius:10px; }
+.tag-tax{ display:inline-block; font-size:11px; font-weight:700; color:#a13a1c; background:rgba(161,58,28,0.1); padding:2px 9px; border-radius:10px; }
+
+.callout{ margin-top:16px; padding:18px 20px; border-radius:10px; border-left:4px solid var(--gold); background:rgba(184,134,46,0.08); font-size:14px; line-height:1.7; }
+.callout b{ display:block; margin-bottom:6px; color:#8a5b1c; font-size:13px; letter-spacing:0.2px; }
+
+.foreign-note{ margin-top:18px; padding:18px 20px; border-radius:10px; background:rgba(36,81,196,0.07); border:1px solid rgba(36,81,196,0.18); font-size:14px; line-height:1.7; }
+.foreign-note b{ display:block; margin-bottom:6px; color:var(--eu); font-size:13px; }
+
+.strategy-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:14px; }
+.strategy-list li{ display:flex; gap:12px; align-items:flex-start; font-size:14.5px; line-height:1.7; }
+.strategy-list .mark{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--gold); font-weight:700; margin-top:3px; flex-shrink:0; }
+.strategy-note{ font-size:12px; color:var(--ink-dim); margin-bottom:16px; font-style:italic; }
+
+.final-cta{ margin-top:44px; background:linear-gradient(135deg, var(--gold-bright), var(--gold)); border-radius:14px; padding:38px 34px; color:var(--ink); text-align:center; }
+.final-cta h3{ font-size:24px; font-weight:600; margin-bottom:10px; }
+.final-cta p{ font-size:14px; opacity:0.85; max-width:440px; margin:0 auto 22px; line-height:1.7; }
+.final-cta .btn{ display:inline-flex; align-items:center; gap:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:15px; padding:14px 30px; border-radius:9px; text-decoration:none; }
+.final-cta .btn:hover{ background:#2a3145; }
+.final-disclaimer{ margin-top:16px; font-size:11.5px; opacity:0.65; }
+
+footer{ border-top:1px solid var(--board-line); padding:36px 24px 44px; text-align:center; }
+footer p{ font-size:12px; color:var(--text-dim); line-height:1.8; max-width:560px; margin:0 auto; }
+footer .foot-brand{ font-family:'Fraunces',serif; font-size:15px; color:var(--text-mid); margin-bottom:10px; }
+
+@media (max-width:640px){
+  header{ padding:14px 16px; flex-wrap:wrap; gap:10px; } nav{ width:100%; justify-content:space-between; gap:6px; font-size:11px; } nav a{ white-space:nowrap; } .lang-toggle button{ padding:5px 9px; font-size:11px; }
+  .hero-ticket{ padding:24px 20px; } .sheet-body{ padding:22px 20px; } main{ padding:0 18px 70px; }
+  table.prize-table, table.tax-table{ font-size:11px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="brand" href="paperlotto_hub_mockup.html" aria-label="PaperLotto — 홈으로">
+    <div class="brand-mark">P</div>
+    <div><div class="brand-name">Paper<em>Lotto</em></div><div class="brand-tag">GLOBAL DRAW SIMULATOR</div></div>
+  </a>
+  <nav>
+    <a href="paperlotto_hub_mockup.html" data-i18n="navGames">전체 게임</a>
+    <a href="paperlotto_my_entries_updated.html" data-i18n="navMyEntries">내 등록번호</a>
+    <a href="paperlotto_guide_mockup.html" data-i18n="navGuide">전략 가이드</a>
+    <div class="lang-toggle">
+      <button data-lang="ko" type="button">KR</button>
+      <button data-lang="en" class="active" type="button">EN</button>
+      <button data-lang="ja" type="button">JA</button>
+    </div>
+  </nav>
+</header>
+
+<div class="breadcrumb">
+  <a href="paperlotto_hub_mockup.html" data-i18n="breadcrumbBack">← 전체 게임</a><span>/</span><span data-i18n="breadcrumbRegion">유럽 9개국</span><span>/</span><span style="color:var(--text-hi);" data-i18n="breadcrumbGame">유로밀리언스</span>
+</div>
+
+<div class="game-hero">
+  <div class="hero-ticket">
+    <div class="hero-top">
+      <div>
+        <div class="hero-country" data-i18n="heroCountry">🇪🇺 EUROPE · 9-NATION CONSORTIUM</div>
+        <h1 class="hero-title" data-i18n="heroTitle">유로밀리언스</h1>
+        <div class="hero-title-en">EuroMillions</div>
+      </div>
+    </div>
+
+    <div class="hero-pips">
+      <span class="pip">1</span><span class="pip">2</span><span class="pip">3</span><span class="pip">4</span><span class="pip">5</span>
+      <span class="pip-plus">+</span><span class="pip bonus">★</span><span class="pip bonus">★</span>
+      <span class="pip-caption" data-i18n="heroPipCaption">1~50 중 5개 + 럭키스타(1~12) 2개, 별도 추첨</span>
+    </div>
+
+    <div class="hero-stats">
+      <div><div class="stat-label" data-i18n="statPrice">1게임 가격</div><div class="stat-value">€2.50</div></div>
+      <div><div class="stat-label" data-i18n="statDrawDay">추첨일</div><div class="stat-value" data-i18n="statDrawDayValue">화·금</div></div>
+      <div><div class="stat-label" data-i18n="statOdds">1등 확률</div><div class="stat-value" style="font-size:14px;">1 / 139,838,160</div></div>
+      <div><div class="stat-label" data-i18n="statOperator">운영기관</div><div class="stat-value" style="font-size:13px;" data-i18n="statOperatorValue">SLE (9개국 연합)</div></div>
+    </div>
+
+    <div class="draw-gate">
+      <div class="gate-row">
+        <span class="gate-icon">🎯</span>
+        <div class="gate-text">
+          <div class="gate-label" data-i18n="gateNextDraw">다음 추첨까지</div>
+          <div class="gate-countdown mono" id="drawCountdown">계산 중…</div>
+        </div>
+        <div class="gate-abs mono" id="drawAbsolute"></div>
+      </div>
+      <div class="gate-row" id="regGateRow">
+        <span class="gate-icon">📝</span>
+        <div class="gate-text">
+          <div class="gate-label" data-i18n="gateRegDeadline">내가 생각한 번호(전략번호) 등록 마감까지</div>
+          <div class="gate-sublabel" data-i18n="gateRegSub">(실제 복권 판매 마감 시각 기준)</div>
+          <div class="gate-countdown mono" id="regCountdown">계산 중…</div>
+        </div>
+        <div class="gate-abs mono" id="regAbsolute"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <div class="sheet">
+    <div class="sheet-eyebrow">01 · PRIZE STRUCTURE</div>
+    <h2 data-i18n="s1h">등수별 당첨 조건 (총 13개 등수)</h2>
+    <div class="sheet-body" id="s1body"></div>
+  </div>
+
+  <div class="sheet">
+    <div class="sheet-eyebrow">02 · JACKPOT CAP</div>
+    <h2 data-i18n="s2h">잭팟에 상한선이 있는, 보기 드문 구조</h2>
+    <div class="sheet-body" id="s2body"></div>
+  </div>
+
+  <div class="sheet">
+    <div class="sheet-eyebrow">03 · TAX BY COUNTRY</div>
+    <h2 data-i18n="s3h">세금 — 어느 나라에서 샀느냐가 좌우합니다</h2>
+    <div class="sheet-body" id="s3body"></div>
+  </div>
+
+  <div class="sheet">
+    <div class="sheet-eyebrow">04 · STRATEGY</div>
+    <h2 data-i18n="s4h">전략 코너</h2>
+    <div class="sheet-body" id="s4body"></div>
+  </div>
+
+  <div class="final-cta">
+    <h3 data-i18n="finalH">실제 돈 없이, 판단은 진짜로</h3>
+    <p data-i18n="finalP">9개국이 함께 만들어가는 유럽 최대 복권을, PaperLotto에서 가상으로 직접 경험해보세요.</p>
+    <div id="regCtaArea"><a href="#" class="reg-cta-open" data-i18n="ctaOpen">내 전략 번호 가상 등록하기 →</a></div>
+    <div class="final-disclaimer" data-i18n="finalDisclaimer">PaperLotto는 복권을 판매하지 않으며, 어떠한 형태의 상금도 지급하지 않습니다.</div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="foot-brand">PaperLotto</div>
+  <p data-i18n="footerNote">본 콘텐츠는 정보 제공 및 통계적 시뮬레이션 목적으로만 제공됩니다.<br>실제 구매·청구 절차는 반드시 각국 공식 운영기관을 통해 확인하세요.</p>
+</footer>
+
+<script>
+const i18n = {
+  ko: {
+    navGames:"전체 게임", navMyEntries:"내 등록번호", navGuide:"전략 가이드",
+    breadcrumbBack:"← 전체 게임", breadcrumbRegion:"유럽 9개국", breadcrumbGame:"유로밀리언스",
+    heroCountry:"🇪🇺 EUROPE · 9-NATION CONSORTIUM", heroTitle:"유로밀리언스",
+    heroPipCaption:"1~50 중 5개 + 럭키스타(1~12) 2개, 별도 추첨",
+    statPrice:"1게임 가격", statDrawDay:"추첨일", statDrawDayValue:"화·금",
+    statOdds:"1등 확률", statOperator:"운영기관", statOperatorValue:"SLE (9개국 연합)",
+    gateNextDraw:"다음 추첨까지", gateRegDeadline:"내가 생각한 번호(전략번호) 등록 마감까지", gateRegSub:"(실제 복권 판매 마감 시각 기준)",
+    unitDay:"일", unitHour:"시간", unitMin:"분",
+    tzLabel:"CET·프랑스 파리시간", closedLabel:"마감됨", reopenLabel:"재개:",
+    closedTitle:"⏰ 이번 회차 등록이 마감되었습니다",
+    closedBody:(d)=>`다음 회차 등록은 <strong>${d}</strong>부터 재개됩니다.`,
+    ctaOpen:"내 전략 번호 가상 등록하기 →",
+    s1h:"등수별 당첨 조건 (총 13개 등수)",
+    s1body:`<table class="prize-table">
+        <thead><tr><th>등수</th><th>조건</th><th>확률</th></tr></thead>
+        <tbody>
+          <tr><td>1등</td><td>메인 5개 + 럭키스타 2개</td><td>1/139,838,160</td></tr>
+          <tr><td>2등</td><td>메인 5개 + 럭키스타 1개</td><td>1/6,991,908</td></tr>
+          <tr><td>3등</td><td>메인 5개</td><td>1/3,107,515</td></tr>
+          <tr><td>4등</td><td>메인 4개 + 럭키스타 2개</td><td>1/621,503</td></tr>
+          <tr><td>5등</td><td>메인 4개 + 럭키스타 1개</td><td>1/31,075</td></tr>
+          <tr><td>6등</td><td>메인 3개 + 럭키스타 2개</td><td>1/14,126</td></tr>
+          <tr><td>7등</td><td>메인 4개</td><td>1/13,811</td></tr>
+          <tr><td>8등</td><td>메인 2개 + 럭키스타 2개</td><td>1/985</td></tr>
+          <tr><td>9등</td><td>메인 3개 + 럭키스타 1개</td><td>1/706</td></tr>
+          <tr><td>10등</td><td>메인 3개</td><td>1/314</td></tr>
+          <tr><td>11등</td><td>메인 1개 + 럭키스타 2개</td><td>1/188</td></tr>
+          <tr><td>12등</td><td>메인 2개 + 럭키스타 1개</td><td>1/49</td></tr>
+          <tr><td>13등</td><td>메인 2개</td><td>1/22</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:18px;">한국(5등급)·미국(9등급)보다도 훨씬 세분화된 <strong>13개 등수</strong>. 아무 등수나 걸릴 확률은 약 <strong>13분의 1</strong>로 꽤 높은 편이에요. 당첨금은 등수별 상금 풀을 당첨자 수로 나누는 파리뮤추얼 방식입니다.</p>`,
+    s2h:"잭팟에 상한선이 있는, 보기 드문 구조",
+    s2body:`<p>파워볼·메가밀리언스와 가장 다른 점: 유로밀리언스는 <strong>잭팟 상한선이 2억 5,000만 유로</strong>로 정해져 있어요. 상한 도달 후에도 당첨자가 없으면 최대 5회까지 유지되다가, 이후 하위 등수로 분배됩니다.</p>
+      <div class="callout">
+        <b>슈퍼드로우(Superdraw)</b>
+        이월 여부와 상관없이, 특정 회차의 잭팟을 최소 1억 3,000만 유로(약 1,800억 원)로 강제로 열어버리는 특별 추첨을 연간 여러 차례 진행합니다. 이때마다 유럽 전역이 구매 열풍에 휩싸여요.
+      </div>`,
+    s3h:"세금 — 어느 나라에서 샀느냐가 좌우합니다",
+    s3body:`<p>같은 유로밀리언스인데도, <strong>구매한 나라에 따라 세금이 완전히 다릅니다.</strong></p>
+      <table class="tax-table">
+        <thead><tr><th>국가</th><th>세금</th></tr></thead>
+        <tbody>
+          <tr><td>영국·프랑스·아일랜드·오스트리아·벨기에·룩셈부르크</td><td><span class="tag-free">비과세 0%</span></td></tr>
+          <tr><td>스페인</td><td><span class="tag-tax">4만€ 초과분 20%</span></td></tr>
+          <tr><td>포르투갈</td><td><span class="tag-tax">5천€ 초과분 20%</span></td></tr>
+          <tr><td>스위스</td><td><span class="tag-tax">1천CHF 초과분 약 35%</span></td></tr>
+        </tbody>
+      </table>
+      <div class="foreign-note">
+        <b>🌏 외국인이라면?</b>
+        현지에서 합법 구매했다면 외국인도 당첨금을 받을 수 있어요. 다만 <strong>구매한 나라의 세법을 그대로</strong> 적용받습니다. 청구 기한도 나라마다 달라서, 영국은 180일, 프랑스·스페인은 90일로 짧은 편이에요.
+      </div>`,
+    s4h:"전략 코너",
+    s4body:`<div class="strategy-note">※ 일반적인 확률·통계 전략 개념입니다. 실제 역대 번호 빈도 데이터는 DB 구축 완료 후 실데이터로 교체 예정입니다.</div>
+      <ul class="strategy-list">
+        <li><span class="mark">01</span>메인 번호(50개)와 럭키스타(12개)가 완전히 독립된 추첨이라, 두 부분을 따로 접근하는 게 합리적입니다.</li>
+        <li><span class="mark">02</span>13개 등수 활용 — 1등보다 하위 등수를 자주 맞히는 접근도 실험해볼 만해요.</li>
+        <li><span class="mark">03</span>잭팟 상한선을 고려해, "이번엔 슈퍼드로우인가?"를 확인하고 접근하는 것도 유로밀리언스만의 관전 포인트입니다.</li>
+      </ul>`,
+    finalH:"실제 돈 없이, 판단은 진짜로",
+    finalP:"9개국이 함께 만들어가는 유럽 최대 복권을, PaperLotto에서 가상으로 직접 경험해보세요.",
+    finalDisclaimer:"PaperLotto는 복권을 판매하지 않으며, 어떠한 형태의 상금도 지급하지 않습니다.",
+    footerNote:'본 콘텐츠는 정보 제공 및 통계적 시뮬레이션 목적으로만 제공됩니다.<br>실제 구매·청구 절차는 반드시 각국 공식 운영기관을 통해 확인하세요.',
+  },
+  en: {
+    navGames:"All Games", navMyEntries:"My Entries", navGuide:"Strategy Guide",
+    breadcrumbBack:"← All Games", breadcrumbRegion:"Europe (9 nations)", breadcrumbGame:"EuroMillions",
+    heroCountry:"🇪🇺 EUROPE · 9-NATION CONSORTIUM", heroTitle:"EuroMillions",
+    heroPipCaption:"5 of 1–50, plus 2 Lucky Stars (1–12) drawn separately",
+    statPrice:"Price per game", statDrawDay:"Draw day", statDrawDayValue:"Tue & Fri",
+    statOdds:"Tier 1 odds", statOperator:"Operator", statOperatorValue:"SLE (9-nation consortium)",
+    gateNextDraw:"Until next draw", gateRegDeadline:"Until entry deadline for your strategy numbers", gateRegSub:"(based on the real ticket sales cutoff)",
+    unitDay:"d", unitHour:"h", unitMin:"m",
+    tzLabel:"CET · Paris, France time", closedLabel:"Closed", reopenLabel:"Reopens:",
+    closedTitle:"⏰ Entries are closed for this round",
+    closedBody:(d)=>`Entries for the next round reopen on <strong>${d}</strong>.`,
+    ctaOpen:"Register my strategy numbers virtually →",
+    s1h:"Prize Tiers (13 tiers total)",
+    s1body:`<table class="prize-table">
+        <thead><tr><th>Tier</th><th>Match</th><th>Odds</th></tr></thead>
+        <tbody>
+          <tr><td>Tier 1</td><td>5 main + 2 Lucky Stars</td><td>1/139,838,160</td></tr>
+          <tr><td>Tier 2</td><td>5 main + 1 Lucky Star</td><td>1/6,991,908</td></tr>
+          <tr><td>Tier 3</td><td>5 main</td><td>1/3,107,515</td></tr>
+          <tr><td>Tier 4</td><td>4 main + 2 Lucky Stars</td><td>1/621,503</td></tr>
+          <tr><td>Tier 5</td><td>4 main + 1 Lucky Star</td><td>1/31,075</td></tr>
+          <tr><td>Tier 6</td><td>3 main + 2 Lucky Stars</td><td>1/14,126</td></tr>
+          <tr><td>Tier 7</td><td>4 main</td><td>1/13,811</td></tr>
+          <tr><td>Tier 8</td><td>2 main + 2 Lucky Stars</td><td>1/985</td></tr>
+          <tr><td>Tier 9</td><td>3 main + 1 Lucky Star</td><td>1/706</td></tr>
+          <tr><td>Tier 10</td><td>3 main</td><td>1/314</td></tr>
+          <tr><td>Tier 11</td><td>1 main + 2 Lucky Stars</td><td>1/188</td></tr>
+          <tr><td>Tier 12</td><td>2 main + 1 Lucky Star</td><td>1/49</td></tr>
+          <tr><td>Tier 13</td><td>2 main</td><td>1/22</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:18px;">With <strong>13 prize tiers</strong>, this is far more granular than Korea's (5 tiers) or the US's (9 tiers). The odds of winning something are about <strong>1 in 13</strong> — fairly high. Prizes use a pari-mutuel system, splitting each tier's prize pool among that tier's winners.</p>`,
+    s2h:"A Rare Structure: A Capped Jackpot",
+    s2body:`<p>The biggest difference from Powerball or Mega Millions: EuroMillions has a <strong>jackpot cap of €250 million</strong>. Even after the cap is reached, if there's still no winner, it stays capped for up to 5 draws before rolling down to lower tiers.</p>
+      <div class="callout">
+        <b>Superdraw</b>
+        Several times a year, regardless of rollover status, a special draw force-opens the jackpot to at least €130 million (roughly ₩180 billion). Each one sends buying frenzy across all of Europe.
+      </div>`,
+    s3h:"Taxes — It Depends on Which Country You Bought In",
+    s3body:`<p>Even though it's the same EuroMillions game, <strong>taxes differ completely depending on which country you purchased in.</strong></p>
+      <table class="tax-table">
+        <thead><tr><th>Country</th><th>Tax</th></tr></thead>
+        <tbody>
+          <tr><td>UK, France, Ireland, Austria, Belgium, Luxembourg</td><td><span class="tag-free">Tax-free 0%</span></td></tr>
+          <tr><td>Spain</td><td><span class="tag-tax">20% on amount over €40,000</span></td></tr>
+          <tr><td>Portugal</td><td><span class="tag-tax">20% on amount over €5,000</span></td></tr>
+          <tr><td>Switzerland</td><td><span class="tag-tax">~35% on amount over CHF 1,000</span></td></tr>
+        </tbody>
+      </table>
+      <div class="foreign-note">
+        <b>🌏 If you're a foreign national?</b>
+        Foreign nationals can claim winnings too, as long as the ticket was purchased legally in that country. However, you're subject to <strong>whatever tax law applies in the country of purchase</strong>. Claim deadlines also vary — the UK gives 180 days, while France and Spain give a shorter 90 days.
+      </div>`,
+    s4h:"Strategy Corner",
+    s4body:`<div class="strategy-note">※ These are general probability/statistics concepts. Once the historical draw database is complete, this section will be replaced with real frequency data.</div>
+      <ul class="strategy-list">
+        <li><span class="mark">01</span>The main numbers (50) and Lucky Stars (12) are drawn completely independently — it makes sense to approach the two separately.</li>
+        <li><span class="mark">02</span>With 13 tiers to work with, it's worth experimenting with strategies focused on hitting lower tiers more often rather than chasing Tier 1.</li>
+        <li><span class="mark">03</span>Given the jackpot cap, checking "is this a Superdraw?" before you play is a distinctly EuroMillions point of interest.</li>
+      </ul>`,
+    finalH:"No real money, real decisions",
+    finalP:"Try Europe's biggest lottery, run jointly by 9 countries, virtually on PaperLotto.",
+    finalDisclaimer:"PaperLotto does not sell lottery tickets and does not pay out any prizes.",
+    footerNote:'This content is provided for informational and statistical simulation purposes only.<br>Always verify actual purchase and claim procedures through the official operator in your country.',
+  },
+  ja: {
+    navGames:"すべてのゲーム", navMyEntries:"登録した番号", navGuide:"攻略ガイド",
+    breadcrumbBack:"← すべてのゲーム", breadcrumbRegion:"ヨーロッパ9カ国", breadcrumbGame:"ユーロミリオンズ",
+    heroCountry:"🇪🇺 ヨーロッパ · 9カ国コンソーシアム", heroTitle:"ユーロミリオンズ",
+    heroPipCaption:"1〜50から5個 + ラッキースター（1〜12）2個、別枠抽選",
+    statPrice:"1口の価格", statDrawDay:"抽選日", statDrawDayValue:"火・金",
+    statOdds:"1等確率", statOperator:"運営機関", statOperatorValue:"SLE（9カ国連合）",
+    gateNextDraw:"次回抽選まで", gateRegDeadline:"戦略番号の登録締切まで", gateRegSub:"（実際の宝くじ販売締切時刻基準）",
+    unitDay:"日", unitHour:"時間", unitMin:"分",
+    tzLabel:"CET・フランス パリ時間", closedLabel:"締切済み", reopenLabel:"再開：",
+    closedTitle:"⏰ 今回の登録は締め切られました",
+    closedBody:(d)=>`次回の登録は<strong>${d}</strong>から再開されます。`,
+    ctaOpen:"戦略番号を仮想登録する →",
+    s1h:"等級別当選条件（全13等級）",
+    s1body:`<table class="prize-table">
+        <thead><tr><th>等級</th><th>条件</th><th>確率</th></tr></thead>
+        <tbody>
+          <tr><td>1等</td><td>メイン5個+ラッキースター2個</td><td>1/139,838,160</td></tr>
+          <tr><td>2等</td><td>メイン5個+ラッキースター1個</td><td>1/6,991,908</td></tr>
+          <tr><td>3等</td><td>メイン5個</td><td>1/3,107,515</td></tr>
+          <tr><td>4等</td><td>メイン4個+ラッキースター2個</td><td>1/621,503</td></tr>
+          <tr><td>5等</td><td>メイン4個+ラッキースター1個</td><td>1/31,075</td></tr>
+          <tr><td>6等</td><td>メイン3個+ラッキースター2個</td><td>1/14,126</td></tr>
+          <tr><td>7等</td><td>メイン4個</td><td>1/13,811</td></tr>
+          <tr><td>8等</td><td>メイン2個+ラッキースター2個</td><td>1/985</td></tr>
+          <tr><td>9等</td><td>メイン3個+ラッキースター1個</td><td>1/706</td></tr>
+          <tr><td>10等</td><td>メイン3個</td><td>1/314</td></tr>
+          <tr><td>11等</td><td>メイン1個+ラッキースター2個</td><td>1/188</td></tr>
+          <tr><td>12等</td><td>メイン2個+ラッキースター1個</td><td>1/49</td></tr>
+          <tr><td>13等</td><td>メイン2個</td><td>1/22</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:18px;">韓国（5等級）・米国（9等級）よりもさらに細分化された<strong>13等級</strong>。いずれかの等級に当たる確率は約<strong>13分の1</strong>とかなり高めです。賞金は各等級の賞金プールを当選者数で割るパリミュチュエル方式です。</p>`,
+    s2h:"ジャックポットに上限がある珍しい仕組み",
+    s2body:`<p>パワーボール・メガミリオンズとの最大の違い：ユーロミリオンズは<strong>ジャックポット上限が2億5,000万ユーロ</strong>に定められています。上限到達後も当選者がいなければ最大5回まで維持され、その後下位等級に分配されます。</p>
+      <div class="callout">
+        <b>スーパードロー（Superdraw）</b>
+        繰越の有無にかかわらず、特定回のジャックポットを最低1億3,000万ユーロ（約1,800億ウォン）に強制的に引き上げる特別抽選を年に数回実施します。この時期はヨーロッパ全土が購入熱に包まれます。
+      </div>`,
+    s3h:"税金 — どの国で購入したかがすべてを決めます",
+    s3body:`<p>同じユーロミリオンズでも、<strong>購入した国によって税金がまったく異なります。</strong></p>
+      <table class="tax-table">
+        <thead><tr><th>国</th><th>税金</th></tr></thead>
+        <tbody>
+          <tr><td>英国・フランス・アイルランド・オーストリア・ベルギー・ルクセンブルク</td><td><span class="tag-free">非課税0%</span></td></tr>
+          <tr><td>スペイン</td><td><span class="tag-tax">4万€超過分20%</span></td></tr>
+          <tr><td>ポルトガル</td><td><span class="tag-tax">5千€超過分20%</span></td></tr>
+          <tr><td>スイス</td><td><span class="tag-tax">1千CHF超過分約35%</span></td></tr>
+        </tbody>
+      </table>
+      <div class="foreign-note">
+        <b>🌏 外国人の場合は？</b>
+        現地で合法的に購入していれば、外国人も当選金を受け取れます。ただし<strong>購入した国の税法がそのまま</strong>適用されます。請求期限も国によって異なり、英国は180日、フランス・スペインは90日と短めです。
+      </div>`,
+    s4h:"戦略コーナー",
+    s4body:`<div class="strategy-note">※一般的な確率・統計の戦略概念です。実際の過去番号頻度データはDB構築完了後、実データに差し替え予定です。</div>
+      <ul class="strategy-list">
+        <li><span class="mark">01</span>メイン番号（50個）とラッキースター（12個）は完全に独立した抽選のため、両者を別々に考えるのが合理的です。</li>
+        <li><span class="mark">02</span>13等級を活用 — 1等より下位等級を頻繁に当てるアプローチも試す価値があります。</li>
+        <li><span class="mark">03</span>ジャックポット上限を考慮し、「今回はスーパードローか？」を確認してから参加するのもユーロミリオンズならではの見どころです。</li>
+      </ul>`,
+    finalH:"実際のお金なしで、判断は本物",
+    finalP:"9カ国が共同で作り上げるヨーロッパ最大の宝くじを、PaperLottoで仮想体験しましょう。",
+    finalDisclaimer:"PaperLottoは宝くじを販売しておらず、いかなる形式の賞金も支払いません。",
+    footerNote:'本コンテンツは情報提供および統計的シミュレーションを目的として提供されています。<br>実際の購入・請求手続きは必ず各国の公式運営機関を通じてご確認ください。',
+  },
+};
+
+let currentLang = localStorage.getItem('paperlotto_lang') || 'en';
+
+function applyLang(lang){
+  currentLang = i18n[lang] ? lang : 'en';
+  localStorage.setItem('paperlotto_lang', currentLang);
+  document.documentElement.lang = currentLang;
+  const t = i18n[currentLang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (typeof t[key] === 'string') el.innerHTML = t[key];
+  });
+  document.getElementById('s1body').innerHTML = t.s1body;
+  document.getElementById('s2body').innerHTML = t.s2body;
+  document.getElementById('s3body').innerHTML = t.s3body;
+  document.getElementById('s4body').innerHTML = t.s4body;
+  document.querySelectorAll('.lang-toggle button').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === currentLang);
+  });
+  updateGate();
+}
+document.querySelectorAll('.lang-toggle button').forEach(btn => {
+  btn.addEventListener('click', () => applyLang(btn.dataset.lang));
+});
+
+function tzOffsetMinutes(date, timeZone){
+  const dtf = new Intl.DateTimeFormat('en-US', { timeZone, hourCycle:'h23', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const p = dtf.formatToParts(date).reduce((a,x)=>{a[x.type]=x.value; return a;},{});
+  const asUTC = Date.UTC(p.year, p.month-1, p.day, p.hour===24?0:p.hour, p.minute, p.second);
+  return (asUTC - date.getTime()) / 60000;
+}
+function zonedToUtc(y, m, d, h, min, timeZone){
+  let guess = new Date(Date.UTC(y, m-1, d, h, min, 0));
+  for (let i=0; i<2; i++){
+    const off = tzOffsetMinutes(guess, timeZone);
+    guess = new Date(Date.UTC(y, m-1, d, h, min, 0) - off*60000);
+  }
+  return guess;
+}
+function zonedTodayParts(timeZone){
+  const dtf = new Intl.DateTimeFormat('en-US', { timeZone, year:'numeric', month:'2-digit', day:'2-digit' });
+  const p = dtf.formatToParts(new Date()).reduce((a,x)=>{a[x.type]=x.value; return a;},{});
+  return { y:+p.year, m:+p.month, d:+p.day };
+}
+function findOccurrences(drawDays, h, min, timeZone){
+  const today = zonedTodayParts(timeZone);
+  const base = new Date(Date.UTC(today.y, today.m-1, today.d));
+  const list = [];
+  for (let off=-8; off<=8; off++){
+    const cand = new Date(base.getTime() + off*86400000);
+    const wd = cand.getUTCDay();
+    if (drawDays.includes(wd)) {
+      const y = cand.getUTCFullYear(), m = cand.getUTCMonth()+1, d = cand.getUTCDate();
+      list.push(zonedToUtc(y, m, d, h, min, timeZone));
+    }
+  }
+  return list.sort((a,b)=>a-b);
+}
+function fmtCountdown(diffMs){
+  const t = i18n[currentLang];
+  if (diffMs <= 0) return '0:00:00';
+  const d = Math.floor(diffMs/86400000), h = Math.floor((diffMs%86400000)/3600000);
+  const m = Math.floor((diffMs%3600000)/60000), s = Math.floor((diffMs%60000)/1000);
+  return d>0 ? `${d}${t.unitDay} ${h}${t.unitHour} ${m}${t.unitMin}` : `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function fmtAbsolute(dt, timeZone, tzLabel){
+  const locale = currentLang === 'ko' ? 'ko-KR' : currentLang === 'ja' ? 'ja-JP' : 'en-US';
+  const dtf = new Intl.DateTimeFormat(locale, { timeZone, month:'long', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false });
+  return `${dtf.format(dt)} (${tzLabel})`;
+}
+
+const GAME = {
+  drawDays: [2,5],             // 화·금
+  drawTime: {h:21, min:0},     // 21:00 파리시간
+  cutoffTime: {h:19, min:30},  // 19:30 파리시간 (PaperLotto 확정치 — 공식 마감시각 미확보로 잠정 적용)
+  timeZone: 'Europe/Paris',
+};
+
+function updateGate(){
+  const t = i18n[currentLang];
+  const now = Date.now();
+  const draws = findOccurrences(GAME.drawDays, GAME.drawTime.h, GAME.drawTime.min, GAME.timeZone);
+  const cutoffs = findOccurrences(GAME.drawDays, GAME.cutoffTime.h, GAME.cutoffTime.min, GAME.timeZone);
+
+  let idx = draws.findIndex(t => t.getTime() > now);
+  if (idx === -1) idx = draws.length - 1;
+  const nextDraw = draws[idx];
+  const thisCutoff = cutoffs[idx];
+  const isClosed = now >= thisCutoff.getTime() && now < nextDraw.getTime();
+
+  document.getElementById('drawCountdown').textContent = fmtCountdown(nextDraw - now);
+  document.getElementById('drawAbsolute').textContent = fmtAbsolute(nextDraw, GAME.timeZone, t.tzLabel);
+
+  const regRow = document.getElementById('regGateRow');
+  const regCountdown = document.getElementById('regCountdown');
+  const regAbsolute = document.getElementById('regAbsolute');
+  const ctaArea = document.getElementById('regCtaArea');
+
+  if (isClosed) {
+    regRow.classList.add('closed'); regRow.classList.remove('urgent');
+    regCountdown.textContent = t.closedLabel;
+    regAbsolute.textContent = `${t.reopenLabel} ${fmtAbsolute(nextDraw, GAME.timeZone, t.tzLabel)}`;
+    ctaArea.innerHTML = `<div class="reg-cta-closed"><b>${t.closedTitle}</b>${t.closedBody(fmtAbsolute(nextDraw, GAME.timeZone, t.tzLabel))}</div>`;
+  } else {
+    const diff = thisCutoff - now;
+    regRow.classList.remove('closed');
+    if (diff < 3*3600000) regRow.classList.add('urgent'); else regRow.classList.remove('urgent');
+    regCountdown.textContent = fmtCountdown(diff);
+    regAbsolute.textContent = fmtAbsolute(thisCutoff, GAME.timeZone, t.tzLabel);
+    ctaArea.innerHTML = `<a href="#" class="reg-cta-open">${t.ctaOpen}</a>`;
+  }
+}
+applyLang(currentLang);
+setInterval(updateGate, 1000);
+</script>
+
+</body>
+</html>

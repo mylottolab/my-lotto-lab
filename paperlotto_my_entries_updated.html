@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내 등록내역 — PaperLotto</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --board:#0c1020; --board-2:#111731; --board-line:#242c4d;
+  --paper:#f6f1e4; --ink:#1c2130; --ink-dim:#5b5646;
+  --gold:#b8862e; --gold-bright:#e0aa4e;
+  --text-hi:#f2efe4; --text-mid:#a7adc7; --text-dim:#6b7195;
+  --ok:#1f7a4f; --err:#c65a2e;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--board); color:var(--text-hi); min-height:100vh;
+  font-family:'Inter',sans-serif; word-break:keep-all;
+  background-image:linear-gradient(var(--board-line) 1px, transparent 1px), linear-gradient(90deg, var(--board-line) 1px, transparent 1px);
+  background-size:64px 64px;
+}
+h1,h2{ font-family:'Fraunces',serif; margin:0; }
+a{ color:inherit; text-decoration:none; }
+.mono{ font-family:'IBM Plex Mono',monospace; }
+
+header{
+  position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between;
+  padding:18px 32px; border-bottom:1px solid var(--board-line); flex-wrap:wrap; gap:10px;
+  background:rgba(12,16,32,0.9); backdrop-filter:blur(6px);
+}
+.brand{ display:flex; align-items:center; gap:10px; text-decoration:none; cursor:pointer; }
+.brand-mark{ width:30px; height:30px; border-radius:6px; background:linear-gradient(135deg,var(--gold-bright),var(--gold)); display:flex; align-items:center; justify-content:center; color:var(--ink); font-weight:700; font-family:'Fraunces',serif; transform:rotate(-4deg); }
+.brand-name{ font-size:17px; font-weight:600; }
+.brand-name em{ font-style:normal; color:var(--gold-bright); }
+nav{ display:flex; align-items:center; gap:18px; font-size:13.5px; color:var(--text-mid); }
+.lang-toggle{ display:flex; border:1px solid var(--board-line); border-radius:20px; overflow:hidden; }
+.lang-toggle button{ border:none; background:transparent; color:var(--text-dim); font-size:12px; font-weight:600; padding:6px 12px; cursor:pointer; font-family:'Inter',sans-serif; }
+.lang-toggle button.active{ background:var(--gold); color:var(--ink); }
+
+main{ max-width:820px; margin:0 auto; padding:28px 24px 90px; }
+
+.page-title{ font-size:24px; font-weight:600; margin-bottom:18px; }
+
+.badge-row{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:22px; }
+.badge{ background:var(--paper); color:var(--ink); border-radius:12px; padding:16px 20px; flex:1; min-width:140px; }
+.badge .num{ font-family:'IBM Plex Mono',monospace; font-size:24px; font-weight:700; color:#8a5b1c; }
+.badge .label{ font-size:12px; color:var(--ink-dim); margin-top:2px; }
+
+.toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+.toolbar select{
+  padding:9px 12px; border-radius:8px; border:1.5px solid var(--board-line); background:var(--board-2);
+  color:var(--text-hi); font-size:13px; font-family:'Inter',sans-serif;
+}
+.toolbar .spacer{ flex:1; }
+.tb-btn{
+  padding:9px 16px; border-radius:8px; border:1.5px solid var(--board-line); background:var(--board-2);
+  color:var(--text-hi); font-size:12.5px; font-weight:600; cursor:pointer;
+}
+.tb-btn:hover{ border-color:var(--gold); }
+.tb-btn.primary{ background:var(--gold); color:var(--ink); border-color:var(--gold); }
+.tb-btn:disabled{ opacity:0.4; cursor:not-allowed; }
+
+.list-wrap{ background:var(--paper); color:var(--ink); border-radius:14px; overflow:hidden; }
+.entry-row{
+  display:flex; align-items:center; gap:12px; padding:14px 18px;
+  border-bottom:1px solid rgba(28,33,48,0.08);
+}
+.entry-row:last-child{ border-bottom:none; }
+.entry-row input[type="checkbox"]{ width:16px; height:16px; flex-shrink:0; }
+.entry-game{ font-size:11px; font-weight:700; color:var(--ink-dim); width:64px; flex-shrink:0; }
+.entry-round{ font-size:11px; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; width:76px; flex-shrink:0; }
+.entry-numbers{ flex:1; display:flex; gap:4px; flex-wrap:wrap; min-width:0; }
+.pip{ width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; background:rgba(28,33,48,0.07); color:var(--ink-dim); flex-shrink:0; }
+.pip.bonus{ background:var(--gold); color:var(--ink); }
+
+.goldball-wrap{ position:relative; display:inline-flex; }
+.goldball-badge{
+  display:inline-flex; align-items:center; gap:4px; margin-left:2px;
+  font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-dim);
+  background:rgba(212,175,55,0.10); border:1px solid rgba(212,175,55,0.35);
+  border-radius:20px; padding:3px 8px; cursor:help; white-space:nowrap; flex-shrink:0;
+}
+.goldball-badge .dot{ width:6px; height:6px; border-radius:50%; background:#d4af37; flex-shrink:0; }
+.goldball-tooltip{
+  position:absolute; bottom:calc(100% + 6px); left:0; z-index:30;
+  background:#1c2130; color:#f2f2f0; font-size:11.5px; line-height:1.5;
+  padding:8px 10px; border-radius:6px; width:220px; display:none;
+  box-shadow:0 4px 14px rgba(0,0,0,0.25);
+}
+.goldball-wrap:hover .goldball-tooltip,
+.goldball-wrap.touched .goldball-tooltip{ display:block; }
+@media (max-width:640px){
+  .goldball-badge{ font-size:9.5px; padding:2px 6px; }
+  .goldball-tooltip{ width:180px; left:auto; right:0; }
+}
+.entry-grade{ font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:12px; white-space:nowrap; flex-shrink:0; }
+.grade-win{ background:rgba(31,122,79,0.14); color:var(--ok); }
+.grade-lose{ background:rgba(28,33,48,0.08); color:var(--ink-dim); }
+.grade-pending{ background:rgba(184,134,46,0.14); color:#8a5b1c; }
+.entry-action{ flex-shrink:0; }
+.grade-btn{
+  font-size:11px; font-weight:600; padding:6px 10px; border-radius:6px;
+  background:var(--ink); color:var(--paper); border:none; cursor:pointer;
+}
+.grade-btn:disabled{ opacity:0.5; cursor:default; }
+
+.empty-note, .loading-note{ text-align:center; padding:40px 0; font-size:13px; color:var(--ink-dim); }
+
+@media (max-width:640px){
+  header{ padding:14px 16px; }
+  nav{ gap:10px; }
+  main{ padding:20px 14px 70px; }
+  .page-title{ font-size:20px; }
+  .badge-row{ gap:8px; }
+  .badge{ min-width:0; flex:1 1 42%; padding:12px 14px; }
+  .badge .num{ font-size:19px; }
+  .badge .label{ font-size:10.5px; }
+  .toolbar{ gap:8px; }
+  .toolbar select{ flex:1 1 100%; }
+  .tb-btn{ flex:1 1 auto; font-size:11.5px; padding:9px 10px; }
+
+  .entry-row{
+    flex-wrap:wrap; padding:12px 14px; row-gap:8px;
+  }
+  .entry-row input[type="checkbox"]{ order:1; }
+  .entry-game{ order:2; width:auto; }
+  .entry-round{ order:3; width:auto; }
+  .entry-grade{ order:4; margin-left:auto; }
+  .entry-numbers{ order:6; flex:1 1 100%; }
+  .entry-action{ order:5; }
+  .pip{ width:22px; height:22px; font-size:10px; }
+}
+@media (max-width:380px){
+  .badge{ flex:1 1 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="brand" href="paperlotto_hub_mockup.html" aria-label="PaperLotto — 홈으로">
+    <div class="brand-mark">P</div>
+    <div class="brand-name">Paper<em>Lotto</em></div>
+  </a>
+  <nav>
+    <a href="paperlotto_hub_mockup.html" data-i18n="navBack">← 전체 게임</a>
+    <div class="lang-toggle">
+      <button data-lang="ko" type="button">KR</button>
+      <button data-lang="en" class="active" type="button">EN</button>
+      <button data-lang="ja" type="button">JA</button>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <div class="page-title" data-i18n="pageTitle">내 등록내역</div>
+
+  <div class="badge-row">
+    <div class="badge"><div class="num" id="badgeTotal">–</div><div class="label" data-i18n="badgeTotal">전체 등록</div></div>
+    <div class="badge"><div class="num" id="badgeGraded">–</div><div class="label" data-i18n="badgeGraded">채점 완료</div></div>
+    <div class="badge"><div class="num" id="badgePending">–</div><div class="label" data-i18n="badgePending">채점 대기</div></div>
+    <div class="badge"><div class="num" id="badgeWin">–</div><div class="label" data-i18n="badgeWin">당첨(1~5등)</div></div>
+  </div>
+
+  <div class="toolbar">
+    <select id="filterGame"><option value="" data-i18n="filterAllGames">전체 게임</option></select>
+    <select id="filterYear"><option value="" data-i18n="filterAllYears">전체 연도</option></select>
+    <div class="spacer"></div>
+    <button class="tb-btn" id="bulkGradeBtn" data-i18n="bulkGrade">전체 채점하기</button>
+    <button class="tb-btn" id="exportExcelBtn" data-i18n="exportExcel">엑셀 다운로드 (50P)</button>
+    <button class="tb-btn" id="exportPdfBtn" data-i18n="exportPdf">PDF 생성 (50P)</button>
+    <button class="tb-btn primary" id="toWatchlistBtn" data-i18n="toWatchlist">관심번호로 이동</button>
+    <a class="tb-btn" href="paperlotto_watchlist_mockup.html" style="text-decoration:none; display:inline-block;" data-i18n="goWatchlist">관심번호 보기 →</a>
+  </div>
+
+  <div class="list-wrap" id="listWrap">
+    <div class="loading-note" data-i18n="loading">불러오는 중…</div>
+  </div>
+</main>
+
+<script>
+const i18n = {
+  ko: {
+    navBack:"← 전체 게임", pageTitle:"내 등록내역",
+    badgeTotal:"전체 등록", badgeGraded:"채점 완료", badgePending:"채점 대기", badgeWin:"당첨(1~5등)",
+    filterAllGames:"전체 게임", filterAllYears:"전체 연도",
+    bulkGrade:"전체 채점하기", exportExcel:"엑셀 다운로드 (50P)", exportPdf:"PDF 생성 (50P)",
+    toWatchlist:"관심번호로 이동", goWatchlist:"관심번호 보기 →",
+    loading:"불러오는 중…", empty:"아직 등록한 조합이 없습니다.", loginNeeded:"로그인이 필요합니다.",
+    gradeWait:"채점 대기", gradeLose:"낙첨", gradeBtn:"확인", gradeBtnLoading:"확인 중…",
+    gradeTier:function(n){ return n + "등"; },
+    goldBallLabel:"골드볼", goldBallTooltip:"원래의 복권에서는 골드볼 추첨 대상이 되는 고유번호이나, 이 시뮬레이션에서는 표시만 됩니다.",
+    selectAtLeastOne:"먼저 항목을 선택해주세요.",
+    exportSuccess:function(n){ return n + "건 내보내기 완료 (50P 차감)"; },
+    watchlistSuccess:function(n){ return n + "건 관심번호로 이동했습니다."; },
+    insufficientPointsMsg:function(balance, required){
+      return "포인트가 부족합니다. (보유 " + balance + "P / 필요 " + required + "P)\n\n지금 포인트 충전 페이지로 이동할까요?";
+    },
+  },
+  en: {
+    navBack:"← All Games", pageTitle:"My Entries",
+    badgeTotal:"Total Entries", badgeGraded:"Graded", badgePending:"Pending", badgeWin:"Winners (Tier 1–5)",
+    filterAllGames:"All Games", filterAllYears:"All Years",
+    bulkGrade:"Grade All", exportExcel:"Download Excel (50P)", exportPdf:"Generate PDF (50P)",
+    toWatchlist:"Move to Watchlist", goWatchlist:"View Watchlist →",
+    loading:"Loading…", empty:"No entries registered yet.", loginNeeded:"Please log in.",
+    gradeWait:"Pending", gradeLose:"No win", gradeBtn:"Check", gradeBtnLoading:"Checking…",
+    gradeTier:function(n){ return "Tier " + n; },
+    goldBallLabel:"Gold Ball", goldBallTooltip:"In the real lottery, this number is eligible for the Gold Ball Draw. In this simulation it is shown for reference only and is not graded.",
+    selectAtLeastOne:"Please select at least one item first.",
+    exportSuccess:function(n){ return n + " item(s) exported (50P charged)"; },
+    watchlistSuccess:function(n){ return n + " item(s) moved to watchlist."; },
+    insufficientPointsMsg:function(balance, required){
+      return "You don't have enough points. (Balance: " + balance + "P / Needed: " + required + "P)\n\nGo to the points recharge page now?";
+    },
+  },
+  ja: {
+    navBack:"← すべてのゲーム", pageTitle:"登録した番号",
+    badgeTotal:"登録合計", badgeGraded:"採点済み", badgePending:"採点待ち", badgeWin:"当選(1〜5等)",
+    filterAllGames:"すべてのゲーム", filterAllYears:"すべての年",
+    bulkGrade:"一括採点", exportExcel:"エクセルダウンロード (50P)", exportPdf:"PDF生成 (50P)",
+    toWatchlist:"関心番号へ移動", goWatchlist:"関心番号を見る →",
+    loading:"読み込み中…", empty:"まだ登録した組み合わせがありません。", loginNeeded:"ログインが必要です。",
+    gradeWait:"採点待ち", gradeLose:"落選", gradeBtn:"確認", gradeBtnLoading:"確認中…",
+    gradeTier:function(n){ return n + "等"; },
+    goldBallLabel:"ゴールドボール", goldBallTooltip:"本来の宝くじではゴールドボール抽選の対象となる番号ですが、本シミュレーションでは表示のみで、当選判定には使用されません。",
+    selectAtLeastOne:"まず項目を選択してください。",
+    exportSuccess:function(n){ return n + "件エクスポート完了 (50P消費)"; },
+    watchlistSuccess:function(n){ return n + "件を関心番号へ移動しました。"; },
+    insufficientPointsMsg:function(balance, required){
+      return "ポイントが不足しています。（保有 " + balance + "P / 必要 " + required + "P）\n\n今すぐポイント充電ページへ移動しますか？";
+    },
+  },
+};
+let currentLang = localStorage.getItem('paperlotto_lang') || 'en';
+function applyLang(lang){
+  currentLang = i18n[lang] ? lang : 'en';
+  localStorage.setItem('paperlotto_lang', currentLang);
+  document.documentElement.lang = currentLang;
+  var t = i18n[currentLang];
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var key = el.getAttribute('data-i18n');
+    if (typeof t[key] === 'string') el.innerHTML = t[key];
+  });
+  document.querySelectorAll('.lang-toggle button').forEach(function(b){ b.classList.toggle('active', b.dataset.lang === currentLang); });
+  renderList();
+}
+document.querySelectorAll('.lang-toggle button').forEach(function(btn){ btn.addEventListener('click', function(){ applyLang(btn.dataset.lang); }); });
+
+const SUPABASE_URL = "https://wzrqaozlbfyejsbvnrxk.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_3KrYMzwrVlbYr-e9d8UiLA_KgvSs8tC";
+const SELF_GRADE_URL = "https://wzrqaozlbfyejsbvnrxk.supabase.co/functions/v1/self-grade";
+const WATCHLIST_URL = "https://wzrqaozlbfyejsbvnrxk.supabase.co/functions/v1/watchlist";
+const EXPORT_CHARGE_URL = "https://wzrqaozlbfyejsbvnrxk.supabase.co/functions/v1/export-charge";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+const GAME_LABELS = {
+  kr_lotto645:'KR', us_powerball:'US-PB', us_megamillions:'US-MM', eu_euromillions:'EU',
+  jp_miniloto:'JP-MINI', jp_loto7:'JP-L7', jp_loto6:'JP-L6', ca_lottomax:'CA-MAX',
+  ca_lotto649:'CA-649', au_powerball:'AU-PB', au_ozlotto:'AU-OZ', au_tattslotto:'AU-TATTS',
+};
+const GAME_FULL = {
+  kr_lotto645:'KR Lotto 6/45', us_powerball:'Powerball', us_megamillions:'Mega Millions', eu_euromillions:'EuroMillions',
+  jp_miniloto:'Mini Loto', jp_loto7:'Loto 7', jp_loto6:'Loto 6', ca_lottomax:'Lotto Max',
+  ca_lotto649:'Lotto 6/49', au_powerball:'AU Powerball', au_ozlotto:'Oz Lotto', au_tattslotto:'Saturday Lotto (Tatts Lotto)',
+};
+
+let allEntries = [];
+let accessToken = null;
+
+async function loadEntries(){
+  const listWrap = document.getElementById('listWrap');
+  const t = i18n[currentLang];
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    listWrap.innerHTML = '<div class="empty-note">' + t.loginNeeded + '</div>';
+    return;
+  }
+  accessToken = session.access_token;
+
+  const { data, error } = await sb
+    .from('entries')
+    .select('id, game_id, round_no, main_numbers, bonus_numbers, grade, memo, created_at')
+    .eq('user_id', session.user.id)
+    .eq('confirmed', true)
+    .order('created_at', { ascending: false });
+
+  allEntries = (!error && data) ? data : [];
+  populateFilters();
+  renderBadges();
+  renderList();
+}
+
+function populateFilters(){
+  const gameSel = document.getElementById('filterGame');
+  const yearSel = document.getElementById('filterYear');
+  const games = [...new Set(allEntries.map(e => e.game_id))];
+  const years = [...new Set(allEntries.map(e => e.created_at.slice(0,4)))].sort().reverse();
+
+  gameSel.innerHTML = '<option value="" data-i18n="filterAllGames">' + i18n[currentLang].filterAllGames + '</option>' +
+    games.map(g => '<option value="' + g + '">' + (GAME_LABELS[g] || g) + '</option>').join('');
+  yearSel.innerHTML = '<option value="" data-i18n="filterAllYears">' + i18n[currentLang].filterAllYears + '</option>' +
+    years.map(y => '<option value="' + y + '">' + y + '</option>').join('');
+
+  gameSel.addEventListener('change', renderList);
+  yearSel.addEventListener('change', renderList);
+}
+
+function renderBadges(){
+  const total = allEntries.length;
+  const graded = allEntries.filter(e => e.grade !== null && e.grade !== undefined).length;
+  const pending = total - graded;
+  const win = allEntries.filter(e => e.grade !== null && e.grade !== undefined && e.grade > 0).length;
+  document.getElementById('badgeTotal').textContent = total;
+  document.getElementById('badgeGraded').textContent = graded;
+  document.getElementById('badgePending').textContent = pending;
+  document.getElementById('badgeWin').textContent = win;
+}
+
+function renderList(){
+  const listWrap = document.getElementById('listWrap');
+  const t = i18n[currentLang];
+  const gameFilter = document.getElementById('filterGame') ? document.getElementById('filterGame').value : '';
+  const yearFilter = document.getElementById('filterYear') ? document.getElementById('filterYear').value : '';
+
+  let rows = allEntries;
+  if (gameFilter) rows = rows.filter(e => e.game_id === gameFilter);
+  if (yearFilter) rows = rows.filter(e => e.created_at.slice(0,4) === yearFilter);
+
+  if (rows.length === 0) {
+    listWrap.innerHTML = '<div class="empty-note">' + t.empty + '</div>';
+    return;
+  }
+
+  listWrap.innerHTML = rows.map(function(e){
+    const mainPips = (e.main_numbers||[]).map(n => '<span class="pip">' + n + '</span>').join('');
+    const bonusPips = (e.bonus_numbers||[]).map(n => '<span class="pip bonus">' + n + '</span>').join('');
+    const goldBallHtml = (e.game_id === 'ca_lotto649' && e.gold_ball_display_number)
+      ? '<span class="goldball-wrap" tabindex="0">' +
+          '<span class="goldball-badge">' +
+            '<span class="dot"></span>' + t.goldBallLabel + ' ' + e.gold_ball_display_number +
+          '</span>' +
+          '<span class="goldball-tooltip">' + t.goldBallTooltip + '</span>' +
+        '</span>'
+      : '';
+    let gradeHtml;
+    if (e.grade === null || e.grade === undefined) {
+      gradeHtml = '<span class="entry-grade grade-pending">' + t.gradeWait + '</span>';
+    } else if (e.grade === 0) {
+      gradeHtml = '<span class="entry-grade grade-lose">' + t.gradeLose + '</span>';
+    } else {
+      gradeHtml = '<span class="entry-grade grade-win">' + t.gradeTier(e.grade) + '</span>';
+    }
+    const actionHtml = (e.grade === null || e.grade === undefined)
+      ? '<button class="grade-btn" data-id="' + e.id + '">' + t.gradeBtn + '</button>'
+      : '';
+    return '<div class="entry-row" data-id="' + e.id + '">' +
+      '<input type="checkbox" class="entry-check" data-id="' + e.id + '">' +
+      '<div class="entry-game">' + (GAME_LABELS[e.game_id] || e.game_id) + '</div>' +
+      '<div class="entry-round mono">#' + e.round_no + '</div>' +
+      '<div class="entry-numbers">' + mainPips + bonusPips + goldBallHtml + '</div>' +
+      gradeHtml +
+      '<div class="entry-action">' + actionHtml + '</div>' +
+      '</div>';
+  }).join('');
+
+  listWrap.querySelectorAll('.grade-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){ gradeOne(btn.dataset.id, btn); });
+  });
+
+  listWrap.querySelectorAll('.goldball-wrap').forEach(function(el){
+    el.addEventListener('click', function(evt){ evt.stopPropagation(); el.classList.toggle('touched'); });
+  });
+}
+
+document.addEventListener('click', function(evt){
+  document.querySelectorAll('.goldball-wrap.touched').forEach(function(el){
+    if (!el.contains(evt.target)) el.classList.remove('touched');
+  });
+});
+
+async function gradeOne(entryId, btnEl){
+  const t = i18n[currentLang];
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = t.gradeBtnLoading; }
+  try {
+    const resp = await fetch(SELF_GRADE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + accessToken },
+      body: JSON.stringify({ entry_id: entryId }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      const entry = allEntries.find(e => e.id === entryId);
+      if (entry) entry.grade = data.grade;
+      renderBadges();
+      renderList();
+    } else {
+      alert(data.reason || data.error || 'Failed');
+      if (btnEl) { btnEl.disabled = false; btnEl.textContent = t.gradeBtn; }
+    }
+  } catch (e) {
+    alert(e.message);
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = t.gradeBtn; }
+  }
+}
+
+document.getElementById('bulkGradeBtn').addEventListener('click', async function(){
+  const btn = this;
+  btn.disabled = true;
+  try {
+    const resp = await fetch(SELF_GRADE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + accessToken },
+      body: JSON.stringify({ bulk: true }),
+    });
+    const data = await resp.json();
+    if (data.success) {
+      await loadEntries();
+    } else {
+      alert(data.error || 'Failed');
+    }
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function getSelectedIds(){
+  return Array.from(document.querySelectorAll('.entry-check:checked')).map(c => c.dataset.id);
+}
+
+async function chargeAndFetch(ids){
+  const resp = await fetch(EXPORT_CHARGE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + accessToken },
+    body: JSON.stringify({ source: 'entries', ids }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) {
+    const err = new Error(data.error || 'Failed');
+    err.code = data.code;
+    err.required = data.required;
+    err.balance = data.balance;
+    throw err;
+  }
+  return data;
+}
+
+function showExportError(e){
+  const t = i18n[currentLang];
+  if (e.code === 'INSUFFICIENT_POINTS') {
+    if (confirm(t.insufficientPointsMsg(e.balance, e.required))) {
+      window.location.href = 'paperlotto_recharge_mockup.html';
+    }
+  } else {
+    alert(e.message);
+  }
+}
+
+function buildTitle(rows){
+  const t = i18n[currentLang];
+  const gameIds = [...new Set(rows.map(r => r.game_id))];
+  const gameLabel = gameIds.length === 1 ? (GAME_FULL[gameIds[0]] || gameIds[0]) : (currentLang==='ko' ? '전체 게임' : currentLang==='ja' ? '全ゲーム' : 'All Games');
+  const today = new Date().toISOString().slice(0,10);
+  const suffix = currentLang==='ko' ? '응모내역' : currentLang==='ja' ? '応募内訳' : 'Entries';
+  return gameLabel + ' ' + today + ' ' + suffix;
+}
+
+document.getElementById('exportExcelBtn').addEventListener('click', async function(){
+  const t = i18n[currentLang];
+  const ids = getSelectedIds();
+  if (ids.length === 0) { alert(t.selectAtLeastOne); return; }
+  const btn = this;
+  btn.disabled = true;
+  try {
+    const data = await chargeAndFetch(ids);
+    const sheetRows = data.rows.map(function(r){
+      return {
+        '게임': GAME_FULL[r.game_id] || r.game_id,
+        '회차': r.round_no,
+        '메인번호': (r.main_numbers||[]).join(', '),
+        '보너스번호': (r.bonus_numbers||[]).join(', '),
+        '등수': (r.grade === null || r.grade === undefined) ? '' : (r.grade === 0 ? t.gradeLose : t.gradeTier(r.grade)),
+        '메모': r.memo || '',
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(sheetRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'entries');
+    XLSX.writeFile(wb, buildTitle(data.rows).replace(/\s+/g,'_') + '.xlsx');
+    alert(t.exportSuccess(data.rows.length));
+  } catch (e) {
+    showExportError(e);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('exportPdfBtn').addEventListener('click', async function(){
+  const t = i18n[currentLang];
+  const ids = getSelectedIds();
+  if (ids.length === 0) { alert(t.selectAtLeastOne); return; }
+  const btn = this;
+  btn.disabled = true;
+  try {
+    const data = await chargeAndFetch(ids);
+    const title = buildTitle(data.rows);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text(title, 14, 18);
+    const body = data.rows.map(function(r){
+      return [
+        GAME_FULL[r.game_id] || r.game_id,
+        String(r.round_no),
+        (r.main_numbers||[]).join(', '),
+        (r.bonus_numbers||[]).join(', '),
+        (r.grade === null || r.grade === undefined) ? '-' : (r.grade === 0 ? t.gradeLose : t.gradeTier(r.grade)),
+      ];
+    });
+    doc.autoTable({
+      startY: 26,
+      head: [['Game', 'Round', 'Main', 'Bonus', 'Grade']],
+      body: body,
+      styles: { fontSize: 9 },
+    });
+    doc.save(title.replace(/\s+/g,'_') + '.pdf');
+    alert(t.exportSuccess(data.rows.length));
+  } catch (e) {
+    showExportError(e);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('toWatchlistBtn').addEventListener('click', async function(){
+  const t = i18n[currentLang];
+  const ids = getSelectedIds();
+  if (ids.length === 0) { alert(t.selectAtLeastOne); return; }
+  const btn = this;
+  btn.disabled = true;
+  try {
+    const resp = await fetch(WATCHLIST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + accessToken },
+      body: JSON.stringify({ action: 'add_from_entries', entry_ids: ids }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+    alert(t.watchlistSuccess(data.added));
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+applyLang(currentLang);
+loadEntries();
+</script>
+
+</body>
+</html>
