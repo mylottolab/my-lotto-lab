@@ -81,6 +81,12 @@ var API = 'https://my-lotto-lab-api.onrender.com';
 var AMOUNTS = [5, 10, 20, 50, 100, 200];
 var LANG = localStorage.getItem('mll_lang') || 'kr';
 var paypalButtonsRendered = false;
+// PayPal 카드입력창(SDK 자체 렌더링 영역) 언어 — locale을 안 넘기면 PayPal이
+// 계정/브라우저 설정 기준으로 임의 결정해버려서, EN으로 전환해도 카드입력창은
+// 한글로 뜨는 문제가 있었음 (2026-07-26 긴급수정). 사이트 언어 토글(LANG)에 맞춰 강제 지정.
+// ※ setLang()으로 언어를 바꾼 시점에 SDK가 이미 로드돼있으면 locale이 즉시 안 바뀌므로,
+//    언어를 바꾸면 새로고침해야 카드입력창 언어도 반영됩니다 (SDK는 페이지당 한 번만 로드).
+function paypalLocale(){ return LANG === 'en' ? 'en_US' : 'ko_KR'; }
 
 function applyLang(){
   document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
@@ -89,7 +95,27 @@ function applyLang(){
   document.getElementById('langKrBtn').classList.toggle('active', LANG==='kr');
   document.getElementById('langEnBtn').classList.toggle('active', LANG==='en');
 }
-function setLang(lang){ LANG=lang; localStorage.setItem('mll_lang',lang); applyLang(); updateEstimatedPoints(); }
+function setLang(lang){
+  if (LANG === lang) return;
+  LANG = lang;
+  localStorage.setItem('mll_lang', lang);
+  applyLang();
+  updateEstimatedPoints();
+  reloadPaypalSdk();
+}
+
+// PayPal SDK는 로드된 스크립트의 locale을 실시간으로 못 바꾸므로,
+// 언어를 바꾸면 기존 스크립트/버튼을 지우고 새 locale로 다시 불러온다.
+function reloadPaypalSdk(){
+  document.querySelectorAll('script[src*="paypal.com/sdk/js"]').forEach(function(s){ s.remove(); });
+  try { delete window.paypal; } catch(e) { window.paypal = undefined; }
+  paypalButtonsRendered = false;
+  document.getElementById('paypal-button-container').innerHTML = '';
+  var loadingMsg = document.getElementById('loadingMsg');
+  loadingMsg.style.display = 'block';
+  loadingMsg.textContent = LANG==='en' ? 'Loading payment module...' : '결제 모듈을 불러오는 중...';
+  initPaypalButtons();
+}
 
 (function renderAmountButtons(){
   var grid = document.getElementById('amountGrid');
@@ -189,7 +215,7 @@ async function initPaypalButtons(){
     if (!res.ok || !data.clientId) throw new Error(data.error || 'PayPal 설정을 불러올 수 없습니다.');
 
     var script = document.createElement('script');
-    script.src = 'https://www.paypal.com/sdk/js?client-id=' + encodeURIComponent(data.clientId) + '&currency=USD&intent=capture';
+    script.src = 'https://www.paypal.com/sdk/js?client-id=' + encodeURIComponent(data.clientId) + '&currency=USD&intent=capture&locale=' + paypalLocale();
     script.onload = function(){
       loadingMsg.style.display = 'none';
       renderPaypalButtons();
