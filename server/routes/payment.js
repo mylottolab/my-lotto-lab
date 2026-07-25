@@ -10,11 +10,15 @@ const supabase = createClient(
 );
 
 const MID = process.env.INICIS_MID || 'SIRallimlo';
-const SIGN_KEY = process.env.INICIS_SIGN_KEY;
+// ★ 신규 환경변수 — 기존 INICIS_SIGN_KEY와 다른 값입니다.
+//   이니시스 가맹점관리자 → 상점정보 → 계약정보 → KEY정보 →
+//   "모바일 금액위변조 Hash Key" 값을 그대로 등록해주세요.
+const HASH_KEY = process.env.INICIS_PRO_HASHKEY;
 const SERVER_URL = process.env.SERVER_URL || 'https://my-lotto-lab-api.onrender.com';
 
-function sha256(str) {
-  return crypto.createHash('sha256').update(str).digest('hex');
+// P_CHKFAKE = BASE64_ENCODE(SHA512(P_AMT + P_OID + P_TIMESTAMP + HashKey))
+function sha512Base64(str) {
+  return crypto.createHash('sha512').update(str, 'utf8').digest('base64');
 }
 
 // ─── 결제자(회원/비회원) 식별 ────────────────────────────────────────────────
@@ -61,9 +65,8 @@ async function creditDepositPoints(userId, points, meta) {
   return true;
 }
 
-// 이니시스는 returnUrl로 price/goodname/buyername을 돌려주지 않으므로
 // prepare 단계에서 만든 oid를 키로 잠깐 저장해뒀다가 return 단계에서 꺼내 씁니다.
-// (서버 재시작 시 초기화됨 — 운영에서는 DB/Redis 사용 권장)
+// (서버 재시작 시 초기화됨 — 운영에서는 DB/Redis 사용 권장, 기존 방식 그대로 유지)
 const orderStore = new Map();
 
 // 1시간 지난 주문 정보는 자동 정리 (메모리 누수 방지)
@@ -74,7 +77,7 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000);
 
-// ─── 결제 준비 ────────────────────────────────────────────────────────────────
+// ─── 결제 준비 (INIpay PRO) ──────────────────────────────────────────────────
 router.post('/prepare', async (req, res) => {
   const { price, goodname, buyername, buyertel, buyeremail, orderno } = req.body;
   if (!price || !goodname || !buyername) {
@@ -91,10 +94,9 @@ router.post('/prepare', async (req, res) => {
 
   const timestamp = Date.now().toString();
   const oid = orderno || `${MID}_${timestamp}`;
+  const amt = String(Number(price));
 
-  const signature = sha256(`oid=${oid}&price=${price}&timestamp=${timestamp}`);
-  const verification = sha256(`oid=${oid}&price=${price}&signKey=${SIGN_KEY}&timestamp=${timestamp}`);
-  const mkey = sha256(SIGN_KEY);
+  const chkfake = sha512Base64(`${amt}${oid}${timestamp}${HASH_KEY}`);
 
   // return 단계에서 조회할 수 있도록 주문 정보 저장 (결제자 식별자 포함)
   orderStore.set(oid, {
@@ -103,91 +105,62 @@ router.post('/prepare', async (req, res) => {
   });
 
   return res.json({
-    mid: MID, price, goodname, buyername,
+    mid: MID, oid, amt, goodname, buyername,
     buyertel: buyertel || '',
     buyeremail: buyeremail || '',
-    oid, timestamp,
-    signature,
-    verification,
-    mkey,
-    returnUrl: `${SERVER_URL}/api/payment/inicis/return`,
+    timestamp,
+    chkfake,
+    nextUrl: `${SERVER_URL}/api/payment/inicis/return`,
+    notiUrl: `${SERVER_URL}/api/payment/inicis/noti`,
     closeUrl: `${SERVER_URL}/pay/payment_close.html`,
   });
 });
 
-// ─── 결제 결과 수신 ───────────────────────────────────────────────────────────
+// ─── 결제 결과 수신 (INIpay PRO) ──────────────────────────────────────────────
 router.post('/return', async (req, res) => {
-  // 모든 필드명 확인용
   const keys = Object.keys(req.body);
   console.log('=== req.body 키 목록 ===', keys.join(', '));
-  console.log('=== price 관련 ===', req.body.price, req.body.Price, req.body.PRICE, req.body.amt, req.body.amount);
 
-  const { resultCode, resultMsg, mid, orderNumber, authToken, authUrl } = req.body;
-  console.log('=== 이니시스 returnUrl 수신 ===');
+  const { P_STATUS, P_RMESG, P_MID, P_OID, P_AUTH_TID, P_AMT, P_IDCNAME } = req.body;
+  console.log('=== 이니시스(INIpay PRO) returnUrl 수신 ===');
   console.log('=== 전체 req.body ===', JSON.stringify(req.body));
-  console.log('resultCode:', resultCode);
-  console.log('authToken (raw):', authToken);
-  console.log('mid:', mid);
+  console.log('P_STATUS:', P_STATUS, '/ P_OID:', P_OID);
 
-  if (resultCode !== '0000') {
-    return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent(resultMsg || '결제실패')}`);
+  if (P_STATUS !== '00') {
+    return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent(P_RMESG || '결제실패')}`);
   }
 
-  // prepare 단계에서 저장해둔 주문 정보 조회 (orderNumber === oid)
-  const orderInfo = orderStore.get(orderNumber) || {};
+  // prepare 단계에서 저장해둔 주문 정보 조회 (P_OID === oid)
+  const orderInfo = orderStore.get(P_OID) || {};
   const price = orderInfo.price;
   const goodName = orderInfo.goodname;
   const buyerName = orderInfo.buyername;
   console.log('저장된 주문 정보:', JSON.stringify(orderInfo));
 
   if (!price) {
-    console.error('주문 정보를 찾을 수 없습니다. orderNumber:', orderNumber);
+    console.error('주문 정보를 찾을 수 없습니다. P_OID:', P_OID);
     return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent('주문 정보를 찾을 수 없습니다.')}`);
   }
 
-  // + 기호 복원 (URL 파싱 과정에서 공백으로 변환됨)
-  const token = (authToken || '').replace(/ /g, '+');
-  console.log('authToken (fixed):', token);
-
   try {
-    const ts = Date.now().toString();
-    // 승인 요청 signature: SHA256(authToken=VALUE&timestamp=VALUE)
-    // ※ 이니시스 공식 승인 API 규격 — price/mid는 signature 대상에서 제외
-    const sig = sha256(`authToken=${token}&timestamp=${ts}`);
-    const mkey = sha256(SIGN_KEY);
-    console.log('승인 signature:', sig);
-
-    // POST body 직접 구성 (querystring 인코딩 문제 방지)
-    const body = [
-      `mid=${encodeURIComponent(mid)}`,
-      `authToken=${encodeURIComponent(token)}`,
-      `timestamp=${ts}`,
-      `signature=${sig}`,
-      `charset=UTF-8`,
-      `format=JSON`,
-      `mKey=${mkey}`
-    ].join('&');
-
-    console.log('승인 요청 body:', body);
-
-    const result = await callApproval(authUrl, body);
+    const result = await callApproval(P_IDCNAME, P_MID, P_AUTH_TID, P_AMT);
     console.log('승인 결과:', JSON.stringify(result));
 
-    if (result.resultCode === '0000') {
+    if (result.P_STATUS === '00') {
       // 실제 DB에 입금포인트 적립 (1원 = 1포인트)
-      await creditDepositPoints(orderInfo.payerId, Number(price), { source: 'inicis', orderId: orderNumber });
+      await creditDepositPoints(orderInfo.payerId, Number(price), { source: 'inicis', orderId: P_OID });
 
-      orderStore.delete(orderNumber); // 사용 완료된 주문 정보 정리
+      orderStore.delete(P_OID); // 사용 완료된 주문 정보 정리
       return res.redirect(
         `${SERVER_URL}/pay/payment_result.html?status=success` +
-        `&orderNumber=${encodeURIComponent(orderNumber || '')}` +
+        `&orderNumber=${encodeURIComponent(P_OID || '')}` +
         `&price=${price}` +
         `&goodName=${encodeURIComponent(goodName || '')}` +
         `&buyerName=${encodeURIComponent(buyerName || '')}` +
-        `&tid=${encodeURIComponent(result.tid || '')}`
+        `&tid=${encodeURIComponent(result.P_APPL_TID || '')}`
       );
     } else {
-      return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent(result.resultMsg || '승인실패')}`);
+      return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent(result.P_RMESG || '승인실패')}`);
     }
   } catch (err) {
     console.error('승인 오류:', err);
@@ -195,14 +168,22 @@ router.post('/return', async (req, res) => {
   }
 });
 
-// ─── 이니시스 승인 API 호출 ───────────────────────────────────────────────────
-function callApproval(authUrl, body) {
+// ─── 이니시스 승인 API 호출 (INIpay PRO) ──────────────────────────────────────
+// https://{P_IDCNAME}paypro.inicis.com/payment/v1/rest/payAppl.ini
+// 응답은 JSON이 아니라 form-urlencoded 문자열로 옵니다.
+function callApproval(idcName, mid, authTid, amt) {
   return new Promise((resolve, reject) => {
-    const url = new URL(authUrl);
+    const body = [
+      `P_MID=${encodeURIComponent(mid)}`,
+      `P_AUTH_TID=${encodeURIComponent(authTid)}`,
+      `P_AMT=${encodeURIComponent(amt)}`,
+      `P_CHARSET=UTF-8`,
+    ].join('&');
     const buf = Buffer.from(body, 'utf8');
+
     const options = {
-      hostname: url.hostname,
-      path: url.pathname + (url.search || ''),
+      hostname: `${idcName}paypro.inicis.com`,
+      path: '/payment/v1/rest/payAppl.ini',
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -214,8 +195,14 @@ function callApproval(authUrl, body) {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         console.log('이니시스 승인 응답 raw:', data);
-        try { resolve(JSON.parse(data)); }
-        catch (e) { reject(new Error('응답 파싱 오류: ' + data)); }
+        try {
+          const params = new URLSearchParams(data);
+          const result = {};
+          for (const [k, v] of params.entries()) result[k] = v;
+          resolve(result);
+        } catch (e) {
+          reject(new Error('응답 파싱 오류: ' + data));
+        }
       });
     });
     req.on('error', reject);
