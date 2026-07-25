@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab - 포인트 충전 (원화)</title>
-<script src="https://stdpay.inicis.com/stdjs/INIStdPay.js" charset="UTF-8"></script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
+<script src="https://paypro.inicis.com/std/payment/js/INIPayPro_v2.js" charset="UTF-8"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{--bg:#0a0d18;--surface:#11152a;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--accent:#5b6ee8;--green:#3fb37f;}
@@ -54,6 +55,10 @@ h1{font-size:17px;font-weight:700;}
 .notice b{color:#f0c060;}
 
 #inicisForm{display:none;}
+@media(max-width:420px){
+  body{padding:14px;}
+  .card{padding:18px 16px;}
+}
 </style>
 </head>
 <body>
@@ -120,27 +125,6 @@ h1{font-size:17px;font-weight:700;}
     </p>
   </div>
 </div>
-
-<form id="inicisForm" method="post">
-  <input type="hidden" name="version" value="1.0">
-  <input type="hidden" name="mid" id="f_mid">
-  <input type="hidden" name="goodname" id="f_goodname">
-  <input type="hidden" name="oid" id="f_oid">
-  <input type="hidden" name="price" id="f_price">
-  <input type="hidden" name="currency" value="WON">
-  <input type="hidden" name="buyername" id="f_buyername">
-  <input type="hidden" name="buyertel" id="f_buyertel">
-  <input type="hidden" name="buyeremail" id="f_buyeremail">
-  <input type="hidden" name="timestamp" id="f_timestamp">
-  <input type="hidden" name="signature" id="f_signature">
-  <input type="hidden" name="verification" id="f_verification">
-  <input type="hidden" name="mKey" id="f_mkey">
-  <input type="hidden" name="returnUrl" id="f_returnUrl">
-  <input type="hidden" name="closeUrl" id="f_closeUrl">
-  <input type="hidden" name="gopaymethod" value="Card">
-  <input type="hidden" name="charset" value="UTF-8">
-  <input type="hidden" name="acceptmethod" value="CARDPOINT">
-</form>
 
 <script>
 var API = 'https://my-lotto-lab-api.onrender.com';
@@ -240,20 +224,45 @@ async function submitBankTransfer(){
 
   btn.classList.add('loading'); btn.disabled = true;
   try {
+    var headers = {'Content-Type':'application/json'};
+    var body = { depositorName: depositorName, nickname: nickname, email: email, amount: price };
+
+    // ⚠ 2026-07-10: 로그인 상태(회원)여도 여기서 Authorization 헤더를 안 보내고 있어서,
+    // 항상 profiles 테이블의 닉네임+이메일 "문자열 대조" 경로만 타던 버그가 있었음
+    // (한 글자라도 다르면 "등록된 닉네임과 이메일이 일치하지 않습니다" 오류).
+    // 다른 화면들과 동일하게 MLL.ensureFreshToken()으로 회원이면 토큰을 실어 보낸다.
+    if (typeof MLL !== 'undefined' && MLL.getAuthState) {
+      var bankAuthState = MLL.getAuthState();
+      if (bankAuthState.type === 'member' && MLL.ensureFreshToken) {
+        var freshToken = await MLL.ensureFreshToken();
+        if (freshToken && freshToken !== 'guest') headers['Authorization'] = 'Bearer ' + freshToken;
+      }
+    }
+
     var res = await fetch(API + '/api/payment/bank-transfer/request', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ depositorName: depositorName, nickname: nickname, email: email, amount: price })
+      headers: headers,
+      body: JSON.stringify(body)
     });
     var data = await res.json();
     if (!res.ok) {
       showResultMsg(err, (LANG==='en' ? data.errorEn : data.error) || data.error || '오류가 발생했습니다.');
+      btn.classList.remove('loading'); btn.disabled = false;
       return;
     }
-    showResultMsg(ok, LANG==='en' ? (data.messageEn || data.message) : data.message);
+    // ⚠ 2026-07-16: 예전엔 성공해도 finally에서 버튼이 바로 다시 눌리는 상태로 풀려서,
+    // 사용자가 "됐나?" 싶어 다시 누르고, 그때마다 관리자 화면에 중복 신청이 쌓이는 문제가 있었다.
+    // 성공하면 버튼을 그대로 비활성 상태로 두고, 안내 메시지를 보여준 뒤 메인으로 이동시켜서
+    // 같은 화면에서 다시 누를 수 없게 만든다.
+    showResultMsg(ok, LANG==='en'
+      ? 'Deposit request submitted! We will confirm it shortly.'
+      : '입금신청 완료하였습니다. 빠른 시간내 확인처리 하겠습니다.');
+    setTimeout(function(){
+      location.href = 'category_select.html';
+    }, 1800);
+    return; // finally에서 버튼을 다시 활성화하지 않도록 여기서 종료
   } catch(e){
     showResultMsg(err, LANG==='en' ? 'An error occurred.' : '오류가 발생했습니다.');
-  } finally {
     btn.classList.remove('loading'); btn.disabled = false;
   }
 }
@@ -269,7 +278,8 @@ async function loadBalance(){
     document.getElementById('depositorEmail').value = state.email;
   } else {
     try {
-      var meRes = await fetch(API + '/api/auth/me', { headers: { Authorization: 'Bearer ' + state.token } });
+      var freshTokenMe = (MLL.ensureFreshToken) ? await MLL.ensureFreshToken() : state.token;
+      var meRes = await fetch(API + '/api/auth/me', { headers: { Authorization: 'Bearer ' + freshTokenMe } });
       var me = await meRes.json();
       if (meRes.ok) {
         document.getElementById('depositorNickname').value = me.nickname;
@@ -280,8 +290,12 @@ async function loadBalance(){
 
   var headers = {};
   var qs = '';
-  if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
-  else qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  if (state.type === 'member') {
+    var freshTokenBal = (MLL.ensureFreshToken) ? await MLL.ensureFreshToken() : state.token;
+    if (freshTokenBal && freshTokenBal !== 'guest') headers['Authorization'] = 'Bearer ' + freshTokenBal;
+  } else {
+    qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  }
 
   try {
     var res = await fetch(API + '/api/points/balance' + qs, { headers: headers });
@@ -323,7 +337,8 @@ async function startPayment(){
       buyeremail: document.getElementById('buyeremail').value
     };
     if (authState.type === 'member') {
-      headers['Authorization'] = 'Bearer ' + authState.token;
+      var freshTokenPay = (MLL.ensureFreshToken) ? await MLL.ensureFreshToken() : authState.token;
+      headers['Authorization'] = 'Bearer ' + freshTokenPay;
     } else {
       payload.nickname = authState.nickname;
       payload.email = authState.email;
@@ -337,21 +352,27 @@ async function startPayment(){
     var data = await res.json();
     if(!res.ok) throw new Error(data.error||'결제 준비 실패');
 
-    document.getElementById('f_mid').value        = data.mid;
-    document.getElementById('f_goodname').value   = data.goodname;
-    document.getElementById('f_oid').value        = data.oid;
-    document.getElementById('f_price').value      = data.price;
-    document.getElementById('f_buyername').value  = data.buyername;
-    document.getElementById('f_buyertel').value   = data.buyertel;
-    document.getElementById('f_buyeremail').value = data.buyeremail;
-    document.getElementById('f_timestamp').value  = data.timestamp;
-    document.getElementById('f_signature').value  = data.signature;
-    document.getElementById('f_verification').value = data.verification;
-    document.getElementById('f_mkey').value       = data.mkey;
-    document.getElementById('f_returnUrl').value  = data.returnUrl;
-    document.getElementById('f_closeUrl').value   = data.closeUrl;
+    // PC/모바일 자동 감지 (INIpay PRO는 이 값 하나로 PC/모바일을 구분함)
+    var deviceType = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'MOBILE' : 'WEB';
 
-    INIStdPay.pay('inicisForm');
+    INIPayPro.requestPayment({
+      P_MID: data.mid,
+      P_OID: data.oid,
+      P_PAY_TYPE: 'CARD',
+      P_DEVICE_TYPE: deviceType,
+      P_IDCCODE: 'Y',
+      P_AMT: data.amt,
+      P_GOODS: data.goodname,
+      P_UNAME: data.buyername,
+      P_MOBILE: data.buyertel || '',
+      P_EMAIL: data.buyeremail || '',
+      P_NEXT_URL: data.nextUrl,
+      P_NOTI_URL: data.notiUrl,
+      P_CLOSE_URL: data.closeUrl,
+      P_CHARSET: 'UTF-8',
+      P_TIMESTAMP: data.timestamp,
+      P_CHKFAKE: data.chkfake
+    });
   } catch(e) {
     showResultMsg(err, e.message||'오류가 발생했습니다.');
   } finally {
@@ -378,6 +399,5 @@ window.addEventListener('pageshow', function(){
 applyLang();
 loadBalance();
 </script>
-<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 </body>
 </html>
