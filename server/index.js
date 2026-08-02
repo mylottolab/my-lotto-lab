@@ -314,6 +314,12 @@ app.use('/api/admin/race', raceAdminRouter);
 // ─── 100전략 레이스 - 경마배팅 (2026-07-14 신규) ───────────────────────────────
 const raceBettingRouter = require('./routes/race_betting');
 app.use('/api/race-betting', raceBettingRouter);
+// ─── Seoul Jackpot Racetrack (신규, 100전략레이스와 완전 별개 데이터/테이블) ───────
+const seoulRaceRouter = require('./routes/seoul_race');
+app.use('/api/seoul-race', seoulRaceRouter);
+
+const seoulRaceAdminRouter = require('./routes/seoul_race_admin');
+app.use('/api/admin/seoul-race', seoulRaceAdminRouter);
 
 // ─── 모의실전시뮬레이션 ────────────────────────────────────────────────────
 const mockRouter = require('./routes/mock');
