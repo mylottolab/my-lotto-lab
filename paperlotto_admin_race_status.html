@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>경마 진행현황 — PaperLotto 관리자</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --board:#0c1020; --board-2:#111731; --board-line:#242c4d;
+  --paper:#f6f1e4; --paper-2:#efe8d6; --ink:#1c2130; --ink-dim:#5b5646;
+  --gold:#b8862e; --gold-bright:#e0aa4e;
+  --text-hi:#f2efe4; --text-mid:#a7adc7; --text-dim:#6b7195;
+  --ok:#1f7a4f; --warn:#b8862e; --bad:#b23b3b;
+}
+*{box-sizing:border-box;}
+body{ margin:0; background:var(--board); color:var(--text-hi); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+h1,h2{ font-family:'Fraunces',serif; margin:0; }
+.mono{ font-family:'IBM Plex Mono',monospace; }
+.wrap{ max-width:1180px; margin:0 auto; padding:36px 24px 70px; }
+.eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:1.6px; color:var(--gold-bright); }
+.title{ font-size:clamp(24px,3.6vw,32px); font-weight:600; margin-top:8px; }
+.sub{ color:var(--text-mid); font-size:13.5px; margin-top:8px; line-height:1.6; }
+.refresh-btn{ margin-top:14px; background:var(--gold); color:var(--ink); border:none; padding:9px 18px; border-radius:8px; font-weight:700; font-size:12.5px; cursor:pointer; font-family:inherit; }
+.refresh-btn:hover{ background:var(--gold-bright); }
+.refresh-btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+.status-table-wrap{ margin-top:30px; background:var(--paper); color:var(--ink); border-radius:14px; overflow-x:auto; box-shadow:0 14px 30px -18px rgba(0,0,0,0.55); }
+table{ width:100%; border-collapse:collapse; font-size:13px; min-width:920px; }
+th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.03em; color:var(--ink-dim); font-weight:700; padding:11px 12px; border-bottom:2px solid rgba(28,33,48,0.15); background:var(--paper-2); white-space:nowrap; }
+td{ padding:11px 12px; border-bottom:1px solid rgba(28,33,48,0.08); vertical-align:middle; white-space:nowrap; }
+tr:last-child td{ border-bottom:none; }
+.flag{ margin-right:6px; }
+.game-name{ font-weight:700; }
+.done-round{ font-weight:700; color:#8a5b1c; }
+.next-round{ font-weight:700; color:var(--gold); }
+.pill{ display:inline-block; padding:2px 9px; border-radius:10px; font-size:10.5px; font-weight:700; }
+.pill.open{ background:rgba(31,122,79,0.14); color:var(--ok); }
+.pill.wait{ background:rgba(184,134,46,0.14); color:#8a5b1c; }
+.pill.none{ background:rgba(178,59,59,0.14); color:var(--bad); }
+.note-cell{ font-size:11px; color:var(--ink-dim); max-width:180px; white-space:normal; }
+
+@media (max-width:900px){
+  table{ font-size:11.5px; min-width:760px; }
+  th, td{ padding:9px 8px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">ADMIN · RACETRACK STATUS</div>
+  <h1 class="title">🏇 경마 진행현황</h1>
+  <p class="sub">게임별로 <b>어느 회차까지 경마 정산이 끝났는지</b>(추첨일 포함)와, <b>다음 경주가 몇 회차·언제(한국시간) 마감되는지</b>를 한눈에 봅니다.</p>
+  <button class="refresh-btn" id="refreshBtn" onclick="loadStatus()">🔄 새로고침</button>
+
+  <div class="status-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>게임</th>
+          <th>최근 정산 완료 회차</th>
+          <th>그 회차 추첨일</th>
+          <th>다음 경주 회차</th>
+          <th>다음 경주 베팅마감(=추첨)시각 (KST)</th>
+          <th>상태</th>
+          <th>비고</th>
+        </tr>
+      </thead>
+      <tbody id="statusBody">
+        <tr><td colspan="7" style="text-align:center; padding:30px; color:var(--ink-dim);">불러오는 중…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://wzrqaozlbfyejsbvnrxk.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_3KrYMzwrVlbYr-e9d8UiLA_KgvSs8tC";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+const GAMES = [
+  { id:'kr_lotto645',     flag:'🇰🇷', name:'한국 로또 6/45' },
+  { id:'us_powerball',    flag:'🇺🇸', name:'미국 파워볼' },
+  { id:'us_megamillions', flag:'🇺🇸', name:'미국 메가밀리언스' },
+  { id:'eu_euromillions', flag:'🇪🇺', name:'유로밀리언스' },
+  { id:'jp_miniloto',     flag:'🇯🇵', name:'일본 미니로또' },
+  { id:'jp_loto7',        flag:'🇯🇵', name:'일본 로또7' },
+  { id:'jp_loto6',        flag:'🇯🇵', name:'일본 로또6' },
+  { id:'ca_lottomax',     flag:'🇨🇦', name:'캐나다 로또맥스' },
+  { id:'ca_lotto649',     flag:'🇨🇦', name:'캐나다 로또649' },
+  { id:'au_powerball',    flag:'🇦🇺', name:'호주 파워볼' },
+  { id:'au_ozlotto',      flag:'🇦🇺', name:'호주 오즈로또' },
+  { id:'au_tattslotto',   flag:'🇦🇺', name:'호주 새터데이로또' },
+];
+
+function fmtKst(iso){
+  if (!iso) return '-';
+  const d = new Date(iso);
+  const dateStr = new Intl.DateTimeFormat('ko-KR', { timeZone:'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit' }).format(d);
+  const wdName = new Intl.DateTimeFormat('en-US', { timeZone:'Asia/Seoul', weekday:'short' }).format(d);
+  const wdMap = { Sun:'일',Mon:'월',Tue:'화',Wed:'수',Thu:'목',Fri:'금',Sat:'토' };
+  const timeStr = new Intl.DateTimeFormat('ko-KR', { timeZone:'Asia/Seoul', hour:'2-digit', minute:'2-digit', hour12:false }).format(d);
+  return `${dateStr}(${wdMap[wdName]}) ${timeStr}`;
+}
+function fmtDateOnly(dateStr){
+  if (!dateStr) return '-';
+  // draw_date는 YYYY-MM-DD 형태로 저장되어 있음 — 요일만 계산해서 붙여줌
+  const d = new Date(dateStr + 'T00:00:00+09:00');
+  const wdName = new Intl.DateTimeFormat('en-US', { timeZone:'Asia/Seoul', weekday:'short' }).format(d);
+  const wdMap = { Sun:'일',Mon:'월',Tue:'화',Wed:'수',Thu:'목',Fri:'금',Sat:'토' };
+  return `${dateStr}(${wdMap[wdName]})`;
+}
+
+async function loadStatus(){
+  const btn = document.getElementById('refreshBtn');
+  const body = document.getElementById('statusBody');
+  btn.disabled = true;
+  body.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--ink-dim);">불러오는 중…</td></tr>`;
+
+  const rows = await Promise.all(GAMES.map(async (g) => {
+    // 그 게임의 races를 회차 내림차순으로 최근 5개 가져와서, 그중 최신 settled 1건 + 최신 전체 1건을 뽑음
+    const { data: races, error } = await sb
+      .from('races').select('id, round_no, status, betting_close_at, settled_at')
+      .eq('game_id', g.id).order('round_no', { ascending:false }).limit(5);
+    if (error || !races || races.length === 0) {
+      return { g, lastSettled:null, current:null, error: true };
+    }
+    const current = races[0]; // 회차가 가장 높은 것 = 지금 진행중(또는 방금 만들어진) 경주
+    const lastSettled = races.find(r => r.status === 'settled') || null;
+    return { g, lastSettled, current };
+  }));
+
+  const now = new Date();
+  const rowsHtml = await Promise.all(rows.map(async ({ g, lastSettled, current, error }) => {
+    if (error) {
+      return `<tr><td><span class="flag">${g.flag}</span>${g.name}</td><td colspan="6" style="color:var(--bad);">경주 데이터 없음(부트스트랩 필요)</td></tr>`;
+    }
+
+    // 최근 정산완료 회차의 실제 추첨일(draw_results.draw_date) 조회
+    let doneDateStr = '-';
+    if (lastSettled) {
+      const { data: draw } = await sb.from('draw_results').select('draw_date').eq('game_id', g.id).eq('round_no', lastSettled.round_no).maybeSingle();
+      doneDateStr = draw && draw.draw_date ? fmtDateOnly(draw.draw_date) : '(추첨일 정보 없음)';
+    }
+
+    const doneRoundCell = lastSettled ? `<span class="done-round">#${lastSettled.round_no}</span>` : '<span style="color:var(--ink-dim);">아직 없음</span>';
+
+    let nextRoundCell = '-', nextCloseCell = '-', statusPill = '', note = '';
+    if (current && current.status !== 'settled') {
+      nextRoundCell = `<span class="next-round">#${current.round_no}</span>`;
+      nextCloseCell = fmtKst(current.betting_close_at);
+      const closeAt = new Date(current.betting_close_at);
+      if (closeAt > now) {
+        statusPill = '<span class="pill open">베팅 진행중</span>';
+      } else {
+        statusPill = '<span class="pill wait">결과 대기중</span>';
+        note = '마감은 지났지만 아직 당첨번호 미입력 — race-auto-check가 15분마다 자동확인 중';
+      }
+    } else {
+      statusPill = '<span class="pill none">다음 경주 없음</span>';
+      note = '정산 직후 자동생성 대기 — 잠시 후 새로고침해보세요';
+    }
+
+    return `<tr>
+      <td><span class="flag">${g.flag}</span><span class="game-name">${g.name}</span></td>
+      <td>${doneRoundCell}</td>
+      <td class="mono">${doneDateStr}</td>
+      <td>${nextRoundCell}</td>
+      <td class="mono">${nextCloseCell}</td>
+      <td>${statusPill}</td>
+      <td class="note-cell">${note}</td>
+    </tr>`;
+  }));
+
+  body.innerHTML = rowsHtml.join('');
+  btn.disabled = false;
+}
+
+loadStatus();
+</script>
+</body>
+</html>
