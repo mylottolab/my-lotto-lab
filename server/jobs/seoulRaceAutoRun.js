@@ -27,8 +27,19 @@ const supabase = createClient(
 
 const BETTING_MINUTES = 20;
 const REST_MINUTES = 10;
-const CYCLE_MINUTES = BETTING_MINUTES + REST_MINUTES;
+const CYCLE_MINUTES = BETTING_MINUTES + REST_MINUTES; // 30분 — 60분을 정확히 나눔 → 매시 00분/30분에 항상 딱 맞음
 const PAYOUT_RATE = 0.8; // race_betting.js와 동일한 배당재원 비율
+
+// ─── 매시 정각(00분)/30분에 항상 배팅이 시작되도록 시각을 30분 그리드에 정렬 ───────
+// (UTC와 KST는 9시간=정확히 30분의 배수만큼 차이나므로, UTC epoch를 30분 단위로
+//  정렬해도 KST 기준 00분/30분 지점과 정확히 일치한다 — 별도 KST 변환 불필요)
+const GRID_MS = CYCLE_MINUTES * 60 * 1000;
+
+// strictAfterMs 시각보다 "뒤에 있는" 가장 가까운 그리드 지점을 반환 (같은 지점이면 다음 지점으로)
+function nextGridBoundary(strictAfterMs) {
+  const next = Math.ceil(strictAfterMs / GRID_MS) * GRID_MS;
+  return next > strictAfterMs ? next : next + GRID_MS;
+}
 
 // ─── 공용: 말 100마리 로드 + 일편단심형 고정조합 확보 ─────────────────────────
 async function loadHorses() {
@@ -218,11 +229,13 @@ async function tickAlwaysRace() {
       status: 'settled', settled_at: now.toISOString(), lotto_round_ref: replayRound,
     }).eq('id', due.id);
 
-    // 다음 라운드 자동 생성 (베팅 유무와 무관하게 항상 생성 — 휴식 10분 후 배팅 시작)
-    const bettingStarts = new Date(due.betting_ends_at.getTime ? due.betting_ends_at : new Date(due.betting_ends_at));
-    bettingStarts.setMinutes(bettingStarts.getMinutes() + REST_MINUTES);
-    const bettingEnds = new Date(bettingStarts);
-    bettingEnds.setMinutes(bettingEnds.getMinutes() + BETTING_MINUTES);
+    // 다음 라운드 자동 생성 (베팅 유무와 무관하게 항상 생성)
+    // ── 매시 00분/30분에 항상 배팅이 시작되도록 30분 그리드에 정렬 ──
+    // (이전 라운드 종료시각이 어쩌다 그리드에서 벗어나 있어도, 다음 그리드 지점으로
+    //  스냅되면서 자동으로 교정된다 — 딱 한 번만 주기가 짧아지고 그 뒤론 계속 정확히 맞음)
+    const endMs = new Date(due.betting_ends_at).getTime();
+    const bettingStarts = new Date(nextGridBoundary(endMs));
+    const bettingEnds = new Date(bettingStarts.getTime() + BETTING_MINUTES * 60 * 1000);
 
     const { data: maxCycle } = await supabase
       .from('seoul_race_rounds').select('cycle_no').eq('race_mode', 'always')
@@ -243,10 +256,12 @@ async function tickAlwaysRace() {
   const { data: anyRound } = await supabase
     .from('seoul_race_rounds').select('id').eq('race_mode', 'always').limit(1).maybeSingle();
   if (!anyRound) {
-    const bettingEnds = new Date(now); bettingEnds.setMinutes(bettingEnds.getMinutes() + BETTING_MINUTES);
+    // 최초 라운드도 "지금"이 아니라 가장 가까운 다음 00분/30분 그리드에서 시작
+    const bettingStarts = new Date(nextGridBoundary(now.getTime() - 1)); // now 포함 이후의 가장 가까운 그리드
+    const bettingEnds = new Date(bettingStarts.getTime() + BETTING_MINUTES * 60 * 1000);
     await supabase.from('seoul_race_rounds').insert({
       race_mode: 'always', cycle_no: 1,
-      betting_starts_at: now.toISOString(), betting_ends_at: bettingEnds.toISOString(),
+      betting_starts_at: bettingStarts.toISOString(), betting_ends_at: bettingEnds.toISOString(),
       status: 'betting_open',
     });
     return { bootstrapped: true };
