@@ -15,11 +15,24 @@
   --green:#3fb37f; --green-dim:#1e7b4d;
   --red:#d4537e; --blue:#5b9bd5;
   --game-accent:#8a6fe8;
+  --bg-top:#0d1120;
+}
+body.light-mode{
+  --bg:#dbe0ee; --surface:#ffffff; --surface-2:#eef1f9;
+  --border:#c2c8dd; --border-soft:#d2d7e8;
+  --text:#161b30; --text-dim:#4c5372; --text-faint:#7a80a0;
+  --gold:#a8781f; --gold-dim:#8a6f2f;
+  --green:#178072; --green-dim:#0f5d53;
+  --red:#b8436a; --blue:#3c78b0;
+  --game-accent:#6a4fd0;
+  --bg-top:#e7eaf5;
 }
 *{box-sizing:border-box;}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;margin:0;}
+body{background:var(--bg);background-image:linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 340px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;margin:0;}
 .font-num{font-variant-numeric:tabular-nums;}
 a{color:inherit;text-decoration:none;}
+.theme-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;flex-shrink:0;}
+.theme-toggle:hover{border-color:var(--gold);}
 button{font-family:inherit;cursor:pointer;}
 
 .topbar{border-bottom:1px solid var(--border-soft);position:sticky;top:0;background:var(--bg);z-index:50;}
@@ -208,6 +221,7 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
       </div>
     </div>
     <div class="topbar-right">
+      <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="야간/주간 모드 전환">🌙</button>
       <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
         <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
         <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface-2);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
@@ -261,6 +275,16 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
 // 동적으로 JS가 그리는 텍스트는 T('key')로 가져온다. 언어 전환 시 현재 보이는
 // 화면을 다시 그린다(이 페이지는 거의 전부 JS로 렌더링되기 때문).
 // =====================================================
+var THEME = localStorage.getItem('mll_theme');
+if (!THEME) { THEME = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark'; }
+function applyTheme(){
+  document.body.classList.toggle('light-mode', THEME === 'light');
+  var btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = THEME === 'light' ? '☀️' : '🌙';
+}
+function toggleTheme(){ THEME = (THEME === 'light') ? 'dark' : 'light'; localStorage.setItem('mll_theme', THEME); applyTheme(); }
+applyTheme();
+
 var LANG = localStorage.getItem('mll_lang') || 'kr';
 var STR = {
   landing_real_title: { kr:'⏰ 실전테스트 — 다음 추첨을 기다리는 진짜 예행연습', en:'⏰ Real Test — genuine practice waiting for the next draw' },
