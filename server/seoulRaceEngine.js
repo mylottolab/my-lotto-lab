@@ -59,8 +59,11 @@ function topFrequencyNumbers(history, recentRounds, count) {
 }
 
 // 조건 만족하는 조합 하나 생성 (실패 시 null → 상한 도달하면 조건 무시하고 랜덤 반환)
+// ⚠ 2026-08 수정: top_range는 "상위빈도 풀의 크기"(예: 15개), top_use는 "그중 몇 개를
+// 조합에 반드시 포함시킬지"(예: 1~4개) — 이전 버전은 이 둘의 역할이 뒤바뀌어 있었음
+// (실제 엑셀 조건표 기준으로 발견/수정).
 function generateConditionedCombo(horse, history) {
-  const topNums = horse.top_range ? topFrequencyNumbers(history, horse.recent_rounds, horse.top_use) : null;
+  const topNums = horse.top_range ? topFrequencyNumbers(history, horse.recent_rounds, horse.top_range) : null;
   const maxTry = 3000;
   for (let t = 0; t < maxTry; t++) {
     let nums;
@@ -112,9 +115,8 @@ function gradeCombo(combo, winNums, bonus) {
   return 0; // fail
 }
 
-// 말 1마리 라운드 시뮬레이션 (조합생성 + 채점 + 집계)
-function simulateHorseRound(horse, history, winData, fixedCombosMap) {
-  const combos = resolveCombosForHorse(horse, history, fixedCombosMap);
+// 조합 배열을 채점해서 집계 (조합 생성과 분리 — 이미 저장된 조합을 채점할 때 재사용)
+function gradeCombos(combos, winData) {
   const winNums = winData.nums;
   const bonus = winData.bonus;
 
@@ -129,16 +131,18 @@ function simulateHorseRound(horse, history, winData, fixedCombosMap) {
     gradeCounts[g]++;
     winCount++;
     totalPrize += VIRTUAL_SCORE[g] || 0;
-    if (bestGrade === 0 || g < bestGrade) bestGrade = g; // 숫자가 작을수록 상위 등수
+    if (bestGrade === 0 || g < bestGrade) bestGrade = g;
   });
 
-  return {
-    generated: combos.length,
-    gradeCounts,
-    bestGrade,
-    winCount,
-    totalPrize,
-  };
+  return { generated: combos.length, gradeCounts, bestGrade, winCount, totalPrize };
+}
+
+// 말 1마리 라운드 시뮬레이션 (조합생성 + 채점을 한 번에 — 주로 테스트/즉석계산용.
+// 실제 운영 흐름에서는 조합생성(라운드 오픈 시)과 채점(정산 시)이 시점이 분리되어 있으므로
+// resolveCombosForHorse()와 gradeCombos()를 각각 따로 호출한다.)
+function simulateHorseRound(horse, history, winData, fixedCombosMap) {
+  const combos = resolveCombosForHorse(horse, history, fixedCombosMap);
+  return gradeCombos(combos, winData);
 }
 
 // 100마리 순위 결정: bestGrade(작을수록 상위) → 그 등수 받은 개수(많을수록 상위) → horse_no
@@ -162,6 +166,7 @@ module.exports = {
   generateConditionedCombo,
   resolveCombosForHorse,
   gradeCombo,
+  gradeCombos,
   simulateHorseRound,
   rankHorses,
   VIRTUAL_SCORE,
