@@ -48,6 +48,8 @@ MLL.adminFetch = async function(path, options) {
 // =====================================================
 // 다국어(i18n) - main_page.html과 동일한 'mll_lang' 키 공유
 // =====================================================
+var THEME = localStorage.getItem('mll_theme');
+if (!THEME) { THEME = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark'; }
 var LANG = localStorage.getItem('mll_lang') || 'kr';
 var STR = {
   status_checking: { kr: '상태를 확인하는 중...', en: 'Checking status...' },
@@ -202,6 +204,13 @@ var STR = {
 };
 function T(key){ var row = STR[key]; if (!row) return key; return row[LANG] || row.kr; }
 
+function applyTheme(){
+  document.body.classList.toggle('light-mode', THEME === 'light');
+  var btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = THEME === 'light' ? '☀️' : '🌙';
+}
+function toggleTheme(){ THEME = (THEME === 'light') ? 'dark' : 'light'; localStorage.setItem('mll_theme', THEME); applyTheme(); }
+
 function applyLang(){
   document.title = (LANG === 'en') ? 'My Lotto Lab - 100 Strategy Race' : 'My Lotto Lab - 100 전략 레이스';
   document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
@@ -224,6 +233,7 @@ function setLang(lang){
   applyLang();
   if (typeof RACE !== 'undefined' && RACE.refreshUI) RACE.refreshUI();
 }
+document.addEventListener('DOMContentLoaded', applyTheme);
 document.addEventListener('DOMContentLoaded', applyLang);
 </script>
 <script>
@@ -603,10 +613,25 @@ MLL.raceSimulateOneRound = function(strategy, history, winData, round, fixedComb
   --accent:#e8732f; --accent-bg:rgba(232,115,47,.13);
   --indigo:#5b6ee8; --indigo-dim:#2a3270;
   --green:#3fb37f; --red:#d4537e;
+  --card-shadow:0 1px 2px rgba(0,0,0,.2); --card-shadow-hover:0 8px 20px rgba(0,0,0,.32);
+  --bg-top:#0d1120;
 }
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
+body.light-mode{
+  --bg:#dbe0ee; --surface:#ffffff; --surface-2:#eef1f9;
+  --border:#c2c8dd; --border-soft:#d2d7e8;
+  --text:#161b30; --text-dim:#4c5372; --text-faint:#7a80a0;
+  --gold:#a8781f; --gold-dim:#8a6f2f;
+  --accent:#c65a1f; --accent-bg:rgba(198,90,31,.10);
+  --indigo:#4453c9; --indigo-dim:#c7cdf5;
+  --green:#178072; --red:#b8436a;
+  --card-shadow:0 1px 2px rgba(30,36,66,.06); --card-shadow-hover:0 10px 24px rgba(30,36,66,.12);
+  --bg-top:#e7eaf5;
+}
+body{background:var(--bg);background-image:linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 340px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
 .font-num{font-variant-numeric:tabular-nums;}
 a{color:inherit;}
+.theme-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;flex-shrink:0;}
+.theme-toggle:hover{border-color:var(--accent);}
 
 /* ── 헤더 ── */
 .topbar{border-bottom:1px solid var(--border-soft);}
@@ -858,6 +883,7 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
       <span class="sep">/</span>
       <span class="cur" data-i18n-kr="100 전략 레이스" data-i18n-en="100 Strategy Race">100 전략 레이스</span>
     </div>
+    <div class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="야간/주간 모드 전환" style="margin-left:14px;">🌙</div>
     <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-left:14px;">
       <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
       <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
