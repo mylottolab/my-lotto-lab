@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 품샵</title>
+<script src="common.js?v=20260709a"></script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f;
+  --accent:#d4537e; --accent-bg:rgba(212,83,126,.14);
+  --green:#3fb37f; --red:#e05555;
+  --card-shadow:0 1px 2px rgba(0,0,0,.2);
+  --card-shadow-hover:0 8px 20px rgba(0,0,0,.32);
+  --bg-top:#0d1120;
+}
+body.light-mode{
+  --bg:#dbe0ee; --surface:#ffffff; --surface-2:#eef1f9;
+  --border:#c2c8dd; --border-soft:#d2d7e8;
+  --text:#161b30; --text-dim:#4c5372; --text-faint:#7a80a0;
+  --gold:#a8781f; --gold-dim:#8a6f2f;
+  --accent:#b8436a; --accent-bg:rgba(184,67,106,.10);
+  --green:#178072; --red:#c94040;
+  --card-shadow:0 1px 2px rgba(30,36,66,.06);
+  --card-shadow-hover:0 10px 24px rgba(30,36,66,.12);
+  --bg-top:#e7eaf5;
+}
+body{
+  background:var(--bg);
+  background-image: linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 340px);
+  color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;
+  font-size:14px;letter-spacing:-0.01em;min-height:100vh;
+}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;}
+
+.topbar{border-bottom:1px solid var(--border-soft);background:var(--surface);}
+.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
+.brand-text .t1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
+.brand-text .t2{font-size:10px;color:var(--text-faint);margin-top:1px;}
+.crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);}
+.crumb a{cursor:pointer;}
+.crumb a:hover{color:var(--text);}
+.crumb .sep{color:var(--text-faint);}
+.crumb .cur{color:var(--accent);}
+.theme-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;}
+.theme-toggle:hover{border-color:var(--accent);}
+.points-badge{display:flex;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;color:var(--gold);}
+
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 70px;}
+.eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--accent);text-transform:uppercase;}
+.page-title{font-size:25px;font-weight:700;letter-spacing:-0.02em;margin-top:6px;}
+.page-sub{font-size:12.5px;color:var(--text-dim);margin-top:8px;line-height:1.7;max-width:760px;}
+
+.product-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:26px;}
+@media (max-width:820px){.product-grid{grid-template-columns:1fr;}}
+.product-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:22px;box-shadow:var(--card-shadow);transition:border-color .15s,transform .12s;}
+.product-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.pc-icon{width:44px;height:44px;border-radius:12px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px;}
+.pc-name{font-size:15.5px;font-weight:700;}
+.pc-desc{font-size:12px;color:var(--text-dim);margin-top:6px;line-height:1.6;min-height:56px;}
+.pc-btn{margin-top:14px;width:100%;padding:10px;border:none;border-radius:9px;background:var(--gold);color:#1a1305;font-size:13px;font-weight:700;cursor:pointer;}
+.pc-btn:hover{filter:brightness(1.08);}
+
+.section-title{font-size:15px;font-weight:700;margin-top:36px;margin-bottom:12px;}
+.list-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;overflow:hidden;box-shadow:var(--card-shadow);}
+.list-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;font-size:12.5px;border-bottom:1px solid var(--border-soft);}
+.list-row:last-child{border-bottom:none;}
+.list-row .lr-main{color:var(--text);font-weight:600;}
+.list-row .lr-sub{color:var(--text-faint);font-size:11px;margin-top:2px;}
+.list-empty{padding:30px 16px;text-align:center;color:var(--text-faint);font-size:12.5px;}
+
+.back-row{margin-top:34px;}
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer;}
+.back-link:hover{color:var(--text);}
+
+/* ── 구매 모달 ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(5,7,15,.65);z-index:300;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:640px;width:100%;max-height:88vh;overflow-y:auto;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.modal-title{font-size:16px;font-weight:700;}
+.modal-close{border:none;background:none;color:var(--text-dim);font-size:18px;cursor:pointer;}
+.modal-desc{font-size:11.5px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;}
+.form-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.form-row label{font-size:12.5px;color:var(--text-dim);min-width:110px;}
+.form-row input{width:100px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);font-size:13px;}
+.char-section-title{font-size:12px;font-weight:700;color:var(--text-dim);margin:16px 0 8px;}
+.char-guide{font-size:11px;color:var(--gold);background:var(--accent-bg);border:1px solid var(--border-soft);border-radius:8px;padding:8px 11px;margin-bottom:10px;line-height:1.6;}
+.char-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:260px;overflow-y:auto;padding:4px;border:1px solid var(--border-soft);border-radius:10px;margin-bottom:14px;}
+@media (max-width:520px){.char-grid{grid-template-columns:repeat(3,1fr);}}
+.char-card{cursor:pointer;border:2px solid var(--border);border-radius:8px;overflow:hidden;text-align:center;background:var(--surface-2);}
+.char-card .cc-id{font-size:9px;padding:4px 2px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.char-card.on{border-color:var(--green);box-shadow:0 0 0 2px rgba(63,179,127,.3);}
+.price-box{background:var(--surface-2);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--text-dim);margin-bottom:14px;line-height:1.7;}
+.price-box b{color:var(--gold);font-size:16px;}
+.purchase-btn{width:100%;padding:13px;border:none;border-radius:10px;background:var(--green);color:#fff;font-size:14px;font-weight:700;cursor:pointer;}
+.purchase-btn:hover{filter:brightness(1.06);}
+.purchase-btn:disabled{opacity:.5;cursor:not-allowed;}
+.result-box{margin-top:12px;padding:11px 14px;border-radius:9px;font-size:12px;display:none;}
+
+@media (max-width:680px){
+  .topbar-inner{height:auto;min-height:54px;padding:10px 16px;}
+  .brand-text .t2{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand" onclick="location.href='main_page.html'">
+      <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="brand-text">
+        <div class="t1">My Lotto Lab</div>
+        <div class="t2" data-i18n-kr="가상 로또 등록 · 당첨 분석 · 통계 플랫폼" data-i18n-en="Virtual Lotto Entry · Win Analysis · Stats Platform">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="points-badge">🪙 <span id="pointsBalance">0</span>P</div>
+      <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="야간/주간 모드 전환">🌙</button>
+      <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
+        <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
+      </div>
+      <div class="crumb">
+        <a onclick="location.href='main_page.html'" data-i18n-kr="홈" data-i18n-en="Home">홈</a>
+        <span class="sep">/</span>
+        <span class="cur" data-i18n-kr="품샵" data-i18n-en="Point Shop">품샵</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="eyebrow">🛍️ POINT SHOP</div>
+  <div class="page-title" data-i18n-kr="품샵" data-i18n-en="Point Shop">품샵</div>
+  <div class="page-sub" data-i18n-kr="포인트로 즉시 구매하는 로또 마킹용지 PDF. 원하는 개수만큼 골라서 결제하면 바로 다운로드됩니다." data-i18n-en="Buy lotto marking-sheet PDFs instantly with points. Choose your quantity, pay, and download right away.">포인트로 즉시 구매하는 로또 마킹용지 PDF. 원하는 개수만큼 골라서 결제하면 바로 다운로드됩니다.</div>
+
+  <div class="product-grid" id="productGrid">
+    <div class="list-empty" data-i18n-kr="상품을 불러오는 중..." data-i18n-en="Loading products...">상품을 불러오는 중...</div>
+  </div>
+
+  <div class="section-title" data-i18n-kr="내 구매내역" data-i18n-en="My Purchase History">내 구매내역</div>
+  <div class="list-card" id="myOrdersList"><div class="list-empty" data-i18n-kr="로그인 또는 비회원 등록 후 이용 가능합니다" data-i18n-en="Log in or register as a guest to view this">로그인 또는 비회원 등록 후 이용 가능합니다</div></div>
+
+  <div class="back-row">
+    <span class="back-link" onclick="location.href='main_page.html'">← <span data-i18n-kr="전체 카테고리로" data-i18n-en="Back to All Categories">전체 카테고리로</span></span>
+  </div>
+</div>
+
+<!-- 구매 모달 -->
+<div class="modal-overlay" id="purchaseModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="pmTitle">-</div>
+      <button class="modal-close" onclick="closePurchaseModal()">✕</button>
+    </div>
+    <div class="modal-desc" id="pmDesc"></div>
+
+    <div id="pmFormFields"></div>
+
+    <div class="char-section-title" data-i18n-kr="캐릭터 이미지 선택" data-i18n-en="Choose Character Image">캐릭터 이미지 선택</div>
+    <div class="char-guide" id="pmCharGuide"></div>
+    <div class="char-grid" id="pmCharGrid"></div>
+
+    <div class="price-box" id="pmPriceBox" data-i18n-kr="수량을 입력하면 가격이 계산됩니다." data-i18n-en="Price will be calculated once you enter quantities.">수량을 입력하면 가격이 계산됩니다.</div>
+
+    <button class="purchase-btn" id="pmPurchaseBtn" onclick="doPurchase()" data-i18n-kr="구매하고 다운로드" data-i18n-en="Buy & Download">구매하고 다운로드</button>
+    <div class="result-box" id="pmResultBox"></div>
+  </div>
+</div>
+
+<script>
+var MLL_CHAR_NAMES = {"16": "잘 맞추는 신묘한 조상님", "17": "복을 부르는 우리 다둥이", "18": "로또로 돈번 복돼지", "19": "재물운 부르는 불난집 꿈", "20": "역대 최고금액 407억 당첨점 춘천복권명당", "21": "강풍 부는 남태평양 바닷가", "22": "황혼의 나무", "23": "비상(飛上)", "24": "그해 겨울은 따뜻했네", "25": "눈을 머금은 큰나무", "26": "아,! 졸려.", "65": "단풍", "75": "1등당첨 환호하는 복돼지", "150": "달마가 여기 온 까닭은?", "151": "신묘한 조상님", "153": "복을 부르는 다둥이", "154": "로또 잘 맞추는 복돼지", "155": "대박 길조 큰불", "156": "누구에게나 1등은 온다", "158": "함께 이겨내자. 응?", "159": "어딘가 길이 있어", "27": "네가 좋아하기를", "28": "지친 널 지켜보는 나", "29": "살다보면 즐거운 날도", "30": "비가 와도 함께라면", "31": "운무가 깔려 있는 풍경", "32": "가을 고궁", "33": "2025년은 푸른 뱀의 해: 이번주 1등은 푸른 뱀띠", "38": "1등 날라가기 전에", "39": "우리가 응원할께요", "40": "다산왕 로또옥자", "41": "난 로또박사 맘껏 찍어", "42": "당첨 많은 복쥐", "43": "네잎클로버 쥔 토끼", "44": "큰 재물 부르는 큰불", "45": "황금들녁", "46": "금화 가득 로또돼지", "47": "무슨 번호로 살까?", "48": "아빠 힘내세요, 1등 당첨!", "49": "우린 이 번호로 정했어요", "50": "1등로또 사러 가는길", "51": "나도 蘭이나 치고 살고싶다", "52": "이번주 1등은 돼지띠", "53": "이번주 1등은 용띠", "54": "이번주 1등은 토끼띠", "55": "이번주 1등은 범띠", "56": "이번주 1등은 소띠", "57": "이번주 1등은 쥐띠", "58": "어둠을 뚫고 비상하는 吉鳥", "59": "2022호랑이 대박복권", "60": "여명", "61": "이 겨울 지나면", "62": "이 사막을 벗어날까?", "63": "이런 곳에도 서광이 있다", "64": "맥켄나의 황금", "66": "나는 안드로메다로 간다", "68": "다시 평온해진 그 바닷가", "69": "북극 빙하도 녹는 봄은 온다", "70": "나무열매 먹는 작은 새", "71": "아이들과 함께", "72": "봄나들이 가는 철새가족", "73": "나비 그리고 봄", "74": "소원과 함께하는 촛불", "76": "크리스마스 선물 상자들", "77": "저 곳에 다시 갈 수 있을까?", "78": "그냥 바라만 보는 도시야경", "79": "이렇게 넓은데 내 집은???", "80": "댕댕이의 봄날은 간다", "81": "소가 뛰어 노는 저곳에서..", "89": "그래 결정할 때가 왔어!", "90": "이 고요함을 즐기고 싶다", "91": "빛 잃은 나의 삶, 곧 광명이", "92": "이 꽃이 이쁘다.....", "93": "돌아가는 길에 핀 노란 꽃", "94": "가을 여명의 나무숲길", "95": "복 부르는 석류", "96": "꽃과 나비", "97": "내 마음을 적셔주는 폭포수", "98": "파도에 지워질 수도 있지만.......", "99": "신록의 계절 다시 시작한다", "100": "1등 되면 저런 곳에서", "101": "떠나고 싶다, 사람없는 곳에", "102": "내게도 희망의 싹이 튼다", "103": "이 과일 드시고 하세요.", "104": "초가을 호숫가", "105": "꽃은 피었으나 막막함이...", "106": "이름 모를 들꽃도 아름답다.", "107": "내 마음이야, 어둠이와도", "108": "이길 지나면 평탄할까?", "109": "초원의 빛", "110": "은하수 저 우주 너머로", "111": "저 너머 신대륙이 있다.", "112": "에베레스트 산행중", "113": "옛날 다니던 시골길 풍경", "114": "늦가을 나무숲 속에서", "115": "희망없는 적막한 겨울길", "116": "새로운 날이 떴다.", "117": "비 온 직 후 상쾌함이.....", "118": "걷다보면 어딘가 나오겠지", "119": "때가 되면 날개를 활짝편다", "120": "배꽃을 아십니까?", "121": "빗물 방울 맺힌 창가", "122": "감귤나무 있는 옛 초가집", "123": "캐나다 암곡의 늦여름 풍경", "124": "당첨되면 저기 사무실낸다", "125": "晩秋1", "126": "晩秋2", "127": "晩秋3", "128": "潔雪1", "129": "오묘한 기운 뿜는 불빛", "130": "나의 부인도 두섭", "131": "솜 머리 써서 찍어 볼까?", "132": "한켠에 다소곳이 있는 화분", "133": "봄, 마구 자란 화초", "134": "녀석 제대로 찾았네.", "135": "해바라기", "136": "석양이 지는 화초 들녁에서", "137": "동이 트는 들녁", "138": "관석(貫石)의 칼로 로또를!", "139": "풍경이나 보며 한번 쉬자", "140": "한번 먹어 볼까? 로또1등", "141": "깊숙한 숲속에도 서광이", "142": "나의 든든한 나무 아래에서", "143": "潔雪2", "144": "가을 운무가 짙은 가로수 길", "145": "햇살이 들어오는 여름 숲속", "146": "로또 당첨 기운 주는 폭포", "147": "2025년은 뱀의 해: 이번주 1등은 뱀띠", "148": "2025년은 뱀의 해: 이번주 1등은 뱀띠", "149": "이번주 1등은 말띠", "160": "이번주 1등은 양띠", "161": "무제", "34": "", "35": "", "36": "", "37": "", "82": "", "83": "", "84": "", "85": "", "86": "", "87": "", "88": "", "152": "", "157": ""};
+
+var THEME = localStorage.getItem('mll_theme');
+if (!THEME) { THEME = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark'; }
+function applyTheme(){
+  document.body.classList.toggle('light-mode', THEME === 'light');
+  var btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = THEME === 'light' ? '☀️' : '🌙';
+}
+function toggleTheme(){ THEME = (THEME === 'light') ? 'dark' : 'light'; localStorage.setItem('mll_theme', THEME); applyTheme(); }
+applyTheme();
+
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+function applyLang(){
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var t = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if (t !== undefined) el.textContent = t;
+  });
+  var krBtn = document.getElementById('langKrBtn'), enBtn = document.getElementById('langEnBtn');
+  if (krBtn) { krBtn.style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface)'; krBtn.style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)'; }
+  if (enBtn) { enBtn.style.background = LANG==='en' ? 'var(--gold)' : 'var(--surface)'; enBtn.style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)'; }
+  renderProducts(); renderMyOrders();
+}
+function setLang(lang){ LANG = lang; localStorage.setItem('mll_lang', lang); applyLang(); }
+
+function authHeaders(){
+  var state = MLL.getAuthState();
+  var h = { 'Content-Type': 'application/json' };
+  if (state.type === 'member') h['Authorization'] = 'Bearer ' + state.token;
+  return h;
+}
+function authBodyExtra(){
+  var state = MLL.getAuthState();
+  if (state.type === 'guest') return { nickname: state.nickname, email: state.email };
+  return {};
+}
+
+var PRODUCTS = [];
+var PRODUCT_ICON = { unique_combos:'🎯', repeat_marked:'🔁', past_winners:'🕰️', extreme_combos:'🎲', blank_sheet:'📄' };
+var PRICING = { pricePerCombo: 100, pricePerBlankPage: 1000 };
+var SELECTED_CIDS = [];
+var CURRENT_PRODUCT = null;
+
+async function loadPricing(){
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/shop/pricing');
+    PRICING = await resp.json();
+  } catch(e){ console.error('[shop] pricing load error', e); }
+}
+
+async function loadProducts(){
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/shop/products');
+    var data = await resp.json();
+    PRODUCTS = data.items || [];
+    renderProducts();
+  } catch(e){ console.error('[shop] products load error', e); }
+}
+
+function renderProducts(){
+  var grid = document.getElementById('productGrid');
+  if (!PRODUCTS.length) { grid.innerHTML = '<div class="list-empty">' + (LANG==='en'?'No products.':'상품이 없습니다.') + '</div>'; return; }
+  grid.innerHTML = PRODUCTS.map(function(p){
+    var name = LANG==='en' ? p.name_en : p.name_kr;
+    var desc = LANG==='en' ? p.desc_en : p.desc_kr;
+    return '<div class="product-card">' +
+      '<div class="pc-icon">' + (PRODUCT_ICON[p.id] || '🖨️') + '</div>' +
+      '<div class="pc-name">' + name + '</div>' +
+      '<div class="pc-desc">' + desc + '</div>' +
+      '<button class="pc-btn" onclick="openPurchaseModal(\'' + p.id + '\')">' + (LANG==='en'?'Buy':'구매하기') + '</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function loadPoints(){
+  var state = MLL.getAuthState();
+  if (!state.type) { document.getElementById('pointsBalance').textContent = '0'; return; }
+  try {
+    var qs = '';
+    if (state.type === 'guest') qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+    var resp = await fetch(MLL.API_BASE + '/api/points/balance' + qs, { headers: authHeaders() });
+    var data = await resp.json();
+    document.getElementById('pointsBalance').textContent = (data.total || 0).toLocaleString();
+  } catch(e){ console.error('[shop] points load error', e); }
+}
+
+async function loadMyOrders(){
+  var state = MLL.getAuthState();
+  var el = document.getElementById('myOrdersList');
+  if (!state.type) { el.innerHTML = '<div class="list-empty">' + ((LANG==='en')?'Log in or register as a guest to view this':'로그인 또는 비회원 등록 후 이용 가능합니다') + '</div>'; return; }
+  try {
+    var qs = '';
+    if (state.type === 'guest') qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+    var resp = await fetch(MLL.API_BASE + '/api/shop/my-orders' + qs, { headers: authHeaders() });
+    var data = await resp.json();
+    renderMyOrdersData(data.items || []);
+  } catch(e){ console.error('[shop] my-orders load error', e); }
+}
+var MY_ORDERS_CACHE = [];
+function renderMyOrdersData(items){ MY_ORDERS_CACHE = items; renderMyOrders(); }
+function renderMyOrders(){
+  var el = document.getElementById('myOrdersList');
+  var state = MLL.getAuthState();
+  if (!state.type) return;
+  if (!MY_ORDERS_CACHE.length) { el.innerHTML = '<div class="list-empty">' + ((LANG==='en')?'No purchases yet.':'아직 구매내역이 없습니다.') + '</div>'; return; }
+  el.innerHTML = MY_ORDERS_CACHE.map(function(o){
+    var p = PRODUCTS.find(function(x){ return x.id === o.product_id; });
+    var name = p ? (LANG==='en'?p.name_en:p.name_kr) : o.product_id;
+    var qtyStr = o.page_count ? (o.page_count + (LANG==='en'?' pages':'페이지')) : (o.combo_count + (LANG==='en'?' combos':'게임'));
+    return '<div class="list-row"><div><div class="lr-main">' + name + ' · ' + qtyStr + '</div><div class="lr-sub">' + new Date(o.created_at).toLocaleString(LANG==='en'?'en-US':'ko-KR') + '</div></div><div>-' + o.points_charged.toLocaleString() + 'P</div></div>';
+  }).join('');
+}
+
+// ── 구매 모달 ──
+function openPurchaseModal(productId){
+  var state = MLL.getAuthState();
+  if (!state.type) { alert((LANG==='en')?'Please log in or register as a guest first.':'먼저 로그인 또는 비회원 등록을 해주세요.'); return; }
+
+  CURRENT_PRODUCT = PRODUCTS.find(function(p){ return p.id === productId; });
+  if (!CURRENT_PRODUCT) return;
+  SELECTED_CIDS = [];
+
+  document.getElementById('pmTitle').textContent = LANG==='en' ? CURRENT_PRODUCT.name_en : CURRENT_PRODUCT.name_kr;
+  document.getElementById('pmDesc').textContent = LANG==='en' ? CURRENT_PRODUCT.desc_en : CURRENT_PRODUCT.desc_kr;
+  document.getElementById('pmResultBox').style.display = 'none';
+
+  var fieldsHtml = '';
+  if (productId === 'repeat_marked') {
+    fieldsHtml =
+      '<div class="form-row"><label>' + (LANG==='en'?'Distinct combos':'서로다른 조합수') + '</label><input type="number" id="pmComboCount" min="1" value="5" oninput="updateQuote()"></div>' +
+      '<div class="form-row"><label>' + (LANG==='en'?'Repeat count':'반복 횟수') + '</label><input type="number" id="pmRepeatCount" min="1" value="3" oninput="updateQuote()"></div>';
+  } else if (productId === 'blank_sheet') {
+    fieldsHtml = '<div class="form-row"><label>' + (LANG==='en'?'Pages (A4)':'매수(A4 페이지)') + '</label><input type="number" id="pmPageCount" min="1" value="1" oninput="updateQuote()"></div>';
+  } else {
+    fieldsHtml = '<div class="form-row"><label>' + (LANG==='en'?'Quantity':'조합 개수') + '</label><input type="number" id="pmComboCount" min="1" value="10" oninput="updateQuote()"></div>';
+  }
+  document.getElementById('pmFormFields').innerHTML = fieldsHtml;
+
+  renderCharGrid();
+  updateQuote();
+  document.getElementById('purchaseModal').classList.add('show');
+}
+function closePurchaseModal(){ document.getElementById('purchaseModal').classList.remove('show'); }
+
+function currentEstimatedRowCount(){
+  if (!CURRENT_PRODUCT) return 0;
+  if (CURRENT_PRODUCT.id === 'repeat_marked') {
+    var n = Number(document.getElementById('pmComboCount').value) || 0;
+    var N = Number(document.getElementById('pmRepeatCount').value) || 0;
+    return n * N;
+  }
+  if (CURRENT_PRODUCT.id === 'blank_sheet') {
+    var pages = Number(document.getElementById('pmPageCount').value) || 0;
+    return pages * 15;
+  }
+  var c = document.getElementById('pmComboCount');
+  return c ? (Number(c.value) || 0) : 0;
+}
+
+function renderCharGrid(){
+  var rowCount = Math.max(1, currentEstimatedRowCount());
+  var maxUsefulImages = Math.max(1, Math.ceil(rowCount / 15));
+  document.getElementById('pmCharGuide').textContent =
+    (LANG==='en')
+      ? ('You can pick up to ' + maxUsefulImages + ' image(s) for this quantity (images change every 15 marks).')
+      : ('지금 수량 기준으로 이미지 ' + maxUsefulImages + '개까지 고를 수 있어요 (15게임 단위로만 이미지가 바뀜).');
+
+  var ids = Object.keys(MLL_CHAR_NAMES).map(Number).sort(function(a,b){return a-b;});
+  var grid = document.getElementById('pmCharGrid');
+  grid.innerHTML = ids.map(function(id){
+    var name = MLL_CHAR_NAMES[String(id)] || '';
+    return '<div class="char-card" data-cid="' + id + '" onclick="toggleChar(' + id + ')">' +
+      '<img src="' + id + '.png" style="width:100%;aspect-ratio:2/1;object-fit:cover;display:block;" loading="lazy">' +
+      '<div class="cc-id">' + id + (name ? (' ' + name.slice(0,6)) : '') + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function toggleChar(cid){
+  var rowCount = Math.max(1, currentEstimatedRowCount());
+  var maxUsefulImages = Math.max(1, Math.ceil(rowCount / 15));
+  var idx = SELECTED_CIDS.indexOf(cid);
+  if (idx >= 0) {
+    SELECTED_CIDS.splice(idx, 1);
+  } else {
+    if (SELECTED_CIDS.length >= maxUsefulImages) {
+      alert((LANG==='en') ? ('You can only use up to ' + maxUsefulImages + ' image(s) for this quantity.') : ('지금 수량으로는 이미지를 최대 ' + maxUsefulImages + '개까지만 쓸 수 있어요.'));
+      return;
+    }
+    SELECTED_CIDS.push(cid);
+  }
+  document.querySelectorAll('.char-card').forEach(function(el){
+    el.classList.toggle('on', SELECTED_CIDS.indexOf(parseInt(el.dataset.cid)) >= 0);
+  });
+}
+
+async function updateQuote(){
+  if (!CURRENT_PRODUCT) return;
+  renderCharGrid();
+  var params = buildParams();
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/shop/quote', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ productId: CURRENT_PRODUCT.id, params: params })
+    });
+    var data = await resp.json();
+    if (!resp.ok) {
+      document.getElementById('pmPriceBox').innerHTML = '<span style="color:var(--red);">' + (data.error || '오류') + '</span>';
+      document.getElementById('pmPurchaseBtn').disabled = true;
+      return;
+    }
+    var qtyLabel = data.pageCount ? (data.pageCount + (LANG==='en'?' pages':'페이지')) : (data.comboCount + (LANG==='en'?' combos':'게임'));
+    document.getElementById('pmPriceBox').innerHTML =
+      qtyLabel + ' → <b>' + data.amount.toLocaleString() + 'P</b>';
+    document.getElementById('pmPurchaseBtn').disabled = false;
+  } catch(e){
+    console.error('[shop] quote error', e);
+  }
+}
+
+function buildParams(){
+  if (CURRENT_PRODUCT.id === 'repeat_marked') {
+    return { comboCount: Number(document.getElementById('pmComboCount').value) || 0, repeatCount: Number(document.getElementById('pmRepeatCount').value) || 0 };
+  }
+  if (CURRENT_PRODUCT.id === 'blank_sheet') {
+    return { pageCount: Number(document.getElementById('pmPageCount').value) || 0 };
+  }
+  return { comboCount: Number(document.getElementById('pmComboCount').value) || 0 };
+}
+
+async function doPurchase(){
+  if (!CURRENT_PRODUCT) return;
+  var btn = document.getElementById('pmPurchaseBtn');
+  btn.disabled = true;
+  btn.textContent = (LANG==='en') ? 'Generating...' : '생성 중...';
+  var resultBox = document.getElementById('pmResultBox');
+  resultBox.style.display = 'none';
+
+  var body = Object.assign({ productId: CURRENT_PRODUCT.id, params: buildParams(), cids: SELECTED_CIDS }, authBodyExtra());
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/shop/purchase', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+    });
+    if (!resp.ok) {
+      var errData = await resp.json().catch(function(){ return {}; });
+      throw new Error(errData.error || ('서버 오류 (코드 ' + resp.status + ')'));
+    }
+    var blob = await resp.blob();
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = CURRENT_PRODUCT.id + '_마킹용지.pdf';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    resultBox.style.display = 'block';
+    resultBox.style.background = 'rgba(63,179,127,.1)';
+    resultBox.style.border = '1px solid rgba(63,179,127,.25)';
+    resultBox.style.color = 'var(--green)';
+    resultBox.textContent = (LANG==='en') ? '✅ Purchase complete! PDF downloaded.' : '✅ 구매 완료! PDF가 다운로드됐습니다.';
+    loadPoints(); loadMyOrders();
+  } catch(e){
+    console.error('[shop] purchase error', e);
+    resultBox.style.display = 'block';
+    resultBox.style.background = 'rgba(224,85,85,.1)';
+    resultBox.style.border = '1px solid rgba(224,85,85,.25)';
+    resultBox.style.color = 'var(--red)';
+    resultBox.textContent = '⚠️ ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = (LANG==='en') ? 'Buy & Download' : '구매하고 다운로드';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  applyLang();
+  loadPricing();
+  loadProducts();
+  loadPoints();
+  loadMyOrders();
+});
+</script>
+
+</body>
+</html>
