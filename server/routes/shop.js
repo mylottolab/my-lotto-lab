@@ -162,8 +162,9 @@ router.post('/purchase', async (req, res) => {
       points_charged: amount, status: 'completed',
     });
 
+    const filenameEncoded = encodeURIComponent(productId + '_마킹용지.pdf');
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="' + productId + '_마킹용지.pdf"');
+    res.setHeader('Content-Disposition', "attachment; filename=\"" + productId + ".pdf\"; filename*=UTF-8''" + filenameEncoded);
     return res.send(pdfBuffer);
   } catch (err) {
     console.error('[shop] purchase 오류:', err);
