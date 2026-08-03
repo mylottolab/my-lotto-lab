@@ -124,12 +124,12 @@ async function createEntriesForRound(roundId, targetRound, horses, fixedCombosMa
     .order('round', { ascending: false }).limit(1000);
 
   const rows = horses.map(h => ({
-    round_id: roundId,
-    horse_no: h.no,
+    round: roundId,
+    horse: h.no,
     combos: engine.resolveCombosForHorse(h, history || [], fixedCombosMap),
     generated_at: new Date().toISOString(),
   }));
-  const { error } = await supabase.from('seoul_race_entries').upsert(rows, { onConflict: 'round_id,horse_no' });
+  const { error } = await supabase.from('seoul_race_entries').upsert(rows, { onConflict: 'round,horse' });
   if (error) throw error;
 }
 
@@ -163,10 +163,10 @@ async function settleRound(round, winData, horses, fixedCombosMap) {
   // ⚠ 2026-08 변경: 조합을 여기서 다시 만들지 않고, 라운드 오픈 시점에
   // createEntriesForRound()가 미리 만들어둔 조합을 그대로 불러와서 채점만 한다.
   const { data: entries, error: entErr } = await supabase
-    .from('seoul_race_entries').select('horse_no, combos').eq('round_id', round.id);
+    .from('seoul_race_entries').select('horse, combos').eq('round', round.id);
   if (entErr) throw entErr;
   const entryMap = {};
-  (entries || []).forEach(e => { entryMap[e.horse_no] = e.combos; });
+  (entries || []).forEach(e => { entryMap[e.horse] = e.combos; });
 
   const resultRows = [];
   const resultsByHorseNo = {};
