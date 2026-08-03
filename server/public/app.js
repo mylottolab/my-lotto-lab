@@ -341,6 +341,11 @@ APP.formatCountdown = function(ms){
   return pad(hh)+':'+pad(mm)+':'+pad(ss);
 };
 
+// 게임별 화폐단위 (유로밀리언스는 유로, 그 외 미국계 복권은 달러)
+APP.currencySymbol = function(gameCode){
+  return (gameCode === 'EUROMILLIONS') ? '€' : '$';
+};
+
 APP.renderGameTabs = function(){
   var lang = APP.state.lang;
   var html = GLOBAL.gameList().map(function(g){
@@ -349,7 +354,7 @@ APP.renderGameTabs = function(){
     var drawLabel = lang === 'en' ? g.drawDaysLabelEn : g.drawDaysLabelKr;
     var live = APP.gameLiveStats(g.code);
     var animVal = APP._getAnimatedJackpotValue(g.code);
-    var jpLabel = animVal ? ('$' + Math.round(animVal).toLocaleString()) : '-';
+    var jpLabel = animVal ? (APP.currencySymbol(g.code) + Math.round(animVal).toLocaleString()) : '-';
     return '<div class="game-tab' + (active ? ' active' : '') + '" style="--tab-accent:' + g.accent + ';" onclick="APP.selectGame(\'' + g.code + '\')">' +
       '<div class="gname"><span class="dot"></span>' + name + '<button class="help-btn" onclick="event.stopPropagation();APP.openHelp(\'' + g.code + '\')" title="?">?</button></div>' +
       '<div class="gsub">' + g.mainPickCount + '/' + g.mainPoolSize + ' + ' + g.subPickCount + '/' + g.subPoolSize + ' · ' + drawLabel + '</div>' +
@@ -379,8 +384,8 @@ APP.renderInfoCard = function(){
 
   var deadlineBi = live.deadlineMs ? GLOBAL.formatDeadlineBilingual(live.deadlineMs, g.cutoffTz, lang) : { local:'-', kst:'-' };
   var animVal = APP._getAnimatedJackpotValue(g.code);
-  var jpAmountLabel = animVal ? ('$' + Math.round(animVal).toLocaleString()) : '-';
-  var cashLine = jp.cash_value ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': $' + Number(jp.cash_value).toLocaleString() + '</div>') : '';
+  var jpAmountLabel = animVal ? (APP.currencySymbol(g.code) + Math.round(animVal).toLocaleString()) : '-';
+  var cashLine = jp.cash_value ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': ' + APP.currencySymbol(g.code) + Number(jp.cash_value).toLocaleString() + '</div>') : '';
   var asOfLine = jp.fetched_at ? new Date(jp.fetched_at).toLocaleString(lang==='en'?'en-US':'ko-KR') : '-';
 
   document.getElementById('liveBar').innerHTML =
@@ -413,7 +418,7 @@ APP.startLiveTicker = function(){
 
       var animVal = APP._getAnimatedJackpotValue(g.code);
       if (animVal) {
-        var jpStr = '$' + Math.round(animVal).toLocaleString();
+        var jpStr = APP.currencySymbol(g.code) + Math.round(animVal).toLocaleString();
         document.querySelectorAll('[data-live-jackpot="' + g.code + '"]').forEach(function(el){ el.textContent = jpStr; });
         var bigJp = document.querySelector('[data-live-jackpot-big="' + g.code + '"]');
         if (bigJp) bigJp.textContent = jpStr;
