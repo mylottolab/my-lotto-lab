@@ -318,6 +318,25 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <div class="card">
+    <h2>🛍️ 품샵 가격 설정</h2>
+    <p class="desc" style="margin-bottom:12px;">서로다른조합/반복마킹/역대당첨재현/망쪼번호(상품1~4)는 조합당 단가, 빈 마킹용지(상품5)는 페이지당(A4 1장=전표3매=15게임) 단가입니다. 저장 즉시 다음 구매부터 새 가격 적용됩니다.</p>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      <span style="font-size:12.5px;color:var(--text-dim);width:170px;">조합당 (상품1~4)</span>
+      <input type="number" id="shopPriceComboInput" min="1" step="1" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;width:140px;">
+      <span style="font-size:12px;color:var(--text-dim);">P / 조합</span>
+      <button onclick="saveShopPriceCombo()" style="background:var(--surface);border:1px solid var(--gold-dim);color:var(--gold);border-radius:6px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;">저장</button>
+      <span id="shopPriceComboUpdated" style="font-size:10.5px;color:var(--text-faint);"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:12.5px;color:var(--text-dim);width:170px;">페이지당 (상품5 빈용지)</span>
+      <input type="number" id="shopPriceBlankInput" min="1" step="1" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;width:140px;">
+      <span style="font-size:12px;color:var(--text-dim);">P / 페이지</span>
+      <button onclick="saveShopPriceBlank()" style="background:var(--surface);border:1px solid var(--gold-dim);color:var(--gold);border-radius:6px;padding:8px 16px;font-size:12.5px;font-weight:700;cursor:pointer;">저장</button>
+      <span id="shopPriceBlankUpdated" style="font-size:10.5px;color:var(--text-faint);"></span>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>📋 메뉴별 포인트 차감 단가</h2>
     <button class="toggle-add-btn" onclick="toggleAddForm()" id="addToggleBtn">➕ 새 항목 추가</button>
     <div class="add-form" id="addForm" style="display:none;">
@@ -474,6 +493,14 @@ async function loadAll(){
     var unitPrice = await apiGet('/api/admin/settings/race_betting_unit_price');
     document.getElementById('unitPriceInput').value = unitPrice.value || 100;
     document.getElementById('unitPriceUpdated').textContent = unitPrice.updated_at ? ('최종수정: ' + new Date(unitPrice.updated_at).toLocaleString('ko-KR')) : '(기본값 100P 사용 중)';
+
+    var shopPriceCombo = await apiGet('/api/admin/settings/shop_price_per_combo');
+    document.getElementById('shopPriceComboInput').value = shopPriceCombo.value || 100;
+    document.getElementById('shopPriceComboUpdated').textContent = shopPriceCombo.updated_at ? ('최종수정: ' + new Date(shopPriceCombo.updated_at).toLocaleString('ko-KR')) : '(기본값 100P 사용 중)';
+
+    var shopPriceBlank = await apiGet('/api/admin/settings/shop_price_per_blank_page');
+    document.getElementById('shopPriceBlankInput').value = shopPriceBlank.value || 1000;
+    document.getElementById('shopPriceBlankUpdated').textContent = shopPriceBlank.updated_at ? ('최종수정: ' + new Date(shopPriceBlank.updated_at).toLocaleString('ko-KR')) : '(기본값 1000P 사용 중)';
   } catch(e) {
     console.error(e);
   }
@@ -486,6 +513,26 @@ async function saveUnitPrice(){
     var result = await apiPut('/api/admin/settings/race_betting_unit_price', { value: Number(val) });
     showToast('1구좌당 포인트가 저장되었습니다.', true);
     document.getElementById('unitPriceUpdated').textContent = '최종수정: ' + new Date(result.item.updated_at).toLocaleString('ko-KR');
+  } catch(e){}
+}
+
+async function saveShopPriceCombo(){
+  var val = document.getElementById('shopPriceComboInput').value;
+  if (!val || Number(val) <= 0) { showToast('1 이상의 숫자를 입력해주세요.', false); return; }
+  try {
+    var result = await apiPut('/api/admin/settings/shop_price_per_combo', { value: Number(val) });
+    showToast('품샵 조합당 가격이 저장되었습니다.', true);
+    document.getElementById('shopPriceComboUpdated').textContent = '최종수정: ' + new Date(result.item.updated_at).toLocaleString('ko-KR');
+  } catch(e){}
+}
+
+async function saveShopPriceBlank(){
+  var val = document.getElementById('shopPriceBlankInput').value;
+  if (!val || Number(val) <= 0) { showToast('1 이상의 숫자를 입력해주세요.', false); return; }
+  try {
+    var result = await apiPut('/api/admin/settings/shop_price_per_blank_page', { value: Number(val) });
+    showToast('품샵 빈용지 페이지당 가격이 저장되었습니다.', true);
+    document.getElementById('shopPriceBlankUpdated').textContent = '최종수정: ' + new Date(result.item.updated_at).toLocaleString('ko-KR');
   } catch(e){}
 }
 
