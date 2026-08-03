@@ -233,6 +233,22 @@ body{
 @media (max-width:680px){
   .stadium-lines{display:none;}
 }
+
+/* ── Seoul Jackpot Racetrack 배너: 골드 트랙 그라디언트 + 타원 트랙 모티프 (2026-08 신설, 토토·프로토 자리 대체) ── */
+.racetrack-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;margin-top:16px;
+  background:radial-gradient(circle at 88% 15%, rgba(224,179,65,.24), transparent 55%),
+             radial-gradient(circle at 10% 95%, rgba(184,92,32,.15), transparent 50%),
+             linear-gradient(135deg, #211705 0%, #2c1f08 100%);
+  border:1px solid #5a4318;transition:transform .2s, border-color .2s;}
+.racetrack-card:hover{transform:translateY(-3px);border-color:#e0b341;}
+.racetrack-card:focus-visible{outline:2px solid #e0b341;outline-offset:2px;}
+.racetrack-glow{position:absolute;top:-60%;right:-10%;width:280px;height:280px;border-radius:50%;background:#e0b341;opacity:.10;filter:blur(60px);pointer-events:none;}
+.racetrack-oval{position:absolute;right:10px;top:50%;width:150px;height:88px;margin-top:-44px;border:1px solid rgba(255,255,255,.10);border-radius:50%;pointer-events:none;}
+.racetrack-oval::before{content:'';position:absolute;left:18px;top:18px;right:18px;bottom:18px;border:1px solid rgba(255,255,255,.08);border-radius:50%;}
+.racetrack-tag{color:#f3d785 !important;}
+@media (max-width:680px){
+  .racetrack-oval{display:none;}
+}
 @media (max-width:680px){
   .globe-content{flex-direction:column;align-items:flex-start;}
   .globe-arrow{display:none;}
@@ -393,7 +409,7 @@ body{
         <span class="hcard-tag live" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
       </div>
       <div>
-        <div class="hcard-name" data-i18n-kr="Data 등록과 관리" data-i18n-en="Data Entry &amp; Management">Data 등록과 관리</div>
+        <div class="hcard-name" data-i18n-kr="Data 등록과 관리(부담없는 대량등록과 실험)" data-i18n-en="Data Entry &amp; Management (Free, worry-free bulk entry &amp; experiments)">Data 등록과 관리(부담없는 대량등록과 실험)</div>
         <div class="hcard-desc" data-i18n-kr="직접 선택 · 카메라/QR · 엑셀 대량 등록 · AI 음성·문자 입력까지, 내 번호를 기록하는 4가지 방법과 기타 등록되거나 생성된 모든 Data의 관리" data-i18n-en="Manual pick · Camera/QR · Bulk Excel upload · AI voice/text input — 4 ways to record your numbers, plus management of all registered or generated data">직접 선택 · 카메라/QR · 엑셀 대량 등록 · AI 음성·문자 입력까지, 내 번호를 기록하는 4가지 방법과 기타 등록되거나 생성된 모든 Data의 관리</div>
       </div>
       <div class="hcard-stat"><span class="num font-num" id="statEntries">0</span><span class="unit" data-i18n-kr="개 등록된 번호조합" data-i18n-en=" entries registered">개 등록된 번호조합</span></div>
@@ -536,23 +552,22 @@ body{
 
   <div class="genre-divider">
     <span class="gd-line"></span>
-    <span class="gd-label" data-i18n-kr="⚽ 토토·프로토 세계로 건너가기" data-i18n-en="⚽ Cross over to Toto·Proto">⚽ 토토·프로토 세계로 건너가기</span>
+    <span class="gd-label" data-i18n-kr="🐎 Seoul Jackpot Racetrack으로 건너가기" data-i18n-en="🐎 Cross over to Seoul Jackpot Racetrack">🐎 Seoul Jackpot Racetrack으로 건너가기</span>
     <span class="gd-line"></span>
   </div>
 
-  <div class="stadium-card" onclick="location.href='toto_proto.html'" tabindex="0" role="button">
-    <div class="stadium-glow"></div>
-    <div class="stadium-lines"></div>
+  <div class="racetrack-card" onclick="location.href='hub_seoul_race.html'" tabindex="0" role="button">
+    <div class="racetrack-glow"></div>
+    <div class="racetrack-oval"></div>
     <div class="globe-content">
-      <div class="globe-icon">⚽</div>
+      <div class="globe-icon">🐎</div>
       <div class="globe-text">
-        <div class="globe-tag stadium-tag">NEW · SPORTS</div>
-        <div class="globe-title" data-i18n-kr="토토 · 프로토 시뮬레이터" data-i18n-en="Toto · Proto Simulator">토토 · 프로토 시뮬레이터</div>
-        <div class="globe-desc" data-i18n-kr="실제 시장 규모는 어마어마하지만, 막상 큰돈 들이지 않고는 경험하기 어려운 베팅. 같은 포인트로 소액(가상)부터 찍어보고, 결과를 보며 나만의 로직과 승률을 다듬어보는 연습장입니다." data-i18n-en="The real market is enormous, yet hard to experience without risking real money. Try small (virtual) stakes with the same points, and use the results to refine your own logic and win rate.">실제 시장 규모는 어마어마하지만, 막상 큰돈 들이지 않고는 경험하기 어려운 베팅. 같은 포인트로 소액(가상)부터 찍어보고, 결과를 보며 나만의 로직과 승률을 다듬어보는 연습장입니다.</div>
+        <div class="globe-tag racetrack-tag">NEW · RACETRACK</div>
+        <div class="globe-title" data-i18n-kr="Seoul Jackpot Racetrack" data-i18n-en="Seoul Jackpot Racetrack">Seoul Jackpot Racetrack</div>
+        <div class="globe-desc" data-i18n-kr="100마리의 전략이 한국로또 결과를 두고 겨루는 페이퍼 경마. 매주 토요일 실제 추첨을 기다리는 대상경마와, 20분마다 배팅·정산이 무한 반복되는 상시경마 두 가지로 즐기세요." data-i18n-en="A paper horse race where 100 strategies compete against the Korean Lotto draw. Enjoy the weekly Grand Prix race tied to Saturday's real draw, or the Standing Race that runs betting-and-settlement cycles every 20 minutes, around the clock.">100마리의 전략이 한국로또 결과를 두고 겨루는 페이퍼 경마. 매주 토요일 실제 추첨을 기다리는 대상경마와, 20분마다 배팅·정산이 무한 반복되는 상시경마 두 가지로 즐기세요.</div>
         <div class="globe-games">
-          <span class="gg-pill" style="--c:#3fb37f;" onclick="event.stopPropagation();location.href='toto_proto.html?tab=toto'" data-i18n-kr="토토(승무패)" data-i18n-en="Toto (Win-Draw-Lose)">토토(승무패)</span>
-          <span class="gg-pill" style="--c:#e8a23a;" onclick="event.stopPropagation();location.href='toto_proto.html?tab=toto&game=BASKETBALL'" data-i18n-kr="토토(승5패)" data-i18n-en="Toto (Win-5-Lose)">토토(승5패)</span>
-          <span class="gg-pill" style="--c:#5b9bd5;" onclick="event.stopPropagation();location.href='toto_proto.html?tab=proto'" data-i18n-kr="프로토 승부식" data-i18n-en="Proto Match Betting">프로토 승부식</span>
+          <span class="gg-pill" style="--c:#e0b341;" onclick="event.stopPropagation();location.href='hub_seoul_race.html?tab=standard'" data-i18n-kr="대상경마(주간)" data-i18n-en="Grand Prix (Weekly)">대상경마(주간)</span>
+          <span class="gg-pill" style="--c:#e8732f;" onclick="event.stopPropagation();location.href='hub_seoul_race.html?tab=always'" data-i18n-kr="상시경마(24시간)" data-i18n-en="Standing Race (24/7)">상시경마(24시간)</span>
         </div>
       </div>
       <div class="globe-arrow">→</div>
