@@ -54,6 +54,24 @@ body{
 .theme-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;flex-shrink:0;}
 .theme-toggle:hover{border-color:var(--gold);}
 
+/* ── PaperLotto 자매사이트 광고배너 2종 (2026-08 신설) ── */
+.pl-ads{max-width:1180px;margin:20px auto 0;padding:0 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:760px){.pl-ads{grid-template-columns:1fr;}}
+.pl-ad{position:relative;border-radius:16px;padding:26px 26px;cursor:pointer;overflow:hidden;min-height:150px;display:flex;flex-direction:column;justify-content:center;
+  background:radial-gradient(circle at 85% 15%, rgba(224,179,65,.16), transparent 55%),
+             linear-gradient(135deg, #12162b 0%, #191d3a 100%);
+  border:1px solid #2b3155;transition:transform .2s, border-color .2s;}
+.pl-ad:hover{transform:translateY(-3px);border-color:#e0b341;}
+.pl-ad-eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;color:#e0b341;text-transform:uppercase;margin-bottom:8px;}
+.pl-ad-title{font-size:17px;font-weight:700;color:#f4f5f9;letter-spacing:-0.01em;line-height:1.35;}
+.pl-ad-title .hl{color:#e0b341;}
+.pl-ad-desc{font-size:11.5px;color:#9aa0c0;margin-top:8px;line-height:1.6;max-width:320px;}
+.pl-ad-arrow{position:absolute;right:20px;bottom:18px;color:#9aa0c0;font-size:16px;}
+.pl-ad.pl-track{background:radial-gradient(circle at 85% 15%, rgba(224,179,65,.20), transparent 55%),
+             linear-gradient(135deg, #0f1730 0%, #1a1206 100%);
+  border:1px solid #4a3a15;}
+.pl-ad.pl-track:hover{border-color:#e0b341;}
+
 /* ── 헤더 ── */
 .topbar{border-bottom:1px solid var(--border-soft);}
 .topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
@@ -599,6 +617,22 @@ body{
       </div>
       <div class="globe-arrow">→</div>
     </div>
+  </div>
+</div>
+
+<div class="pl-ads">
+  <div class="pl-ad" onclick="location.href='https://paperlotto.com/'" tabindex="0" role="button">
+    <div class="pl-ad-eyebrow">NO PURCHASE · NO PRIZE · PURE SIMULATION</div>
+    <div class="pl-ad-title" data-i18n-kr="세계 12개 복권을, <span class=&quot;hl&quot;>실제 돈 없이</span> 종이 위에서" data-i18n-en="12 lotteries worldwide, <span class=&quot;hl&quot;>with no real money</span>, on paper" data-i18n-html="true">세계 12개 복권을, <span class="hl">실제 돈 없이</span> 종이 위에서</div>
+    <div class="pl-ad-desc" data-i18n-kr="한국·미국·일본·캐나다·호주·유럽 — 전략 번호를 가상으로 등록하고 실제 추첨 결과와 비교해보세요. PaperLotto에서 확인하기" data-i18n-en="Korea · US · Japan · Canada · Australia · Europe — register your strategy numbers virtually and compare them against real draw results. Visit PaperLotto">한국·미국·일본·캐나다·호주·유럽 — 전략 번호를 가상으로 등록하고 실제 추첨 결과와 비교해보세요. PaperLotto에서 확인하기</div>
+    <div class="pl-ad-arrow">→</div>
+  </div>
+
+  <div class="pl-ad pl-track" onclick="location.href='https://paperlotto.com/paperlotto_racetrack_mockup.html'" tabindex="0" role="button">
+    <div class="pl-ad-eyebrow">🐎 WORLD JACKPOT RACETRACK</div>
+    <div class="pl-ad-title" data-i18n-kr="<span class=&quot;hl&quot;>100마리의 전략</span>, 매 회차 새로운 경주" data-i18n-en="<span class=&quot;hl&quot;>100 strategies.</span> A brand new race every round." data-i18n-html="true"><span class="hl">100마리의 전략</span>, 매 회차 새로운 경주</div>
+    <div class="pl-ad-desc" data-i18n-kr="12개국 복권 결과를 두고 100가지 전략이 겨루는 페이퍼 경마. 포인트로 베팅하고, 정산은 100% 자동. PaperLotto 경마장 구경하기" data-i18n-en="A paper horse race where 100 strategies compete against 12 countries' lottery results. Bet with points — settlement is 100% automatic. Visit PaperLotto's racetrack">12개국 복권 결과를 두고 100가지 전략이 겨루는 페이퍼 경마. 포인트로 베팅하고, 정산은 100% 자동. PaperLotto 경마장 구경하기</div>
+    <div class="pl-ad-arrow">→</div>
   </div>
 </div>
 
