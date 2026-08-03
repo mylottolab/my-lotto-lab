@@ -279,20 +279,22 @@ async function tickAlwaysRace() {
     // 저장해뒀다(그때 조합도 그 회차 기준으로 미리 생성됨) — 정산 시점에 새로 정하지 않는다.
     const replayRound = due.lotto_round_ref;
     const winData = replayRound ? await getLottoResult(replayRound) : null;
+
     if (!replayRound || !winData) {
-      // 예상 못한 결측(안전망) — 건너뛰고 그냥 정산완료 처리, 다음 사이클은 정상 진행
-      console.error(`[seoulRaceAutoRun] round(id=${due.id})의 lotto_round_ref=${replayRound} 결과를 찾을 수 없어 건너뜁니다.`);
+      // 예상 못한 결측(안전망) — 채점은 건너뛰지만, 다음 라운드는 반드시 생성한다.
+      // ⚠ 2026-08 버그수정: 예전엔 여기서 continue로 다음 라운드 생성까지 건너뛰어서,
+      // lotto_round_ref가 한 번이라도 비면 그 이후 tick이 영원히 멈추는 문제가 있었음.
+      console.error(`[seoulRaceAutoRun] round(id=${due.id})의 lotto_round_ref=${replayRound} 결과를 찾을 수 없어 채점은 건너뜁니다(다음 라운드는 정상 생성).`);
       await supabase.from('seoul_race_rounds').update({ status: 'settled', settled_at: now.toISOString() }).eq('id', due.id);
-      continue;
+    } else {
+      await settleRound(due, { ...winData, round: replayRound }, horses, fixedCombosMap);
+      await saveReplayProgress(replayRound);
+      await supabase.from('seoul_race_rounds').update({
+        status: 'settled', settled_at: now.toISOString(),
+      }).eq('id', due.id);
     }
 
-    await settleRound(due, { ...winData, round: replayRound }, horses, fixedCombosMap);
-    await saveReplayProgress(replayRound);
-    await supabase.from('seoul_race_rounds').update({
-      status: 'settled', settled_at: now.toISOString(),
-    }).eq('id', due.id);
-
-    // 다음 라운드 자동 생성 (베팅 유무와 무관하게 항상 생성)
+    // 다음 라운드 자동 생성 (베팅 유무, 위 채점 성공/실패와 무관하게 항상 생성 — 무한정지 방지)
     // ── 매시 00분/30분에 항상 배팅이 시작되도록 30분 그리드에 정렬 ──
     const endMs = new Date(due.betting_ends_at).getTime();
     const bettingStarts = new Date(nextGridBoundary(endMs));
