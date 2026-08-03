@@ -133,6 +133,31 @@ async function createEntriesForRound(roundId, targetRound, horses, fixedCombosMa
   if (error) throw error;
 }
 
+// ─── 말 1마리의 누적 성적(seoul_race_horse_stats) 갱신 (라운드마다 호출) ────
+async function updateHorseStats(raceMode, horseNo, rd) {
+  const { data: prev, error: prevErr } = await supabase
+    .from('seoul_race_horse_stats').select('*').eq('horse_no', horseNo).eq('race_mode', raceMode).maybeSingle();
+  if (prevErr) { console.error('[seoulRaceAutoRun] horse_stats 조회 오류:', prevErr); return; }
+
+  const row = {
+    horse_no: horseNo,
+    race_mode: raceMode,
+    races_run: (prev?.races_run || 0) + 1,
+    grade1_count: (prev?.grade1_count || 0) + (rd.gradeCounts[1] || 0),
+    grade2_count: (prev?.grade2_count || 0) + (rd.gradeCounts[2] || 0),
+    grade3_count: (prev?.grade3_count || 0) + (rd.gradeCounts[3] || 0),
+    grade4_count: (prev?.grade4_count || 0) + (rd.gradeCounts[4] || 0),
+    grade5_count: (prev?.grade5_count || 0) + (rd.gradeCounts[5] || 0),
+    fail_count: (prev?.fail_count || 0) + (rd.gradeCounts.fail || 0),
+    total_combos: (prev?.total_combos || 0) + rd.generated,
+    win_count: (prev?.win_count || 0) + rd.winCount,
+    total_prize: (prev?.total_prize || 0) + rd.totalPrize,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabase.from('seoul_race_horse_stats').upsert(row, { onConflict: 'horse_no,race_mode' });
+  if (error) console.error('[seoulRaceAutoRun] horse_stats 갱신 오류:', error);
+}
+
 // ─── 라운드 하나 정산 (저장된 조합을 그대로 채점 — 재생성하지 않음) ──────────
 async function settleRound(round, winData, horses, fixedCombosMap) {
   // ⚠ 2026-08 변경: 조합을 여기서 다시 만들지 않고, 라운드 오픈 시점에
@@ -145,7 +170,7 @@ async function settleRound(round, winData, horses, fixedCombosMap) {
 
   const resultRows = [];
   const resultsByHorseNo = {};
-  horses.forEach(h => {
+  for (const h of horses) {
     const combos = entryMap[h.no];
     if (!combos || !combos.length) {
       // 저장된 조합이 없는 비정상 상황(안전망) — 그 자리에서 즉석 생성해서라도 채점은 진행
@@ -162,10 +187,19 @@ async function settleRound(round, winData, horses, fixedCombosMap) {
       grade4_count: rd.gradeCounts[4], grade5_count: rd.gradeCounts[5], fail_count: rd.gradeCounts.fail,
       win_count: rd.winCount, best_grade: rd.bestGrade, total_prize: rd.totalPrize,
     });
-  });
+  }
 
   const { error: resErr } = await supabase.from('seoul_race_results').upsert(resultRows, { onConflict: 'round_id,horse_no' });
   if (resErr) throw resErr;
+
+  // ── 말별 누적 성적 갱신 (신뢰도 표시용 — 이번 라운드까지 포함해서 전부 반영) ──
+  for (const h of horses) {
+    try {
+      await updateHorseStats(round.race_mode, h.no, resultsByHorseNo[h.no]);
+    } catch (e) {
+      console.error(`[seoulRaceAutoRun] horse_stats 갱신 실패(horse_no=${h.no}):`, e.message);
+    }
+  }
 
   // 우승마 결정 (동석이면 공동우승)
   const ranked = engine.rankHorses(resultsByHorseNo);
@@ -403,7 +437,87 @@ async function bootstrapStandardRace(nextRoundNo) {
   return { success: true, cycle_no: nextRoundNo, window };
 }
 
+// =====================================================
+// [소급계산] runBackfillChunk(mode, roundsPerCall)
+// "처음부터 이미 돌았던 것처럼" 과거 회차들을 seoul_race_horse_stats에만 반영.
+// 실제 라운드(seoul_race_rounds)나 조합저장(seoul_race_entries)은 만들지 않음
+// (PaperLotto race-backfill.ts와 동일한 설계 — 용량 절약 + 실제 라이브 경주와 겹쳐도
+//  중복집계 없음).
+//
+// mode='standard' → 목표회차 1235 (대상경마: 지금까지 모든 실제 로또645 회차)
+// mode='always'   → 목표회차 500  (상시경마: 실시간 재생이 501부터 시작하니 그 이전 구간)
+//
+// 한 번 호출에 roundsPerCall개(기본 10)만 처리하고 진행상황을 저장 — 회차가 많아서
+// (최대 1235개) 여러 번 나눠 호출해야 함. 이미 목표까지 다 됐으면 done:true 반환.
+// =====================================================
+const BACKFILL_TARGET = { standard: 1235, always: 500 };
+
+async function getBackfillProgress(mode) {
+  const { data, error } = await supabase
+    .from('seoul_race_backfill_progress').select('*').eq('race_mode', mode).maybeSingle();
+  if (error) throw error;
+  if (data) return data;
+  const row = { race_mode: mode, last_processed_round: 0, target_round: BACKFILL_TARGET[mode] };
+  const { error: insErr } = await supabase.from('seoul_race_backfill_progress').insert(row);
+  if (insErr) throw insErr;
+  return row;
+}
+
+async function saveBackfillProgress(mode, round) {
+  const { error } = await supabase
+    .from('seoul_race_backfill_progress')
+    .upsert({ race_mode: mode, last_processed_round: round, updated_at: new Date().toISOString() }, { onConflict: 'race_mode' });
+  if (error) throw error;
+}
+
+async function runBackfillChunk(mode, roundsPerCall) {
+  if (mode !== 'standard' && mode !== 'always') throw new Error("mode는 'standard' 또는 'always'여야 합니다.");
+  const chunk = roundsPerCall && roundsPerCall > 0 ? roundsPerCall : 10;
+
+  const horses = await loadHorses();
+  if (!horses.length) return { skipped: true, reason: 'no_horses_seeded' };
+  const fixedCombosMap = await ensureFixedCombos(horses);
+
+  const progress = await getBackfillProgress(mode);
+  const target = progress.target_round;
+  let cur = progress.last_processed_round;
+
+  if (cur >= target) return { done: true, lastProcessedRound: cur, target };
+
+  const { data: allResultsAsc, error: fetchErr } = await supabase
+    .from('kr_lotto_results').select('round, nums, bonus')
+    .gt('round', cur).lte('round', Math.min(target, cur + chunk))
+    .order('round', { ascending: true });
+  if (fetchErr) throw fetchErr;
+
+  if (!allResultsAsc || !allResultsAsc.length) {
+    // 이 구간에 데이터가 없음(결측) — 커서만 목표범위 안에서 전진시키고 종료
+    const nextCur = Math.min(target, cur + chunk);
+    await saveBackfillProgress(mode, nextCur);
+    return { success: true, processedRounds: 0, lastProcessedRound: nextCur, target, done: nextCur >= target };
+  }
+
+  let processed = 0;
+  for (const winData of allResultsAsc) {
+    const { data: history } = await supabase
+      .from('kr_lotto_results').select('round, nums').lt('round', winData.round)
+      .order('round', { ascending: false }).limit(1000);
+
+    for (const h of horses) {
+      const combos = engine.resolveCombosForHorse(h, history || [], fixedCombosMap);
+      const rd = engine.gradeCombos(combos, winData);
+      await updateHorseStats(mode, h.no, rd);
+    }
+    cur = winData.round;
+    processed++;
+  }
+
+  await saveBackfillProgress(mode, cur);
+  return { success: true, processedRounds: processed, lastProcessedRound: cur, target, done: cur >= target };
+}
+
 module.exports = {
   tickAlwaysRace, loadHorses, ensureFixedCombos,
   catchupStandardRace, bootstrapStandardRace,
+  runBackfillChunk,
 };
