@@ -474,10 +474,15 @@ async function getBackfillProgress(mode) {
   return row;
 }
 
+// ⚠ upsert(INSERT...ON CONFLICT)는 충돌 여부와 무관하게 "삽입 시도용 행"부터 만들기 때문에,
+// target_round를 안 보내면 그 시점에 NOT NULL 위반으로 실패한다(이미 있는 행이라도 마찬가지).
+// 이 함수가 호출되는 시점엔 getBackfillProgress()가 이미 행을 만들어둔 게 보장되므로,
+// upsert가 아니라 update만 쓰면 된다 (2026-08 버그수정).
 async function saveBackfillProgress(mode, round) {
   const { error } = await supabase
     .from('seoul_race_backfill_progress')
-    .upsert({ race_mode: mode, last_processed_round: round, updated_at: new Date().toISOString() }, { onConflict: 'race_mode' });
+    .update({ last_processed_round: round, updated_at: new Date().toISOString() })
+    .eq('race_mode', mode);
   if (error) throw error;
 }
 
