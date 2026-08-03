@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - Seoul Jackpot Racetrack</title>
+<script src="common.js?v=20260709a"></script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  /* ── 야간모드(기본) ── */
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f;
+  --accent:#e0b341; --accent-bg:rgba(224,179,65,.14);
+  --orange:#e8732f; --orange-bg:rgba(232,115,47,.14);
+  --green:#3fb37f; --red:#e05555;
+  --card-shadow:0 1px 2px rgba(0,0,0,.2);
+  --card-shadow-hover:0 8px 20px rgba(0,0,0,.32);
+  --bg-top:#0d1120;
+}
+body.light-mode{
+  /* ── 주간모드 ── */
+  --bg:#dbe0ee; --surface:#ffffff; --surface-2:#eef1f9;
+  --border:#c2c8dd; --border-soft:#d2d7e8;
+  --text:#161b30; --text-dim:#4c5372; --text-faint:#7a80a0;
+  --gold:#a8781f; --gold-dim:#8a6f2f;
+  --accent:#a8781f; --accent-bg:rgba(168,120,31,.10);
+  --orange:#c65a1f; --orange-bg:rgba(198,90,31,.10);
+  --green:#178072; --red:#c94040;
+  --card-shadow:0 1px 2px rgba(30,36,66,.06);
+  --card-shadow-hover:0 10px 24px rgba(30,36,66,.12);
+  --bg-top:#e7eaf5;
+}
+body{
+  background:var(--bg);
+  background-image: linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 340px);
+  color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;
+  font-size:14px;letter-spacing:-0.01em;min-height:100vh;
+}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;}
+
+.topbar{border-bottom:1px solid var(--border-soft);background:var(--surface);}
+.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
+.brand-text .t1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
+.brand-text .t2{font-size:10px;color:var(--text-faint);margin-top:1px;}
+.crumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);}
+.crumb a{cursor:pointer;}
+.crumb a:hover{color:var(--text);}
+.crumb .sep{color:var(--text-faint);}
+.crumb .cur{color:var(--accent);}
+.theme-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;}
+.theme-toggle:hover{border-color:var(--accent);}
+
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 70px;}
+.eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--accent);text-transform:uppercase;}
+.page-title{font-size:25px;font-weight:700;letter-spacing:-0.02em;margin-top:6px;display:flex;align-items:center;gap:10px;}
+.page-sub{font-size:12.5px;color:var(--text-dim);margin-top:8px;line-height:1.7;max-width:760px;}
+
+.tabs{display:flex;gap:8px;margin-top:24px;border-bottom:1px solid var(--border-soft);}
+.tab-btn{padding:10px 18px;font-size:13px;font-weight:600;color:var(--text-dim);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:color .15s,border-color .15s;}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-btn:hover{color:var(--text);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+/* ── 상시경마 현재 라운드 카드 ── */
+.round-card{margin-top:22px;background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:22px 24px;box-shadow:var(--card-shadow);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.round-info .rc-label{font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.08em;}
+.round-info .rc-cycle{font-size:20px;font-weight:700;margin-top:4px;}
+.round-status{display:flex;align-items:center;gap:10px;}
+.status-pill{padding:5px 12px;border-radius:20px;font-size:11.5px;font-weight:700;}
+.status-pill.open{background:var(--accent-bg);color:var(--accent);}
+.status-pill.closed{background:rgba(224,85,85,.12);color:var(--red);}
+.countdown{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text);}
+.countdown-label{font-size:10.5px;color:var(--text-faint);margin-top:2px;}
+
+/* ── 말 목록 그리드 ── */
+.horse-toolbar{display:flex;align-items:center;justify-content:space-between;margin-top:26px;margin-bottom:12px;flex-wrap:wrap;gap:10px;}
+.horse-toolbar .htitle{font-size:15px;font-weight:700;}
+.unit-price-note{font-size:11.5px;color:var(--text-faint);}
+
+.horse-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+@media (max-width:820px){.horse-grid{grid-template-columns:1fr;}}
+
+.horse-row{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--card-shadow);transition:border-color .15s;}
+.horse-row:hover{border-color:var(--accent);}
+.horse-no{width:30px;height:30px;border-radius:8px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:var(--text-dim);flex-shrink:0;}
+.horse-name{flex:1;min-width:0;}
+.horse-name .hn-kr{font-size:13.5px;font-weight:700;}
+.horse-name .hn-en{font-size:10.5px;color:var(--text-faint);}
+.horse-type{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;}
+.horse-type.cond{background:var(--accent-bg);color:var(--accent);}
+.horse-type.fixed{background:var(--orange-bg);color:var(--orange);}
+.horse-type.rand{background:var(--surface-2);color:var(--text-dim);}
+.bet-controls{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.unit-input{width:48px;padding:6px 4px;text-align:center;border:1px solid var(--border);border-radius:7px;background:var(--surface-2);color:var(--text);font-size:12.5px;}
+.bet-btn{padding:7px 12px;border:none;border-radius:7px;background:var(--gold);color:#1a1305;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.bet-btn:hover{filter:brightness(1.08);}
+.bet-btn:disabled{opacity:.45;cursor:not-allowed;}
+
+/* ── 내 베팅 / 이력 ── */
+.section-title{font-size:15px;font-weight:700;margin-top:32px;margin-bottom:12px;}
+.list-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;overflow:hidden;box-shadow:var(--card-shadow);}
+.list-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;font-size:12.5px;border-bottom:1px solid var(--border-soft);}
+.list-row:last-child{border-bottom:none;}
+.list-row .lr-main{color:var(--text);font-weight:600;}
+.list-row .lr-sub{color:var(--text-faint);font-size:11px;margin-top:2px;}
+.list-empty{padding:30px 16px;text-align:center;color:var(--text-faint);font-size:12.5px;}
+.badge-won{color:var(--green);font-weight:700;}
+.badge-pending{color:var(--text-faint);}
+
+.notice-box{margin-top:18px;background:var(--accent-bg);border:1px solid var(--border-soft);border-radius:12px;padding:14px 16px;font-size:11.5px;color:var(--text-dim);line-height:1.7;}
+
+/* ── 대상경마 준비중 ── */
+.coming-soon{margin-top:40px;text-align:center;padding:60px 20px;background:var(--surface);border:1px dashed var(--border);border-radius:16px;}
+.coming-soon .cs-icon{font-size:38px;margin-bottom:14px;}
+.coming-soon .cs-title{font-size:16px;font-weight:700;}
+.coming-soon .cs-desc{font-size:12.5px;color:var(--text-dim);margin-top:8px;max-width:420px;margin-left:auto;margin-right:auto;line-height:1.7;}
+
+.back-row{margin-top:34px;}
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer;}
+.back-link:hover{color:var(--text);}
+
+@media (max-width:680px){
+  .topbar-inner{height:auto;min-height:54px;padding:10px 16px;}
+  .brand-text .t2{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand" onclick="location.href='main_page.html'">
+      <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="brand-text">
+        <div class="t1">My Lotto Lab</div>
+        <div class="t2" data-i18n-kr="가상 로또 등록 · 당첨 분석 · 통계 플랫폼" data-i18n-en="Virtual Lotto Entry · Win Analysis · Stats Platform">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="야간/주간 모드 전환">🌙</button>
+      <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
+        <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
+      </div>
+      <div class="crumb">
+        <a onclick="location.href='main_page.html'" data-i18n-kr="홈" data-i18n-en="Home">홈</a>
+        <span class="sep">/</span>
+        <span class="cur">Seoul Jackpot Racetrack</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="eyebrow">🐎 RACETRACK</div>
+  <div class="page-title">Seoul Jackpot Racetrack</div>
+  <div class="page-sub" data-i18n-kr="100마리의 전략이 한국로또 결과를 두고 겨루는 페이퍼 경마입니다. 실제 돈은 걸리지 않고, 포인트로만 즐기는 시뮬레이션이에요." data-i18n-en="A paper horse race where 100 strategies compete against the Korean Lotto results. No real money is involved — it's a points-only simulation.">100마리의 전략이 한국로또 결과를 두고 겨루는 페이퍼 경마입니다. 실제 돈은 걸리지 않고, 포인트로만 즐기는 시뮬레이션이에요.</div>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tabBtnAlways" onclick="switchTab('always')" data-i18n-kr="상시경마 (24시간)" data-i18n-en="Standing Race (24/7)">상시경마 (24시간)</button>
+    <button class="tab-btn" id="tabBtnStandard" onclick="switchTab('standard')" data-i18n-kr="대상경마 (주간)" data-i18n-en="Grand Prix (Weekly)">대상경마 (주간)</button>
+  </div>
+
+  <!-- ══════════ 상시경마 탭 ══════════ -->
+  <div class="tab-panel active" id="panelAlways">
+
+    <div class="round-card" id="roundCard">
+      <div class="round-info">
+        <div class="rc-label" data-i18n-kr="현재 라운드" data-i18n-en="Current Round">현재 라운드</div>
+        <div class="rc-cycle" id="rcCycle">—</div>
+      </div>
+      <div class="round-status">
+        <div style="text-align:right;">
+          <div class="countdown" id="rcCountdown">--:--</div>
+          <div class="countdown-label" id="rcCountdownLabel" data-i18n-kr="배팅 마감까지" data-i18n-en="Until betting closes">배팅 마감까지</div>
+        </div>
+        <span class="status-pill open" id="rcStatusPill" data-i18n-kr="배팅중" data-i18n-en="Betting Open">배팅중</span>
+      </div>
+    </div>
+
+    <div class="notice-box" data-i18n-kr="⏱ 20분 배팅 → 결과발표·정산 → 10분 휴식, 무한 반복됩니다. 매시 정각(00분)과 30분에 항상 배팅이 새로 시작돼요. 채점은 과거 실제 로또645 당첨번호를 순서대로 재생하는 방식입니다." data-i18n-en="⏱ 20 min betting → results & settlement → 10 min rest, repeating endlessly. Betting always opens fresh at :00 and :30 each hour. Grading replays past real Lotto 6/45 results in sequence.">⏱ 20분 배팅 → 결과발표·정산 → 10분 휴식, 무한 반복됩니다. 매시 정각(00분)과 30분에 항상 배팅이 새로 시작돼요. 채점은 과거 실제 로또645 당첨번호를 순서대로 재생하는 방식입니다.</div>
+
+    <div class="horse-toolbar">
+      <div class="htitle" data-i18n-kr="100마리 말 목록" data-i18n-en="All 100 Horses">100마리 말 목록</div>
+      <div class="unit-price-note" id="unitPriceNote" data-i18n-kr="1구좌 = 100P · 말당 최대 100구좌 · 일일한도 4,000구좌" data-i18n-en="1 unit = 100P · Max 100 units per horse · Daily limit 4,000 units">1구좌 = 100P · 말당 최대 100구좌 · 일일한도 4,000구좌</div>
+    </div>
+
+    <div class="horse-grid" id="horseGrid">
+      <div class="list-empty" data-i18n-kr="말 목록을 불러오는 중..." data-i18n-en="Loading horses...">말 목록을 불러오는 중...</div>
+    </div>
+
+    <div class="section-title" data-i18n-kr="내 베팅 현황" data-i18n-en="My Bets">내 베팅 현황</div>
+    <div class="list-card" id="myBetsList">
+      <div class="list-empty" data-i18n-kr="로그인 또는 비회원 등록 후 이용 가능합니다" data-i18n-en="Log in or register as a guest to view this">로그인 또는 비회원 등록 후 이용 가능합니다</div>
+    </div>
+
+    <div class="section-title" data-i18n-kr="최근 정산 이력" data-i18n-en="Recent Settlements">최근 정산 이력</div>
+    <div class="list-card" id="historyList">
+      <div class="list-empty" data-i18n-kr="불러오는 중..." data-i18n-en="Loading...">불러오는 중...</div>
+    </div>
+
+  </div>
+
+  <!-- ══════════ 대상경마 탭 (준비중) ══════════ -->
+  <div class="tab-panel" id="panelStandard">
+    <div class="coming-soon">
+      <div class="cs-icon">🏇</div>
+      <div class="cs-title" data-i18n-kr="대상경마, 곧 만나보실 수 있어요" data-i18n-en="Grand Prix Race — coming soon">대상경마, 곧 만나보실 수 있어요</div>
+      <div class="cs-desc" data-i18n-kr="매주 토요일 실제 로또645 추첨 결과를 기다리는 주간 경주입니다. 일요일 0시부터 토요일 20시까지 배팅할 수 있어요. 준비되는 대로 공개하겠습니다." data-i18n-en="A weekly race tied to Saturday's real Lotto 6/45 draw. Betting runs from Sunday 00:00 to Saturday 20:00. We'll open this as soon as it's ready.">매주 토요일 실제 로또645 추첨 결과를 기다리는 주간 경주입니다. 일요일 0시부터 토요일 20시까지 배팅할 수 있어요. 준비되는 대로 공개하겠습니다.</div>
+    </div>
+  </div>
+
+  <div class="back-row">
+    <span class="back-link" onclick="location.href='main_page.html'">← <span data-i18n-kr="전체 카테고리로" data-i18n-en="Back to All Categories">전체 카테고리로</span></span>
+  </div>
+</div>
+
+<script>
+// ── 야간/주간 모드 ──
+var THEME = localStorage.getItem('mll_theme');
+if (!THEME) { THEME = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark'; }
+function applyTheme(){
+  document.body.classList.toggle('light-mode', THEME === 'light');
+  var btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = THEME === 'light' ? '☀️' : '🌙';
+}
+function toggleTheme(){ THEME = (THEME === 'light') ? 'dark' : 'light'; localStorage.setItem('mll_theme', THEME); applyTheme(); }
+applyTheme();
+
+// ── 언어 ──
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+function applyLang(){
+  document.title = (LANG === 'en') ? 'My Lotto Lab - Seoul Jackpot Racetrack' : 'My Lotto Lab - Seoul Jackpot Racetrack';
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var t = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if (t !== undefined) el.textContent = t;
+  });
+  var krBtn = document.getElementById('langKrBtn'), enBtn = document.getElementById('langEnBtn');
+  if (krBtn) { krBtn.style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface)'; krBtn.style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)'; }
+  if (enBtn) { enBtn.style.background = LANG==='en' ? 'var(--gold)' : 'var(--surface)'; enBtn.style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)'; }
+  renderHorses(); renderMyBets(); renderHistory();
+}
+function setLang(lang){ LANG = lang; localStorage.setItem('mll_lang', lang); applyLang(); }
+
+// ── 탭 ──
+function switchTab(tab){
+  document.getElementById('tabBtnAlways').classList.toggle('active', tab==='always');
+  document.getElementById('tabBtnStandard').classList.toggle('active', tab==='standard');
+  document.getElementById('panelAlways').classList.toggle('active', tab==='always');
+  document.getElementById('panelStandard').classList.toggle('active', tab==='standard');
+}
+
+// ── 인증 헤더 (common.js MLL.getAuthState()와 동일 규칙) ──
+function authHeaders(){
+  var state = MLL.getAuthState();
+  var h = { 'Content-Type': 'application/json' };
+  if (state.type === 'member') h['Authorization'] = 'Bearer ' + state.token;
+  return h;
+}
+function authBodyExtra(){
+  var state = MLL.getAuthState();
+  if (state.type === 'guest') return { nickname: state.nickname, email: state.email };
+  return {};
+}
+
+// ── 데이터 상태 ──
+var HORSES = [];
+var CURRENT_ROUND = null;
+var UNIT_PRICE = 100;
+var countdownTimer = null;
+
+var TYPE_LABEL = {
+  cond:  { kr: '전략중시형', en: 'Strategy-based' },
+  fixed: { kr: '일편단심형', en: 'Fixed-combo' },
+  rand:  { kr: '될대로되라', en: 'Pure Random' },
+};
+
+async function loadHorses(){
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/seoul-race/horses');
+    var data = await resp.json();
+    HORSES = data.items || [];
+    renderHorses();
+  } catch(e){ console.error('[seoul-race] horses load error', e); }
+}
+
+function renderHorses(){
+  var grid = document.getElementById('horseGrid');
+  if (!HORSES.length) { grid.innerHTML = '<div class="list-empty">' + (LANG==='en' ? 'No horses found.' : '말 데이터가 없습니다.') + '</div>'; return; }
+  grid.innerHTML = HORSES.map(function(h){
+    var typeLbl = (TYPE_LABEL[h.horse_type] || {})[LANG] || h.horse_type;
+    return '' +
+      '<div class="horse-row">' +
+        '<div class="horse-no">' + h.no + '</div>' +
+        '<div class="horse-name">' +
+          '<div class="hn-kr">' + h.name_kr + ' <span class="hn-en">(' + h.name_en + ')</span></div>' +
+        '</div>' +
+        '<span class="horse-type ' + h.horse_type + '">' + typeLbl + '</span>' +
+        '<div class="bet-controls">' +
+          '<input class="unit-input" type="number" min="1" max="100" value="1" id="units_' + h.no + '">' +
+          '<button class="bet-btn" onclick="placeBet(' + h.no + ')" ' + (CURRENT_ROUND ? '' : 'disabled') + '>' + (LANG==='en' ? 'Bet' : '베팅') + '</button>' +
+        '</div>' +
+      '</div>';
+  }).join('');
+}
+
+async function loadCurrentRound(){
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/seoul-race/always/current');
+    var data = await resp.json();
+    CURRENT_ROUND = data.round || null;
+    UNIT_PRICE = data.unitPrice || 100;
+    renderRoundCard();
+    renderHorses();
+  } catch(e){ console.error('[seoul-race] round load error', e); }
+}
+
+function renderRoundCard(){
+  var cycleEl = document.getElementById('rcCycle');
+  var pillEl = document.getElementById('rcStatusPill');
+  if (!CURRENT_ROUND) {
+    cycleEl.textContent = (LANG==='en') ? 'No round open right now' : '지금은 열린 라운드가 없어요';
+    pillEl.textContent = (LANG==='en') ? 'Waiting' : '대기중';
+    pillEl.className = 'status-pill closed';
+    return;
+  }
+  cycleEl.textContent = (LANG==='en' ? 'Cycle #' : '제 ') + CURRENT_ROUND.cycle_no + (LANG==='en' ? '' : '회');
+  pillEl.textContent = (LANG==='en') ? 'Betting Open' : '배팅중';
+  pillEl.className = 'status-pill open';
+  startCountdown();
+}
+
+function startCountdown(){
+  if (countdownTimer) clearInterval(countdownTimer);
+  function tick(){
+    if (!CURRENT_ROUND) return;
+    var end = new Date(CURRENT_ROUND.betting_ends_at).getTime();
+    var now = Date.now();
+    var diff = Math.max(0, Math.floor((end - now) / 1000));
+    var m = Math.floor(diff / 60), s = diff % 60;
+    document.getElementById('rcCountdown').textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    if (diff <= 0) {
+      document.getElementById('rcStatusPill').textContent = (LANG==='en') ? 'Closing…' : '마감 처리중';
+      document.getElementById('rcStatusPill').className = 'status-pill closed';
+      clearInterval(countdownTimer);
+      setTimeout(function(){ loadCurrentRound(); loadHistory(); loadMyBets(); }, 8000);
+    }
+  }
+  tick();
+  countdownTimer = setInterval(tick, 1000);
+}
+
+async function placeBet(horseNo){
+  var state = MLL.getAuthState();
+  if (!state.type) {
+    alert((LANG==='en') ? 'Please log in or register as a guest first.' : '먼저 로그인 또는 비회원 등록을 해주세요.');
+    return;
+  }
+  if (!CURRENT_ROUND) return;
+  var units = Number(document.getElementById('units_' + horseNo).value) || 0;
+  if (units <= 0) { alert((LANG==='en') ? 'Enter a valid number of units.' : '올바른 구좌 수를 입력해주세요.'); return; }
+
+  var body = Object.assign({ roundId: CURRENT_ROUND.id, horseNo: horseNo, units: units }, authBodyExtra());
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/seoul-race/bet', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+    });
+    var data = await resp.json();
+    if (!resp.ok) {
+      alert(data.error || ((LANG==='en') ? 'Failed to place bet.' : '베팅에 실패했습니다.'));
+      return;
+    }
+    alert((LANG==='en') ? 'Bet placed!' : '베팅이 완료되었습니다!');
+    loadMyBets();
+  } catch(e){
+    console.error('[seoul-race] bet error', e);
+    alert((LANG==='en') ? 'An error occurred.' : '오류가 발생했습니다.');
+  }
+}
+
+async function loadMyBets(){
+  var state = MLL.getAuthState();
+  var listEl = document.getElementById('myBetsList');
+  if (!state.type) {
+    listEl.innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'Log in or register as a guest to view this' : '로그인 또는 비회원 등록 후 이용 가능합니다') + '</div>';
+    return;
+  }
+  try {
+    var qs = '';
+    if (state.type === 'guest') qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+    var resp = await fetch(MLL.API_BASE + '/api/seoul-race/my-bets' + qs, { headers: authHeaders() });
+    var data = await resp.json();
+    renderMyBetsData(data.items || []);
+  } catch(e){ console.error('[seoul-race] my-bets error', e); }
+}
+var MY_BETS_CACHE = [];
+function renderMyBetsData(items){ MY_BETS_CACHE = items; renderMyBets(); }
+function renderMyBets(){
+  var listEl = document.getElementById('myBetsList');
+  var state = MLL.getAuthState();
+  if (!state.type) return;
+  if (!MY_BETS_CACHE.length) { listEl.innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'No bets yet.' : '아직 베팅 내역이 없습니다.') + '</div>'; return; }
+  listEl.innerHTML = MY_BETS_CACHE.slice(0, 20).map(function(b){
+    var horse = HORSES.find(function(h){ return h.no === b.horse_no; });
+    var horseName = horse ? (LANG==='en' ? horse.name_en : horse.name_kr) : ('#' + b.horse_no);
+    var statusHtml = b.status === 'settled'
+      ? (b.payout > 0 ? '<span class="badge-won">+' + b.payout + 'P</span>' : ((LANG==='en') ? 'Lost' : '낙첨'))
+      : '<span class="badge-pending">' + ((LANG==='en') ? 'Pending' : '정산대기') + '</span>';
+    return '<div class="list-row"><div><div class="lr-main">' + horseName + ' · ' + b.units + (LANG==='en' ? ' units' : '구좌') + '</div><div class="lr-sub">' + new Date(b.placed_at).toLocaleString(LANG==='en'?'en-US':'ko-KR') + '</div></div><div>' + statusHtml + '</div></div>';
+  }).join('');
+}
+
+async function loadHistory(){
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/seoul-race/always/history');
+    var data = await resp.json();
+    HISTORY_CACHE = data.items || [];
+    renderHistory();
+  } catch(e){ console.error('[seoul-race] history error', e); }
+}
+var HISTORY_CACHE = [];
+function renderHistory(){
+  var listEl = document.getElementById('historyList');
+  if (!HISTORY_CACHE.length) { listEl.innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'No settled rounds yet.' : '아직 정산된 라운드가 없습니다.') + '</div>'; return; }
+  listEl.innerHTML = HISTORY_CACHE.slice(0, 15).map(function(r){
+    var label = (LANG==='en' ? 'Cycle #' : '제 ') + r.cycle_no + (LANG==='en' ? '' : '회');
+    var ref = r.lotto_round_ref ? ((LANG==='en' ? 'based on Lotto round ' : '로또 ') + r.lotto_round_ref + (LANG==='en' ? '' : '회차 기준')) : '';
+    return '<div class="list-row"><div><div class="lr-main">' + label + '</div><div class="lr-sub">' + ref + '</div></div><div class="lr-sub">' + new Date(r.settled_at).toLocaleString(LANG==='en'?'en-US':'ko-KR') + '</div></div>';
+  }).join('');
+}
+
+// ── 초기화 ──
+document.addEventListener('DOMContentLoaded', function(){
+  applyLang();
+  loadHorses();
+  loadCurrentRound();
+  loadMyBets();
+  loadHistory();
+  setInterval(function(){ loadCurrentRound(); }, 30000); // 30초마다 라운드 상태 동기화
+});
+</script>
+
+</body>
+</html>
