@@ -46,31 +46,97 @@ if (NAMES.length !== 100) {
   throw new Error(`이름 개수가 100개가 아닙니다: ${NAMES.length}개`);
 }
 
-// 1~68번(전략중시형) 조건 파라미터를 인덱스 기반으로 공식 생성
-// (PaperLotto 인수인계서 방식과 동일: 홀짝비율=이항분포형 분산, 번호합 5구간 균등분할,
-//  상위빈도범위=게임범위의 3/9~7/9 지점 근방)
-function buildCondParams(idx) {
-  // idx: 0~67
-  const oddEvenOptions = ['2:4','3:3','3:3','4:2']; // 3:3 비중을 살짝 더 둠(이항분포 근사)
-  const sumSlices = [
-    [21, 100], [101, 130], [131, 150], [151, 180], [181, 255], // 6/45 이론 최소21~최대255, 5구간
-  ];
-  const consecutiveOptions = [1, 2, 2, 3];
-  const topRangeStart = 15; // 45 * 3/9 ≈ 15
-  const topRangeEnd = 35;   // 45 * 7/9 ≈ 35
-  const topUseOptions = [2, 3, 3, 4];
-  const recentRoundsOptions = [20, 30, 50, 100];
+// 1~68번(전략중시형) 조건 파라미터 — 실제 엑셀 조건표(Seoul_Jackpot_Racetrack.xlsx)에서
+// 그대로 옮긴 확정값입니다 (공식으로 자동생성하던 이전 버전을 대체, 2026-08).
+// 각 행: [홀짝비율, 연속제한, 번호합최소, 번호합최대, 상위빈도풀크기, 그중사용개수, 보너스포함]
+const COND_PARAMS_68 = [
+  ['0:6', 1, 21, 67, 15, 1, true],
+  ['0:6', 1, 68, 114, 15, 2, true],
+  ['1:5', 1, 68, 114, 15, 3, true],
+  ['1:5', 1, 68, 114, 15, 4, true],
+  ['1:5', 1, 68, 114, 20, 1, true],
+  ['1:5', 1, 68, 114, 20, 2, true],
+  ['2:4', 1, 68, 114, 20, 3, true],
+  ['2:4', 1, 68, 114, 20, 4, true],
+  ['2:4', 1, 68, 114, 20, 1, true],
+  ['2:4', 1, 68, 114, 20, 2, true],
+  ['2:4', 1, 68, 114, 20, 3, true],
+  ['2:4', 1, 68, 114, 20, 4, true],
+  ['2:4', 2, 68, 114, 20, 1, true],
+  ['2:4', 2, 68, 114, 20, 2, true],
+  ['2:4', 2, 68, 114, 20, 3, true],
+  ['2:4', 2, 115, 161, 20, 4, true],
+  ['2:4', 2, 115, 161, 20, 1, true],
+  ['2:4', 2, 115, 161, 20, 2, true],
+  ['2:4', 2, 115, 161, 20, 3, true],
+  ['2:4', 2, 115, 161, 20, 4, true],
+  ['2:4', 2, 115, 161, 20, 1, true],
+  ['2:4', 2, 115, 161, 20, 2, true],
+  ['2:4', 2, 115, 161, 20, 3, true],
+  ['2:4', 2, 115, 161, 20, 4, true],
+  ['3:3', 2, 115, 161, 25, 1, true],
+  ['3:3', 2, 115, 161, 25, 2, true],
+  ['3:3', 2, 115, 161, 25, 3, true],
+  ['3:3', 2, 115, 161, 25, 4, true],
+  ['3:3', 2, 115, 161, 25, 1, true],
+  ['3:3', 2, 115, 161, 25, 2, true],
+  ['3:3', 2, 115, 161, 25, 3, true],
+  ['3:3', 2, 115, 161, 25, 4, true],
+  ['3:3', 2, 115, 161, 25, 1, true],
+  ['3:3', 2, 115, 161, 25, 2, true],
+  ['3:3', 2, 115, 161, 25, 3, true],
+  ['3:3', 2, 115, 161, 25, 4, true],
+  ['3:3', 2, 115, 161, 25, 1, true],
+  ['3:3', 2, 115, 161, 25, 2, true],
+  ['3:3', 2, 115, 161, 25, 3, true],
+  ['3:3', 2, 115, 161, 25, 4, true],
+  ['3:3', 2, 115, 161, 25, 1, true],
+  ['3:3', 2, 115, 161, 25, 2, true],
+  ['3:3', 2, 115, 161, 25, 3, true],
+  ['3:3', 2, 115, 161, 25, 4, true],
+  ['3:3', 2, 115, 161, 30, 1, true],
+  ['3:3', 2, 115, 161, 30, 2, true],
+  ['4:2', 2, 115, 161, 30, 3, true],
+  ['4:2', 2, 115, 161, 30, 4, true],
+  ['4:2', 2, 115, 161, 30, 1, true],
+  ['4:2', 2, 115, 161, 30, 2, true],
+  ['4:2', 3, 115, 161, 30, 3, true],
+  ['4:2', 3, 162, 208, 30, 4, true],
+  ['4:2', 3, 162, 208, 30, 1, true],
+  ['4:2', 3, 162, 208, 30, 2, true],
+  ['4:2', 3, 162, 208, 30, 3, true],
+  ['4:2', 3, 162, 208, 30, 4, true],
+  ['4:2', 3, 162, 208, 30, 1, true],
+  ['4:2', 3, 162, 208, 30, 2, true],
+  ['4:2', 3, 162, 208, 30, 3, true],
+  ['4:2', 3, 162, 208, 30, 4, true],
+  ['4:2', 3, 162, 208, 30, 1, true],
+  ['4:2', 3, 162, 208, 30, 2, true],
+  ['5:1', 3, 162, 208, 30, 3, true],
+  ['5:1', 3, 162, 208, 30, 4, true],
+  ['5:1', 3, 162, 208, 35, 1, true],
+  ['5:1', 3, 162, 208, 35, 2, true],
+  ['6:0', 3, 162, 208, 35, 3, true],
+  ['6:0', 3, 209, 255, 35, 4, true],
+];
+if (COND_PARAMS_68.length !== 68) {
+  throw new Error(`전략중시형 조건 행 개수가 68개가 아닙니다: ${COND_PARAMS_68.length}개`);
+}
 
-  const slice = sumSlices[idx % sumSlices.length];
+// 분석 기준회차: 전체 68마리 공통으로 "최근 1000회"(가장최근추첨회차-999 ~ 최근회차) — 엑셀 조건표 기준
+const RECENT_ROUNDS_COMMON = 1000;
+
+function buildCondParams(idx) {
+  const [oddEven, consecutiveLimit, sumMin, sumMax, topRange, topUse, bonusInclude] = COND_PARAMS_68[idx];
   return {
-    odd_even: oddEvenOptions[idx % oddEvenOptions.length],
-    consecutive_limit: consecutiveOptions[idx % consecutiveOptions.length],
-    sum_min: slice[0],
-    sum_max: slice[1],
-    top_range: `${topRangeStart}-${topRangeEnd}`,
-    top_use: topUseOptions[idx % topUseOptions.length],
-    recent_rounds: recentRoundsOptions[idx % recentRoundsOptions.length],
-    bonus_include: false,
+    odd_even: oddEven,
+    consecutive_limit: consecutiveLimit,
+    sum_min: sumMin,
+    sum_max: sumMax,
+    top_range: topRange,     // 상위빈도 풀의 크기 (개수)
+    top_use: topUse,         // 그중 몇 개를 조합에 반드시 포함시킬지
+    recent_rounds: RECENT_ROUNDS_COMMON,
+    bonus_include: bonusInclude,
   };
 }
 
