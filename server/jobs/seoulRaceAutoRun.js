@@ -116,16 +116,43 @@ async function saveReplayProgress(round) {
   if (error) throw error;
 }
 
-// ─── 라운드 하나 정산 (100마리 채점 + 베팅정산 저장) ─────────────────────────
-async function settleRound(round, winData, horses, fixedCombosMap) {
+// ─── 라운드 오픈 시점에 100마리 조합을 미리 생성해서 seoul_race_entries에 저장 ──
+// targetRound: 이 라운드가 채점 기준으로 삼을 실제 로또645 회차 (그 이전 데이터만 분석에 사용)
+async function createEntriesForRound(roundId, targetRound, horses, fixedCombosMap) {
   const { data: history } = await supabase
-    .from('kr_lotto_results').select('round, nums').lt('round', winData.round)
-    .order('round', { ascending: false }).limit(50);
+    .from('kr_lotto_results').select('round, nums').lt('round', targetRound)
+    .order('round', { ascending: false }).limit(1000);
+
+  const rows = horses.map(h => ({
+    round_id: roundId,
+    horse_no: h.no,
+    combos: engine.resolveCombosForHorse(h, history || [], fixedCombosMap),
+    generated_at: new Date().toISOString(),
+  }));
+  const { error } = await supabase.from('seoul_race_entries').upsert(rows, { onConflict: 'round_id,horse_no' });
+  if (error) throw error;
+}
+
+// ─── 라운드 하나 정산 (저장된 조합을 그대로 채점 — 재생성하지 않음) ──────────
+async function settleRound(round, winData, horses, fixedCombosMap) {
+  // ⚠ 2026-08 변경: 조합을 여기서 다시 만들지 않고, 라운드 오픈 시점에
+  // createEntriesForRound()가 미리 만들어둔 조합을 그대로 불러와서 채점만 한다.
+  const { data: entries, error: entErr } = await supabase
+    .from('seoul_race_entries').select('horse_no, combos').eq('round_id', round.id);
+  if (entErr) throw entErr;
+  const entryMap = {};
+  (entries || []).forEach(e => { entryMap[e.horse_no] = e.combos; });
 
   const resultRows = [];
   const resultsByHorseNo = {};
   horses.forEach(h => {
-    const rd = engine.simulateHorseRound(h, history || [], winData, fixedCombosMap);
+    const combos = entryMap[h.no];
+    if (!combos || !combos.length) {
+      // 저장된 조합이 없는 비정상 상황(안전망) — 그 자리에서 즉석 생성해서라도 채점은 진행
+      console.error(`[seoulRaceAutoRun] round_id=${round.id} horse_no=${h.no}의 저장된 조합이 없어 즉석 생성합니다.`);
+    }
+    const useCombos = (combos && combos.length) ? combos : engine.resolveCombosForHorse(h, [], fixedCombosMap);
+    const rd = engine.gradeCombos(useCombos, winData);
     resultsByHorseNo[h.no] = rd;
     resultRows.push({
       round_id: round.id,
@@ -214,11 +241,13 @@ async function tickAlwaysRace() {
 
     await supabase.from('seoul_race_rounds').update({ status: 'settling' }).eq('id', due.id);
 
-    const replayRound = await nextReplayRound();
-    const winData = await getLottoResult(replayRound);
-    if (!winData) {
-      // 예상 못한 결측 회차 — 건너뛰고 커서만 전진 (다음 tick에서 다음회차로 재시도)
-      await saveReplayProgress(replayRound);
+    // ⚠ 2026-08 변경: 채점 기준 회차는 이 라운드가 "열릴 때" 이미 정해서 lotto_round_ref에
+    // 저장해뒀다(그때 조합도 그 회차 기준으로 미리 생성됨) — 정산 시점에 새로 정하지 않는다.
+    const replayRound = due.lotto_round_ref;
+    const winData = replayRound ? await getLottoResult(replayRound) : null;
+    if (!replayRound || !winData) {
+      // 예상 못한 결측(안전망) — 건너뛰고 그냥 정산완료 처리, 다음 사이클은 정상 진행
+      console.error(`[seoulRaceAutoRun] round(id=${due.id})의 lotto_round_ref=${replayRound} 결과를 찾을 수 없어 건너뜁니다.`);
       await supabase.from('seoul_race_rounds').update({ status: 'settled', settled_at: now.toISOString() }).eq('id', due.id);
       continue;
     }
@@ -226,13 +255,11 @@ async function tickAlwaysRace() {
     await settleRound(due, { ...winData, round: replayRound }, horses, fixedCombosMap);
     await saveReplayProgress(replayRound);
     await supabase.from('seoul_race_rounds').update({
-      status: 'settled', settled_at: now.toISOString(), lotto_round_ref: replayRound,
+      status: 'settled', settled_at: now.toISOString(),
     }).eq('id', due.id);
 
     // 다음 라운드 자동 생성 (베팅 유무와 무관하게 항상 생성)
     // ── 매시 00분/30분에 항상 배팅이 시작되도록 30분 그리드에 정렬 ──
-    // (이전 라운드 종료시각이 어쩌다 그리드에서 벗어나 있어도, 다음 그리드 지점으로
-    //  스냅되면서 자동으로 교정된다 — 딱 한 번만 주기가 짧아지고 그 뒤론 계속 정확히 맞음)
     const endMs = new Date(due.betting_ends_at).getTime();
     const bettingStarts = new Date(nextGridBoundary(endMs));
     const bettingEnds = new Date(bettingStarts.getTime() + BETTING_MINUTES * 60 * 1000);
@@ -242,12 +269,19 @@ async function tickAlwaysRace() {
       .order('cycle_no', { ascending: false }).limit(1).maybeSingle();
     const nextCycle = (maxCycle ? maxCycle.cycle_no : due.cycle_no) + 1;
 
-    await supabase.from('seoul_race_rounds').insert({
+    // 방금 saveReplayProgress()로 커서를 전진시켰으므로, 여기서 nextReplayRound()를 부르면
+    // 새 라운드가 채점할 "다음" 회차가 정확히 나온다 — 그 회차 기준으로 조합을 바로 생성.
+    const nextTargetRound = await nextReplayRound();
+    const { data: newRound, error: insErr } = await supabase.from('seoul_race_rounds').insert({
       race_mode: 'always', cycle_no: nextCycle,
       betting_starts_at: bettingStarts.toISOString(),
       betting_ends_at: bettingEnds.toISOString(),
       status: 'betting_open',
-    });
+      lotto_round_ref: nextTargetRound,
+    }).select('id').single();
+    if (insErr) throw insErr;
+
+    await createEntriesForRound(newRound.id, nextTargetRound, horses, fixedCombosMap);
 
     processed++;
   }
@@ -259,11 +293,15 @@ async function tickAlwaysRace() {
     // 최초 라운드도 "지금"이 아니라 가장 가까운 다음 00분/30분 그리드에서 시작
     const bettingStarts = new Date(nextGridBoundary(now.getTime() - 1)); // now 포함 이후의 가장 가까운 그리드
     const bettingEnds = new Date(bettingStarts.getTime() + BETTING_MINUTES * 60 * 1000);
-    await supabase.from('seoul_race_rounds').insert({
+    const targetRound = await nextReplayRound();
+    const { data: newRound, error: insErr } = await supabase.from('seoul_race_rounds').insert({
       race_mode: 'always', cycle_no: 1,
       betting_starts_at: bettingStarts.toISOString(), betting_ends_at: bettingEnds.toISOString(),
       status: 'betting_open',
-    });
+      lotto_round_ref: targetRound,
+    }).select('id').single();
+    if (insErr) throw insErr;
+    await createEntriesForRound(newRound.id, targetRound, horses, fixedCombosMap);
     return { bootstrapped: true };
   }
 
@@ -306,7 +344,7 @@ async function catchupStandardRace(round) {
   const winData = await getLottoResult(round);
   if (!winData) return { skipped: true, reason: 'no_lotto_result_for_round', round };
 
-  // 이번 회차를 기다리던 열린 대상경마가 있으면 실제 결과로 정산
+  // 이번 회차를 기다리던 열린 대상경마가 있으면 실제 결과로 정산 (조합은 이미 오픈 시 저장돼있음)
   const { data: due, error: dueErr } = await supabase
     .from('seoul_race_rounds')
     .select('*').eq('race_mode', 'standard').eq('cycle_no', round).eq('status', 'betting_open').maybeSingle();
@@ -316,21 +354,25 @@ async function catchupStandardRace(round) {
     await supabase.from('seoul_race_rounds').update({ status: 'settling' }).eq('id', due.id);
     await settleRound(due, { ...winData, round }, horses, fixedCombosMap);
     await supabase.from('seoul_race_rounds').update({
-      status: 'settled', settled_at: new Date().toISOString(), lotto_round_ref: round,
+      status: 'settled', settled_at: new Date().toISOString(),
     }).eq('id', due.id);
   }
 
   // 다음 회차(round+1) 대상경마가 아직 없으면 새로 오픈 (베팅 유무와 무관하게 항상)
+  // — 대상경마는 cycle_no = lotto_round_ref (그 회차의 실제 추첨을 그대로 기다림)
   const { data: nextExisting } = await supabase
     .from('seoul_race_rounds').select('id').eq('race_mode', 'standard').eq('cycle_no', round + 1).maybeSingle();
   if (!nextExisting) {
     const kstShiftedNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
     const window = nextBettingWindowForStandardRound(kstShiftedNow);
-    await supabase.from('seoul_race_rounds').insert({
+    const { data: newRound, error: insErr } = await supabase.from('seoul_race_rounds').insert({
       race_mode: 'standard', cycle_no: round + 1,
       betting_starts_at: window.start.toISOString(), betting_ends_at: window.end.toISOString(),
       status: 'betting_open',
-    });
+      lotto_round_ref: round + 1,
+    }).select('id').single();
+    if (insErr) throw insErr;
+    await createEntriesForRound(newRound.id, round + 1, horses, fixedCombosMap);
   }
 
   return { success: true, settledRound: due ? round : null, nextRound: round + 1 };
@@ -342,13 +384,22 @@ async function bootstrapStandardRace(nextRoundNo) {
     .from('seoul_race_rounds').select('id').eq('race_mode', 'standard').limit(1).maybeSingle();
   if (existing) return { skipped: true, reason: 'already_bootstrapped' };
 
+  const horses = await loadHorses();
+  if (!horses.length) return { skipped: true, reason: 'no_horses_seeded' };
+  const fixedCombosMap = await ensureFixedCombos(horses);
+
   const kstShiftedNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
   const window = nextBettingWindowForStandardRound(kstShiftedNow);
-  await supabase.from('seoul_race_rounds').insert({
+  const { data: newRound, error: insErr } = await supabase.from('seoul_race_rounds').insert({
     race_mode: 'standard', cycle_no: nextRoundNo,
     betting_starts_at: window.start.toISOString(), betting_ends_at: window.end.toISOString(),
     status: 'betting_open',
-  });
+    lotto_round_ref: nextRoundNo,
+  }).select('id').single();
+  if (insErr) throw insErr;
+
+  await createEntriesForRound(newRound.id, nextRoundNo, horses, fixedCombosMap);
+
   return { success: true, cycle_no: nextRoundNo, window };
 }
 
