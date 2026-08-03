@@ -15,6 +15,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const cheerio = require('cheerio');
 const { runRaceCatchup } = require('./raceAutoRun');
+const { catchupStandardRace } = require('./seoulRaceAutoRun'); // Seoul Jackpot Racetrack - 대상경마 (2026-08 신규)
 const { gradeRound: gradeMockRound } = require('./mockAutoGrade');
 const { gradeRound: gradeBattleRound } = require('./battlesAutoGrade');
 const { gradeRound: gradeTournamentRound } = require('./tournamentAutoGrade');
@@ -214,6 +215,14 @@ async function runPostSaveChain(round) {
   } catch (e) {
     console.error('[lottoAutoFetch] 100전략 레이스 자동 시뮬레이션 오류:', e.message);
     results.race = { error: e.message };
+  }
+
+  try {
+    results.seoulStandardRace = await catchupStandardRace(round);
+    console.log('[lottoAutoFetch] Seoul Jackpot Racetrack 대상경마 결과:', results.seoulStandardRace);
+  } catch (e) {
+    console.error('[lottoAutoFetch] Seoul Jackpot Racetrack 대상경마 오류:', e.message);
+    results.seoulStandardRace = { error: e.message };
   }
 
   try {
