@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 const { tickAlwaysRace } = require('../jobs/seoulRaceAutoRun');
+const { bootstrapStandardRace } = require('../jobs/seoulRaceAutoRun'); // 대상경마 최초 오픈용 (2026-08 신규)
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -57,6 +58,21 @@ router.post('/pricing', requireAdmin, async (req, res) => {
     .upsert({ key: 'seoul_race_betting_unit_price', value: String(unitPrice) }, { onConflict: 'key' });
   if (error) return res.status(500).json({ error: error.message });
   return res.json({ success: true, unitPrice });
+});
+
+// [4] 대상경마(주간) 최초 1회 부트스트랩 — 첫 라운드를 연다
+// POST /api/admin/seoul-race/bootstrap-standard  body: { nextRoundNo }
+// nextRoundNo: 다음번 대상경마가 채점 기준으로 삼을 로또645 회차 (예: 지금 최신회차+1)
+router.post('/bootstrap-standard', requireAdmin, async (req, res) => {
+  const nextRoundNo = Number(req.body.nextRoundNo);
+  if (!nextRoundNo) return res.status(400).json({ error: 'nextRoundNo가 필요합니다.' });
+  try {
+    const result = await bootstrapStandardRace(nextRoundNo);
+    return res.json({ success: true, result });
+  } catch (err) {
+    console.error('[seoul-race-admin] bootstrap-standard 오류:', err);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
