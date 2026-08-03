@@ -57,6 +57,51 @@ router.get('/horses', async (req, res) => {
   return res.json({ items: data });
 });
 
+// ── [공개] 현재 진행중인 라운드 (모드 공통) — 프론트(hub_seoul_race.html)가 실제로 호출하는 경로 ──
+// GET /api/seoul-race/current?mode=always|standard
+router.get('/current', async (req, res) => {
+  const mode = req.query.mode === 'standard' ? 'standard' : 'always';
+  const { data: round, error } = await supabase
+    .from('seoul_race_rounds')
+    .select('*').eq('race_mode', mode).eq('status', 'betting_open')
+    .order('cycle_no', { ascending: false }).limit(1).maybeSingle();
+  if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  if (!round) return res.json({ round: null });
+
+  return res.json({
+    round,
+    unitPrice: await getUnitPrice(),
+    now: new Date().toISOString(),
+  });
+});
+
+// ── [공개] 정산된 라운드 이력 (모드 공통, 최근 30개) — 프론트가 실제로 호출하는 경로 ──
+// GET /api/seoul-race/history?mode=always|standard
+router.get('/history', async (req, res) => {
+  const mode = req.query.mode === 'standard' ? 'standard' : 'always';
+  const { data, error } = await supabase
+    .from('seoul_race_rounds').select('*').eq('race_mode', mode).eq('status', 'settled')
+    .order('cycle_no', { ascending: false }).limit(30);
+  if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  return res.json({ items: data });
+});
+
+// ── [공개] 특정 라운드의 100마리 배팅 전 조합 미리보기 (seoul_race_entries: round/horse/combos) ──
+// GET /api/seoul-race/entries/:roundId
+router.get('/entries/:roundId', async (req, res) => {
+  const roundId = Number(req.params.roundId);
+  if (!roundId) return res.status(400).json({ error: '올바른 round id가 아닙니다.' });
+
+  const { data, error } = await supabase
+    .from('seoul_race_entries').select('horse, combos').eq('round', roundId).order('horse', { ascending: true });
+  if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+
+  const items = (data || []).map(function (row) {
+    return { horse_no: row.horse, combos: row.combos };
+  });
+  return res.json({ items });
+});
+
 // ── [공개] 현재 진행중인 상시경마 라운드 + 남은시간 ──
 // GET /api/seoul-race/always/current
 router.get('/always/current', async (req, res) => {
