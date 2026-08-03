@@ -450,14 +450,25 @@ async function bootstrapStandardRace(nextRoundNo) {
 // 한 번 호출에 roundsPerCall개(기본 10)만 처리하고 진행상황을 저장 — 회차가 많아서
 // (최대 1235개) 여러 번 나눠 호출해야 함. 이미 목표까지 다 됐으면 done:true 반환.
 // =====================================================
-const BACKFILL_TARGET = { standard: 1235, always: 500 };
+// (대상경마 목표=1235회, 상시경마 목표=500회 — getBackfillTarget() 함수에서 반환)
+
+// 객체 lookup 대신 명시적 함수로 — 값이 비면 조용히 undefined가 되는 대신 바로 에러를 던져서
+// 원인을 확실히 알 수 있게 함 (2026-08: null 삽입 오류 진단을 위해 강화)
+function getBackfillTarget(mode) {
+  if (mode === 'standard') return 1235;
+  if (mode === 'always') return 500;
+  throw new Error(`getBackfillTarget: 알 수 없는 mode 값입니다 → ${JSON.stringify(mode)}`);
+}
 
 async function getBackfillProgress(mode) {
   const { data, error } = await supabase
     .from('seoul_race_backfill_progress').select('*').eq('race_mode', mode).maybeSingle();
   if (error) throw error;
   if (data) return data;
-  const row = { race_mode: mode, last_processed_round: 0, target_round: BACKFILL_TARGET[mode] };
+
+  const target = getBackfillTarget(mode);
+  console.log(`[seoulRaceAutoRun] backfill 진행상황 최초 생성: mode=${mode}, target=${target}`);
+  const row = { race_mode: mode, last_processed_round: 0, target_round: target };
   const { error: insErr } = await supabase.from('seoul_race_backfill_progress').insert(row);
   if (insErr) throw insErr;
   return row;
