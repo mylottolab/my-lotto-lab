@@ -12,8 +12,21 @@
   --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
   --gold:#e0b341; --gold-dim:#8a6f2f; --indigo:#5b6ee8;
   --accent:#e0b341; --accent-bg:rgba(224,179,65,.13);
+  --card-shadow:0 1px 2px rgba(0,0,0,.2); --card-shadow-hover:0 8px 20px rgba(0,0,0,.32);
+  --bg-top:#0d1120;
 }
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
+body.light-mode{
+  --bg:#dbe0ee; --surface:#ffffff; --surface-2:#eef1f9;
+  --border:#c2c8dd; --border-soft:#d2d7e8;
+  --text:#161b30; --text-dim:#4c5372; --text-faint:#7a80a0;
+  --gold:#a8781f; --gold-dim:#8a6f2f; --indigo:#4453c9;
+  --accent:#a8781f; --accent-bg:rgba(168,120,31,.10);
+  --card-shadow:0 1px 2px rgba(30,36,66,.06); --card-shadow-hover:0 10px 24px rgba(30,36,66,.12);
+  --bg-top:#e7eaf5;
+}
+body{background:var(--bg);background-image:linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 340px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
+.theme-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;flex-shrink:0;}
+.theme-toggle:hover{border-color:var(--accent);}
 
 .topbar{border-bottom:1px solid var(--border-soft);}
 .topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
@@ -69,6 +82,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:14px;">
+      <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="야간/주간 모드 전환">🌙</button>
       <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
         <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
         <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
@@ -133,6 +147,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </div>
 
 <script>
+var THEME = localStorage.getItem('mll_theme');
+if (!THEME) { THEME = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark'; }
+function applyTheme(){
+  document.body.classList.toggle('light-mode', THEME === 'light');
+  var btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = THEME === 'light' ? '☀️' : '🌙';
+}
+function toggleTheme(){ THEME = (THEME === 'light') ? 'dark' : 'light'; localStorage.setItem('mll_theme', THEME); applyTheme(); }
+applyTheme();
+
 var LANG = localStorage.getItem('mll_lang') || 'kr';
 function applyLang(){
   document.title = (LANG === 'en') ? 'My Lotto Lab - Strategy' : 'My Lotto Lab - 전략 등록';
