@@ -10,6 +10,20 @@ const supabase = createClient(
 
 const UNIT_PRICE_DEFAULT = 100;
 
+// ── 베팅 한도 (PaperLotto 월드잭팟 레이스트랙과 동일한 말당 한도 + Seoul 전용 일일한도) ──
+const PER_HORSE_ROUND_CAP = 100;             // 말 1마리당 최대 100구좌(=1만P) / 그 라운드 — PaperLotto와 동일
+const DAILY_UNIT_CAP = PER_HORSE_ROUND_CAP * 40; // 일일한도 = 1회한도의 40배 = 4,000구좌(=40만P)
+// (30분 주기 상시경마는 하루 48라운드 — 매 라운드 풀배팅 가정 시 4,000÷100=40라운드까지만 가능하고
+//  나머지 8라운드(=4시간)는 자동으로 막혀서 최소 4시간 휴식을 유도하는 취지)
+
+// KST(UTC+9) 기준 "오늘 00:00"에 해당하는 실제 UTC 시각을 반환 (일일한도 집계 기준점)
+function kstTodayStartUtc() {
+  const now = new Date();
+  const kstShifted = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  kstShifted.setUTCHours(0, 0, 0, 0);
+  return new Date(kstShifted.getTime() - 9 * 60 * 60 * 1000);
+}
+
 async function getUnitPrice() {
   const { data, error } = await supabase
     .from('app_settings').select('value').eq('key', 'seoul_race_betting_unit_price').maybeSingle();
@@ -104,6 +118,32 @@ router.post('/bet', async (req, res) => {
     }
     if (new Date(round.betting_ends_at) <= new Date()) {
       return res.status(403).json({ error: '배팅 마감 시각이 지났습니다. 잠시 후 다음 라운드를 이용해주세요.' });
+    }
+
+    // ── ① 말 1마리당 한도 체크 (이번 라운드에서 이 말에 이미 건 구좌 + 이번 요청 <= 100) ──
+    const { data: sameHorseBets, error: shErr } = await supabase
+      .from('seoul_race_bets').select('units')
+      .eq('user_id', userId).eq('round_id', roundId).eq('horse_no', horseNo);
+    if (shErr) return res.status(500).json({ error: '한도 확인 중 오류가 발생했습니다.' });
+    const alreadyOnHorse = (sameHorseBets || []).reduce((s, b) => s + b.units, 0);
+    if (alreadyOnHorse + units > PER_HORSE_ROUND_CAP) {
+      return res.status(403).json({
+        error: `이 말에는 이미 ${alreadyOnHorse}구좌를 베팅하셨습니다 (최대 ${PER_HORSE_ROUND_CAP}구좌).`,
+        alreadyOnHorse, cap: PER_HORSE_ROUND_CAP,
+      });
+    }
+
+    // ── ② 일일 한도 체크 (KST 자정 기준, 오늘 하루 전체 라운드·말 합산 <= 4,000구좌) ──
+    const { data: todayBets, error: tdErr } = await supabase
+      .from('seoul_race_bets').select('units')
+      .eq('user_id', userId).gte('placed_at', kstTodayStartUtc().toISOString());
+    if (tdErr) return res.status(500).json({ error: '일일한도 확인 중 오류가 발생했습니다.' });
+    const todayUnits = (todayBets || []).reduce((s, b) => s + b.units, 0);
+    if (todayUnits + units > DAILY_UNIT_CAP) {
+      return res.status(403).json({
+        error: `오늘 일일 베팅한도(${DAILY_UNIT_CAP}구좌)에 도달했습니다. 내일 다시 이용해주세요.`,
+        todayUnits, cap: DAILY_UNIT_CAP,
+      });
     }
 
     const unitPrice = await getUnitPrice();
