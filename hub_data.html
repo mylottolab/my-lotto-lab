@@ -8,17 +8,39 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
+  /* ── 야간모드(기본) ── */
   --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
   --border:#252b48; --border-soft:#1b2038;
   --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
   --gold:#e0b341; --gold-dim:#8a6f2f;
   --accent:#5b6ee8; --accent-bg:rgba(91,110,232,.14);
-  --green:#3fb37f; --member:#2fbfa3; --member-dim:#1f7d6b; --member-bg:rgba(47,191,163,.13);
+  --member:#2fbfa3; --member-dim:#1f7d6b; --member-bg:rgba(47,191,163,.13);
+  --card-shadow:0 1px 2px rgba(0,0,0,.2);
+  --card-shadow-hover:0 8px 20px rgba(0,0,0,.32);
+  --bg-top:#0d1120;
 }
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;}
+body.light-mode{
+  /* ── 주간모드 ── */
+  --bg:#dbe0ee; --surface:#ffffff; --surface-2:#eef1f9;
+  --border:#c2c8dd; --border-soft:#d2d7e8;
+  --text:#161b30; --text-dim:#4c5372; --text-faint:#7a80a0;
+  --gold:#a8781f; --gold-dim:#8a6f2f;
+  --accent:#4453c9; --accent-bg:rgba(68,83,201,.10);
+  --member:#178072; --member-dim:#0f5d53; --member-bg:rgba(23,128,114,.10);
+  --card-shadow:0 1px 2px rgba(30,36,66,.06);
+  --card-shadow-hover:0 10px 24px rgba(30,36,66,.12);
+  --bg-top:#e7eaf5;
+}
+body{
+  background:var(--bg);
+  background-image: linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 340px);
+  color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;
+  font-size:14px;letter-spacing:-0.01em;min-height:100vh;
+  transition:background-color .2s, color .2s;
+}
 a{color:inherit;text-decoration:none;}
 
-.topbar{border-bottom:1px solid var(--border-soft);}
+.topbar{border-bottom:1px solid var(--border-soft);background:var(--surface);transition:background-color .2s,border-color .2s;}
 .topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
 .brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
 .brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -31,10 +53,14 @@ a{color:inherit;text-decoration:none;}
 .crumb .sep{color:var(--text-faint);}
 .crumb .cur{color:var(--accent);}
 
+.theme-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;transition:border-color .15s,background .15s;}
+.theme-toggle:hover{border-color:var(--accent);}
+
 .wrap{max-width:1180px;margin:0 auto;padding:28px 24px 60px;}
 .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--accent);text-transform:uppercase;}
 .page-title{font-size:25px;font-weight:700;letter-spacing:-0.02em;margin-top:6px;}
 .page-sub{font-size:12.5px;color:var(--text-dim);margin-top:8px;line-height:1.7;max-width:760px;}
+.page-highlight{font-size:12.5px;color:#e05555;font-weight:600;margin-top:10px;line-height:1.65;max-width:640px;}
 
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px;}
 @media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr);}}
@@ -49,18 +75,18 @@ a{color:inherit;text-decoration:none;}
   .brand-text .t2{display:none;}
 }
 
-.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:20px;cursor:pointer;transition:border-color .15s,transform .12s;position:relative;}
-.card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:20px;cursor:pointer;transition:border-color .15s,transform .12s,box-shadow .15s,background .2s;position:relative;box-shadow:var(--card-shadow);}
+.card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--card-shadow-hover);}
 .card .ico{width:38px;height:38px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:14px;}
 .card .name{font-size:14.5px;font-weight:700;}
-.card .desc{font-size:11.5px;color:var(--text-faint);margin-top:6px;line-height:1.6;}
+.card .desc{font-size:11.5px;color:var(--text-dim);margin-top:6px;line-height:1.6;}
 .card .arrow{position:absolute;right:18px;bottom:18px;color:var(--text-faint);font-size:15px;}
 
-.card.print-card{border-color:var(--member-dim);background:linear-gradient(135deg, rgba(47,191,163,.07), var(--surface));}
+.card.print-card{border-color:var(--member-dim);background:linear-gradient(135deg, var(--member-bg), var(--surface) 60%);}
 .card.print-card .ico{background:var(--member-bg);color:var(--member);}
 .card.print-card:hover{border-color:var(--member);}
 .card.print-card .arrow{color:var(--member);}
-.print-badge{position:absolute;top:16px;right:16px;font-size:9.5px;font-weight:700;color:var(--member);background:rgba(47,191,163,.15);padding:2px 8px;border-radius:20px;}
+.print-badge{position:absolute;top:16px;right:16px;font-size:9.5px;font-weight:700;color:var(--member);background:var(--member-bg);padding:2px 8px;border-radius:20px;}
 
 .section-divider{display:flex;align-items:center;gap:10px;margin:34px 0 4px;}
 .section-divider .line{flex:1;height:1px;background:var(--border-soft);}
@@ -82,7 +108,8 @@ a{color:inherit;text-decoration:none;}
         <div class="t2" data-i18n-kr="가상 로또 등록 · 당첨 분석 · 통계 플랫폼" data-i18n-en="Virtual Lotto Entry · Win Analysis · Stats Platform">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:14px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="야간/주간 모드 전환">🌙</button>
       <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
         <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
         <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
@@ -99,6 +126,7 @@ a{color:inherit;text-decoration:none;}
 <div class="wrap">
   <div class="eyebrow">DATA ENTRY &amp; LOTTO SLIP</div>
   <div class="page-title" data-i18n-kr="Data 등록과 관리" data-i18n-en="Data Entry & Management">Data 등록과 관리</div>
+  <div class="page-highlight" data-i18n-kr="복권을 다 살수는 없는 노릇, 여기서 소신껏 비용 걱정없이 대량등록하고 결과를 참고하여 나만의 로직을 세우세요. 부담 없는 비용으로 생각한 번호를 마음껏 가상으로 구현하고 실제 구매시 효율적인 대박을 이루시기 바랍니다." data-i18n-en="You can't buy every ticket — so register as many numbers as you like here, worry-free, and use the results to build your own logic. Freely try out the numbers you've been thinking of, virtually and at no real cost, and put that toward a smarter, more efficient jackpot when you buy for real.">복권을 다 살수는 없는 노릇, 여기서 소신껏 비용 걱정없이 대량등록하고 결과를 참고하여 나만의 로직을 세우세요. 부담 없는 비용으로 생각한 번호를 마음껏 가상으로 구현하고 실제 구매시 효율적인 대박을 이루시기 바랍니다.</div>
   <div class="page-sub" data-i18n-kr="번호를 기록하는 4가지 방법. 어떤 경로로 들어와도 같은 곳에 쌓이고, 같은 기준으로 분석됩니다. 원하는 조합을 즉석에서 편하게 구매용 전표로 작성하여 줍니다." data-i18n-en="Four ways to record your numbers. However you enter them, they're stored in the same place and analyzed by the same standard. We'll also turn your chosen combos into a purchase slip on the spot.">번호를 기록하는 4가지 방법. 어떤 경로로 들어와도 같은 곳에 쌓이고, 같은 기준으로 분석됩니다. 원하는 조합을 즉석에서 편하게 구매용 전표로 작성하여 줍니다.</div>
 
   <div class="grid">
@@ -160,6 +188,23 @@ a{color:inherit;text-decoration:none;}
 </div>
 
 <script>
+// ── 야간/주간 모드 (언어토글과 동일한 localStorage 패턴) ──
+var THEME = localStorage.getItem('mll_theme');
+if (!THEME) {
+  THEME = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+}
+function applyTheme(){
+  document.body.classList.toggle('light-mode', THEME === 'light');
+  var btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = THEME === 'light' ? '☀️' : '🌙';
+}
+function toggleTheme(){
+  THEME = (THEME === 'light') ? 'dark' : 'light';
+  localStorage.setItem('mll_theme', THEME);
+  applyTheme();
+}
+applyTheme();
+
 var LANG = localStorage.getItem('mll_lang') || 'kr';
 function applyLang(){
   document.title = (LANG === 'en') ? 'My Lotto Lab - Data Entry & Management' : 'My Lotto Lab - Data 등록과 관리';
