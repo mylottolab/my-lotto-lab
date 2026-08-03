@@ -86,18 +86,18 @@ router.get('/history', async (req, res) => {
   return res.json({ items: data });
 });
 
-// ── [공개] 특정 라운드의 100마리 배팅 전 조합 미리보기 (seoul_race_entries: round/horse/combos) ──
+// ── [공개] 특정 라운드의 100마리 배팅 전 조합 미리보기 (seoul_race_entries: round_id/horse_no/combos) ──
 // GET /api/seoul-race/entries/:roundId
 router.get('/entries/:roundId', async (req, res) => {
   const roundId = Number(req.params.roundId);
   if (!roundId) return res.status(400).json({ error: '올바른 round id가 아닙니다.' });
 
   const { data, error } = await supabase
-    .from('seoul_race_entries').select('horse, combos').eq('round', roundId).order('horse', { ascending: true });
+    .from('seoul_race_entries').select('horse_no, combos').eq('round_id', roundId).order('horse_no', { ascending: true });
   if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
 
   const items = (data || []).map(function (row) {
-    return { horse_no: row.horse, combos: row.combos };
+    return { horse_no: row.horse_no, combos: row.combos };
   });
   return res.json({ items });
 });
