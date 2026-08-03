@@ -24,8 +24,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 const globalRouter = require('./routes/global');
 app.use('/api/global', globalRouter);
 app.use('/api/scratchpad', require('./routes/scratchpad'));
-app.use('/api/seoul-race', require('./routes/seoul_race'));
-app.use('/api/admin/seoul-race', require('./routes/seoul_race_admin'));
 // ─── 정적 파일 서빙 (결제 관련 HTML) ─────────────────────────────────────────
 app.use('/pay', express.static(path.join(__dirname, 'public')));
 app.use('/api/strategy', require('./routes/strategy'));
