@@ -322,6 +322,31 @@ async function tickAlwaysRace() {
     processed++;
   }
 
+  // ── 복구: 최신 라운드가 이미 정산됐는데 그 다음 라운드가 아직 없는 "정지 상태" 감지 ──
+  // (정상 흐름이면 위 for문 안에서 정산 직후 항상 다음 라운드가 같이 만들어지므로 여기 안 옴.
+  //  과거 버그로 이런 정지 상태가 한 번이라도 생겼을 때 스스로 복구하기 위한 안전장치.)
+  const { data: latestRound } = await supabase
+    .from('seoul_race_rounds').select('*').eq('race_mode', 'always')
+    .order('cycle_no', { ascending: false }).limit(1).maybeSingle();
+
+  if (latestRound && latestRound.status !== 'betting_open' && latestRound.status !== 'settling') {
+    const endMs = new Date(latestRound.betting_ends_at).getTime();
+    const bettingStarts = new Date(nextGridBoundary(Math.max(endMs, now.getTime() - 1)));
+    const bettingEnds = new Date(bettingStarts.getTime() + BETTING_MINUTES * 60 * 1000);
+    const nextCycle = latestRound.cycle_no + 1;
+    const nextTargetRound = await nextReplayRound();
+    const { data: newRound, error: insErr } = await supabase.from('seoul_race_rounds').insert({
+      race_mode: 'always', cycle_no: nextCycle,
+      betting_starts_at: bettingStarts.toISOString(),
+      betting_ends_at: bettingEnds.toISOString(),
+      status: 'betting_open',
+      lotto_round_ref: nextTargetRound,
+    }).select('id').single();
+    if (insErr) throw insErr;
+    await createEntriesForRound(newRound.id, nextTargetRound, horses, fixedCombosMap);
+    return { success: true, recovered: true, processedRounds: processed, newCycle: nextCycle };
+  }
+
   // 라운드가 하나도 없는 최초 상태(서버 최초 기동) — 첫 라운드를 지금 시각 기준으로 연다
   const { data: anyRound } = await supabase
     .from('seoul_race_rounds').select('id').eq('race_mode', 'always').limit(1).maybeSingle();
