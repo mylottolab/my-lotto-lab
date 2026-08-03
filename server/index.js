@@ -27,6 +27,11 @@ app.use('/api/scratchpad', require('./routes/scratchpad'));
 // ─── 정적 파일 서빙 (결제 관련 HTML) ─────────────────────────────────────────
 app.use('/pay', express.static(path.join(__dirname, 'public')));
 app.use('/api/strategy', require('./routes/strategy'));
+app.use('/api/shop', require('./routes/shop'));
+app.use('/api/admin/shop', require('./routes/shop_admin'));
+
+// —— Health check ——————————————————————————————
+app.get('/', (req, res) => { ... });
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'My Lotto Lab API' });
