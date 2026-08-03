@@ -270,4 +270,89 @@ async function tickAlwaysRace() {
   return { success: true, processedRounds: processed };
 }
 
-module.exports = { tickAlwaysRace, loadHorses, ensureFixedCombos };
+// =====================================================
+// [대상경마] catchupStandardRace(round)
+// lottoAutoFetch.js의 runPostSaveChain()에서, 새 로또645 회차가 저장된 직후 호출됨
+// (100전략레이스 raceAutoRun.runRaceCatchup()과 같은 트리거 지점).
+//
+//   1) round(방금 저장된 회차)를 기다리던 열린 대상경마가 있으면 그 실제 결과로 정산
+//   2) round+1 대상경마가 아직 없으면 새로 오픈 (베팅: 다음주 일요일 0시 ~ 그 다음 토요일 20시)
+// =====================================================
+
+// kstShiftedNow: "지금 시각 + 9시간"을 UTC Date로 표현한 것 (getUTCDay 등으로 KST 요일 판단 가능)
+// 반환값의 start/end는 실제(진짜) UTC 시각의 Date 객체
+function nextBettingWindowForStandardRound(kstShiftedNow) {
+  const dayStart = new Date(kstShiftedNow.getTime());
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const dow = dayStart.getUTCDay(); // 0=일요일 ... 6=토요일 (KST 기준)
+  let daysUntilNextSunday = (7 - dow) % 7;
+  if (daysUntilNextSunday === 0) daysUntilNextSunday = 7; // 오늘이 일요일이어도 "다음" 일요일로
+
+  const startKst = new Date(dayStart.getTime() + daysUntilNextSunday * 86400000); // 다음 일요일 00:00 KST
+  const endKst = new Date(startKst.getTime() + 6 * 86400000); // 그 다음 토요일
+  endKst.setUTCHours(20, 0, 0, 0); // 20:00 KST (실제 추첨 20:35보다 앞서 마감)
+
+  return {
+    start: new Date(startKst.getTime() - 9 * 60 * 60 * 1000), // KST-shifted → 실제 UTC로 환원
+    end: new Date(endKst.getTime() - 9 * 60 * 60 * 1000),
+  };
+}
+
+async function catchupStandardRace(round) {
+  const horses = await loadHorses();
+  if (!horses.length) return { skipped: true, reason: 'no_horses_seeded' };
+  const fixedCombosMap = await ensureFixedCombos(horses);
+
+  const winData = await getLottoResult(round);
+  if (!winData) return { skipped: true, reason: 'no_lotto_result_for_round', round };
+
+  // 이번 회차를 기다리던 열린 대상경마가 있으면 실제 결과로 정산
+  const { data: due, error: dueErr } = await supabase
+    .from('seoul_race_rounds')
+    .select('*').eq('race_mode', 'standard').eq('cycle_no', round).eq('status', 'betting_open').maybeSingle();
+  if (dueErr) throw dueErr;
+
+  if (due) {
+    await supabase.from('seoul_race_rounds').update({ status: 'settling' }).eq('id', due.id);
+    await settleRound(due, { ...winData, round }, horses, fixedCombosMap);
+    await supabase.from('seoul_race_rounds').update({
+      status: 'settled', settled_at: new Date().toISOString(), lotto_round_ref: round,
+    }).eq('id', due.id);
+  }
+
+  // 다음 회차(round+1) 대상경마가 아직 없으면 새로 오픈 (베팅 유무와 무관하게 항상)
+  const { data: nextExisting } = await supabase
+    .from('seoul_race_rounds').select('id').eq('race_mode', 'standard').eq('cycle_no', round + 1).maybeSingle();
+  if (!nextExisting) {
+    const kstShiftedNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const window = nextBettingWindowForStandardRound(kstShiftedNow);
+    await supabase.from('seoul_race_rounds').insert({
+      race_mode: 'standard', cycle_no: round + 1,
+      betting_starts_at: window.start.toISOString(), betting_ends_at: window.end.toISOString(),
+      status: 'betting_open',
+    });
+  }
+
+  return { success: true, settledRound: due ? round : null, nextRound: round + 1 };
+}
+
+// ─── 최초 1회용: 관리자가 직접 호출해서 대상경마 첫 라운드를 연다 ────────────
+async function bootstrapStandardRace(nextRoundNo) {
+  const { data: existing } = await supabase
+    .from('seoul_race_rounds').select('id').eq('race_mode', 'standard').limit(1).maybeSingle();
+  if (existing) return { skipped: true, reason: 'already_bootstrapped' };
+
+  const kstShiftedNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const window = nextBettingWindowForStandardRound(kstShiftedNow);
+  await supabase.from('seoul_race_rounds').insert({
+    race_mode: 'standard', cycle_no: nextRoundNo,
+    betting_starts_at: window.start.toISOString(), betting_ends_at: window.end.toISOString(),
+    status: 'betting_open',
+  });
+  return { success: true, cycle_no: nextRoundNo, window };
+}
+
+module.exports = {
+  tickAlwaysRace, loadHorses, ensureFixedCombos,
+  catchupStandardRace, bootstrapStandardRace,
+};
