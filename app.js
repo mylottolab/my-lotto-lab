@@ -34,7 +34,7 @@ APP.STR = {
   info_odds: { kr: '잭폿 확률', en: 'Jackpot Odds' },
   info_next: { kr: '다음 추첨', en: 'Next Draw' },
   live_deadline: { kr: '다음 추첨까지', en: 'Next Drawing In' },
-  live_real_jackpot: { kr: '실제 잭폿 금액', en: 'Real Jackpot Amount' },
+  live_real_jackpot: { kr: '실제 잭팟 금액', en: 'Real Jackpot Amount' },
   live_cash_value: { kr: '현금가치', en: 'Cash Value' },
   live_as_of: { kr: '기준', en: 'as of' },
   live_local: { kr: '현지시각', en: 'Local Time' },
@@ -47,7 +47,7 @@ APP.STR = {
   help_ticket_price: { kr: '1게임 구매비용:', en: 'Price per Play:' },
   help_match: { kr: '일치조건', en: 'Match' },
   help_prize_amount: { kr: '당첨금', en: 'Prize' },
-  help_prize_note_fixed: { kr: '※ 잭폿 외 등급은 고정금액이에요 (운영사 공식 발표 기준, 일부 주는 판매량에 따라 달라질 수 있음).', en: '※ All non-jackpot prizes are fixed amounts (per official rules; may be pari-mutuel in some jurisdictions).' },
+  help_prize_note_fixed: { kr: '※ 잭팟 외 등급은 고정금액이에요 (운영사 공식 발표 기준, 일부 주는 판매량에 따라 달라질 수 있음).', en: '※ All non-jackpot prizes are fixed amounts (per official rules; may be pari-mutuel in some jurisdictions).' },
   help_prize_note_pari: { kr: '※ EuroMillions은 고정금액이 아니라 상금풀(판매액의 50%)을 등급별 비율로 나눠요. 그래서 실제 당첨금은 회차마다 달라져요.', en: '※ EuroMillions has no fixed amounts — each tier gets a fixed % share of the prize pool (50% of sales), so actual payouts vary draw to draw.' },
   help_close: { kr: '닫기', en: 'Close' },
   draw_result_title: { kr: '추첨결과', en: 'Draw Result' },
@@ -120,10 +120,6 @@ APP._pointsCache = { balance: 0 };
 APP._entriesCache = [];
 APP._jackpotCache = {}; // { POWERBALL: {...}, MEGAMILLIONS: {...}, EUROMILLIONS: {...} }
 APP._scheduleCache = {}; // { POWERBALL: {draw_date, registration_deadline_utc, ...}, ... }
-// 잭팟 "카운트업" 연출용 상태 - 실제 스크래핑은 몇 시간에 한 번뿐이지만,
-// 화면에서는 이전 값 -> 새 값까지 매초 조금씩 올라가는 것처럼 보간해서 보여준다
-// (실제 복권사 홈페이지들이 쓰는 "생동감" 연출과 동일한 방식 - 상업적으로
-// 판매를 자극하려는 의도임을 감안해 우리도 같은 효과를 재현)
 APP._jackpotAnim = {}; // { POWERBALL: { value, ratePerMs }, ... }
 APP._JACKPOT_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // refreshJackpot 호출 주기와 반드시 일치시킬 것
 
@@ -140,17 +136,11 @@ function _appQuerySuffix(state, extra){
   }
   return parts.length ? ('?' + parts.join('&')) : '';
 }
-// ⚠ 2026-07-13: 실제로 인증 헤더를 실어 서버에 요청을 보내는 곳(포인트 조회/등록현황
-// 조회/응모 제출)에서는 MLL.getAuthState()를 곧바로 쓰면 안 된다 — 토큰이 만료된 채로
-// 그대로 실려 나가서 401이 나고, 그 실패가 조용히 무시되면 hub_lounge.html에서 났던
-// "undefined/0" 버그와 똑같은 증상이 여기서도 재현된다. mocktest_hub.html의
-// mtAuthState()와 동일하게, 먼저 MLL.ensureFreshToken()으로 토큰을 갱신한 뒤 상태를 가져온다.
 async function _appAuthState(){
   if (window.MLL && MLL.ensureFreshToken) { try { await MLL.ensureFreshToken(); } catch(e){} }
   return MLL.getAuthState();
 }
 
-// 포인트 잔액 서버에서 갱신
 APP.refreshPoints = async function(){
   var state = await _appAuthState();
   if (!state.type) { APP._pointsCache = { balance: 0 }; return APP._pointsCache; }
@@ -164,7 +154,6 @@ APP.refreshPoints = async function(){
   } catch(e){ console.error('[APP] 포인트 조회 오류:', e); return APP._pointsCache; }
 };
 
-// 내 등록현황(HISTORY) 서버에서 갱신
 APP.refreshEntries = async function(){
   var state = await _appAuthState();
   if (!state.type) { APP._entriesCache = []; return []; }
@@ -178,7 +167,6 @@ APP.refreshEntries = async function(){
   } catch(e){ console.error('[APP] 등록현황 조회 오류:', e); APP._entriesCache = []; return []; }
 };
 
-// 실시간 잭팟 서버에서 갱신 (인증 불필요, 3종 동시 조회)
 APP.refreshJackpot = async function(){
   try {
     var codes = ['POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
@@ -193,25 +181,19 @@ APP.refreshJackpot = async function(){
   } catch(e){ console.error('[APP] 잭팟 조회 오류:', e); return APP._jackpotCache; }
 };
 
-// 새로 받아온 실제 값(newData.jackpot_estimate)을 목표로, "현재 화면에 보이던 값"에서부터
-// 다음 갱신 주기(5분) 동안 매초 조금씩 올라가도록 속도(ratePerMs)를 계산해둔다.
-// 매초 그 속도만큼 더해서 표시하면, 실제로는 5분에 한 번만 값이 바뀌어도
-// 화면에서는 계속 살아있는 것처럼 보인다 (실제 목표값을 넘어서지 않게 도착 시 고정).
 APP._updateJackpotAnimState = function(gameCode, newData){
   var newVal = newData && newData.jackpot_estimate ? Number(newData.jackpot_estimate) : null;
-  if (newVal === null) return; // 값이 없으면(아직 스크래핑 전 등) 애니메이션 갱신 안 함
+  if (newVal === null) return;
 
   var prevAnim = APP._jackpotAnim[gameCode];
-  var startVal = prevAnim ? prevAnim.value : newVal; // 처음이면 바로 실제값에서 시작
+  var startVal = prevAnim ? prevAnim.value : newVal;
 
   var rate = (newVal - startVal) / APP._JACKPOT_REFRESH_INTERVAL_MS;
-  // 값이 줄어드는 경우(추첨 직후 리셋 등)는 애니메이션 없이 바로 새 값으로 스냅
   if (rate < 0) { startVal = newVal; rate = 0; }
 
   APP._jackpotAnim[gameCode] = { value: startVal, target: newVal, ratePerMs: rate };
 };
 
-// 매초 호출 - 애니메이션 값을 목표치를 넘지 않는 선에서 조금씩 증가시킨다
 APP._tickJackpotAnim = function(){
   Object.keys(APP._jackpotAnim).forEach(function(code){
     var anim = APP._jackpotAnim[code];
@@ -220,7 +202,6 @@ APP._tickJackpotAnim = function(){
   });
 };
 
-// 화면 표시용 현재 애니메이션 값 (없으면 캐시의 원본값으로 폴백)
 APP._getAnimatedJackpotValue = function(gameCode){
   var anim = APP._jackpotAnim[gameCode];
   if (anim) return anim.value;
@@ -228,7 +209,6 @@ APP._getAnimatedJackpotValue = function(gameCode){
   return raw && raw.jackpot_estimate ? Number(raw.jackpot_estimate) : null;
 };
 
-// 등록 가능한 다음 회차 정보 서버에서 갱신
 APP.refreshSchedule = async function(){
   try {
     var codes = ['POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
@@ -255,7 +235,6 @@ APP.init = async function(){
   var requestedGame = (params.get('game') || '').toUpperCase();
   if (GLOBAL.GAMES[requestedGame]) APP.state.gameCode = requestedGame;
 
-  // 서버 데이터 먼저 불러온 뒤 렌더링 (깜빡임 방지를 위해 로딩 표시 후 교체)
   document.getElementById('gameTabs').innerHTML = '<div class="empty-state">불러오는 중...</div>';
   await Promise.all([APP.refreshPoints(), APP.refreshEntries(), APP.refreshJackpot(), APP.refreshSchedule()]);
 
@@ -277,7 +256,6 @@ APP.renderAll = function(){
   APP.startLiveTicker();
 };
 
-// ── 우측상단 로또 전환 드롭다운 (메인페이지와 동일한 컴포넌트) ──
 APP.renderLottoDropdown = function(){
   var lang = APP.state.lang;
   var current = GLOBAL.GAMES[APP.state.gameCode];
@@ -316,7 +294,6 @@ APP.selectGame = function(code){
   APP.renderAll();
 };
 
-// ── 잭팟/스케줄: 서버 캐시에서 조회 (없으면 안전한 기본값) ──
 APP.getJackpot = function(gameCode){
   return APP._jackpotCache[gameCode] || { jackpot_estimate: 0, cash_value: null, next_draw_date: null, fetched_at: null };
 };
@@ -341,6 +318,11 @@ APP.formatCountdown = function(ms){
   return pad(hh)+':'+pad(mm)+':'+pad(ss);
 };
 
+// 게임별 화폐단위 (유로밀리언스는 유로, 그 외 미국계 복권은 달러) — 2026-08 신규
+APP.currencySymbol = function(gameCode){
+  return (gameCode === 'EUROMILLIONS') ? '€' : '$';
+};
+
 APP.renderGameTabs = function(){
   var lang = APP.state.lang;
   var html = GLOBAL.gameList().map(function(g){
@@ -349,7 +331,7 @@ APP.renderGameTabs = function(){
     var drawLabel = lang === 'en' ? g.drawDaysLabelEn : g.drawDaysLabelKr;
     var live = APP.gameLiveStats(g.code);
     var animVal = APP._getAnimatedJackpotValue(g.code);
-    var jpLabel = animVal ? ('$' + Math.round(animVal).toLocaleString()) : '-';
+    var jpLabel = animVal ? (APP.currencySymbol(g.code) + Math.round(animVal).toLocaleString()) : '-';
     return '<div class="game-tab' + (active ? ' active' : '') + '" style="--tab-accent:' + g.accent + ';" onclick="APP.selectGame(\'' + g.code + '\')">' +
       '<div class="gname"><span class="dot"></span>' + name + '<button class="help-btn" onclick="event.stopPropagation();APP.openHelp(\'' + g.code + '\')" title="?">?</button></div>' +
       '<div class="gsub">' + g.mainPickCount + '/' + g.mainPoolSize + ' + ' + g.subPickCount + '/' + g.subPoolSize + ' · ' + drawLabel + '</div>' +
@@ -379,8 +361,8 @@ APP.renderInfoCard = function(){
 
   var deadlineBi = live.deadlineMs ? GLOBAL.formatDeadlineBilingual(live.deadlineMs, g.cutoffTz, lang) : { local:'-', kst:'-' };
   var animVal = APP._getAnimatedJackpotValue(g.code);
-  var jpAmountLabel = animVal ? ('$' + Math.round(animVal).toLocaleString()) : '-';
-  var cashLine = jp.cash_value ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': $' + Number(jp.cash_value).toLocaleString() + '</div>') : '';
+  var jpAmountLabel = animVal ? (APP.currencySymbol(g.code) + Math.round(animVal).toLocaleString()) : '-';
+  var cashLine = jp.cash_value ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': ' + APP.currencySymbol(g.code) + Number(jp.cash_value).toLocaleString() + '</div>') : '';
   var asOfLine = jp.fetched_at ? new Date(jp.fetched_at).toLocaleString(lang==='en'?'en-US':'ko-KR') : '-';
 
   document.getElementById('liveBar').innerHTML =
@@ -398,7 +380,6 @@ APP.renderInfoCard = function(){
     '</div>';
 };
 
-// ── 실시간 카운트다운 + 잭팟 카운트업 1초마다 갱신 ──
 APP.startLiveTicker = function(){
   if (APP._liveTickerStarted) return;
   APP._liveTickerStarted = true;
@@ -413,14 +394,13 @@ APP.startLiveTicker = function(){
 
       var animVal = APP._getAnimatedJackpotValue(g.code);
       if (animVal) {
-        var jpStr = '$' + Math.round(animVal).toLocaleString();
+        var jpStr = APP.currencySymbol(g.code) + Math.round(animVal).toLocaleString();
         document.querySelectorAll('[data-live-jackpot="' + g.code + '"]').forEach(function(el){ el.textContent = jpStr; });
         var bigJp = document.querySelector('[data-live-jackpot-big="' + g.code + '"]');
         if (bigJp) bigJp.textContent = jpStr;
       }
     });
   }, 1000);
-  // 서버 데이터(잭팟/스케줄)는 5분마다 재조회 (실시간에 가깝게, 과도한 호출은 피함)
   setInterval(async function(){
     await Promise.all([APP.refreshJackpot(), APP.refreshSchedule()]);
     APP.renderGameTabs();
@@ -453,9 +433,6 @@ APP.renderSectionBody = function(){
   if (APP.state.section === 'register') APP.bindRegisterEvents();
 };
 
-// =====================================================
-// 등록(가상구매) - 번호 선택 상태관리
-// =====================================================
 APP.resetSelection = function(){
   APP.state.mainSel = []; APP.state.subSel = [];
   APP.state.mainAuto = []; APP.state.subAuto = [];
@@ -572,8 +549,6 @@ APP.shuffle = function(arr){
   return a;
 };
 
-// ── 미로그인 상태에서 등록 시도 시: 안내 + "로그인하러 가기" 버튼으로 유도 ──
-// (등록확인 모달을 재사용 - 버튼 텍스트/동작만 이 경우에 맞게 바꿔치기)
 APP.promptLogin = function(){
   document.getElementById('confirmTitle').textContent = APP.t('need_login_title');
   document.getElementById('confirmBody').textContent = APP.t('need_login');
@@ -588,7 +563,6 @@ APP.promptLogin = function(){
   document.getElementById('confirmModal').classList.add('show');
 };
 
-// ── 등록 확인 모달 ──
 APP.openConfirm = function(){
   var state = MLL.getAuthState();
   if (!state.type) {
@@ -611,12 +585,10 @@ APP.openConfirm = function(){
 
   var schedule = APP.getSchedule(g.code);
   if (!schedule) {
-    alert(APP.t('select_all_numbers')); // 등록 가능 회차 없음 - 별도 문구 STR에 추가 가능
+    alert(APP.t('select_all_numbers'));
     return;
   }
 
-  // 이 모달이 promptLogin()에 의해 "로그인하러 가기"로 바뀌어 있었을 수 있으니,
-  // 정상 등록 확인 흐름으로 버튼 텍스트/동작을 원래대로 복원한다.
   var confirmBtn = document.getElementById('t_confirmBtn');
   confirmBtn.textContent = APP.t('confirm_btn');
   confirmBtn.onclick = APP.confirmRegister;
@@ -634,7 +606,6 @@ APP.openConfirm = function(){
 };
 APP.closeConfirm = function(){ document.getElementById('confirmModal').classList.remove('show'); };
 
-// ── 복권별 간단 설명 팝업 ──
 APP.openHelp = function(gameCode){
   var g = GLOBAL.GAMES[gameCode];
   var lang = APP.state.lang;
@@ -664,7 +635,6 @@ APP.openHelp = function(gameCode){
 };
 APP.closeHelp = function(){ document.getElementById('helpModal').classList.remove('show'); };
 
-// ── 등록 확정: 서버 API 호출 (POST /api/global/tickets) ──
 APP.confirmRegister = async function(){
   var g = GLOBAL.GAMES[APP.state.gameCode];
   var s = APP.state;
@@ -720,9 +690,6 @@ APP.confirmRegister = async function(){
   }
 };
 
-// =====================================================
-// 내 등록현황 (서버 데이터 - 결과 채점은 서버가 이미 계산해서 내려줌)
-// =====================================================
 APP.myFilterGame = 'ALL';
 APP.setMyFilter = function(v){ APP.myFilterGame = v; APP.renderSectionBody(); };
 
@@ -781,9 +748,6 @@ APP.myEntriesHtml = function(){
   '</div>';
 };
 
-// =====================================================
-// 통계 (서버에서 받은 entries 캐시 기반 집계)
-// =====================================================
 APP.statsHtml = function(){
   var lang = APP.state.lang;
   var entries = APP._entriesCache;
@@ -793,7 +757,7 @@ APP.statsHtml = function(){
     var b = byGame[e.game_code];
     if (!b) return;
     b.total++;
-    b.pointsUsed += 1; // 등록 1건당 1P (관리자 설정에 따라 실제 값은 달라질 수 있음 - 통계는 근사치)
+    b.pointsUsed += 1;
     if (e.prize_tier && e.prize_tier > 0) b.win++;
   });
 
@@ -825,9 +789,6 @@ APP.statsHtml = function(){
     compareRows + '</div>';
 };
 
-// =====================================================
-// 관리자 - 이제 별도 화면(global_lotto_admin_entry.html)으로 이동
-// =====================================================
 APP.adminMovedHtml = function(){
   return '<div class="card">' +
     '<h3>' + APP.t('admin_moved_title') + '</h3>' +
@@ -836,5 +797,4 @@ APP.adminMovedHtml = function(){
   '</div>';
 };
 
-// ── 추첨결과 한 장 요약 팝업 (당첨자 공개리스트/히스토리 클릭 시 재사용 가능하도록 남겨둠) ──
 APP.closeResultPopup = function(){ document.getElementById('resultModal').classList.remove('show'); };
