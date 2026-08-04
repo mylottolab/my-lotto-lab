@@ -86,6 +86,25 @@ router.get('/history', async (req, res) => {
   return res.json({ items: data });
 });
 
+// ── [공개] 말별 누적 등수통계 (grade1~5/당첨율/총당첨금) ──
+// GET /api/seoul-race/horse-stats?mode=always|standard
+router.get('/horse-stats', async (req, res) => {
+  const mode = req.query.mode === 'standard' ? 'standard' : 'always';
+  const { data, error } = await supabase
+    .from('seoul_race_horse_stats').select('*').eq('race_mode', mode);
+  if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  return res.json({ items: data });
+});
+
+// ── [공개] 말별 "경마 순위" 통계 (평균순위/상위1·2·3위 횟수/최근 3회 순위) ──
+// GET /api/seoul-race/horse-rank-stats?mode=always|standard
+router.get('/horse-rank-stats', async (req, res) => {
+  const mode = req.query.mode === 'standard' ? 'standard' : 'always';
+  const { data, error } = await supabase.rpc('seoul_race_horse_rank_stats', { p_mode: mode });
+  if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  return res.json({ items: data });
+});
+
 // ── [공개] 특정 라운드의 100마리 배팅 전 조합 미리보기 (seoul_race_entries: round_id/horse_no/combos) ──
 // GET /api/seoul-race/entries/:roundId
 router.get('/entries/:roundId', async (req, res) => {
