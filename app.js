@@ -358,10 +358,13 @@ APP.renderGameTabs = function(){
     var lastDraw = APP._lastDrawCache[g.code];
     var lastDrawHtml = '';
     if (lastDraw) {
-      var numsStr = (lastDraw.main_numbers || []).join(', ') + (lastDraw.bonus_numbers && lastDraw.bonus_numbers.length ? ' + ' + lastDraw.bonus_numbers.join(', ') : '');
+      var ballsHtml = (lastDraw.main_numbers || []).map(function(n){ return '<span class="gld-ball">' + n + '</span>'; }).join('')
+        + (lastDraw.bonus_numbers && lastDraw.bonus_numbers.length
+            ? '<span class="gld-plus">+</span>' + lastDraw.bonus_numbers.map(function(n){ return '<span class="gld-ball bonus">' + n + '</span>'; }).join('')
+            : '');
       lastDrawHtml = '<div class="gtab-lastdraw">' +
         '<span class="gld-label">' + APP.t('lastdraw_label') + ' (' + lastDraw.draw_date + ')</span>' +
-        '<span class="gld-nums">' + numsStr + '</span>' +
+        '<div class="gld-balls">' + ballsHtml + '</div>' +
       '</div>';
     }
     return '<div class="game-tab' + (active ? ' active' : '') + '" style="--tab-accent:' + g.accent + ';" onclick="APP.selectGame(\'' + g.code + '\')">' +
