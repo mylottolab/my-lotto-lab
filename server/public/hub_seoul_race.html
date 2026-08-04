@@ -546,8 +546,8 @@ function renderStatsPanel(mode, horseNo){
     '<div>' + (LANG==='en'?'Win rate':'당첨율') + ': <b>' + winRate + '%</b> (' + winCount.toLocaleString() + '/' + totalCombos.toLocaleString() + ')</div>' +
     '<div>' + (LANG==='en'?'Total prize':'총당첨금') + ': <b>' + totalPrize + (LANG==='en'?' KRW':'원') + '</b></div>' +
     '<div>' + (LANG==='en'?'Avg. race rank':'평균 경마순위') + ': <b>' + avgRank + (LANG==='en'?'':'위') + '</b></div>' +
-    '<div>' + (LANG==='en'?'#1 finishes':'1위 횟수') + ': <b>' + top1.toLocaleString() + '</b></div>' +
-    '<div>' + (LANG==='en'?'Top 2 / Top 3':'2위 이내 / 3위 이내') + ': <b>' + top2.toLocaleString() + ' / ' + top3.toLocaleString() + '</b></div>' +
+    '<div>' + (LANG==='en'?'#1 finishes':'경마1위횟수') + ': <b>' + top1.toLocaleString() + '</b></div>' +
+    '<div>' + (LANG==='en'?'Top 2 / Top 3':'경마2위 이내 / 3위 이내') + ': <b>' + top2.toLocaleString() + ' / ' + top3.toLocaleString() + '</b></div>' +
   '</div>';
 
   var grades = [1,2,3,4,5];
@@ -562,7 +562,8 @@ function renderStatsPanel(mode, horseNo){
     '</div>';
   }).join('');
 
-  panel.innerHTML = summaryHtml + barsHtml;
+  var barsTitle = '<div style="font-size:12.5px;font-weight:700;color:var(--text);margin:14px 0 8px;">' + (LANG==='en'?'Lotto Win Count by Grade':'로또 총 당첨횟수') + '</div>';
+  panel.innerHTML = summaryHtml + barsTitle + barsHtml;
 }
 
 async function viewCombos(mode, horseNo){
