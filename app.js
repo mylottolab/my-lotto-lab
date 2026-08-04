@@ -27,6 +27,7 @@ APP.STR = {
   tab_register: { kr: '번호 등록', en: 'Register Numbers' },
   tab_my: { kr: '내 등록현황', en: 'My Entries' },
   tab_stats: { kr: '통계', en: 'Statistics' },
+  promo_jackpot: { kr: '초대박 로또에 가상으로 도전해 보세요!', en: 'Take your shot at a mega jackpot — virtually!' },
   info_matrix: { kr: '번호 구조', en: 'Number Matrix' },
   info_draw: { kr: '추첨일', en: 'Draw Days' },
   info_grades: { kr: '등급 수', en: 'Prize Tiers' },
@@ -408,10 +409,12 @@ APP.renderSectionTabs = function(){
   var tabs = [
     ['register', 'tab_register'], ['my', 'tab_my'], ['stats', 'tab_stats']
   ];
-  document.getElementById('sectionTabs').innerHTML = tabs.map(function(t){
+  var tabsHtml = tabs.map(function(t){
     var active = APP.state.section === t[0];
     return '<div class="section-tab' + (active?' active':'') + '" onclick="APP.setSection(\'' + t[0] + '\')">' + APP.t(t[1]) + '</div>';
   }).join('');
+  var promoHtml = '<div class="section-tabs-promo">' + APP.t('promo_jackpot') + '</div>';
+  document.getElementById('sectionTabs').innerHTML = tabsHtml + promoHtml;
 };
 
 APP.setSection = function(s){
