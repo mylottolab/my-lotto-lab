@@ -641,7 +641,7 @@ async function runFullBackfillChunk(mode, roundsPerCall) {
         round_id: roundId, horse_no: h.no, generated: rd.generated,
         grade1_count: rd.gradeCounts[1], grade2_count: rd.gradeCounts[2], grade3_count: rd.gradeCounts[3],
         grade4_count: rd.gradeCounts[4], grade5_count: rd.gradeCounts[5], fail_count: rd.gradeCounts.fail,
-        win_count: rd.winCount, best_grade: rd.bestGrade || null, total_prize: rd.totalPrize,
+        win_count: rd.winCount, best_grade: rd.bestGrade, total_prize: rd.totalPrize,
       });
     }
     const { error: resErr } = await supabase.from('seoul_race_results').upsert(resultRows, { onConflict: 'round_id,horse_no' });
