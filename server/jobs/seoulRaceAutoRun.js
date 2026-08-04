@@ -559,8 +559,105 @@ async function runBackfillChunk(mode, roundsPerCall) {
   return { success: true, processedRounds: processed, lastProcessedRound: cur, target, done: cur >= target };
 }
 
+// =====================================================
+// [소급계산 - 전체판] runFullBackfillChunk(mode, roundsPerCall)  [2026-08 신규]
+// 기존 runBackfillChunk()는 seoul_race_horse_stats 누적치만 반영하고 회차별 실제 기록
+// (seoul_race_rounds/seoul_race_results)은 안 만들어서, "평균 경마순위"/"최근 N회 순위"
+// 계산이 불가능했다. 이 함수는 회차별 실제 기록까지 저장해서 그 계산이 가능하게 한다.
+//
+// ⚠ 주의 1: 매번 새로 무작위 조합을 생성한다(원래 조합은 저장 안 돼서 복원 불가능) —
+//   그래서 이 함수를 쓰기 전에 반드시 해당 mode의 seoul_race_horse_stats를 0으로
+//   리셋해야 한다. 안 그러면 기존 runBackfillChunk가 이미 쌓아둔 값 위에 또 더해져서
+//   이중집계된다.
+// ⚠ 주의 2: 진행상황은 별도 progress row(race_mode = mode + '_full')로 추적해서
+//   기존 경량 백필의 진행상황(seoul_race_backfill_progress의 'standard'/'always' 행)과
+//   안 섞이게 한다.
+// =====================================================
+async function runFullBackfillChunk(mode, roundsPerCall) {
+  if (mode !== 'standard' && mode !== 'always') throw new Error("mode는 'standard' 또는 'always'여야 합니다.");
+  const chunk = roundsPerCall && roundsPerCall > 0 ? roundsPerCall : 1;
+  const progressKey = mode + '_full';
+
+  const horses = await loadHorses();
+  if (!horses.length) return { skipped: true, reason: 'no_horses_seeded' };
+  const fixedCombosMap = await ensureFixedCombos(horses);
+
+  const target = getBackfillTarget(mode);
+  const { data: progRow, error: progErr } = await supabase
+    .from('seoul_race_backfill_progress').select('*').eq('race_mode', progressKey).maybeSingle();
+  if (progErr) throw progErr;
+
+  let cur = progRow ? progRow.last_processed_round : 0;
+  if (!progRow) {
+    const { error: insErr } = await supabase.from('seoul_race_backfill_progress')
+      .insert({ race_mode: progressKey, last_processed_round: 0, target_round: target });
+    if (insErr) throw insErr;
+  }
+  if (cur >= target) return { done: true, lastProcessedRound: cur, target };
+
+  const { data: allResultsAsc, error: fetchErr } = await supabase
+    .from('kr_lotto_results').select('round, nums, bonus')
+    .gt('round', cur).lte('round', Math.min(target, cur + chunk))
+    .order('round', { ascending: true });
+  if (fetchErr) throw fetchErr;
+
+  if (!allResultsAsc || !allResultsAsc.length) {
+    const nextCur = Math.min(target, cur + chunk);
+    await supabase.from('seoul_race_backfill_progress')
+      .update({ last_processed_round: nextCur, updated_at: new Date().toISOString() }).eq('race_mode', progressKey);
+    return { success: true, processedRounds: 0, lastProcessedRound: nextCur, target, done: nextCur >= target };
+  }
+
+  let processed = 0;
+  for (const winData of allResultsAsc) {
+    // 이미 그 회차 라운드가 있으면(재시도 등) 새로 안 만들고 그대로 재사용
+    const { data: existingRound } = await supabase
+      .from('seoul_race_rounds').select('id').eq('race_mode', mode).eq('cycle_no', winData.round).maybeSingle();
+
+    let roundId;
+    if (existingRound) {
+      roundId = existingRound.id;
+    } else {
+      // 과거 회차라 정확한 실제 배팅시각은 의미 없음 — 정렬/표시용 합성 날짜만 채워넣음
+      const syntheticDate = new Date(Date.now() - (target - winData.round) * 7 * 86400000).toISOString();
+      const { data: newRound, error: rErr } = await supabase.from('seoul_race_rounds').insert({
+        race_mode: mode, cycle_no: winData.round, status: 'settled',
+        betting_starts_at: syntheticDate, betting_ends_at: syntheticDate,
+        lotto_round_ref: winData.round, settled_at: syntheticDate,
+      }).select('id').single();
+      if (rErr) throw rErr;
+      roundId = newRound.id;
+    }
+
+    const { data: history } = await supabase
+      .from('kr_lotto_results').select('round, nums').lt('round', winData.round)
+      .order('round', { ascending: false }).limit(1000);
+
+    const resultRows = [];
+    for (const h of horses) {
+      const combos = engine.resolveCombosForHorse(h, history || [], fixedCombosMap);
+      const rd = engine.gradeCombos(combos, winData);
+      resultRows.push({
+        round_id: roundId, horse_no: h.no, generated: rd.generated,
+        grade1_count: rd.gradeCounts[1], grade2_count: rd.gradeCounts[2], grade3_count: rd.gradeCounts[3],
+        grade4_count: rd.gradeCounts[4], grade5_count: rd.gradeCounts[5], fail_count: rd.gradeCounts.fail,
+        win_count: rd.winCount, best_grade: rd.bestGrade || null, total_prize: rd.totalPrize,
+      });
+    }
+    const { error: resErr } = await supabase.from('seoul_race_results').upsert(resultRows, { onConflict: 'round_id,horse_no' });
+    if (resErr) throw resErr;
+
+    cur = winData.round;
+    processed++;
+  }
+
+  await supabase.from('seoul_race_backfill_progress')
+    .update({ last_processed_round: cur, updated_at: new Date().toISOString() }).eq('race_mode', progressKey);
+  return { success: true, processedRounds: processed, lastProcessedRound: cur, target, done: cur >= target };
+}
+
 module.exports = {
   tickAlwaysRace, loadHorses, ensureFixedCombos,
   catchupStandardRace, bootstrapStandardRace,
-  runBackfillChunk,
+  runBackfillChunk, runFullBackfillChunk,
 };
