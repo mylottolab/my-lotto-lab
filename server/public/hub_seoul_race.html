@@ -131,6 +131,21 @@ button{font-family:inherit;}
 .combo-item{background:var(--surface-2);border-radius:8px;padding:7px 10px;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text-dim);}
 .combo-item b{color:var(--text);}
 
+.recent-ranks{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;order:10;font-size:10.5px;color:var(--text-faint);padding-top:2px;}
+.recent-ranks .rr-label{flex-shrink:0;}
+.rank-chip{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--surface-2);color:var(--text-dim);white-space:nowrap;}
+.rank-chip.r1{background:rgba(224,179,65,.18);color:var(--gold);}
+.rank-chip.r2,.rank-chip.r3{background:var(--accent-bg);color:var(--accent);}
+
+.stats-panel{background:var(--surface-2);border-radius:10px;padding:14px 16px;margin-bottom:16px;}
+.stats-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:11.5px;color:var(--text-dim);margin-bottom:12px;}
+.stats-summary b{color:var(--text);font-variant-numeric:tabular-nums;}
+.stat-bar-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-dim);margin-bottom:5px;}
+.stat-bar-label{width:34px;flex-shrink:0;}
+.stat-bar-track{flex:1;height:8px;border-radius:4px;background:var(--surface);overflow:hidden;}
+.stat-bar-fill{height:100%;border-radius:4px;background:var(--gold);}
+.stat-bar-count{width:46px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;}
+
 @media (max-width:680px){
   .topbar-inner{height:auto;min-height:54px;padding:10px 16px;}
   .brand-text .t2{display:none;}
@@ -249,6 +264,7 @@ button{font-family:inherit;}
       <div class="modal-title" id="combosModalTitle">-</div>
       <button class="modal-close" onclick="closeCombosModal()">✕</button>
     </div>
+    <div class="stats-panel" id="statsPanel"></div>
     <div class="combo-grid" id="combosGrid"></div>
   </div>
 </div>
@@ -300,8 +316,8 @@ function authBodyExtra(){
 
 var HORSES = [];
 var STATE = {
-  always:   { round: null, unitPrice: 100, timer: null, myBets: [], history: [] },
-  standard: { round: null, unitPrice: 100, timer: null, myBets: [], history: [] },
+  always:   { round: null, unitPrice: 100, timer: null, myBets: [], history: [], stats: {}, rankStats: {} },
+  standard: { round: null, unitPrice: 100, timer: null, myBets: [], history: [], stats: {}, rankStats: {} },
 };
 var TYPE_LABEL = {
   cond:  { kr: '전략중시형', en: 'Strategy-based' },
@@ -318,13 +334,39 @@ async function loadHorses(){
   } catch(e){ console.error('[seoul-race] horses load error', e); }
 }
 
+async function loadHorseStats(mode){
+  try {
+    var [statResp, rankResp] = await Promise.all([
+      fetch(MLL.API_BASE + '/api/seoul-race/horse-stats?mode=' + mode),
+      fetch(MLL.API_BASE + '/api/seoul-race/horse-rank-stats?mode=' + mode),
+    ]);
+    var statData = await statResp.json();
+    var rankData = await rankResp.json();
+    var statMap = {}, rankMap = {};
+    (statData.items || []).forEach(function(s){ statMap[s.horse_no] = s; });
+    (rankData.items || []).forEach(function(r){ rankMap[r.horse_no] = r; });
+    STATE[mode].stats = statMap;
+    STATE[mode].rankStats = rankMap;
+    renderHorses(mode);
+  } catch(e){ console.error('[seoul-race] horse stats load error(' + mode + ')', e); }
+}
+
 function renderHorses(mode){
   var grid = document.getElementById('horseGrid_' + mode);
   if (!grid) return;
   if (!HORSES.length) { grid.innerHTML = '<div class="list-empty">' + (LANG==='en' ? 'No horses found.' : '말 데이터가 없습니다.') + '</div>'; return; }
   var round = STATE[mode].round;
+  var rankMap = STATE[mode].rankStats || {};
   grid.innerHTML = HORSES.map(function(h){
     var typeLbl = (TYPE_LABEL[h.horse_type] || {})[LANG] || h.horse_type;
+    var rank = rankMap[h.no];
+    var recentHtml = '';
+    if (rank && rank.recent_ranks && rank.recent_ranks.length) {
+      recentHtml = '<div class="recent-ranks"><span class="rr-label">' + (LANG==='en' ? 'Recent:' : '최근 3회:') + '</span>' + rank.recent_ranks.map(function(r){
+        var cls = r <= 3 ? ('rank-chip r' + r) : 'rank-chip';
+        return '<span class="' + cls + '">' + r + (LANG==='en' ? (r===1?'st':r===2?'nd':r===3?'rd':'th') : '위') + '</span>';
+      }).join('') + '</div>';
+    }
     return '' +
       '<div class="horse-row">' +
         '<div class="horse-no">' + h.no + '</div>' +
@@ -332,7 +374,8 @@ function renderHorses(mode){
           '<div class="hn-kr">' + h.name_kr + ' <span class="hn-en">(' + h.name_en + ')</span></div>' +
         '</div>' +
         '<span class="horse-type ' + h.horse_type + '">' + typeLbl + '</span>' +
-        '<button class="view-combos-btn" onclick="viewCombos(\'' + mode + '\', ' + h.no + ')" ' + (round ? '' : 'disabled') + '>' + (LANG==='en' ? 'View numbers' : '번호보기') + '</button>' +
+        recentHtml +
+        '<button class="view-combos-btn" onclick="viewCombos(\'' + mode + '\', ' + h.no + ')">' + (LANG==='en' ? 'Details' : '상세보기') + '</button>' +
         '<div class="bet-controls">' +
           '<input class="unit-input" type="number" min="1" max="100" value="1" id="units_' + mode + '_' + h.no + '">' +
           '<button class="bet-btn" onclick="placeBet(\'' + mode + '\', ' + h.no + ')" ' + (round ? '' : 'disabled') + '>' + (LANG==='en' ? 'Bet' : '베팅') + '</button>' +
@@ -481,15 +524,60 @@ function renderHistory(mode){
   }).join('');
 }
 
+function renderStatsPanel(mode, horseNo){
+  var stat = (STATE[mode].stats || {})[horseNo];
+  var rank = (STATE[mode].rankStats || {})[horseNo];
+  var panel = document.getElementById('statsPanel');
+  if (!stat && !rank) {
+    panel.innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'No stats yet.' : '아직 누적된 성적이 없습니다.') + '</div>';
+    return;
+  }
+  var totalCombos = stat ? stat.total_combos : 0;
+  var winCount = stat ? stat.win_count : 0;
+  var winRate = totalCombos > 0 ? ((winCount / totalCombos) * 100).toFixed(1) : '0.0';
+  var totalPrize = stat ? (stat.total_prize || 0).toLocaleString(LANG==='en'?'en-US':'ko-KR') : '0';
+  var avgRank = (rank && rank.avg_rank != null) ? rank.avg_rank : '-';
+  var top1 = rank ? rank.top1_count : 0;
+  var top2 = rank ? rank.top2_count : 0;
+  var top3 = rank ? rank.top3_count : 0;
+
+  var summaryHtml = '<div class="stats-summary">' +
+    '<div>' + (LANG==='en'?'Total combos':'총등록건수') + ': <b>' + totalCombos.toLocaleString() + '</b></div>' +
+    '<div>' + (LANG==='en'?'Win rate':'당첨율') + ': <b>' + winRate + '%</b> (' + winCount.toLocaleString() + '/' + totalCombos.toLocaleString() + ')</div>' +
+    '<div>' + (LANG==='en'?'Total prize':'총당첨금') + ': <b>' + totalPrize + 'P</b></div>' +
+    '<div>' + (LANG==='en'?'Avg. race rank':'평균 경마순위') + ': <b>' + avgRank + (LANG==='en'?'':'위') + '</b></div>' +
+    '<div>' + (LANG==='en'?'#1 finishes':'1위 횟수') + ': <b>' + top1.toLocaleString() + '</b></div>' +
+    '<div>' + (LANG==='en'?'Top 2 / Top 3':'2위 이내 / 3위 이내') + ': <b>' + top2.toLocaleString() + ' / ' + top3.toLocaleString() + '</b></div>' +
+  '</div>';
+
+  var grades = [1,2,3,4,5];
+  var maxCount = Math.max(1, grades.map(function(g){ return stat ? (stat['grade' + g + '_count'] || 0) : 0; }).reduce(function(a,b){ return Math.max(a,b); }, 0));
+  var barsHtml = grades.map(function(g){
+    var count = stat ? (stat['grade' + g + '_count'] || 0) : 0;
+    var pct = Math.round((count / maxCount) * 100);
+    return '<div class="stat-bar-row">' +
+      '<div class="stat-bar-label">' + g + (LANG==='en'?'st':'등') + '</div>' +
+      '<div class="stat-bar-track"><div class="stat-bar-fill" style="width:' + pct + '%;"></div></div>' +
+      '<div class="stat-bar-count">' + count.toLocaleString() + '</div>' +
+    '</div>';
+  }).join('');
+
+  panel.innerHTML = summaryHtml + barsHtml;
+}
+
 async function viewCombos(mode, horseNo){
   var round = STATE[mode].round;
-  if (!round) return;
   var horse = HORSES.find(function(h){ return h.no === horseNo; });
-  var title = (horse ? (LANG==='en' ? horse.name_en : horse.name_kr) : ('#' + horseNo)) + ' · ' + (LANG==='en' ? '100 combos' : '100개 조합');
+  var title = (horse ? (LANG==='en' ? horse.name_en : horse.name_kr) : ('#' + horseNo)) + ' · ' + (LANG==='en' ? 'Details' : '상세정보');
   document.getElementById('combosModalTitle').textContent = title;
-  document.getElementById('combosGrid').innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'Loading...' : '불러오는 중...') + '</div>';
+  renderStatsPanel(mode, horseNo);
   document.getElementById('combosModal').classList.add('show');
 
+  if (!round) {
+    document.getElementById('combosGrid').innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'No round open — combos unavailable right now.' : '지금은 열린 라운드가 없어 조합을 볼 수 없어요.') + '</div>';
+    return;
+  }
+  document.getElementById('combosGrid').innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'Loading...' : '불러오는 중...') + '</div>';
   try {
     var resp = await fetch(MLL.API_BASE + '/api/seoul-race/entries/' + round.id);
     var data = await resp.json();
@@ -515,9 +603,11 @@ document.addEventListener('DOMContentLoaded', function(){
     loadCurrentRound(mode);
     loadMyBets(mode);
     loadHistory(mode);
+    loadHorseStats(mode);
   });
   setInterval(function(){ loadCurrentRound('always'); }, 30000);
   setInterval(function(){ loadCurrentRound('standard'); }, 5 * 60 * 1000);
+  setInterval(function(){ loadHorseStats('always'); loadHorseStats('standard'); }, 5 * 60 * 1000);
 });
 </script>
 
