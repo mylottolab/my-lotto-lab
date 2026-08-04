@@ -544,7 +544,7 @@ function renderStatsPanel(mode, horseNo){
   var summaryHtml = '<div class="stats-summary">' +
     '<div>' + (LANG==='en'?'Total combos':'총등록건수') + ': <b>' + totalCombos.toLocaleString() + '</b></div>' +
     '<div>' + (LANG==='en'?'Win rate':'당첨율') + ': <b>' + winRate + '%</b> (' + winCount.toLocaleString() + '/' + totalCombos.toLocaleString() + ')</div>' +
-    '<div>' + (LANG==='en'?'Total prize':'총당첨금') + ': <b>' + totalPrize + 'P</b></div>' +
+    '<div>' + (LANG==='en'?'Total prize':'총당첨금') + ': <b>' + totalPrize + (LANG==='en'?' KRW':'원') + '</b></div>' +
     '<div>' + (LANG==='en'?'Avg. race rank':'평균 경마순위') + ': <b>' + avgRank + (LANG==='en'?'':'위') + '</b></div>' +
     '<div>' + (LANG==='en'?'#1 finishes':'1위 횟수') + ': <b>' + top1.toLocaleString() + '</b></div>' +
     '<div>' + (LANG==='en'?'Top 2 / Top 3':'2위 이내 / 3위 이내') + ': <b>' + top2.toLocaleString() + ' / ' + top3.toLocaleString() + '</b></div>' +
