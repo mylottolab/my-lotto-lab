@@ -264,8 +264,9 @@ function renderProducts(){
     var fullImageHtml = '<div class="pc-image pc-image-full"><img src="shop_images/' + p.id + '_full_a4.png" loading="lazy" alt="' + fullA4Caption + '"><div class="pc-image-caption">' + fullA4Caption + '</div></div>';
     var imagesHtml = '<div class="pc-images">' + fullImageHtml + cropImageHtml + '</div>';
     var freshBadgeText = LANG==='en' ? 'Calculated using the most recent draw' : '최근 추첨분까지 반영하여 산출';
+    var freshBadgeHtml = p.id === 'blank_sheet' ? '' : ('<div class="pc-fresh-badge">' + freshBadgeText + '</div>');
     return '<div class="product-card">' +
-      '<div class="pc-fresh-badge">' + freshBadgeText + '</div>' +
+      freshBadgeHtml +
       '<div class="pc-main">' +
         '<div class="pc-body">' +
           '<div class="pc-icon">' + (PRODUCT_ICON[p.id] || '🖨️') + '</div>' +
