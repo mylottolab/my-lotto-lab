@@ -184,6 +184,8 @@ body{
 .hcard-name-sub{font-size:12px;font-weight:500;color:var(--text-dim);margin-top:2px;}
 .hcard-desc{font-size:11.5px;color:var(--text-dim);margin-top:4px;line-height:1.5;}
 .hcard-time{font-size:10.5px;color:var(--card-accent,var(--gold));margin-top:7px;font-weight:600;}
+.hcard-fresh-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1a1404;font-size:10.5px;font-weight:800;letter-spacing:-.01em;margin-bottom:9px;box-shadow:0 2px 8px rgba(224,179,65,.3);}
+.hcard-fresh-badge::before{content:'✓';font-weight:900;}
 
 .hcard-stat{margin-top:14px;display:flex;align-items:baseline;gap:6px;}
 .hcard-stat .num{font-size:20px;font-weight:600;color:var(--card-accent,var(--gold));}
@@ -496,6 +498,7 @@ body{
         <span class="hcard-tag live" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
       </div>
       <div>
+        <div class="hcard-fresh-badge" data-i18n-kr="최근 추첨분까지 반영하여 산출" data-i18n-en="Calculated using the most recent draw">최근 추첨분까지 반영하여 산출</div>
         <div class="hcard-name" data-i18n-kr="품샵" data-i18n-en="Point Shop">품샵</div>
         <div class="hcard-desc" data-i18n-kr="포인트로 즉시 구매하는 로또 마킹용지 PDF — 원하는 개수만큼 골라 바로 다운로드" data-i18n-en="Instantly buy lotto marking-sheet PDFs with points — pick your quantity and download right away">포인트로 즉시 구매하는 로또 마킹용지 PDF — 원하는 개수만큼 골라 바로 다운로드</div>
         <div class="hcard-time" data-i18n-kr="🖨️ 서로다른조합 · 반복마킹 · 역대당첨재현 · 극단조합 · 빈용지" data-i18n-en="🖨️ Unique combos · Repeat-marked · Past-winner replay · Extreme combos · Blank sheet">🖨️ 서로다른조합 · 반복마킹 · 역대당첨재현 · 극단조합 · 빈용지</div>
