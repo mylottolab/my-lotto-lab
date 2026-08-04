@@ -156,10 +156,12 @@ button{font-family:inherit;cursor:pointer;}
 }
 
 /* 섹션 탭 */
-.section-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border-soft);margin-bottom:20px;}
+.section-tabs{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--border-soft);margin-bottom:20px;}
 .section-tab{padding:11px 18px;font-size:13.5px;font-weight:600;color:var(--text-faint);border-bottom:2px solid transparent;}
 .section-tab.active{color:var(--text);border-bottom-color:var(--game-accent);}
 .section-tab:hover{color:var(--text-dim);}
+.section-tabs-promo{margin-left:auto;padding:0 4px 11px;font-size:12.5px;font-weight:700;color:var(--game-accent,var(--gold));white-space:nowrap;}
+@media (max-width:640px){ .section-tabs-promo{display:none;} }
 
 .card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:22px;margin-bottom:18px;}
 .card h3{margin:0 0 14px;font-size:15px;font-weight:700;}
