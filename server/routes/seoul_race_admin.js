@@ -4,6 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { tickAlwaysRace } = require('../jobs/seoulRaceAutoRun');
 const { bootstrapStandardRace } = require('../jobs/seoulRaceAutoRun'); // 대상경마 최초 오픈용 (2026-08 신규)
 const { runBackfillChunk } = require('../jobs/seoulRaceAutoRun'); // 말별 누적성적 소급계산용 (2026-08 신규)
+const { runFullBackfillChunk } = require('../jobs/seoulRaceAutoRun'); // 회차별 실제기록까지 남기는 전체판 소급계산 (2026-08 신규)
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -90,6 +91,26 @@ router.post('/backfill', requireAdmin, async (req, res) => {
     return res.json({ success: true, result });
   } catch (err) {
     console.error('[seoul-race-admin] backfill 오류:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// [6] 회차별 실제기록까지 남기는 전체판 소급계산 — 청크 단위(1회 호출당 roundsPerCall개씩, 기본 1개)
+// POST /api/admin/seoul-race/backfill-full  body: { mode:'standard'|'always', roundsPerCall }
+// ⚠ 실행 전 반드시 해당 mode의 seoul_race_horse_stats를 0으로 리셋해야 함 (이중집계 방지) —
+//   자세한 내용은 seoulRaceAutoRun.js의 runFullBackfillChunk() 주석 참고.
+// done:false가 나오면 계속 같은 요청을 반복 호출해서 이어가면 됨 (진행상황은 DB에 저장되어 안전)
+router.post('/backfill-full', requireAdmin, async (req, res) => {
+  const mode = req.body.mode;
+  const roundsPerCall = Number(req.body.roundsPerCall) || 1;
+  if (mode !== 'standard' && mode !== 'always') {
+    return res.status(400).json({ error: "mode는 'standard' 또는 'always'여야 합니다." });
+  }
+  try {
+    const result = await runFullBackfillChunk(mode, roundsPerCall);
+    return res.json({ success: true, result });
+  } catch (err) {
+    console.error('[seoul-race-admin] backfill-full 오류:', err);
     return res.status(500).json({ error: err.message });
   }
 });
