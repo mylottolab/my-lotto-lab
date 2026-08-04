@@ -27,7 +27,6 @@ APP.STR = {
   tab_register: { kr: '번호 등록', en: 'Register Numbers' },
   tab_my: { kr: '내 등록현황', en: 'My Entries' },
   tab_stats: { kr: '통계', en: 'Statistics' },
-  tab_admin: { kr: '관리자', en: 'Admin' },
   info_matrix: { kr: '번호 구조', en: 'Number Matrix' },
   info_draw: { kr: '추첨일', en: 'Draw Days' },
   info_grades: { kr: '등급 수', en: 'Prize Tiers' },
@@ -94,9 +93,6 @@ APP.STR = {
   stat_points_used: { kr: '사용 포인트', en: 'Points Used' },
   compare_title: { kr: '종목간 당첨율 비교', en: 'Win Rate Comparison Across Games' },
   compare_note: { kr: '같은 100건을 등록해도 종목마다 당첨율이 얼마나 다른지 직접 체감해보세요.', en: 'See how differently each game pays out, even with the same number of entries.' },
-  admin_moved_title: { kr: '관리자 기능은 별도 화면으로 이동했습니다', en: 'Admin tools have moved' },
-  admin_moved_body: { kr: '추첨결과·잭팟 수동입력은 이제 전용 관리자 화면에서 처리합니다.', en: 'Manual draw results and jackpot entry are now handled in a dedicated admin screen.' },
-  admin_moved_link: { kr: '관리자 입력화면 열기 →', en: 'Open Admin Entry Screen →' },
 };
 
 APP.t = function(key){
@@ -410,7 +406,7 @@ APP.startLiveTicker = function(){
 
 APP.renderSectionTabs = function(){
   var tabs = [
-    ['register', 'tab_register'], ['my', 'tab_my'], ['stats', 'tab_stats'], ['admin', 'tab_admin']
+    ['register', 'tab_register'], ['my', 'tab_my'], ['stats', 'tab_stats']
   ];
   document.getElementById('sectionTabs').innerHTML = tabs.map(function(t){
     var active = APP.state.section === t[0];
@@ -428,7 +424,6 @@ APP.renderSectionBody = function(){
   if (APP.state.section === 'register') body.innerHTML = APP.registerHtml();
   else if (APP.state.section === 'my') body.innerHTML = APP.myEntriesHtml();
   else if (APP.state.section === 'stats') body.innerHTML = APP.statsHtml();
-  else if (APP.state.section === 'admin') body.innerHTML = APP.adminMovedHtml();
 
   if (APP.state.section === 'register') APP.bindRegisterEvents();
 };
@@ -787,14 +782,6 @@ APP.statsHtml = function(){
     '<div class="card"><h3>' + APP.t('compare_title') + '</h3>' +
     '<p style="font-size:12px;color:var(--text-dim);margin:0 0 16px;">' + APP.t('compare_note') + '</p>' +
     compareRows + '</div>';
-};
-
-APP.adminMovedHtml = function(){
-  return '<div class="card">' +
-    '<h3>' + APP.t('admin_moved_title') + '</h3>' +
-    '<p style="font-size:13px;color:var(--text-dim);line-height:1.6;">' + APP.t('admin_moved_body') + '</p>' +
-    '<a href="global_lotto_admin_entry.html" target="_blank" class="btn btn-gold" style="display:inline-block;margin-top:10px;">' + APP.t('admin_moved_link') + '</a>' +
-  '</div>';
 };
 
 APP.closeResultPopup = function(){ document.getElementById('resultModal').classList.remove('show'); };
