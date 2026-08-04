@@ -108,9 +108,13 @@ button{font-family:inherit;cursor:pointer;}
 .gtab-lastdraw{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border-soft);font-size:11px;color:var(--text-dim);cursor:pointer;}
 .gtab-lastdraw:hover{color:var(--text);}
 .gtab-lastdraw:hover .gld-more{text-decoration:underline;}
-.gtab-lastdraw .gld-label{color:var(--text-faint);margin-right:4px;}
+.gtab-lastdraw .gld-label{color:var(--text-faint);margin-right:4px;display:block;margin-bottom:5px;}
 .gtab-lastdraw .gld-nums{color:var(--text);font-weight:700;}
 .gtab-lastdraw .gld-more{color:var(--tab-accent);margin-left:5px;font-weight:600;white-space:nowrap;}
+.gld-balls{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.gld-ball{width:21px;height:21px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;font-family:inherit;color:var(--text);flex-shrink:0;}
+.gld-ball.bonus{background:rgba(224,179,65,.16);border-color:var(--gold);color:var(--gold);}
+.gld-plus{color:var(--text-faint);font-size:11px;font-weight:700;margin:0 1px;}
 
 /* 1등 당첨자 없음(이월) 말풍선 뱃지 */
 .rollover-badge{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:5px 10px;background:rgba(224,179,65,.14);border:1px solid var(--gold-dim);border-radius:12px;font-size:10.5px;font-weight:700;color:var(--gold);position:relative;cursor:pointer;}
