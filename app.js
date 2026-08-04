@@ -28,6 +28,7 @@ APP.STR = {
   tab_my: { kr: '내 등록현황', en: 'My Entries' },
   tab_stats: { kr: '통계', en: 'Statistics' },
   promo_jackpot: { kr: '초대박 로또에 가상으로 도전해 보세요!', en: 'Take your shot at a mega jackpot — virtually!' },
+  lastdraw_label: { kr: '최근 당첨', en: 'Last draw' },
   info_matrix: { kr: '번호 구조', en: 'Number Matrix' },
   info_draw: { kr: '추첨일', en: 'Draw Days' },
   info_grades: { kr: '등급 수', en: 'Prize Tiers' },
@@ -217,6 +218,31 @@ APP.refreshSchedule = async function(){
   } catch(e){ console.error('[APP] 스케줄 조회 오류:', e); return APP._scheduleCache; }
 };
 
+// ── 최근 당첨번호 + 추첨일 (PaperLotto의 draw_results를 그대로 가져다 씀 — 해외복권 데이터는
+//    PaperLotto 쪽에서 더 활발히 관리되고 있어서, 새로 스크래핑/입력체계를 안 만들고 재사용) ──
+APP._PAPERLOTTO_SUPABASE_URL = 'https://wzrqaozlbfyejsbvnrxk.supabase.co';
+APP._PAPERLOTTO_SUPABASE_KEY = 'sb_publishable_3KrYMzwrVlbYr-e9d8UiLA_KgvSs8tC';
+APP._PAPERLOTTO_GAME_ID = { POWERBALL: 'us_powerball', MEGAMILLIONS: 'us_megamillions', EUROMILLIONS: 'eu_euromillions' };
+APP._lastDrawCache = {}; // { POWERBALL: {round_no, draw_date, main_numbers, bonus_numbers}, ... }
+
+APP.refreshLastDraws = async function(){
+  try {
+    var codes = ['POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
+    var results = await Promise.all(codes.map(function(code){
+      var gameId = APP._PAPERLOTTO_GAME_ID[code];
+      var url = APP._PAPERLOTTO_SUPABASE_URL + '/rest/v1/draw_results'
+        + '?select=round_no,draw_date,main_numbers,bonus_numbers'
+        + '&game_id=eq.' + gameId + '&order=round_no.desc&limit=1';
+      return fetch(url, { headers: { apikey: APP._PAPERLOTTO_SUPABASE_KEY, Authorization: 'Bearer ' + APP._PAPERLOTTO_SUPABASE_KEY } })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(rows){ return (rows && rows[0]) ? rows[0] : null; })
+        .catch(function(){ return null; });
+    }));
+    codes.forEach(function(code, i){ APP._lastDrawCache[code] = results[i]; });
+    return APP._lastDrawCache;
+  } catch(e){ console.error('[APP] 최근 당첨번호 조회 오류:', e); return APP._lastDrawCache; }
+};
+
 document.addEventListener('DOMContentLoaded', function(){ APP.init(); });
 
 // =====================================================
@@ -233,7 +259,7 @@ APP.init = async function(){
   if (GLOBAL.GAMES[requestedGame]) APP.state.gameCode = requestedGame;
 
   document.getElementById('gameTabs').innerHTML = '<div class="empty-state">불러오는 중...</div>';
-  await Promise.all([APP.refreshPoints(), APP.refreshEntries(), APP.refreshJackpot(), APP.refreshSchedule()]);
+  await Promise.all([APP.refreshPoints(), APP.refreshEntries(), APP.refreshJackpot(), APP.refreshSchedule(), APP.refreshLastDraws()]);
 
   APP.renderAll();
 };
@@ -329,10 +355,20 @@ APP.renderGameTabs = function(){
     var live = APP.gameLiveStats(g.code);
     var animVal = APP._getAnimatedJackpotValue(g.code);
     var jpLabel = animVal ? (APP.currencySymbol(g.code) + Math.round(animVal).toLocaleString()) : '-';
+    var lastDraw = APP._lastDrawCache[g.code];
+    var lastDrawHtml = '';
+    if (lastDraw) {
+      var numsStr = (lastDraw.main_numbers || []).join(', ') + (lastDraw.bonus_numbers && lastDraw.bonus_numbers.length ? ' + ' + lastDraw.bonus_numbers.join(', ') : '');
+      lastDrawHtml = '<div class="gtab-lastdraw">' +
+        '<span class="gld-label">' + APP.t('lastdraw_label') + ' (' + lastDraw.draw_date + ')</span>' +
+        '<span class="gld-nums">' + numsStr + '</span>' +
+      '</div>';
+    }
     return '<div class="game-tab' + (active ? ' active' : '') + '" style="--tab-accent:' + g.accent + ';" onclick="APP.selectGame(\'' + g.code + '\')">' +
       '<div class="gname"><span class="dot"></span>' + name + '<button class="help-btn" onclick="event.stopPropagation();APP.openHelp(\'' + g.code + '\')" title="?">?</button></div>' +
       '<div class="gsub">' + g.mainPickCount + '/' + g.mainPoolSize + ' + ' + g.subPickCount + '/' + g.subPoolSize + ' · ' + drawLabel + '</div>' +
       '<div class="gtab-live"><span class="gtl-dot"></span><span class="font-num gtab-jackpot" data-live-jackpot="' + g.code + '">' + jpLabel + '</span> · <span class="font-num" data-live-cd="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</span></div>' +
+      lastDrawHtml +
     '</div>';
   }).join('');
   document.getElementById('gameTabs').innerHTML = html;
@@ -399,7 +435,7 @@ APP.startLiveTicker = function(){
     });
   }, 1000);
   setInterval(async function(){
-    await Promise.all([APP.refreshJackpot(), APP.refreshSchedule()]);
+    await Promise.all([APP.refreshJackpot(), APP.refreshSchedule(), APP.refreshLastDraws()]);
     APP.renderGameTabs();
     APP.renderInfoCard();
   }, 5 * 60 * 1000);
