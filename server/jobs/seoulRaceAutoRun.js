@@ -79,7 +79,7 @@ async function ensureFixedCombos(horses) {
 async function getLottoResult(round) {
   const { data, error } = await supabase
     .from('kr_lotto_results')
-    .select('round, nums, bonus')
+    .select('round, nums, bonus, prize1, prize2, prize3')
     .eq('round', round)
     .maybeSingle();
   if (error) throw error;
@@ -528,7 +528,7 @@ async function runBackfillChunk(mode, roundsPerCall) {
   if (cur >= target) return { done: true, lastProcessedRound: cur, target };
 
   const { data: allResultsAsc, error: fetchErr } = await supabase
-    .from('kr_lotto_results').select('round, nums, bonus')
+    .from('kr_lotto_results').select('round, nums, bonus, prize1, prize2, prize3')
     .gt('round', cur).lte('round', Math.min(target, cur + chunk))
     .order('round', { ascending: true });
   if (fetchErr) throw fetchErr;
@@ -596,7 +596,7 @@ async function runFullBackfillChunk(mode, roundsPerCall) {
   if (cur >= target) return { done: true, lastProcessedRound: cur, target };
 
   const { data: allResultsAsc, error: fetchErr } = await supabase
-    .from('kr_lotto_results').select('round, nums, bonus')
+    .from('kr_lotto_results').select('round, nums, bonus, prize1, prize2, prize3')
     .gt('round', cur).lte('round', Math.min(target, cur + chunk))
     .order('round', { ascending: true });
   if (fetchErr) throw fetchErr;
