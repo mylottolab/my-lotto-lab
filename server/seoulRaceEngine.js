@@ -17,12 +17,17 @@ const POOL_MAX = 45;
 const PICK = 6;
 
 // 등수별 "대표 당첨금"(원 단위) — 로또645 실제 등수별 당첨금을 근사한 값입니다.
-// 1~3등은 매 회차 당첨자 수에 따라 실제 금액이 파리뮤추얼 방식으로 변동되므로 대표 평균치를 썼고,
-// 4등(50,000원)·5등(5,000원)은 동행복권 공식 고정금액 그대로입니다.
-// ⚠ 2026-08 수정: 예전 이름은 VIRTUAL_SCORE였고 값이 이 금액을 1000으로 나눈 "내부 점수"였는데,
-// (예: 4등 50, 5등 5) 그 축소된 값이 화면에 "총당첨금"으로 그대로 노출되면서 실제 금액보다
-// 1000배 작게 보이는 문제가 있었음 — 실제 금액 스케일(원)로 복원.
-const PRIZE_WON = { 1: 1000000000, 2: 50000000, 3: 1500000, 4: 50000, 5: 5000 };
+// ⚠ 2026-08 추가 수정: 1~3등은 매 회차 당첨자 수에 따라 실제 금액이 달라지므로(파리뮤추얼),
+// 더 이상 고정값을 쓰지 않고 kr_lotto_results.prize1/prize2/prize3(그 회차 실제 당첨금)를
+// winData로 전달받아 그대로 사용합니다. 4등(50,000원)·5등(5,000원)은 동행복권 공식
+// 고정금액이라 그대로 상수로 둡니다.
+const FIXED_PRIZE_WON = { 4: 50000, 5: 5000 };
+function prizeForGrade(grade, winData) {
+  if (grade === 1) return Number(winData.prize1) || 0;
+  if (grade === 2) return Number(winData.prize2) || 0;
+  if (grade === 3) return Number(winData.prize3) || 0;
+  return FIXED_PRIZE_WON[grade] || 0;
+}
 
 function fullPool() {
   return Array.from({ length: POOL_MAX - POOL_MIN + 1 }, (_, i) => i + POOL_MIN);
@@ -134,7 +139,7 @@ function gradeCombos(combos, winData) {
     if (g === 0) { gradeCounts.fail++; return; }
     gradeCounts[g]++;
     winCount++;
-    totalPrize += PRIZE_WON[g] || 0;
+    totalPrize += prizeForGrade(g, winData);
     if (bestGrade === 0 || g < bestGrade) bestGrade = g;
   });
 
@@ -173,5 +178,5 @@ module.exports = {
   gradeCombos,
   simulateHorseRound,
   rankHorses,
-  PRIZE_WON,
+  FIXED_PRIZE_WON,
 };
