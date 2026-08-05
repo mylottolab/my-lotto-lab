@@ -16,9 +16,13 @@ const POOL_MIN = 1;
 const POOL_MAX = 45;
 const PICK = 6;
 
-// 페이퍼 시뮬레이션용 가상 점수 배점 (실제 상금 아님 — 말들의 라운드 성적 순위를 매기기 위한 값)
-// ※ 운영 중 배당 감각에 맞게 조정 가능한 파라미터입니다.
-const VIRTUAL_SCORE = { 1: 1000000, 2: 50000, 3: 1500, 4: 50, 5: 5 };
+// 등수별 "대표 당첨금"(원 단위) — 로또645 실제 등수별 당첨금을 근사한 값입니다.
+// 1~3등은 매 회차 당첨자 수에 따라 실제 금액이 파리뮤추얼 방식으로 변동되므로 대표 평균치를 썼고,
+// 4등(50,000원)·5등(5,000원)은 동행복권 공식 고정금액 그대로입니다.
+// ⚠ 2026-08 수정: 예전 이름은 VIRTUAL_SCORE였고 값이 이 금액을 1000으로 나눈 "내부 점수"였는데,
+// (예: 4등 50, 5등 5) 그 축소된 값이 화면에 "총당첨금"으로 그대로 노출되면서 실제 금액보다
+// 1000배 작게 보이는 문제가 있었음 — 실제 금액 스케일(원)로 복원.
+const PRIZE_WON = { 1: 1000000000, 2: 50000000, 3: 1500000, 4: 50000, 5: 5000 };
 
 function fullPool() {
   return Array.from({ length: POOL_MAX - POOL_MIN + 1 }, (_, i) => i + POOL_MIN);
@@ -130,7 +134,7 @@ function gradeCombos(combos, winData) {
     if (g === 0) { gradeCounts.fail++; return; }
     gradeCounts[g]++;
     winCount++;
-    totalPrize += VIRTUAL_SCORE[g] || 0;
+    totalPrize += PRIZE_WON[g] || 0;
     if (bestGrade === 0 || g < bestGrade) bestGrade = g;
   });
 
@@ -169,5 +173,5 @@ module.exports = {
   gradeCombos,
   simulateHorseRound,
   rankHorses,
-  VIRTUAL_SCORE,
+  PRIZE_WON,
 };
