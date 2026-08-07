@@ -217,10 +217,19 @@ function applyLang(){
 }
 function setLang(lang){ LANG = lang; localStorage.setItem('mll_lang', lang); applyLang(); }
 
-function authHeaders(){
+// 회원인 경우 서버 호출 전에 auth_gate.js의 MLL.ensureFreshToken()으로 만료된
+// 토큰을 먼저 자동 갱신한다 (로그인 방치 후 구매 시 재로그인 없이 바로 진행되도록).
+async function authHeaders(){
   var state = MLL.getAuthState();
   var h = { 'Content-Type': 'application/json' };
-  if (state.type === 'member') h['Authorization'] = 'Bearer ' + state.token;
+  if (state.type === 'member') {
+    var freshToken = state.token;
+    if (typeof MLL.ensureFreshToken === 'function') {
+      var refreshed = await MLL.ensureFreshToken();
+      if (refreshed && refreshed !== 'guest') freshToken = refreshed;
+    }
+    h['Authorization'] = 'Bearer ' + freshToken;
+  }
   return h;
 }
 function authBodyExtra(){
@@ -286,7 +295,7 @@ async function loadPoints(){
   try {
     var qs = '';
     if (state.type === 'guest') qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
-    var resp = await fetch(MLL.API_BASE + '/api/points/balance' + qs, { headers: authHeaders() });
+    var resp = await fetch(MLL.API_BASE + '/api/points/balance' + qs, { headers: await authHeaders() });
     var data = await resp.json();
     document.getElementById('pointsBalance').textContent = (data.total || 0).toLocaleString();
   } catch(e){ console.error('[shop] points load error', e); }
@@ -299,7 +308,7 @@ async function loadMyOrders(){
   try {
     var qs = '';
     if (state.type === 'guest') qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
-    var resp = await fetch(MLL.API_BASE + '/api/shop/my-orders' + qs, { headers: authHeaders() });
+    var resp = await fetch(MLL.API_BASE + '/api/shop/my-orders' + qs, { headers: await authHeaders() });
     var data = await resp.json();
     renderMyOrdersData(data.items || []);
   } catch(e){ console.error('[shop] my-orders load error', e); }
@@ -408,7 +417,7 @@ async function updateQuote(){
   var params = buildParams();
   try {
     var resp = await fetch(MLL.API_BASE + '/api/shop/quote', {
-      method: 'POST', headers: authHeaders(),
+      method: 'POST', headers: await authHeaders(),
       body: JSON.stringify({ productId: CURRENT_PRODUCT.id, params: params })
     });
     var data = await resp.json();
@@ -447,7 +456,7 @@ async function doPurchase(){
   var body = Object.assign({ productId: CURRENT_PRODUCT.id, params: buildParams(), cids: SELECTED_CIDS }, authBodyExtra());
   try {
     var resp = await fetch(MLL.API_BASE + '/api/shop/purchase', {
-      method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+      method: 'POST', headers: await authHeaders(), body: JSON.stringify(body)
     });
     if (!resp.ok) {
       var errData = await resp.json().catch(function(){ return {}; });
