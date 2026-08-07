@@ -17,7 +17,7 @@ router.get('/:boardKey/posts', async (req, res) => {
 
   const { data, error } = await supabase
     .from('board_posts')
-    .select('id, title, created_at')
+    .select('id, title_kr, title_en, created_at')
     .eq('board', boardKey)
     .order('created_at', { ascending: false });
 
@@ -36,7 +36,7 @@ router.get('/:boardKey/posts/:id', async (req, res) => {
 
   const { data, error } = await supabase
     .from('board_posts')
-    .select('id, title, content, created_at, updated_at')
+    .select('id, title_kr, title_en, content_kr, content_en, created_at, updated_at')
     .eq('board', boardKey)
     .eq('id', req.params.id)
     .maybeSingle();
