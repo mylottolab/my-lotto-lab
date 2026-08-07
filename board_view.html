@@ -68,6 +68,14 @@ var I18N = {
 };
 function t(key){ return I18N[key][LANG]; }
 
+// 이중언어 필드에서 현재 언어에 맞는 값을 고른다. 영어글이 아직 없으면(빈 값)
+// 한글로 대체 표시한다 — 옛날(이중언어 전환 이전) 글은 title/content 필드만
+// 있을 수 있으므로 그것도 한글값의 최종 대체로 사용한다.
+function pickLang(post, field){
+  if (LANG === 'en' && post[field + '_en']) return post[field + '_en'];
+  return post[field + '_kr'] || post[field] || '';
+}
+
 function setLang(lang){
   LANG = lang;
   localStorage.setItem('mll_lang', lang);
@@ -101,7 +109,7 @@ async function loadList(){
     wrap.innerHTML = items.map(function(p){
       var dateStr = new Date(p.created_at).toLocaleDateString(LANG === 'en' ? 'en-US' : 'ko-KR');
       return '<div class="post-item" onclick="loadDetail(' + p.id + ')">' +
-        '<div class="pi-title">' + escapeHtml(p.title) + '</div>' +
+        '<div class="pi-title">' + escapeHtml(pickLang(p, 'title')) + '</div>' +
         '<div class="pi-date">' + dateStr + '</div>' +
       '</div>';
     }).join('');
@@ -120,9 +128,9 @@ async function loadDetail(id){
     var dateStr = new Date(p.created_at).toLocaleString(LANG === 'en' ? 'en-US' : 'ko-KR');
     wrap.innerHTML =
       '<span class="back-link" onclick="loadList()">' + t('backToList') + '</span>' +
-      '<div class="detail-title">' + escapeHtml(p.title) + '</div>' +
+      '<div class="detail-title">' + escapeHtml(pickLang(p, 'title')) + '</div>' +
       '<div class="detail-date">' + dateStr + '</div>' +
-      '<div class="detail-content">' + p.content + '</div>';
+      '<div class="detail-content">' + pickLang(p, 'content') + '</div>';
   } catch (e) {
     wrap.innerHTML = '<div class="empty">' + t('loadError') + '<br>' + e.message + '</div>';
   }
