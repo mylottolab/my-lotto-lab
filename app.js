@@ -28,6 +28,7 @@ APP.STR = {
   tab_my: { kr: '내 등록현황', en: 'My Entries' },
   tab_stats: { kr: '통계', en: 'Statistics' },
   promo_jackpot: { kr: '초대박 로또에 가상으로 도전해 보세요!', en: 'Take your shot at a mega jackpot — virtually!' },
+  promo_top_banner: { kr: '가상으로 구매하고 등록하며 경험해 봅시다', en: 'Try it out — purchase and register your numbers virtually' },
   lastdraw_label: { kr: '최근 당첨', en: 'Last draw' },
   info_matrix: { kr: '번호 구조', en: 'Number Matrix' },
   info_draw: { kr: '추첨일', en: 'Draw Days' },
@@ -271,6 +272,7 @@ APP.renderAll = function(){
   document.getElementById('pointsBalance').textContent = (APP._pointsCache.balance || 0).toLocaleString();
   document.getElementById('t_cancelBtn').textContent = APP.t('cancel_btn');
   document.getElementById('t_confirmBtn').textContent = APP.t('confirm_btn');
+  document.getElementById('topPromoBanner').textContent = APP.t('promo_top_banner');
   APP.renderLottoDropdown();
   APP.renderGameTabs();
   APP.renderInfoCard();
