@@ -10,6 +10,9 @@ body{margin:0;background:#0f1120;color:#eef0f6;font-family:-apple-system,BlinkMa
 .topbar{position:sticky;top:0;background:#161a30;border-bottom:1px solid #232744;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;z-index:10;}
 .topbar h1{font-size:15px;margin:0;font-weight:700;}
 .topbar button{background:#1b2038;border:1px solid #2a3050;color:#c8cbe0;border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;}
+.lang-toggle{display:flex;gap:4px;}
+.lang-toggle button{background:#1b2038;border:1px solid #2a3050;color:#8b91ab;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;}
+.lang-toggle button.active{background:#e0b341;color:#1a1305;border-color:#e0b341;}
 .wrap{max-width:680px;margin:0 auto;padding:20px 20px 60px;}
 
 /* 목록 화면 */
@@ -32,7 +35,13 @@ body{margin:0;background:#0f1120;color:#eef0f6;font-family:-apple-system,BlinkMa
 <body>
 <div class="topbar">
   <h1 id="pageTitle">📖 본 사이트 이용법</h1>
-  <button onclick="window.close()">닫기 ✕</button>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div class="lang-toggle">
+      <button type="button" id="langKrBtn" onclick="setLang('kr')">KR</button>
+      <button type="button" id="langEnBtn" onclick="setLang('en')">EN</button>
+    </div>
+    <button onclick="window.close()" id="closeBtn">닫기 ✕</button>
+  </div>
 </div>
 <div class="wrap" id="wrap">
   <div class="loading">불러오는 중...</div>
@@ -42,50 +51,80 @@ body{margin:0;background:#0f1120;color:#eef0f6;font-family:-apple-system,BlinkMa
 var API = 'https://my-lotto-lab-api.onrender.com';
 var params = new URLSearchParams(location.search);
 var boardKey = params.get('board') === 'notice' ? 'notice' : 'howto';
-var BOARD_LABEL = { howto: '📖 본 사이트 이용법', notice: '📢 공지 및 안내사항' };
-document.getElementById('pageTitle').textContent = BOARD_LABEL[boardKey];
-document.title = 'My Lotto Lab - ' + BOARD_LABEL[boardKey].replace(/^\S+\s/, '');
+
+// ── 언어 (같은 도메인이므로 메인 사이트가 저장해둔 localStorage 값을 그대로 공유) ──
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+
+var I18N = {
+  boardLabel: {
+    howto:  { kr: '📖 본 사이트 이용법', en: '📖 How to Use This Site' },
+    notice: { kr: '📢 공지 및 안내사항', en: '📢 Notices & Announcements' }
+  },
+  close:       { kr: '닫기 ✕',    en: 'Close ✕' },
+  loading:     { kr: '불러오는 중...', en: 'Loading...' },
+  emptyList:   { kr: '아직 등록된 글이 없습니다.', en: 'No posts yet.' },
+  loadError:   { kr: '불러오는 중 오류가 발생했습니다.', en: 'An error occurred while loading.' },
+  backToList:  { kr: '← 목록으로', en: '← Back to list' }
+};
+function t(key){ return I18N[key][LANG]; }
+
+function setLang(lang){
+  LANG = lang;
+  localStorage.setItem('mll_lang', lang);
+  applyLang();
+}
+
+function applyLang(){
+  var label = I18N.boardLabel[boardKey][LANG];
+  document.getElementById('pageTitle').textContent = label;
+  document.title = 'My Lotto Lab - ' + label.replace(/^\S+\s/, '');
+  document.getElementById('closeBtn').textContent = t('close');
+  document.getElementById('langKrBtn').classList.toggle('active', LANG === 'kr');
+  document.getElementById('langEnBtn').classList.toggle('active', LANG === 'en');
+  // 현재 보고 있던 화면(목록/상세)을 유지한 채 문구만 다시 그리도록, 항상 목록부터 새로 불러온다.
+  loadList();
+}
 
 var wrap = document.getElementById('wrap');
 
 async function loadList(){
-  wrap.innerHTML = '<div class="loading">불러오는 중...</div>';
+  wrap.innerHTML = '<div class="loading">' + t('loading') + '</div>';
   try {
     var resp = await fetch(API + '/api/board/' + boardKey + '/posts');
     var data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || '조회 실패');
+    if (!resp.ok) throw new Error(data.error || t('loadError'));
     var items = data.items || [];
     if (!items.length) {
-      wrap.innerHTML = '<div class="empty">아직 등록된 글이 없습니다.</div>';
+      wrap.innerHTML = '<div class="empty">' + t('emptyList') + '</div>';
       return;
     }
     wrap.innerHTML = items.map(function(p){
-      var dateStr = new Date(p.created_at).toLocaleDateString('ko-KR');
+      var dateStr = new Date(p.created_at).toLocaleDateString(LANG === 'en' ? 'en-US' : 'ko-KR');
       return '<div class="post-item" onclick="loadDetail(' + p.id + ')">' +
         '<div class="pi-title">' + escapeHtml(p.title) + '</div>' +
         '<div class="pi-date">' + dateStr + '</div>' +
       '</div>';
     }).join('');
   } catch (e) {
-    wrap.innerHTML = '<div class="empty">불러오는 중 오류가 발생했습니다.<br>' + e.message + '</div>';
+    wrap.innerHTML = '<div class="empty">' + t('loadError') + '<br>' + e.message + '</div>';
   }
 }
 
 async function loadDetail(id){
-  wrap.innerHTML = '<div class="loading">불러오는 중...</div>';
+  wrap.innerHTML = '<div class="loading">' + t('loading') + '</div>';
   try {
     var resp = await fetch(API + '/api/board/' + boardKey + '/posts/' + id);
     var data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || '조회 실패');
+    if (!resp.ok) throw new Error(data.error || t('loadError'));
     var p = data.item;
-    var dateStr = new Date(p.created_at).toLocaleString('ko-KR');
+    var dateStr = new Date(p.created_at).toLocaleString(LANG === 'en' ? 'en-US' : 'ko-KR');
     wrap.innerHTML =
-      '<span class="back-link" onclick="loadList()">← 목록으로</span>' +
+      '<span class="back-link" onclick="loadList()">' + t('backToList') + '</span>' +
       '<div class="detail-title">' + escapeHtml(p.title) + '</div>' +
       '<div class="detail-date">' + dateStr + '</div>' +
       '<div class="detail-content">' + p.content + '</div>';
   } catch (e) {
-    wrap.innerHTML = '<div class="empty">불러오는 중 오류가 발생했습니다.<br>' + e.message + '</div>';
+    wrap.innerHTML = '<div class="empty">' + t('loadError') + '<br>' + e.message + '</div>';
   }
 }
 
@@ -93,7 +132,7 @@ function escapeHtml(s){
   return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-loadList();
+applyLang();
 </script>
 </body>
 </html>
