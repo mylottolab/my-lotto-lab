@@ -18,7 +18,10 @@ MLL.API_BASE = 'https://my-lotto-lab-api.onrender.com';
 // ── 인증 상태 조회 (auth_gate.js와 동일 규칙을 공유, 로드 순서에 의존하지 않도록 자체 구현) ──
 MLL.getAuthState = function() {
   var token = localStorage.getItem('mll_token') || sessionStorage.getItem('mll_token');
-  if (token) return { type: 'member', token: token };
+  if (token) {
+    var refreshToken = localStorage.getItem('mll_refresh_token') || sessionStorage.getItem('mll_refresh_token');
+    return { type: 'member', token: token, refreshToken: refreshToken };
+  }
   var nickname = localStorage.getItem('mll_guest_nickname');
   var email    = localStorage.getItem('mll_guest_email');
   if (nickname && email) return { type: 'guest', nickname: nickname, email: email };
@@ -44,6 +47,15 @@ MLL.getAuthState = function() {
     var changed = false;
     if (authType === 'member' && params.get('mll_tok')) {
       localStorage.setItem('mll_token', params.get('mll_tok'));
+      // ⚠ 2026-08-07: 여기서 mll_rt(리프레시 토큰)/mll_usr(유저정보)를 저장하지 않고
+      // 있었음. common.js가 auth_gate.js보다 먼저 로드/실행되는 페이지(예: hub_shop.html)
+      // 에서는 이 부트스트랩이 먼저 mll_auth/mll_tok 파라미터를 URL에서 지워버리는 바람에,
+      // 뒤이어 실행되는 auth_gate.js 쪽 부트스트랩(mll_rt까지 제대로 저장하는 버전)이
+      // "처리할 게 없다"고 보고 그냥 넘어갔다. 그 결과 리프레시 토큰이 전혀 저장되지 않아
+      // 액세스 토큰 만료 시 자동갱신(ensureFreshToken)이 항상 실패하고 재로그인이
+      // 필요했던 것 — 이제 이 부트스트랩에서도 auth_gate.js와 동일하게 처리한다.
+      if (params.get('mll_rt')) localStorage.setItem('mll_refresh_token', params.get('mll_rt'));
+      if (params.get('mll_usr')) localStorage.setItem('mll_user', params.get('mll_usr'));
       changed = true;
     } else if (authType === 'guest' && params.get('mll_nick') && params.get('mll_em')) {
       localStorage.setItem('mll_guest_nickname', params.get('mll_nick'));
@@ -51,7 +63,7 @@ MLL.getAuthState = function() {
       changed = true;
     }
     if (changed) {
-      params.delete('mll_auth'); params.delete('mll_tok');
+      params.delete('mll_auth'); params.delete('mll_tok'); params.delete('mll_rt'); params.delete('mll_usr');
       params.delete('mll_nick'); params.delete('mll_em');
       var qs = params.toString();
       var newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
@@ -67,7 +79,11 @@ MLL.crossOriginUrl = function(url) {
   if (!state.type) return url;
   var sep = url.indexOf('?') >= 0 ? '&' : '?';
   if (state.type === 'member') {
-    return url + sep + 'mll_auth=member&mll_tok=' + encodeURIComponent(state.token);
+    var out = url + sep + 'mll_auth=member&mll_tok=' + encodeURIComponent(state.token);
+    if (state.refreshToken) out += '&mll_rt=' + encodeURIComponent(state.refreshToken);
+    var userStr = localStorage.getItem('mll_user') || sessionStorage.getItem('mll_user');
+    if (userStr) out += '&mll_usr=' + encodeURIComponent(userStr);
+    return out;
   }
   return url + sep + 'mll_auth=guest&mll_nick=' + encodeURIComponent(state.nickname) +
     '&mll_em=' + encodeURIComponent(state.email);
@@ -169,6 +185,23 @@ function _mllAuthOrNull() {
   return state;
 }
 
+// 회원(member)인 경우, 서버 호출 전에 auth_gate.js의 MLL.ensureFreshToken()으로
+// 만료된 토큰을 먼저 자동 갱신한 뒤, 갱신된 토큰을 반영해 상태를 다시 읽어온다.
+// (비회원은 토큰이 없으므로 그대로 통과)
+async function _mllAuthOrNullFresh() {
+  var state = MLL.getAuthState();
+  if (!state.type) return null;
+  if (state.type === 'member' && typeof MLL.ensureFreshToken === 'function') {
+    try {
+      await MLL.ensureFreshToken();
+    } catch (e) {
+      console.error('[MLL] 토큰 갱신 오류:', e);
+    }
+    state = MLL.getAuthState(); // 갱신된 토큰을 반영해 다시 조회
+  }
+  return state;
+}
+
 // 회원: Authorization 헤더 / 비회원: nickname+email 을 쿼리스트링에 추가
 function _mllQuerySuffix(state, extra) {
   var parts = extra ? extra.slice() : [];
@@ -187,7 +220,7 @@ function _mllHeaders(state) {
 
 // 서버에서 내 번호조합을 다시 받아와 캐시를 갱신한다. (round 지정시 해당 회차만)
 MLL.refreshEntries = async function(round) {
-  var state = _mllAuthOrNull();
+  var state = await _mllAuthOrNullFresh();
   if (!state) { MLL._entriesCache = []; return []; }
   var qs = _mllQuerySuffix(state, round ? ['round=' + round] : []);
   try {
@@ -231,7 +264,7 @@ MLL.getResult   = function(round) {
 // API를 부르지 않아서, 재채점을 해도 "미확인" 상태가 절대 안 풀리는 문제가 있었다.)
 MLL.applyCheck = async function() {
   try {
-    var state = _mllAuthOrNull();
+    var state = await _mllAuthOrNullFresh();
     if (state) {
       var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/confirm', {
         method: 'POST', headers: _mllHeaders(state), body: JSON.stringify({})
@@ -253,7 +286,7 @@ MLL.applyCheck = async function() {
 // 성공시 { success:true, items } / 인증필요시 { success:false, needAuth:true } /
 // 포인트부족시 { success:false, insufficientPoints:true, shortfall, message } 를 반환.
 MLL.addEntries = async function(items) {
-  var state = _mllAuthOrNull();
+  var state = await _mllAuthOrNullFresh();
   if (!state) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return { success:false, needAuth:true }; }
 
   var body = { entries: items };
@@ -281,7 +314,7 @@ MLL.addEntry = async function(item) { return MLL.addEntries([item]); };
 
 // 항목 삭제
 MLL.deleteEntry = async function(id) {
-  var state = _mllAuthOrNull();
+  var state = await _mllAuthOrNullFresh();
   if (!state) return false;
   var qs = _mllQuerySuffix(state);
   try {
