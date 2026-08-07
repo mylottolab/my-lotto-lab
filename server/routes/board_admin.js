@@ -42,21 +42,28 @@ router.get('/:boardKey/posts', requireAdmin, async (req, res) => {
 });
 
 // ─── 게시글 등록 ────────────────────────────────────────────────────────────────
-// POST /api/admin/board/:boardKey/posts  body: { title, content }
+// POST /api/admin/board/:boardKey/posts  body: { title_kr, title_en, content_kr, content_en }
 router.post('/:boardKey/posts', requireAdmin, async (req, res) => {
   const boardKey = req.params.boardKey;
   if (!VALID_BOARDS.includes(boardKey)) return res.status(400).json({ error: '올바른 게시판이 아닙니다.' });
 
-  const { title, content } = req.body;
-  if (!title || !title.trim()) return res.status(400).json({ error: '제목을 입력해주세요.' });
-  if (!content || !content.trim()) return res.status(400).json({ error: '내용을 입력해주세요.' });
+  const { title_kr, title_en, content_kr, content_en } = req.body;
+  if (!title_kr || !title_kr.trim()) return res.status(400).json({ error: '제목(한글)을 입력해주세요.' });
+  if (!content_kr || !content_kr.trim()) return res.status(400).json({ error: '내용(한글)을 입력해주세요.' });
 
   const { data, error } = await supabase
     .from('board_posts')
     .insert({
       board: boardKey,
-      title: title.trim(),
-      content: content,
+      title_kr: title_kr.trim(),
+      title_en: (title_en || '').trim(),
+      content_kr: content_kr,
+      content_en: content_en || '',
+      // ⚠ 이중언어 전환 이전부터 있던 title/content 컬럼도 함께 채워서, 혹시 이
+      // API를 아직 안 쓰는 다른 화면이 있어도 항상 한글판을 정상적으로 보여줄 수
+      // 있도록 한다 (하위호환).
+      title: title_kr.trim(),
+      content: content_kr,
       admin_name: req.headers['x-admin-name'] || 'admin',
     })
     .select().single();
@@ -69,18 +76,27 @@ router.post('/:boardKey/posts', requireAdmin, async (req, res) => {
 });
 
 // ─── 게시글 수정 ────────────────────────────────────────────────────────────────
-// PUT /api/admin/board/:boardKey/posts/:id  body: { title, content }
+// PUT /api/admin/board/:boardKey/posts/:id  body: { title_kr, title_en, content_kr, content_en }
 router.put('/:boardKey/posts/:id', requireAdmin, async (req, res) => {
   const boardKey = req.params.boardKey;
   if (!VALID_BOARDS.includes(boardKey)) return res.status(400).json({ error: '올바른 게시판이 아닙니다.' });
 
-  const { title, content } = req.body;
-  if (!title || !title.trim()) return res.status(400).json({ error: '제목을 입력해주세요.' });
-  if (!content || !content.trim()) return res.status(400).json({ error: '내용을 입력해주세요.' });
+  const { title_kr, title_en, content_kr, content_en } = req.body;
+  if (!title_kr || !title_kr.trim()) return res.status(400).json({ error: '제목(한글)을 입력해주세요.' });
+  if (!content_kr || !content_kr.trim()) return res.status(400).json({ error: '내용(한글)을 입력해주세요.' });
 
   const { data, error } = await supabase
     .from('board_posts')
-    .update({ title: title.trim(), content: content, updated_at: new Date().toISOString() })
+    .update({
+      title_kr: title_kr.trim(),
+      title_en: (title_en || '').trim(),
+      content_kr: content_kr,
+      content_en: content_en || '',
+      // 하위호환용 옛 컬럼도 함께 갱신
+      title: title_kr.trim(),
+      content: content_kr,
+      updated_at: new Date().toISOString(),
+    })
     .eq('board', boardKey)
     .eq('id', req.params.id)
     .select().maybeSingle();
