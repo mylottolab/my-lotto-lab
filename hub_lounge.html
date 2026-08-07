@@ -12,6 +12,8 @@ body.light-mode{--bg:#dbe0ee;--surface:#ffffff;--surface-2:#eef1f9;--border-soft
 body{background:var(--bg);background-image:linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 340px);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;min-height:100vh;}
 .theme-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;flex-shrink:0;}
 .theme-toggle:hover{border-color:var(--gold);}
+.lang-toggle{display:flex;gap:4px;}
+.lang-toggle button{border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-size:11px;font-weight:700;padding:6px 10px;}
 a{color:inherit;text-decoration:none;}
 
 .topbar{border-bottom:1px solid var(--border-soft);}
@@ -110,8 +112,12 @@ a{color:inherit;text-decoration:none;}
       <div class="brand-name">My Lotto Lab</div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
+      <div class="lang-toggle">
+        <button type="button" id="langKrBtn" onclick="setLang('kr')">KR</button>
+        <button type="button" id="langEnBtn" onclick="setLang('en')">EN</button>
+      </div>
       <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="야간/주간 모드 전환">🌙</button>
-      <a class="back-link" href="main_page.html">← 메인으로</a>
+      <a class="back-link" id="backLink" href="main_page.html" data-i18n-kr="← 메인으로" data-i18n-en="← Main">← 메인으로</a>
     </div>
   </div>
 </div>
@@ -120,17 +126,17 @@ a{color:inherit;text-decoration:none;}
   <div class="board-links-row">
     <div class="board-link-btn" onclick="openBoard('howto')">
       <span class="blb-icon">📖</span>
-      <span class="blb-text">본 사이트 이용법</span>
+      <span class="blb-text" data-i18n-kr="본 사이트 이용법" data-i18n-en="How to Use This Site">본 사이트 이용법</span>
     </div>
     <div class="board-link-btn" onclick="openBoard('notice')">
       <span class="blb-icon">📢</span>
-      <span class="blb-text">공지 및 안내사항</span>
+      <span class="blb-text" data-i18n-kr="공지 및 안내사항" data-i18n-en="Notices & Announcements">공지 및 안내사항</span>
     </div>
   </div>
 </div>
 
 <div class="wrap" id="content">
-  <div class="loading">불러오는 중...</div>
+  <div class="loading" data-i18n-kr="불러오는 중..." data-i18n-en="Loading...">불러오는 중...</div>
 </div>
 
 <script>
@@ -143,6 +149,19 @@ function applyTheme(){
 }
 function toggleTheme(){ THEME = (THEME === 'light') ? 'dark' : 'light'; localStorage.setItem('mll_theme', THEME); applyTheme(); }
 applyTheme();
+
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+function applyLang(){
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var v = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if (v !== undefined) el.textContent = v;
+  });
+  var krBtn = document.getElementById('langKrBtn'), enBtn = document.getElementById('langEnBtn');
+  if (krBtn) { krBtn.style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface)'; krBtn.style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)'; }
+  if (enBtn) { enBtn.style.background = LANG==='en' ? 'var(--gold)' : 'var(--surface)'; enBtn.style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)'; }
+  load(); // 잔액/포인트 내역 등 동적으로 그려지는 부분도 언어에 맞게 다시 그린다
+}
+function setLang(lang){ LANG = lang; localStorage.setItem('mll_lang', lang); applyLang(); }
 </script>
 
 <script>
@@ -180,6 +199,35 @@ function withAuthParams(url, state) {
   return url + sep + 'mll_auth=guest&mll_nick=' + encodeURIComponent(state.nickname) + '&mll_em=' + encodeURIComponent(state.email);
 }
 
+// ── 동적으로 그려지는(load() 내부) 문구용 사전 ──
+var I18N = {
+  loginRequired:  { kr: '로그인이 필요합니다', en: 'Login required' },
+  loginSignup:    { kr: '로그인 / 회원가입', en: 'Log in / Sign up' },
+  guestRegister:  { kr: '비회원 등록 / 로그인', en: 'Guest registration / Login' },
+  sessionExpired: { kr: '로그인 세션이 만료되었습니다. 다시 로그인해주세요.', en: 'Your session has expired. Please log in again.' },
+  reLogin:        { kr: '다시 로그인', en: 'Log in again' },
+  toMain:         { kr: '메인으로', en: 'To main' },
+  totalBalance:   { kr: '총 포인트 잔액', en: 'Total point balance' },
+  depositPoints:  { kr: '입금포인트', en: 'Deposit points' },
+  depositSub:     { kr: '카드·페이팔·무통장입금으로 충전', en: 'Charged via card, PayPal, or bank transfer' },
+  activityPoints: { kr: '활동포인트', en: 'Activity points' },
+  activitySub:    { kr: '활동·보상으로 적립, 차감시 우선 사용', en: 'Earned via activity/rewards, used first when spending' },
+  nearestExpiry:  { kr: '가장 빠른 소멸 예정', en: 'Next to expire' },
+  guestExpiryNote:{ kr: '비회원 포인트는 취득일로부터 30일 후 소멸됩니다.', en: 'Guest points expire 30 days after being earned.' },
+  memberNoExpiry: { kr: '회원 포인트는 소멸되지 않습니다.', en: 'Member points never expire.' },
+  chargePoints:   { kr: '포인트 충전하러 가기', en: 'Charge points' },
+  logout:         { kr: '🚪 로그아웃', en: '🚪 Log out' },
+  logoutConfirm:  { kr: '로그아웃 하시겠습니까?', en: 'Log out?' },
+  pointDetail:    { kr: '포인트 상세 내역', en: 'Point details' },
+  noPointHistory: { kr: '적립된 포인트 내역이 없습니다.', en: 'No point history yet.' },
+  noExpiry:       { kr: '소멸 없음', en: 'Never expires' },
+  expiresOn:      { kr: '소멸', en: 'expires' },
+  member:         { kr: '회원', en: 'Member' },
+  guest:          { kr: '비회원', en: 'Guest' },
+  nicknameSuffix: { kr: '님', en: '' }
+};
+function t(key){ return I18N[key][LANG]; }
+
 async function load() {
   var state = await getAuthState();
   var content = document.getElementById('content');
@@ -187,10 +235,10 @@ async function load() {
   if (!state.type) {
     content.innerHTML =
       '<div class="profile-card" style="text-align:center;">' +
-        '<div class="balance-label">로그인이 필요합니다</div>' +
+        '<div class="balance-label">' + t('loginRequired') + '</div>' +
         '<div class="action-row">' +
-          '<a class="action-btn primary" href="login.html">로그인 / 회원가입</a>' +
-          '<a class="action-btn secondary" href="' + API + '/pay/guest_test.html">비회원 등록 / 로그인</a>' +
+          '<a class="action-btn primary" href="login.html">' + t('loginSignup') + '</a>' +
+          '<a class="action-btn secondary" href="' + API + '/pay/guest_test.html">' + t('guestRegister') + '</a>' +
         '</div>' +
       '</div>';
     return;
@@ -225,10 +273,10 @@ async function load() {
     localStorage.removeItem('mll_user'); sessionStorage.removeItem('mll_user');
     content.innerHTML =
       '<div class="profile-card" style="text-align:center;">' +
-        '<div class="balance-label">로그인 세션이 만료되었습니다. 다시 로그인해주세요.</div>' +
+        '<div class="balance-label">' + t('sessionExpired') + '</div>' +
         '<div class="action-row">' +
-          '<a class="action-btn primary" href="login.html">다시 로그인</a>' +
-          '<a class="action-btn secondary" href="main_page.html">메인으로</a>' +
+          '<a class="action-btn primary" href="login.html">' + t('reLogin') + '</a>' +
+          '<a class="action-btn secondary" href="main_page.html">' + t('toMain') + '</a>' +
         '</div>' +
       '</div>';
     return;
@@ -263,51 +311,51 @@ async function load() {
   var lotsHtml = lots.length
     ? lots.map(function(l){
         var cls = l.type === 'deposit' ? 'deposit' : 'activity';
-        var label = l.type === 'deposit' ? '입금포인트' : '활동포인트';
-        var expiryLabel = (!isGuest || isPermanent(l.expiresAt)) ? '소멸 없음' : (new Date(l.expiresAt).toLocaleDateString('ko-KR') + ' 소멸');
+        var label = l.type === 'deposit' ? t('depositPoints') : t('activityPoints');
+        var expiryLabel = (!isGuest || isPermanent(l.expiresAt)) ? t('noExpiry') : (new Date(l.expiresAt).toLocaleDateString(LANG === 'en' ? 'en-US' : 'ko-KR') + ' ' + t('expiresOn'));
         return '<div class="lot-row ' + cls + '"><span class="ltype"><span class="ldot"></span>' + label + '</span><span class="lpoints">' + l.points.toLocaleString() + 'P</span><span class="lexpiry">' + expiryLabel + '</span></div>';
       }).join('')
-    : '<div class="empty">적립된 포인트 내역이 없습니다.</div>';
+    : '<div class="empty">' + t('noPointHistory') + '</div>';
 
   content.innerHTML =
     '<div class="profile-card">' +
       '<div class="profile-top">' +
         '<div class="avatar">' + (isGuest ? '🕶️' : '👤') + '</div>' +
         '<div>' +
-          '<div class="profile-name">' + nickname + '님</div>' +
-          '<div class="profile-badge">' + (isGuest ? '비회원' : '회원') + '</div>' +
+          '<div class="profile-name">' + nickname + t('nicknameSuffix') + '</div>' +
+          '<div class="profile-badge">' + (isGuest ? t('guest') : t('member')) + '</div>' +
         '</div>' +
       '</div>' +
       '<div class="balance-hero">' +
-        '<div class="balance-label">총 포인트 잔액</div>' +
+        '<div class="balance-label">' + t('totalBalance') + '</div>' +
         '<div class="balance-value">' + balance.total.toLocaleString() + '<span class="unit">P</span></div>' +
       '</div>' +
       '<div class="balance-split">' +
-        '<div class="split-box deposit"><div class="slabel"><span class="sdot"></span>입금포인트</div><div class="sval">' + balance.deposit.toLocaleString() + 'P</div><div class="ssub">카드·페이팔·무통장입금으로 충전</div></div>' +
-        '<div class="split-box activity"><div class="slabel"><span class="sdot"></span>활동포인트</div><div class="sval">' + balance.activity.toLocaleString() + 'P</div><div class="ssub">활동·보상으로 적립, 차감시 우선 사용</div></div>' +
+        '<div class="split-box deposit"><div class="slabel"><span class="sdot"></span>' + t('depositPoints') + '</div><div class="sval">' + balance.deposit.toLocaleString() + 'P</div><div class="ssub">' + t('depositSub') + '</div></div>' +
+        '<div class="split-box activity"><div class="slabel"><span class="sdot"></span>' + t('activityPoints') + '</div><div class="sval">' + balance.activity.toLocaleString() + 'P</div><div class="ssub">' + t('activitySub') + '</div></div>' +
       '</div>' +
       (nearestExpiry
-        ? '<div class="expiry-note">가장 빠른 소멸 예정: <b>' + new Date(nearestExpiry.expiresAt).toLocaleDateString('ko-KR') + '</b> (' + nearestExpiry.points.toLocaleString() + 'P) — 비회원 포인트는 취득일로부터 30일 후 소멸됩니다.</div>'
+        ? '<div class="expiry-note">' + t('nearestExpiry') + ': <b>' + new Date(nearestExpiry.expiresAt).toLocaleDateString(LANG === 'en' ? 'en-US' : 'ko-KR') + '</b> (' + nearestExpiry.points.toLocaleString() + 'P) — ' + t('guestExpiryNote') + '</div>'
         : (isGuest
-            ? '<div class="expiry-note">비회원 포인트는 취득일로부터 30일 후 소멸됩니다.</div>'
-            : '<div class="expiry-note">회원 포인트는 소멸되지 않습니다.</div>'
+            ? '<div class="expiry-note">' + t('guestExpiryNote') + '</div>'
+            : '<div class="expiry-note">' + t('memberNoExpiry') + '</div>'
           )
       ) +
       '<div class="action-row">' +
-        '<a class="action-btn primary" href="' + withAuthParams(API + '/pay/category_select.html', state) + '">포인트 충전하러 가기</a>' +
-        '<a class="action-btn secondary" href="main_page.html">메인으로</a>' +
+        '<a class="action-btn primary" href="' + withAuthParams(API + '/pay/category_select.html', state) + '">' + t('chargePoints') + '</a>' +
+        '<a class="action-btn secondary" href="main_page.html">' + t('toMain') + '</a>' +
       '</div>' +
       '<div style="margin-top:10px;text-align:center;">' +
-        '<span onclick="if(confirm(\'로그아웃 하시겠습니까?\'))MLL.logout();" style="font-size:11.5px;color:var(--text-faint);cursor:pointer;text-decoration:underline;">🚪 로그아웃</span>' +
+        '<span onclick="if(confirm(' + JSON.stringify(t('logoutConfirm')) + '))MLL.logout();" style="font-size:11.5px;color:var(--text-faint);cursor:pointer;text-decoration:underline;">' + t('logout') + '</span>' +
       '</div>' +
     '</div>' +
     '<div class="lots-card">' +
-      '<h3>포인트 상세 내역</h3>' +
+      '<h3>' + t('pointDetail') + '</h3>' +
       lotsHtml +
     '</div>';
 }
 
-load();
+applyLang();
 </script>
 </body>
 </html>
