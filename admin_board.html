@@ -56,15 +56,24 @@
 <div class="card">
   <h2 id="formTitle">✏️ 새 글 작성</h2>
   <input type="hidden" id="editingId" value="">
-  <label class="field-label">제목</label>
-  <input type="text" id="postTitle" placeholder="게시글 제목">
 
-  <label class="field-label">내용</label>
-  <textarea id="postContent" placeholder="본문 내용을 입력하세요."></textarea>
+  <label class="field-label">제목 (한글) *필수</label>
+  <input type="text" id="postTitleKr" placeholder="게시글 제목 (한글)">
+
+  <label class="field-label">제목 (영어) — 비워두면 한글 제목이 그대로 노출됩니다</label>
+  <input type="text" id="postTitleEn" placeholder="Post title (English)">
+
+  <label class="field-label">내용 (한글) *필수</label>
+  <textarea id="postContentKr" placeholder="본문 내용을 입력하세요. (한글)"></textarea>
+
+  <label class="field-label">내용 (영어) — 비워두면 한글 내용이 그대로 노출됩니다</label>
+  <textarea id="postContentEn" placeholder="Post content in English."></textarea>
+
   <div class="content-hint">
     💡 이미지: <code>&lt;img src="이미지주소" style="max-width:100%;"&gt;</code><br>
     💡 유튜브 영상: <code>&lt;iframe width="100%" height="315" src="https://www.youtube.com/embed/영상ID" frameborder="0" allowfullscreen&gt;&lt;/iframe&gt;</code><br>
-    💡 줄바꿈: <code>&lt;br&gt;</code> 또는 <code>&lt;p&gt;문단&lt;/p&gt;</code>
+    💡 줄바꿈: <code>&lt;br&gt;</code> 또는 <code>&lt;p&gt;문단&lt;/p&gt;</code><br>
+    💡 영어 글을 아직 준비 못 하셨으면 영어 입력창은 비워두세요 — 외국어 이용자에게도 한글 원문이 그대로 표시됩니다(안 보이는 것보단 낫습니다). 나중에 영어 글이 준비되면 "수정"으로 채워 넣으면 됩니다.
   </div>
 
   <button class="btn" onclick="savePost()">저장</button>
@@ -129,12 +138,14 @@ async function loadPosts(){
     emptyMsg.style.display = 'none';
     body.innerHTML = items.map(function(p){
       var dateStr = new Date(p.created_at).toLocaleString('ko-KR');
+      var titleKr = p.title_kr || p.title || '';
+      var hasEn = !!(p.title_en || p.content_en);
       return '<tr>' +
-        '<td>' + escapeHtml(p.title) + '</td>' +
+        '<td>' + escapeHtml(titleKr) + (hasEn ? ' <span style="font-size:10px;color:#1a7d4a;font-weight:700;">EN✓</span>' : ' <span style="font-size:10px;color:#b91c1c;">EN 없음</span>') + '</td>' +
         '<td style="font-size:11px;color:#888;">' + dateStr + '</td>' +
         '<td class="row-actions">' +
           '<button onclick="editPost(' + p.id + ')">수정</button>' +
-          '<button class="danger" onclick="deletePost(' + p.id + ', \'' + escapeHtml(p.title).replace(/'/g,"") + '\')">삭제</button>' +
+          '<button class="danger" onclick="deletePost(' + p.id + ', \'' + escapeHtml(titleKr).replace(/'/g,"") + '\')">삭제</button>' +
         '</td>' +
       '</tr>';
     }).join('');
@@ -155,8 +166,12 @@ function editPost(id){
   var post = (window._boardPostsCache || []).find(function(p){ return p.id === id; });
   if (!post) return;
   document.getElementById('editingId').value = id;
-  document.getElementById('postTitle').value = post.title;
-  document.getElementById('postContent').value = post.content;
+  // ⚠ 이중언어 전환 이전에 등록된 옛날 글은 title/content 필드만 있을 수 있어서,
+  // title_kr/content_kr이 없으면 옛 필드로 대체해서 채워준다(데이터 유실 방지).
+  document.getElementById('postTitleKr').value = post.title_kr || post.title || '';
+  document.getElementById('postTitleEn').value = post.title_en || '';
+  document.getElementById('postContentKr').value = post.content_kr || post.content || '';
+  document.getElementById('postContentEn').value = post.content_en || '';
   document.getElementById('formTitle').textContent = '✏️ 글 수정 (#' + id + ')';
   document.getElementById('btnCancelEdit').style.display = 'inline-block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -164,29 +179,34 @@ function editPost(id){
 
 function cancelEdit(){
   document.getElementById('editingId').value = '';
-  document.getElementById('postTitle').value = '';
-  document.getElementById('postContent').value = '';
+  document.getElementById('postTitleKr').value = '';
+  document.getElementById('postTitleEn').value = '';
+  document.getElementById('postContentKr').value = '';
+  document.getElementById('postContentEn').value = '';
   document.getElementById('formTitle').textContent = '✏️ 새 글 작성';
   document.getElementById('btnCancelEdit').style.display = 'none';
   document.getElementById('formResult').innerHTML = '';
 }
 
 async function savePost(){
-  var title = document.getElementById('postTitle').value.trim();
-  var content = document.getElementById('postContent').value.trim();
+  var titleKr = document.getElementById('postTitleKr').value.trim();
+  var titleEn = document.getElementById('postTitleEn').value.trim();
+  var contentKr = document.getElementById('postContentKr').value.trim();
+  var contentEn = document.getElementById('postContentEn').value.trim();
   var editingId = document.getElementById('editingId').value;
   var resultEl = document.getElementById('formResult');
 
-  if (!title || !content) {
-    resultEl.innerHTML = '<div class="result err">제목과 내용을 모두 입력해주세요.</div>';
+  if (!titleKr || !contentKr) {
+    resultEl.innerHTML = '<div class="result err">제목(한글)과 내용(한글)은 필수입니다.</div>';
     return;
   }
+  var body = { title_kr: titleKr, title_en: titleEn, content_kr: contentKr, content_en: contentEn };
   try {
     if (editingId) {
-      await apiCall('PUT', '/api/admin/board/' + currentBoard + '/posts/' + editingId, { title: title, content: content });
+      await apiCall('PUT', '/api/admin/board/' + currentBoard + '/posts/' + editingId, body);
       resultEl.innerHTML = '<div class="result ok">✅ 수정되었습니다.</div>';
     } else {
-      await apiCall('POST', '/api/admin/board/' + currentBoard + '/posts', { title: title, content: content });
+      await apiCall('POST', '/api/admin/board/' + currentBoard + '/posts', body);
       resultEl.innerHTML = '<div class="result ok">✅ 등록되었습니다.</div>';
     }
     cancelEdit();
