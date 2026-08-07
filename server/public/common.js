@@ -169,6 +169,23 @@ function _mllAuthOrNull() {
   return state;
 }
 
+// 회원(member)인 경우, 서버 호출 전에 auth_gate.js의 MLL.ensureFreshToken()으로
+// 만료된 토큰을 먼저 자동 갱신한 뒤, 갱신된 토큰을 반영해 상태를 다시 읽어온다.
+// (비회원은 토큰이 없으므로 그대로 통과)
+async function _mllAuthOrNullFresh() {
+  var state = MLL.getAuthState();
+  if (!state.type) return null;
+  if (state.type === 'member' && typeof MLL.ensureFreshToken === 'function') {
+    try {
+      await MLL.ensureFreshToken();
+    } catch (e) {
+      console.error('[MLL] 토큰 갱신 오류:', e);
+    }
+    state = MLL.getAuthState(); // 갱신된 토큰을 반영해 다시 조회
+  }
+  return state;
+}
+
 // 회원: Authorization 헤더 / 비회원: nickname+email 을 쿼리스트링에 추가
 function _mllQuerySuffix(state, extra) {
   var parts = extra ? extra.slice() : [];
@@ -187,7 +204,7 @@ function _mllHeaders(state) {
 
 // 서버에서 내 번호조합을 다시 받아와 캐시를 갱신한다. (round 지정시 해당 회차만)
 MLL.refreshEntries = async function(round) {
-  var state = _mllAuthOrNull();
+  var state = await _mllAuthOrNullFresh();
   if (!state) { MLL._entriesCache = []; return []; }
   var qs = _mllQuerySuffix(state, round ? ['round=' + round] : []);
   try {
@@ -231,7 +248,7 @@ MLL.getResult   = function(round) {
 // API를 부르지 않아서, 재채점을 해도 "미확인" 상태가 절대 안 풀리는 문제가 있었다.)
 MLL.applyCheck = async function() {
   try {
-    var state = _mllAuthOrNull();
+    var state = await _mllAuthOrNullFresh();
     if (state) {
       var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/confirm', {
         method: 'POST', headers: _mllHeaders(state), body: JSON.stringify({})
@@ -253,7 +270,7 @@ MLL.applyCheck = async function() {
 // 성공시 { success:true, items } / 인증필요시 { success:false, needAuth:true } /
 // 포인트부족시 { success:false, insufficientPoints:true, shortfall, message } 를 반환.
 MLL.addEntries = async function(items) {
-  var state = _mllAuthOrNull();
+  var state = await _mllAuthOrNullFresh();
   if (!state) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return { success:false, needAuth:true }; }
 
   var body = { entries: items };
@@ -281,7 +298,7 @@ MLL.addEntry = async function(item) { return MLL.addEntries([item]); };
 
 // 항목 삭제
 MLL.deleteEntry = async function(id) {
-  var state = _mllAuthOrNull();
+  var state = await _mllAuthOrNullFresh();
   if (!state) return false;
   var qs = _mllQuerySuffix(state);
   try {
