@@ -278,13 +278,14 @@ function dbg(text){
 }
 
 async function zxingDecode(imageData,w,h){
-  try{
-    var results = await ZXingWASM.readBarcodesFromImageData(imageData, {
-      formats: ['QRCode'], tryHarder: true, maxNumberOfSymbols: 1
-    });
-    if(results && results.length>0) return results[0].text;
-    return null;
-  }catch(e){ return null; }
+  if(typeof ZXingWASM === 'undefined'){
+    throw new Error('ZXingWASM 엔진 로드 안됨(스크립트 차단/네트워크 문제 의심)');
+  }
+  var results = await ZXingWASM.readBarcodes(imageData, {
+    formats: ['QRCode'], tryHarder: true, maxNumberOfSymbols: 1
+  });
+  if(results && results.length>0) return results[0].text;
+  return null;
 }
 
 async function decodeCanvas(ctx, side){
