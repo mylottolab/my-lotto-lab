@@ -216,6 +216,7 @@ document.addEventListener('click',function(e){
           <button class="btn-qr" id="btnTorch" onclick="toggleTorch()" style="display:none;background:#333;color:#fff;">🔦 손전등</button>
         </div>
         <div class="msg" id="msg3"></div>
+        <div id="camDebug" style="font-size:10.5px;color:#999;margin-top:4px;font-family:monospace;white-space:pre-wrap;"></div>
         <div style="border-top:1px dashed #ddd;margin:8px 0;padding-top:8px;">
           <div style="font-size:10px;color:#999;margin-bottom:5px;">📋 스마트폰으로 스캔한 URL 직접 붙여넣기</div>
           <div class="url-row">
@@ -427,6 +428,12 @@ function setProgress(pct){ document.getElementById('procBar').style.width=pct+'%
 var camStream=null, camTrack=null, camVideo=null, camCanvas=null, camScanTimer=null, camImageCapture=null;
 var camDetector = ('BarcodeDetector' in window) ? new BarcodeDetector({formats:['qr_code']}) : null;
 var zoomLevel=1.0, torchOn=false, camBusy=false;
+var camAttempts=0;
+
+function dbg(text){
+  var el=document.getElementById('camDebug');
+  if(el) el.textContent = text;
+}
 
 function onZoom(val){
   zoomLevel=val/10;
@@ -446,6 +453,8 @@ async function startCamScan(){
     document.getElementById('qrGuide').style.display='none';
     var reader=document.getElementById('qr-reader');
     reader.style.display='block'; reader.innerHTML='';
+    camAttempts=0;
+    dbg('카메라 여는 중...');
 
     camVideo=document.createElement('video');
     camVideo.setAttribute('playsinline',''); camVideo.setAttribute('muted','');
@@ -473,9 +482,11 @@ async function startCamScan(){
     // 선명하고 촬영 순간 재초점까지 되어, 흔들리는 상태에서도 인식률이 크게 개선됨.
     // 지원 안 되는 기기/브라우저는 자동으로 동영상 프레임 방식으로 대체됨.
     camImageCapture=null;
+    var icNote='';
     if('ImageCapture' in window){
-      try{ camImageCapture=new ImageCapture(camTrack); }catch(e){ camImageCapture=null; }
-    }
+      try{ camImageCapture=new ImageCapture(camTrack); icNote='ImageCapture 지원'; }
+      catch(e){ camImageCapture=null; icNote='ImageCapture 생성실패:'+e.message; }
+    } else { icNote='ImageCapture 미지원(브라우저)'; }
 
     var caps = camTrack.getCapabilities ? camTrack.getCapabilities() : {};
     document.getElementById('btnTorch').style.display = caps.torch ? 'inline-flex' : 'none';
@@ -487,6 +498,7 @@ async function startCamScan(){
     document.getElementById('zoomWrap').style.display='block';
 
     camCanvas=document.createElement('canvas');
+    dbg('해상도:'+camVideo.videoWidth+'x'+camVideo.videoHeight+' | BarcodeDetector:'+(camDetector?'O':'X')+' | '+icNote+' | 시도:0');
     scanLoop();
     showMsg('msg3','info','📷 QR코드를 표적 안에 크고 밝게 맞춘 뒤, 잠시 움직이지 말고 기다려주세요!');
   }catch(e){
@@ -495,6 +507,7 @@ async function startCamScan(){
     document.getElementById('btnQrStart').style.display='flex';
     document.getElementById('btnQrStop').style.display='none';
     document.getElementById('zoomWrap').style.display='none';
+    dbg('카메라 열기 실패: '+e.message);
     showMsg('msg3','error','카메라를 사용할 수 없습니다. URL 붙여넣기를 이용해주세요.');
   }
 }
@@ -502,33 +515,37 @@ async function startCamScan(){
 // 캔버스에 그려진 정사각형 이미지를 인식 시도 (BarcodeDetector 우선 → ZXing TRY_HARDER 폴백).
 // 카메라 정지사진/동영상 프레임 두 경로 모두 이 함수를 공유해서 쓴다.
 async function decodeCanvas(ctx, side){
-  var qrText=null;
+  var qrText=null, note='';
   if(camDetector){
     try{
       var blob=await new Promise(function(r){ctx.canvas.toBlob(r,'image/jpeg',0.92);});
       var bmp=await createImageBitmap(blob);
       var codes=await camDetector.detect(bmp);
-      if(codes.length>0) qrText=codes[0].rawValue;
-    }catch(e){}
-  }
+      if(codes.length>0){ qrText=codes[0].rawValue; note='BD:성공'; }
+      else note='BD:0개검출';
+    }catch(e){ note='BD:오류('+e.message+')'; }
+  } else note='BD:없음';
   if(!qrText){
     try{
       var imageData=ctx.getImageData(0,0,side,side);
-      qrText=await zxingDecode(imageData,side,side);
-    }catch(e){}
+      var zt=await zxingDecode(imageData,side,side);
+      qrText = zt || null;
+      note += zt ? ' ZX:성공' : ' ZX:못찾음';
+    }catch(e){ note+=' ZX:예외('+e.message+')'; }
   }
-  return qrText;
+  return {text:qrText, note:note};
 }
 
 async function scanLoop(){
   if(!camStream) return; // stopCamScan()으로 이미 종료된 경우 루프 중단
   if(camBusy){ camScanTimer=setTimeout(scanLoop, camImageCapture?300:150); return; }
   camBusy=true;
-  var qrText=null;
+  var qrText=null, path='', note='';
   try{
     if(camImageCapture){
       // ── 정지사진 경로 (더 선명함, 촬영 순간 재초점) ──
       try{
+        var t0=performance.now();
         var blob=await camImageCapture.takePhoto();
         var bmp=await createImageBitmap(blob);
         var side=Math.min(bmp.width,bmp.height);
@@ -536,11 +553,12 @@ async function scanLoop(){
         camCanvas.width=side; camCanvas.height=side;
         var ctx=camCanvas.getContext('2d');
         ctx.drawImage(bmp, sx,sy,side,side, 0,0,side,side);
-        qrText=await decodeCanvas(ctx, side);
-      }catch(e){ /* takePhoto 실패 → 아래 동영상 프레임 방식으로 이번 회차만 폴백 */ }
+        var r=await decodeCanvas(ctx, side);
+        qrText=r.text; path='사진('+bmp.width+'x'+bmp.height+','+Math.round(performance.now()-t0)+'ms)'; note=r.note;
+      }catch(e){ path='사진실패:'+e.message; }
     }
     if(!qrText && camVideo && camVideo.readyState>=2){
-      // ── 동영상 프레임 경로 (ImageCapture 미지원 기기용 폴백) ──
+      // ── 동영상 프레임 경로 (ImageCapture 미지원 기기용 폴백, 혹은 사진경로 실패시) ──
       var vw=camVideo.videoWidth, vh=camVideo.videoHeight;
       if(vw && vh){
         var side2=Math.min(vw,vh);
@@ -548,11 +566,14 @@ async function scanLoop(){
         camCanvas.width=side2; camCanvas.height=side2;
         var ctx2=camCanvas.getContext('2d');
         ctx2.drawImage(camVideo, sx2,sy2,side2,side2, 0,0,side2,side2);
-        qrText=await decodeCanvas(ctx2, side2);
+        var r2=await decodeCanvas(ctx2, side2);
+        qrText=r2.text; path=(path?path+' → ':'')+'영상('+vw+'x'+vh+')'; note=r2.note;
       }
     }
+    camAttempts++;
+    dbg('시도 '+camAttempts+'회 | 경로:'+path+' | 결과:'+note+(qrText?' | ✅인식됨':''));
     if(qrText) handleQrSuccess(qrText);
-  }catch(e){}
+  }catch(e){ dbg('시도 '+camAttempts+'회 | 루프 예외: '+e.message); }
   camBusy=false;
   // 정지사진 방식은 촬영 자체가 무겁기 때문에 간격을 좀 더 둠(품질 우선),
   // 동영상 프레임 방식은 가벼우니 더 자주 시도(속도 우선)
