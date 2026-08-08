@@ -52,9 +52,13 @@ body{background:#f3f4f6;font-size:13px;}
 .qr-guide-box{background:#f5f0ff;border:1px solid #c0a8f0;border-radius:8px;padding:14px;margin-bottom:10px;text-align:center;}
 .qr-guide-title{font-size:12px;font-weight:700;color:#5a3db8;margin-bottom:4px;}
 .qr-guide-desc{font-size:10px;color:#666;line-height:1.7;}
-#qr-reader{display:none;width:100%;margin-bottom:8px;border-radius:8px;overflow:hidden;}
-#qr-reader video{width:100%!important;}
+#qr-reader{display:none;position:relative;width:100%;max-width:320px;aspect-ratio:1/1;margin:0 auto 8px;border-radius:12px;overflow:hidden;background:#000;}
+#qr-reader video{position:absolute;top:0;left:0;width:100%!important;height:100%!important;object-fit:cover;}
 #qr-reader img{display:none!important;}
+.qr-target{position:absolute;top:12%;left:12%;right:12%;bottom:12%;border:3px solid #7048e8;border-radius:16px;box-shadow:0 0 0 2000px rgba(0,0,0,.5);pointer-events:none;}
+.qr-target::before,.qr-target::after{content:'';position:absolute;width:22px;height:22px;border:3px solid #fff;}
+.qr-target::before{top:-3px;left:-3px;border-right:none;border-bottom:none;border-top-left-radius:10px;}
+.qr-target::after{bottom:-3px;right:-3px;border-left:none;border-top:none;border-bottom-right-radius:10px;}
 .zoom-wrap{background:#f8f8f8;border:1px solid #eee;border-radius:7px;padding:8px 10px;margin-bottom:8px;display:none;}
 .zoom-label{font-size:10px;color:#555;font-weight:600;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;}
 .zoom-slider{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;background:#ddd;outline:none;}
@@ -420,7 +424,7 @@ function setProgress(pct){ document.getElementById('procBar').style.width=pct+'%
 //   업로드" 인식(BarcodeDetector 우선 + ZXing TRY_HARDER 폴백)은 훨씬 정확했음.
 //   그래서 카메라도 자체 캡처 루프로 바꿔서, 이미 검증된 그 인식 로직을 그대로
 //   재사용하도록 변경. 추가로: 고해상도 명시 요청, 연속 자동초점, 손전등 지원.
-var camStream=null, camTrack=null, camVideo=null, camCanvas=null, camScanTimer=null;
+var camStream=null, camTrack=null, camVideo=null, camCanvas=null, camScanTimer=null, camImageCapture=null;
 var camDetector = ('BarcodeDetector' in window) ? new BarcodeDetector({formats:['qr_code']}) : null;
 var zoomLevel=1.0, torchOn=false, camBusy=false;
 
@@ -448,6 +452,10 @@ async function startCamScan(){
     camVideo.muted=true; camVideo.playsInline=true;
     reader.appendChild(camVideo);
 
+    var target=document.createElement('div');
+    target.className='qr-target';
+    reader.appendChild(target);
+
     // 해상도를 명시적으로 높게 요청 + 가능하면 연속 자동초점 — 저해상도/초점
     // 미스가 인식률 저하의 큰 원인이라 여기서 개선
     camStream = await navigator.mediaDevices.getUserMedia({
@@ -461,6 +469,14 @@ async function startCamScan(){
     await camVideo.play();
     camTrack=camStream.getVideoTracks()[0];
 
+    // 가능하면 ImageCapture로 "정지사진" 촬영을 사용 — 동영상 프레임보다 훨씬
+    // 선명하고 촬영 순간 재초점까지 되어, 흔들리는 상태에서도 인식률이 크게 개선됨.
+    // 지원 안 되는 기기/브라우저는 자동으로 동영상 프레임 방식으로 대체됨.
+    camImageCapture=null;
+    if('ImageCapture' in window){
+      try{ camImageCapture=new ImageCapture(camTrack); }catch(e){ camImageCapture=null; }
+    }
+
     var caps = camTrack.getCapabilities ? camTrack.getCapabilities() : {};
     document.getElementById('btnTorch').style.display = caps.torch ? 'inline-flex' : 'none';
     torchOn=false;
@@ -472,7 +488,7 @@ async function startCamScan(){
 
     camCanvas=document.createElement('canvas');
     scanLoop();
-    showMsg('msg3','info','📷 QR코드를 화면 중앙에 크고 밝게 맞춰주세요!');
+    showMsg('msg3','info','📷 QR코드를 표적 안에 크고 밝게 맞춘 뒤, 잠시 움직이지 말고 기다려주세요!');
   }catch(e){
     document.getElementById('qrGuide').style.display='block';
     document.getElementById('qr-reader').style.display='none';
@@ -483,45 +499,70 @@ async function startCamScan(){
   }
 }
 
+// 캔버스에 그려진 정사각형 이미지를 인식 시도 (BarcodeDetector 우선 → ZXing TRY_HARDER 폴백).
+// 카메라 정지사진/동영상 프레임 두 경로 모두 이 함수를 공유해서 쓴다.
+async function decodeCanvas(ctx, side){
+  var qrText=null;
+  if(camDetector){
+    try{
+      var blob=await new Promise(function(r){ctx.canvas.toBlob(r,'image/jpeg',0.92);});
+      var bmp=await createImageBitmap(blob);
+      var codes=await camDetector.detect(bmp);
+      if(codes.length>0) qrText=codes[0].rawValue;
+    }catch(e){}
+  }
+  if(!qrText){
+    try{
+      var imageData=ctx.getImageData(0,0,side,side);
+      qrText=await zxingDecode(imageData,side,side);
+    }catch(e){}
+  }
+  return qrText;
+}
+
 async function scanLoop(){
   if(!camStream) return; // stopCamScan()으로 이미 종료된 경우 루프 중단
-  if(!camVideo || camVideo.readyState < 2 || camBusy){
-    camScanTimer=setTimeout(scanLoop,150); return;
-  }
+  if(camBusy){ camScanTimer=setTimeout(scanLoop, camImageCapture?300:150); return; }
   camBusy=true;
+  var qrText=null;
   try{
-    var vw=camVideo.videoWidth, vh=camVideo.videoHeight;
-    if(vw && vh){
-      // 화면 중앙 정사각형만 잘라서 스캔 — 배경 노이즈를 줄여 인식률 향상
-      var side=Math.min(vw,vh);
-      var sx=(vw-side)/2, sy=(vh-side)/2;
-      camCanvas.width=side; camCanvas.height=side;
-      var ctx=camCanvas.getContext('2d');
-      ctx.drawImage(camVideo, sx,sy,side,side, 0,0,side,side);
-
-      var qrText=null;
-      if(camDetector){
-        try{
-          var bmp=await createImageBitmap(camCanvas);
-          var codes=await camDetector.detect(bmp);
-          if(codes.length>0) qrText=codes[0].rawValue;
-        }catch(e){}
-      }
-      if(!qrText){
-        var imageData=ctx.getImageData(0,0,side,side);
-        qrText=await zxingDecode(imageData,side,side);
-      }
-      if(qrText) handleQrSuccess(qrText);
+    if(camImageCapture){
+      // ── 정지사진 경로 (더 선명함, 촬영 순간 재초점) ──
+      try{
+        var blob=await camImageCapture.takePhoto();
+        var bmp=await createImageBitmap(blob);
+        var side=Math.min(bmp.width,bmp.height);
+        var sx=(bmp.width-side)/2, sy=(bmp.height-side)/2;
+        camCanvas.width=side; camCanvas.height=side;
+        var ctx=camCanvas.getContext('2d');
+        ctx.drawImage(bmp, sx,sy,side,side, 0,0,side,side);
+        qrText=await decodeCanvas(ctx, side);
+      }catch(e){ /* takePhoto 실패 → 아래 동영상 프레임 방식으로 이번 회차만 폴백 */ }
     }
+    if(!qrText && camVideo && camVideo.readyState>=2){
+      // ── 동영상 프레임 경로 (ImageCapture 미지원 기기용 폴백) ──
+      var vw=camVideo.videoWidth, vh=camVideo.videoHeight;
+      if(vw && vh){
+        var side2=Math.min(vw,vh);
+        var sx2=(vw-side2)/2, sy2=(vh-side2)/2;
+        camCanvas.width=side2; camCanvas.height=side2;
+        var ctx2=camCanvas.getContext('2d');
+        ctx2.drawImage(camVideo, sx2,sy2,side2,side2, 0,0,side2,side2);
+        qrText=await decodeCanvas(ctx2, side2);
+      }
+    }
+    if(qrText) handleQrSuccess(qrText);
   }catch(e){}
   camBusy=false;
-  if(camStream) camScanTimer=setTimeout(scanLoop,180);
+  // 정지사진 방식은 촬영 자체가 무겁기 때문에 간격을 좀 더 둠(품질 우선),
+  // 동영상 프레임 방식은 가벼우니 더 자주 시도(속도 우선)
+  if(camStream) camScanTimer=setTimeout(scanLoop, camImageCapture?700:180);
 }
 
 async function stopCamScan(){
   if(camScanTimer){ clearTimeout(camScanTimer); camScanTimer=null; }
   if(camStream){ camStream.getTracks().forEach(function(t){t.stop();}); camStream=null; }
-  camTrack=null; camVideo=null; camBusy=false; torchOn=false;
+  camTrack=null; camVideo=null; camImageCapture=null; camBusy=false; torchOn=false;
   var reader=document.getElementById('qr-reader');
   reader.style.display='none'; reader.innerHTML='';
   document.getElementById('qrGuide').style.display='block';
