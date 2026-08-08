@@ -5,6 +5,7 @@ const { tickAlwaysRace } = require('../jobs/seoulRaceAutoRun');
 const { bootstrapStandardRace } = require('../jobs/seoulRaceAutoRun'); // 대상경마 최초 오픈용 (2026-08 신규)
 const { runBackfillChunk } = require('../jobs/seoulRaceAutoRun'); // 말별 누적성적 소급계산용 (2026-08 신규)
 const { runFullBackfillChunk } = require('../jobs/seoulRaceAutoRun'); // 회차별 실제기록까지 남기는 전체판 소급계산 (2026-08 신규)
+const { healStandardRace } = require('../jobs/seoulRaceAutoRun'); // 대상경마 정지상태 즉시복구용 (2026-08-09 신규)
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -111,6 +112,21 @@ router.post('/backfill-full', requireAdmin, async (req, res) => {
     return res.json({ success: true, result });
   } catch (err) {
     console.error('[seoul-race-admin] backfill-full 오류:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// [7] 대상경마 정지상태 즉시복구 — "베팅중"인데 그 회차 실제 로또645 결과가
+// 이미 나와있으면(=정산이 멈춰있는 상태) 지금 바로 정산하고 다음 라운드를 연다.
+// 원래 tickAlwaysRace()가 1분마다 자동으로도 이걸 같이 확인하지만, 지금 당장
+// 결과를 보고 싶을 때 수동으로 호출할 수 있도록 별도 엔드포인트도 열어둔다.
+// POST /api/admin/seoul-race/heal-standard
+router.post('/heal-standard', requireAdmin, async (req, res) => {
+  try {
+    const results = await healStandardRace();
+    return res.json({ success: true, results });
+  } catch (err) {
+    console.error('[seoul-race-admin] heal-standard 오류:', err);
     return res.status(500).json({ error: err.message });
   }
 });
