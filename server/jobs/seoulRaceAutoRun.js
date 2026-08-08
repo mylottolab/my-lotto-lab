@@ -250,6 +250,38 @@ async function settleRound(round, winData, horses, fixedCombosMap) {
   return { winners };
 }
 
+// ─── [대상경마 자가복구] 상시경마(tickAlwaysRace)는 1분마다 스스로 확인하면서
+// "정산 멈춤" 상태를 자동 복구하는데, 대상경마(catchupStandardRace)는 원래
+// lottoAutoFetch.js가 정확히 한 번 호출해줘야만 진행되는 구조라 이런 안전장치가 없었다.
+// 그 호출이 어떤 이유로든 실패하거나 아예 안 일어나면 대상경마가 그대로 멈춰버리는
+// 문제가 실제로 있었다(2026-08-08). 이 함수를 tickAlwaysRace() 끝에서 매번 같이
+// 호출해서, "베팅중"인데 그 회차 실제 로또645 결과가 이미 나와있는 경우를 찾아
+// 스스로 정산+다음 라운드 오픈까지 진행하도록 한다.
+// ─────────────────────────────────────────────────────────
+async function healStandardRace() {
+  const { data: openRounds, error } = await supabase
+    .from('seoul_race_rounds')
+    .select('*').eq('race_mode', 'standard').eq('status', 'betting_open')
+    .order('cycle_no', { ascending: true });
+  if (error) throw error;
+
+  const results = [];
+  for (const r of (openRounds || [])) {
+    const targetRound = r.lotto_round_ref || r.cycle_no;
+    const winData = await getLottoResult(targetRound);
+    if (!winData) continue; // 아직 그 회차 추첨결과가 없음 — 정상 대기중, 건너뜀
+    try {
+      const result = await catchupStandardRace(targetRound);
+      results.push({ cycleNo: r.cycle_no, targetRound, recovered: true, result });
+      console.log(`[seoulRaceAutoRun] 대상경마 자가복구: cycle_no=${r.cycle_no} (회차 ${targetRound}) 정산 완료`);
+    } catch (e) {
+      results.push({ cycleNo: r.cycle_no, targetRound, recovered: false, error: e.message });
+      console.error(`[seoulRaceAutoRun] 대상경마 자가복구 실패: cycle_no=${r.cycle_no}:`, e.message);
+    }
+  }
+  return results;
+}
+
 // ─── [상시경마] 1분마다 호출 — 마감 지난 라운드 정산 + 다음 라운드 자동생성 ───
 async function tickAlwaysRace() {
   const horses = await loadHorses();
@@ -366,7 +398,17 @@ async function tickAlwaysRace() {
     return { bootstrapped: true };
   }
 
-  return { success: true, processedRounds: processed };
+  // ── 대상경마 자가복구도 여기서 같이 확인 (1분마다 안정적으로 도는 이 tick에
+  //    piggyback — 실패해도 상시경마 처리 자체는 이미 끝났으니 그대로 반환) ──
+  let standardHeal = null;
+  try {
+    standardHeal = await healStandardRace();
+  } catch (e) {
+    console.error('[seoulRaceAutoRun] 대상경마 자가복구 확인 중 오류:', e.message);
+    standardHeal = { error: e.message };
+  }
+
+  return { success: true, processedRounds: processed, standardHeal };
 }
 
 // =====================================================
@@ -378,21 +420,40 @@ async function tickAlwaysRace() {
 //   2) round+1 대상경마가 아직 없으면 새로 오픈 (베팅: 다음주 일요일 0시 ~ 그 다음 토요일 20시)
 // =====================================================
 
-// kstShiftedNow: "지금 시각 + 9시간"을 UTC Date로 표현한 것 (getUTCDay 등으로 KST 요일 판단 가능)
-// 반환값의 start/end는 실제(진짜) UTC 시각의 Date 객체
-function nextBettingWindowForStandardRound(kstShiftedNow) {
-  const dayStart = new Date(kstShiftedNow.getTime());
-  dayStart.setUTCHours(0, 0, 0, 0);
-  const dow = dayStart.getUTCDay(); // 0=일요일 ... 6=토요일 (KST 기준)
-  let daysUntilNextSunday = (7 - dow) % 7;
-  if (daysUntilNextSunday === 0) daysUntilNextSunday = 7; // 오늘이 일요일이어도 "다음" 일요일로
+// ⚠ 2026-08-09 신규: 위 nextBettingWindowForStandardRound()는 "지금 시각" 기준이라,
+// catchupStandardRace가 정해진 타이밍(추첨 직후)보다 하루 이상 늦게 실행되면 — 예를 들어
+// 토요일 추첨인데 그 다음 월요일에야 실행되면 — "다음 일요일"이 이미 지나간 그 일요일이
+// 아니라 한 주 뒤 일요일로 계산되어버려서, 이후 모든 회차의 베팅창 날짜가 통째로 한 주씩
+// 밀려버리는 문제가 실제로 있었다(2026-08-08, cycle_no=1236 라운드가 원래 8/2~8/8 창을
+// 가져야 하는데 8/9~8/15로 계산됨). 이 문제를 근본적으로 없애기 위해, "지금 시각"이 아니라
+// "그 회차(lottoRound)가 실제로 몇 번째 로또645 회차인지"만으로 날짜를 100% 결정론적으로
+// 계산하는 함수를 새로 만든다. 실행이 아무리 늦어져도 항상 같은 결과가 나온다.
+//
+// ROUND1_TS/WEEK_MS는 lottoAutoFetch.js의 계산식과 반드시 동일하게 유지해야 함
+// (하나만 고치면 두 파일의 회차 계산이 서로 어긋난다).
+const ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-  const startKst = new Date(dayStart.getTime() + daysUntilNextSunday * 86400000); // 다음 일요일 00:00 KST
-  const endKst = new Date(startKst.getTime() + 6 * 86400000); // 그 다음 토요일
-  endKst.setUTCHours(20, 0, 0, 0); // 20:00 KST (실제 추첨 20:35보다 앞서 마감)
+// lottoRound번째 로또645 실제 추첨시각(KST, 대략 20:00~20:45 사이) — 실제 UTC Date로 반환
+function lottoDrawDateForRound(lottoRound) {
+  return new Date(ROUND1_TS + (lottoRound - 1) * WEEK_MS);
+}
+
+// standard 라운드가 "lottoRound회차 결과로 정산될 것"이라면, 그 라운드의 베팅창은
+// 항상 "그 추첨이 있는 주의 일요일 00:00 KST ~ 그 주 토요일 20:00 KST"로 고정된다.
+// 회차 번호만으로 계산하므로 실행 시점과 완전히 무관하다(지연 발생해도 절대 안 밀림).
+function bettingWindowForLottoRound(lottoRound) {
+  const drawAt = lottoDrawDateForRound(lottoRound); // 그 회차의 실제 추첨시각(토요일 20:00경, KST)
+  const drawKst = new Date(drawAt.getTime() + 9 * 60 * 60 * 1000);
+
+  const endKst = new Date(drawKst.getTime());
+  endKst.setUTCHours(20, 0, 0, 0); // 추첨 당일 20:00 KST로 마감시각 고정(실제 추첨보다 살짝 앞섬)
+
+  const startKst = new Date(endKst.getTime() - 6 * 86400000); // 그 주 일요일
+  startKst.setUTCHours(0, 0, 0, 0);
 
   return {
-    start: new Date(startKst.getTime() - 9 * 60 * 60 * 1000), // KST-shifted → 실제 UTC로 환원
+    start: new Date(startKst.getTime() - 9 * 60 * 60 * 1000),
     end: new Date(endKst.getTime() - 9 * 60 * 60 * 1000),
   };
 }
@@ -424,8 +485,9 @@ async function catchupStandardRace(round) {
   const { data: nextExisting } = await supabase
     .from('seoul_race_rounds').select('id').eq('race_mode', 'standard').eq('cycle_no', round + 1).maybeSingle();
   if (!nextExisting) {
-    const kstShiftedNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
-    const window = nextBettingWindowForStandardRound(kstShiftedNow);
+    // ⚠ 2026-08-09 수정: "지금 시각" 기준이 아니라 회차 번호(round+1)로 결정론적으로 계산 —
+    // 이 함수 실행이 며칠 늦어져도 절대 창 날짜가 밀리지 않는다.
+    const window = bettingWindowForLottoRound(round + 1);
     const { data: newRound, error: insErr } = await supabase.from('seoul_race_rounds').insert({
       race_mode: 'standard', cycle_no: round + 1,
       betting_starts_at: window.start.toISOString(), betting_ends_at: window.end.toISOString(),
@@ -449,8 +511,7 @@ async function bootstrapStandardRace(nextRoundNo) {
   if (!horses.length) return { skipped: true, reason: 'no_horses_seeded' };
   const fixedCombosMap = await ensureFixedCombos(horses);
 
-  const kstShiftedNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  const window = nextBettingWindowForStandardRound(kstShiftedNow);
+  const window = bettingWindowForLottoRound(nextRoundNo);
   const { data: newRound, error: insErr } = await supabase.from('seoul_race_rounds').insert({
     race_mode: 'standard', cycle_no: nextRoundNo,
     betting_starts_at: window.start.toISOString(), betting_ends_at: window.end.toISOString(),
@@ -658,6 +719,6 @@ async function runFullBackfillChunk(mode, roundsPerCall) {
 
 module.exports = {
   tickAlwaysRace, loadHorses, ensureFixedCombos,
-  catchupStandardRace, bootstrapStandardRace,
+  catchupStandardRace, bootstrapStandardRace, healStandardRace,
   runBackfillChunk, runFullBackfillChunk,
 };
