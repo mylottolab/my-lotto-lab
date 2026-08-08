@@ -388,8 +388,15 @@ async function processQueue(){
       }catch(e){}
     }
     if(!qrText){
-      var imageData=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height);
-      qrText=await zxingDecode(imageData,canvas.width,canvas.height);
+      // ⚠ 원본 그대로(수천만 화소) 분석하면 느리고 오히려 인식이 잘 안 되는
+      // 경우가 있어서, 카메라 스캔과 동일하게 적당한 크기로 줄여서 분석한다.
+      var down=Math.min(1, 1280/Math.max(canvas.width,canvas.height));
+      var dw=Math.max(1,Math.round(canvas.width*down)), dh=Math.max(1,Math.round(canvas.height*down));
+      var dCanvas=document.createElement('canvas');
+      dCanvas.width=dw; dCanvas.height=dh;
+      dCanvas.getContext('2d').drawImage(canvas,0,0,canvas.width,canvas.height,0,0,dw,dh);
+      var imageData=dCanvas.getContext('2d').getImageData(0,0,dw,dh);
+      qrText=await zxingDecode(imageData,dw,dh);
     }
     if(qrText){
       var parsed=parseLottoQrUrl(qrText);
@@ -541,19 +548,31 @@ async function decodeCanvas(ctx, side){
 // 그래서 "전체 정사각형"과 "중앙을 바짝 확대한 crop" 두 단계로 나눠서 각각
 // 시도해본다 — 사용자가 더 가까이 안 가도 자동으로 확대해서 재시도하는 효과.
 var CROP_SCALES=[1.0, 0.55, 0.32];
+var MAX_DECODE_DIM=1280; // 원본이 아무리 커도 이 안쪽으로 줄여서 분석 — 처리시간 단축 + 안정성 향상
 
 async function decodeSource(drawFn, srcW, srcH){
+  // 1단계: 우선 적당한 크기로 축소해서 전체를 그린다. 원본 그대로(수천만 화소)
+  // 분석하면 느리고(수십 초) 오히려 인식이 잘 안 되는 경우가 있어서, QR 인식에
+  // 충분한 해상도로만 줄여서 쓴다.
+  var down=Math.min(1, MAX_DECODE_DIM/Math.max(srcW,srcH));
+  var baseW=Math.max(1,Math.round(srcW*down)), baseH=Math.max(1,Math.round(srcH*down));
+  var baseCanvas=document.createElement('canvas');
+  baseCanvas.width=baseW; baseCanvas.height=baseH;
+  var baseCtx=baseCanvas.getContext('2d');
+  drawFn(baseCtx, 0,0,srcW,srcH, 0,0,baseW,baseH);
+
+  // 2단계: 축소된 이미지 안에서 중앙을 기준으로 배율을 좁혀가며 시도
   for(var i=0;i<CROP_SCALES.length;i++){
     var scale=CROP_SCALES[i];
-    var side=Math.min(srcW,srcH)*scale;
-    var sx=(srcW-side)/2, sy=(srcH-side)/2;
+    var side=Math.min(baseW,baseH)*scale;
+    var sx=(baseW-side)/2, sy=(baseH-side)/2;
     camCanvas.width=side; camCanvas.height=side;
     var ctx=camCanvas.getContext('2d');
     ctx.clearRect(0,0,side,side);
-    drawFn(ctx, sx,sy,side,side, 0,0,side,side);
+    ctx.drawImage(baseCanvas, sx,sy,side,side, 0,0,side,side);
     var r=await decodeCanvas(ctx, side);
-    if(r.text) return {text:r.text, note:r.note+' (배율'+scale+'x)'};
-    if(i===CROP_SCALES.length-1) return {text:null, note:r.note+' (배율 '+CROP_SCALES.join('/')+' 다 시도함)'};
+    if(r.text) return {text:r.text, note:r.note+' (축소'+baseW+'x'+baseH+',배율'+scale+'x)'};
+    if(i===CROP_SCALES.length-1) return {text:null, note:r.note+' (축소'+baseW+'x'+baseH+', 배율 '+CROP_SCALES.join('/')+' 다 시도함)'};
   }
 }
 
