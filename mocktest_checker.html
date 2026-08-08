@@ -92,6 +92,9 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
   <div class="card" id="qrCard" style="display:none;">
     <h3 style="margin:0 0 8px;font-size:13.5px;">📷 QR 스캔으로 바로 확인 (한국로또 전용)</h3>
     <p style="font-size:11px;color:var(--text-faint);margin:0 0 10px;line-height:1.6;">로또 용지 QR코드를 카메라에 비추면 회차와 번호를 자동으로 읽어서 바로 당첨여부를 확인해드려요.</p>
+    <div id="samsungHint" style="display:none;background:#fff3cd;border:1px solid #ffe08a;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#7a5c00;line-height:1.5;">
+      💡 삼성 인터넷 브라우저에서는 QR 스캔이 잘 안 잡힐 수 있어요. 아래로 스크롤해서 <b>직접 번호를 입력</b>해주시면 바로 확인해드려요.
+    </div>
     <div id="qr-reader" style="display:none;"></div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-accent" id="btnQrStart" style="flex:1;" onclick="startCamScan()">📷 QR 스캔 시작</button>
@@ -498,6 +501,10 @@ async function checkQrCombos(round, combos){
 })();
 if(window.ZXingWASM && ZXingWASM.prepareZXingModule){
   try{ ZXingWASM.prepareZXingModule({ fireImmediately:true }); }catch(e){}
+}
+if(/SamsungBrowser/i.test(navigator.userAgent)){
+  var sh=document.getElementById('samsungHint');
+  if(sh) sh.style.display='block';
 }
 </script>
 
