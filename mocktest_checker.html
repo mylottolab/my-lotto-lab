@@ -99,6 +99,7 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
       <button class="btn" id="btnTorch" style="display:none;background:#333;color:#fff;" onclick="toggleTorch()">🔦</button>
     </div>
     <div id="qrStatus" style="font-size:11.5px;color:var(--text-dim);margin-top:8px;"></div>
+    <div id="camDebug" style="font-size:10.5px;color:#777;margin-top:4px;font-family:monospace;white-space:pre-wrap;"></div>
   </div>
 
   <div class="card">
@@ -269,7 +270,12 @@ async function doCheck(){
 // =====================================================
 var camStream=null, camTrack=null, camVideo=null, camCanvas=null, camScanTimer=null, camImageCapture=null;
 var camDetector = ('BarcodeDetector' in window) ? new BarcodeDetector({formats:['qr_code']}) : null;
-var camBusy=false, torchOn=false;
+var camBusy=false, torchOn=false, camAttempts=0;
+
+function dbg(text){
+  var el=document.getElementById('camDebug');
+  if(el) el.textContent = text;
+}
 
 function zxingDecode(imageData,w,h){
   return new Promise(function(resolve){
@@ -286,22 +292,25 @@ function zxingDecode(imageData,w,h){
 }
 
 async function decodeCanvas(ctx, side){
-  var qrText=null;
+  var qrText=null, note='';
   if(camDetector){
     try{
       var blob=await new Promise(function(r){ctx.canvas.toBlob(r,'image/jpeg',0.92);});
       var bmp=await createImageBitmap(blob);
       var codes=await camDetector.detect(bmp);
-      if(codes.length>0) qrText=codes[0].rawValue;
-    }catch(e){}
-  }
+      if(codes.length>0){ qrText=codes[0].rawValue; note='BD:성공'; }
+      else note='BD:0개검출';
+    }catch(e){ note='BD:오류('+e.message+')'; }
+  } else note='BD:없음';
   if(!qrText){
     try{
       var imageData=ctx.getImageData(0,0,side,side);
-      qrText=await zxingDecode(imageData,side,side);
-    }catch(e){}
+      var zt=await zxingDecode(imageData,side,side);
+      qrText = zt || null;
+      note += zt ? ' ZX:성공' : ' ZX:못찾음';
+    }catch(e){ note+=' ZX:예외('+e.message+')'; }
   }
-  return qrText;
+  return {text:qrText, note:note};
 }
 
 function toggleTorch(){
@@ -315,6 +324,8 @@ async function startCamScan(){
   try {
     var reader=document.getElementById('qr-reader');
     reader.style.display='block'; reader.innerHTML='';
+    camAttempts=0;
+    dbg('카메라 여는 중...');
 
     camVideo=document.createElement('video');
     camVideo.setAttribute('playsinline',''); camVideo.setAttribute('muted','');
@@ -345,17 +356,21 @@ async function startCamScan(){
     document.getElementById('btnTorch').textContent='🔦';
 
     camImageCapture=null;
+    var icNote='';
     if('ImageCapture' in window){
-      try{ camImageCapture=new ImageCapture(camTrack); }catch(e){ camImageCapture=null; }
-    }
+      try{ camImageCapture=new ImageCapture(camTrack); icNote='ImageCapture 지원'; }
+      catch(e){ camImageCapture=null; icNote='ImageCapture 생성실패:'+e.message; }
+    } else { icNote='ImageCapture 미지원(브라우저)'; }
 
     camCanvas=document.createElement('canvas');
+    dbg('해상도:'+camVideo.videoWidth+'x'+camVideo.videoHeight+' | BarcodeDetector:'+(camDetector?'O':'X')+' | '+icNote+' | 시도:0');
     scanLoop();
     document.getElementById('qrStatus').textContent = '📷 QR코드를 표적 안에 크고 밝게 맞춘 뒤, 잠시 움직이지 말고 기다려주세요!';
   } catch(e) {
     document.getElementById('qr-reader').style.display = 'none';
     document.getElementById('btnQrStart').style.display = 'block';
     document.getElementById('btnQrStop').style.display = 'none';
+    dbg('카메라 열기 실패: '+e.message);
     document.getElementById('qrStatus').textContent = '카메라를 사용할 수 없습니다.';
   }
 }
@@ -364,10 +379,11 @@ async function scanLoop(){
   if(!camStream) return;
   if(camBusy){ camScanTimer=setTimeout(scanLoop, camImageCapture?300:150); return; }
   camBusy=true;
-  var qrText=null;
+  var qrText=null, path='', note='';
   try{
     if(camImageCapture){
       try{
+        var t0=performance.now();
         var blob=await camImageCapture.takePhoto();
         var bmp=await createImageBitmap(blob);
         var side=Math.min(bmp.width,bmp.height);
@@ -375,8 +391,9 @@ async function scanLoop(){
         camCanvas.width=side; camCanvas.height=side;
         var ctx=camCanvas.getContext('2d');
         ctx.drawImage(bmp, sx,sy,side,side, 0,0,side,side);
-        qrText=await decodeCanvas(ctx, side);
-      }catch(e){}
+        var r=await decodeCanvas(ctx, side);
+        qrText=r.text; path='사진('+bmp.width+'x'+bmp.height+','+Math.round(performance.now()-t0)+'ms)'; note=r.note;
+      }catch(e){ path='사진실패:'+e.message; }
     }
     if(!qrText && camVideo && camVideo.readyState>=2){
       var vw=camVideo.videoWidth, vh=camVideo.videoHeight;
@@ -386,11 +403,14 @@ async function scanLoop(){
         camCanvas.width=side2; camCanvas.height=side2;
         var ctx2=camCanvas.getContext('2d');
         ctx2.drawImage(camVideo, sx2,sy2,side2,side2, 0,0,side2,side2);
-        qrText=await decodeCanvas(ctx2, side2);
+        var r2=await decodeCanvas(ctx2, side2);
+        qrText=r2.text; path=(path?path+' → ':'')+'영상('+vw+'x'+vh+')'; note=r2.note;
       }
     }
+    camAttempts++;
+    dbg('시도 '+camAttempts+'회 | 경로:'+path+' | 결과:'+note+(qrText?' | ✅인식됨':''));
     if(qrText) handleQrSuccess(qrText);
-  }catch(e){}
+  }catch(e){ dbg('시도 '+camAttempts+'회 | 루프 예외: '+e.message); }
   camBusy=false;
   if(camStream) camScanTimer=setTimeout(scanLoop, camImageCapture?700:180);
 }
