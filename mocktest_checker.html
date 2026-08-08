@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab - 당첨확인 (무료)</title>
-<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.0/dist/iife/reader/index.js"></script>
 <style>
 :root{
   --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
@@ -277,18 +277,14 @@ function dbg(text){
   if(el) el.textContent = text;
 }
 
-function zxingDecode(imageData,w,h){
-  return new Promise(function(resolve){
-    try{
-      var hints=new Map();
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE]);
-      hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-      var reader=new ZXing.MultiFormatReader(); reader.setHints(hints);
-      var src=new ZXing.RGBLuminanceSource(imageData.data,w,h);
-      var bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
-      resolve(reader.decode(bitmap).getText());
-    }catch(e){resolve(null);}
-  });
+async function zxingDecode(imageData,w,h){
+  try{
+    var results = await ZXingWASM.readBarcodesFromImageData(imageData, {
+      formats: ['QRCode'], tryHarder: true, maxNumberOfSymbols: 1
+    });
+    if(results && results.length>0) return results[0].text;
+    return null;
+  }catch(e){ return null; }
 }
 
 async function decodeCanvas(ctx, side){
@@ -375,6 +371,23 @@ async function startCamScan(){
   }
 }
 
+var CROP_SCALES=[1.0, 0.55, 0.32];
+
+async function decodeSource(drawFn, srcW, srcH){
+  for(var i=0;i<CROP_SCALES.length;i++){
+    var scale=CROP_SCALES[i];
+    var side=Math.min(srcW,srcH)*scale;
+    var sx=(srcW-side)/2, sy=(srcH-side)/2;
+    camCanvas.width=side; camCanvas.height=side;
+    var ctx=camCanvas.getContext('2d');
+    ctx.clearRect(0,0,side,side);
+    drawFn(ctx, sx,sy,side,side, 0,0,side,side);
+    var r=await decodeCanvas(ctx, side);
+    if(r.text) return {text:r.text, note:r.note+' (배율'+scale+'x)'};
+    if(i===CROP_SCALES.length-1) return {text:null, note:r.note+' (배율 '+CROP_SCALES.join('/')+' 다 시도함)'};
+  }
+}
+
 async function scanLoop(){
   if(!camStream) return;
   if(camBusy){ camScanTimer=setTimeout(scanLoop, camImageCapture?300:150); return; }
@@ -386,24 +399,14 @@ async function scanLoop(){
         var t0=performance.now();
         var blob=await camImageCapture.takePhoto();
         var bmp=await createImageBitmap(blob);
-        var side=Math.min(bmp.width,bmp.height);
-        var sx=(bmp.width-side)/2, sy=(bmp.height-side)/2;
-        camCanvas.width=side; camCanvas.height=side;
-        var ctx=camCanvas.getContext('2d');
-        ctx.drawImage(bmp, sx,sy,side,side, 0,0,side,side);
-        var r=await decodeCanvas(ctx, side);
+        var r=await decodeSource(function(ctx,sx,sy,sw,sh,dx,dy,dw,dh){ ctx.drawImage(bmp,sx,sy,sw,sh,dx,dy,dw,dh); }, bmp.width, bmp.height);
         qrText=r.text; path='사진('+bmp.width+'x'+bmp.height+','+Math.round(performance.now()-t0)+'ms)'; note=r.note;
       }catch(e){ path='사진실패:'+e.message; }
     }
     if(!qrText && camVideo && camVideo.readyState>=2){
       var vw=camVideo.videoWidth, vh=camVideo.videoHeight;
       if(vw && vh){
-        var side2=Math.min(vw,vh);
-        var sx2=(vw-side2)/2, sy2=(vh-side2)/2;
-        camCanvas.width=side2; camCanvas.height=side2;
-        var ctx2=camCanvas.getContext('2d');
-        ctx2.drawImage(camVideo, sx2,sy2,side2,side2, 0,0,side2,side2);
-        var r2=await decodeCanvas(ctx2, side2);
+        var r2=await decodeSource(function(ctx,sx,sy,sw,sh,dx,dy,dw,dh){ ctx.drawImage(camVideo,sx,sy,sw,sh,dx,dy,dw,dh); }, vw, vh);
         qrText=r2.text; path=(path?path+' → ':'')+'영상('+vw+'x'+vh+')'; note=r2.note;
       }
     }
@@ -484,6 +487,9 @@ async function checkQrCombos(round, combos){
   await renderTargetRow();
   renderBallGrid();
 })();
+if(window.ZXingWASM && ZXingWASM.prepareZXingModule){
+  try{ ZXingWASM.prepareZXingModule({ fireImmediately:true }); }catch(e){}
+}
 </script>
 
 </body>
