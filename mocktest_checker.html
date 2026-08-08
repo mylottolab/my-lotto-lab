@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Lotto Lab - 당첨확인 (무료)</title>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root{
   --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
@@ -58,6 +58,12 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
 .btn-accent{background:var(--game-accent);color:#fff;border:none;}
 .btn:hover{filter:brightness(1.12);}
 .empty-state{text-align:center;padding:24px 16px;color:var(--text-faint);font-size:12.5px;}
+#qr-reader{position:relative;width:100%;max-width:320px;aspect-ratio:1/1;margin:0 auto 8px;border-radius:12px;overflow:hidden;background:#000;}
+#qr-reader video{position:absolute;top:0;left:0;width:100%!important;height:100%!important;object-fit:cover;}
+.qr-target{position:absolute;top:12%;left:12%;right:12%;bottom:12%;border:3px solid #8a6fe8;border-radius:16px;box-shadow:0 0 0 2000px rgba(0,0,0,.5);pointer-events:none;}
+.qr-target::before,.qr-target::after{content:'';position:absolute;width:22px;height:22px;border:3px solid #fff;}
+.qr-target::before{top:-3px;left:-3px;border-right:none;border-bottom:none;border-top-left-radius:10px;}
+.qr-target::after{bottom:-3px;right:-3px;border-left:none;border-top:none;border-bottom-right-radius:10px;}
 @media (max-width:420px){
   .wrap{padding:14px;}
   .topbar-inner{padding:0 14px;}
@@ -86,10 +92,11 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
   <div class="card" id="qrCard" style="display:none;">
     <h3 style="margin:0 0 8px;font-size:13.5px;">📷 QR 스캔으로 바로 확인 (한국로또 전용)</h3>
     <p style="font-size:11px;color:var(--text-faint);margin:0 0 10px;line-height:1.6;">로또 용지 QR코드를 카메라에 비추면 회차와 번호를 자동으로 읽어서 바로 당첨여부를 확인해드려요.</p>
-    <div id="qr-reader" style="display:none;width:100%;margin-bottom:8px;border-radius:8px;overflow:hidden;"></div>
+    <div id="qr-reader" style="display:none;"></div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-accent" id="btnQrStart" style="flex:1;" onclick="startCamScan()">📷 QR 스캔 시작</button>
       <button class="btn" id="btnQrStop" style="flex:1;display:none;" onclick="stopCamScan()">⏹ 종료</button>
+      <button class="btn" id="btnTorch" style="display:none;background:#333;color:#fff;" onclick="toggleTorch()">🔦</button>
     </div>
     <div id="qrStatus" style="font-size:11.5px;color:var(--text-dim);margin-top:8px;"></div>
   </div>
@@ -254,22 +261,97 @@ async function doCheck(){
 }
 
 // =====================================================
-// 📷 QR 카메라 스캔 (한국로또 전용 — camera_qr.html의 파싱 로직 그대로 재사용)
+// 📷 QR 카메라 스캔 (한국로또 전용)
+// ⚠ 2026-08-08: camera_qr.html과 동일한 이유로 html5-qrcode(구식, 유지보수
+//   중단)를 걷어내고, 자체 캡처 루프(BarcodeDetector 우선 → ZXing TRY_HARDER
+//   폴백, 가능하면 ImageCapture 정지사진 사용)로 교체. 인식 로직은
+//   camera_qr.html과 완전히 동일하게 맞춤.
 // =====================================================
-var html5Qr = null;
+var camStream=null, camTrack=null, camVideo=null, camCanvas=null, camScanTimer=null, camImageCapture=null;
+var camDetector = ('BarcodeDetector' in window) ? new BarcodeDetector({formats:['qr_code']}) : null;
+var camBusy=false, torchOn=false;
+
+function zxingDecode(imageData,w,h){
+  return new Promise(function(resolve){
+    try{
+      var hints=new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE]);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+      var reader=new ZXing.MultiFormatReader(); reader.setHints(hints);
+      var src=new ZXing.RGBLuminanceSource(imageData.data,w,h);
+      var bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
+      resolve(reader.decode(bitmap).getText());
+    }catch(e){resolve(null);}
+  });
+}
+
+async function decodeCanvas(ctx, side){
+  var qrText=null;
+  if(camDetector){
+    try{
+      var blob=await new Promise(function(r){ctx.canvas.toBlob(r,'image/jpeg',0.92);});
+      var bmp=await createImageBitmap(blob);
+      var codes=await camDetector.detect(bmp);
+      if(codes.length>0) qrText=codes[0].rawValue;
+    }catch(e){}
+  }
+  if(!qrText){
+    try{
+      var imageData=ctx.getImageData(0,0,side,side);
+      qrText=await zxingDecode(imageData,side,side);
+    }catch(e){}
+  }
+  return qrText;
+}
+
+function toggleTorch(){
+  if(!camTrack) return;
+  torchOn=!torchOn;
+  try{ camTrack.applyConstraints({advanced:[{torch:torchOn}]}); }catch(e){}
+  document.getElementById('btnTorch').textContent = torchOn ? '🔦 끄기' : '🔦';
+}
 
 async function startCamScan(){
   try {
-    document.getElementById('qr-reader').style.display = 'block';
+    var reader=document.getElementById('qr-reader');
+    reader.style.display='block'; reader.innerHTML='';
+
+    camVideo=document.createElement('video');
+    camVideo.setAttribute('playsinline',''); camVideo.setAttribute('muted','');
+    camVideo.muted=true; camVideo.playsInline=true;
+    reader.appendChild(camVideo);
+
+    var target=document.createElement('div');
+    target.className='qr-target';
+    reader.appendChild(target);
+
     document.getElementById('btnQrStart').style.display = 'none';
     document.getElementById('btnQrStop').style.display = 'block';
-    html5Qr = new Html5Qrcode('qr-reader');
-    await html5Qr.start(
-      { facingMode: 'environment' },
-      { fps: 15, qrbox: { width: 230, height: 230 }, aspectRatio: 1.0, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
-      function(text){ handleQrSuccess(text); }, function(){}
-    );
-    document.getElementById('qrStatus').textContent = '📷 QR코드를 화면 중앙에 맞춰주세요!';
+
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video:{
+        facingMode:{ideal:'environment'},
+        width:{ideal:1920}, height:{ideal:1080},
+        advanced:[{focusMode:'continuous'}]
+      }
+    });
+    camVideo.srcObject=camStream;
+    await camVideo.play();
+    camTrack=camStream.getVideoTracks()[0];
+
+    var caps = camTrack.getCapabilities ? camTrack.getCapabilities() : {};
+    document.getElementById('btnTorch').style.display = caps.torch ? 'inline-flex' : 'none';
+    torchOn=false;
+    document.getElementById('btnTorch').textContent='🔦';
+
+    camImageCapture=null;
+    if('ImageCapture' in window){
+      try{ camImageCapture=new ImageCapture(camTrack); }catch(e){ camImageCapture=null; }
+    }
+
+    camCanvas=document.createElement('canvas');
+    scanLoop();
+    document.getElementById('qrStatus').textContent = '📷 QR코드를 표적 안에 크고 밝게 맞춘 뒤, 잠시 움직이지 말고 기다려주세요!';
   } catch(e) {
     document.getElementById('qr-reader').style.display = 'none';
     document.getElementById('btnQrStart').style.display = 'block';
@@ -277,13 +359,52 @@ async function startCamScan(){
     document.getElementById('qrStatus').textContent = '카메라를 사용할 수 없습니다.';
   }
 }
+
+async function scanLoop(){
+  if(!camStream) return;
+  if(camBusy){ camScanTimer=setTimeout(scanLoop, camImageCapture?300:150); return; }
+  camBusy=true;
+  var qrText=null;
+  try{
+    if(camImageCapture){
+      try{
+        var blob=await camImageCapture.takePhoto();
+        var bmp=await createImageBitmap(blob);
+        var side=Math.min(bmp.width,bmp.height);
+        var sx=(bmp.width-side)/2, sy=(bmp.height-side)/2;
+        camCanvas.width=side; camCanvas.height=side;
+        var ctx=camCanvas.getContext('2d');
+        ctx.drawImage(bmp, sx,sy,side,side, 0,0,side,side);
+        qrText=await decodeCanvas(ctx, side);
+      }catch(e){}
+    }
+    if(!qrText && camVideo && camVideo.readyState>=2){
+      var vw=camVideo.videoWidth, vh=camVideo.videoHeight;
+      if(vw && vh){
+        var side2=Math.min(vw,vh);
+        var sx2=(vw-side2)/2, sy2=(vh-side2)/2;
+        camCanvas.width=side2; camCanvas.height=side2;
+        var ctx2=camCanvas.getContext('2d');
+        ctx2.drawImage(camVideo, sx2,sy2,side2,side2, 0,0,side2,side2);
+        qrText=await decodeCanvas(ctx2, side2);
+      }
+    }
+    if(qrText) handleQrSuccess(qrText);
+  }catch(e){}
+  camBusy=false;
+  if(camStream) camScanTimer=setTimeout(scanLoop, camImageCapture?700:180);
+}
+
 async function stopCamScan(){
-  if (html5Qr) { try { await html5Qr.stop(); html5Qr.clear(); } catch(e){} html5Qr = null; }
+  if(camScanTimer){ clearTimeout(camScanTimer); camScanTimer=null; }
+  if(camStream){ camStream.getTracks().forEach(function(t){t.stop();}); camStream=null; }
+  camTrack=null; camVideo=null; camImageCapture=null; camBusy=false; torchOn=false;
   var reader = document.getElementById('qr-reader');
   if (reader) { reader.style.display = 'none'; reader.innerHTML = ''; }
   var startBtn = document.getElementById('btnQrStart'), stopBtn = document.getElementById('btnQrStop');
   if (startBtn) startBtn.style.display = 'block';
   if (stopBtn) stopBtn.style.display = 'none';
+  document.getElementById('btnTorch').style.display = 'none';
 }
 
 // 동행복권 QR URL(예: http://qr.dhlottery.co.kr/?v=1232m...) 파싱 — camera_qr.html과 동일 로직
