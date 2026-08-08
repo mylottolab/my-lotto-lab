@@ -210,6 +210,10 @@ document.addEventListener('click',function(e){
             <span>1x</span><span>2x</span><span>3x</span><span>4x</span>
           </div>
         </div>
+        <div id="samsungHint" style="display:none;background:#fff3cd;border:1px solid #ffe08a;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#7a5c00;line-height:1.5;">
+          💡 삼성 인터넷 브라우저에서는 <b>QR 스캔보다 "방법2 이미지 인식"이 더 잘 잡혀요.</b><br>
+          폰 카메라로 사진을 찍어서 올려보세요 — <a href="javascript:void(0)" onclick="switchTab(2)" style="color:#7048e8;font-weight:700;text-decoration:underline;">방법2로 이동</a>
+        </div>
         <div class="qr-btns">
           <button class="btn-qr btn-qr-start" id="btnQrStart" onclick="startCamScan()">📷 QR 스캔 시작</button>
           <button class="btn-qr btn-qr-stop" id="btnQrStop" onclick="stopCamScan()" style="display:none;">⏹ 종료</button>
@@ -723,6 +727,13 @@ async function mllInit(){
 mllInit();
 if(window.ZXingWASM && ZXingWASM.prepareZXingModule){
   try{ ZXingWASM.prepareZXingModule({ fireImmediately:true }); }catch(e){}
+}
+// 삼성 인터넷 브라우저는 실시간 카메라 캡처 화질이 낮아 QR 인식이 잘 안 되는
+// 경우가 많아서(2026-08-09 실사용자 다수 확인), "이미지 업로드"를 먼저 권하는
+// 안내를 보여준다. User-Agent에 'SamsungBrowser'가 포함되면 삼성 인터넷임.
+if(/SamsungBrowser/i.test(navigator.userAgent)){
+  var sh=document.getElementById('samsungHint');
+  if(sh) sh.style.display='block';
 }
 
 // ── onclick 전역 등록 ──
