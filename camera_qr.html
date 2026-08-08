@@ -209,6 +209,7 @@ document.addEventListener('click',function(e){
         <div class="qr-btns">
           <button class="btn-qr btn-qr-start" id="btnQrStart" onclick="startCamScan()">📷 QR 스캔 시작</button>
           <button class="btn-qr btn-qr-stop" id="btnQrStop" onclick="stopCamScan()" style="display:none;">⏹ 종료</button>
+          <button class="btn-qr" id="btnTorch" onclick="toggleTorch()" style="display:none;background:#333;color:#fff;">🔦 손전등</button>
         </div>
         <div class="msg" id="msg3"></div>
         <div style="border-top:1px dashed #ddd;margin:8px 0;padding-top:8px;">
@@ -263,7 +264,6 @@ document.addEventListener('click',function(e){
 </div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script>
 // ── 세션 및 회차 ──
@@ -415,28 +415,64 @@ function hideProcStatus(){ setTimeout(function(){document.getElementById('procSt
 function setProgress(pct){ document.getElementById('procBar').style.width=pct+'%'; }
 
 // ── 방법3: QR 스캔 ──
-var html5Qr=null, zoomLevel=1.0;
+// ⚠ 2026-08-08: 기존엔 html5-qrcode(유지보수 중단된 옛 zxing-js 포트) 라이브러리로
+//   실시간 카메라를 스캔했는데, 인식률이 낮다는 불만이 많았음. 반면 아래 "이미지
+//   업로드" 인식(BarcodeDetector 우선 + ZXing TRY_HARDER 폴백)은 훨씬 정확했음.
+//   그래서 카메라도 자체 캡처 루프로 바꿔서, 이미 검증된 그 인식 로직을 그대로
+//   재사용하도록 변경. 추가로: 고해상도 명시 요청, 연속 자동초점, 손전등 지원.
+var camStream=null, camTrack=null, camVideo=null, camCanvas=null, camScanTimer=null;
+var camDetector = ('BarcodeDetector' in window) ? new BarcodeDetector({formats:['qr_code']}) : null;
+var zoomLevel=1.0, torchOn=false, camBusy=false;
 
 function onZoom(val){
   zoomLevel=val/10;
   document.getElementById('zoomVal').textContent=zoomLevel.toFixed(1)+'x';
-  if(html5Qr){ try{ html5Qr.applyVideoConstraints({advanced:[{zoom:zoomLevel}]}); }catch(e){} }
+  if(camTrack){ try{ camTrack.applyConstraints({advanced:[{zoom:zoomLevel}]}); }catch(e){} }
+}
+
+function toggleTorch(){
+  if(!camTrack) return;
+  torchOn=!torchOn;
+  try{ camTrack.applyConstraints({advanced:[{torch:torchOn}]}); }catch(e){}
+  document.getElementById('btnTorch').textContent = torchOn ? '🔦 끄기' : '🔦 손전등';
 }
 
 async function startCamScan(){
   try{
     document.getElementById('qrGuide').style.display='none';
-    document.getElementById('qr-reader').style.display='block';
+    var reader=document.getElementById('qr-reader');
+    reader.style.display='block'; reader.innerHTML='';
+
+    camVideo=document.createElement('video');
+    camVideo.setAttribute('playsinline',''); camVideo.setAttribute('muted','');
+    camVideo.muted=true; camVideo.playsInline=true;
+    reader.appendChild(camVideo);
+
+    // 해상도를 명시적으로 높게 요청 + 가능하면 연속 자동초점 — 저해상도/초점
+    // 미스가 인식률 저하의 큰 원인이라 여기서 개선
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video:{
+        facingMode:{ideal:'environment'},
+        width:{ideal:1920}, height:{ideal:1080},
+        advanced:[{focusMode:'continuous'}]
+      }
+    });
+    camVideo.srcObject=camStream;
+    await camVideo.play();
+    camTrack=camStream.getVideoTracks()[0];
+
+    var caps = camTrack.getCapabilities ? camTrack.getCapabilities() : {};
+    document.getElementById('btnTorch').style.display = caps.torch ? 'inline-flex' : 'none';
+    torchOn=false;
+    document.getElementById('btnTorch').textContent='🔦 손전등';
+
     document.getElementById('btnQrStart').style.display='none';
     document.getElementById('btnQrStop').style.display='flex';
     document.getElementById('zoomWrap').style.display='block';
-    html5Qr=new Html5Qrcode('qr-reader');
-    await html5Qr.start(
-      {facingMode:'environment'},
-      {fps:15,qrbox:{width:230,height:230},aspectRatio:1.0,experimentalFeatures:{useBarCodeDetectorIfSupported:true}},
-      function(text){ handleQrSuccess(text); }, function(){}
-    );
-    showMsg('msg3','info','📷 QR코드를 화면 중앙에 맞춰주세요!');
+
+    camCanvas=document.createElement('canvas');
+    scanLoop();
+    showMsg('msg3','info','📷 QR코드를 화면 중앙에 크고 밝게 맞춰주세요!');
   }catch(e){
     document.getElementById('qrGuide').style.display='block';
     document.getElementById('qr-reader').style.display='none';
@@ -447,14 +483,52 @@ async function startCamScan(){
   }
 }
 
+async function scanLoop(){
+  if(!camStream) return; // stopCamScan()으로 이미 종료된 경우 루프 중단
+  if(!camVideo || camVideo.readyState < 2 || camBusy){
+    camScanTimer=setTimeout(scanLoop,150); return;
+  }
+  camBusy=true;
+  try{
+    var vw=camVideo.videoWidth, vh=camVideo.videoHeight;
+    if(vw && vh){
+      // 화면 중앙 정사각형만 잘라서 스캔 — 배경 노이즈를 줄여 인식률 향상
+      var side=Math.min(vw,vh);
+      var sx=(vw-side)/2, sy=(vh-side)/2;
+      camCanvas.width=side; camCanvas.height=side;
+      var ctx=camCanvas.getContext('2d');
+      ctx.drawImage(camVideo, sx,sy,side,side, 0,0,side,side);
+
+      var qrText=null;
+      if(camDetector){
+        try{
+          var bmp=await createImageBitmap(camCanvas);
+          var codes=await camDetector.detect(bmp);
+          if(codes.length>0) qrText=codes[0].rawValue;
+        }catch(e){}
+      }
+      if(!qrText){
+        var imageData=ctx.getImageData(0,0,side,side);
+        qrText=await zxingDecode(imageData,side,side);
+      }
+      if(qrText) handleQrSuccess(qrText);
+    }
+  }catch(e){}
+  camBusy=false;
+  if(camStream) camScanTimer=setTimeout(scanLoop,180);
+}
+
 async function stopCamScan(){
-  if(html5Qr){ try{await html5Qr.stop(); html5Qr.clear();}catch(e){} html5Qr=null; }
+  if(camScanTimer){ clearTimeout(camScanTimer); camScanTimer=null; }
+  if(camStream){ camStream.getTracks().forEach(function(t){t.stop();}); camStream=null; }
+  camTrack=null; camVideo=null; camBusy=false; torchOn=false;
   var reader=document.getElementById('qr-reader');
   reader.style.display='none'; reader.innerHTML='';
   document.getElementById('qrGuide').style.display='block';
   document.getElementById('btnQrStart').style.display='flex';
   document.getElementById('btnQrStop').style.display='none';
   document.getElementById('zoomWrap').style.display='none';
+  document.getElementById('btnTorch').style.display='none';
   document.getElementById('zoomSlider').value=10;
   zoomLevel=1.0; document.getElementById('zoomVal').textContent='1.0x';
 }
