@@ -83,6 +83,13 @@ button{font-family:inherit;}
 .horse-toolbar .htitle{font-size:15px;font-weight:700;}
 .unit-price-note{font-size:11.5px;color:var(--text-faint);}
 
+.sort-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.sort-toolbar .sort-label{font-size:11.5px;color:var(--text-faint);}
+.sort-btn{padding:6px 13px;border-radius:20px;font-size:11.5px;font-weight:700;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;}
+.sort-btn:hover{border-color:var(--accent);color:var(--accent);}
+.sort-btn.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);}
+.sort-btn .sort-arrow{font-size:9px;margin-left:2px;}
+
 .horse-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
 @media (max-width:820px){.horse-grid{grid-template-columns:1fr;}}
 
@@ -136,6 +143,11 @@ button{font-family:inherit;}
 .rank-chip{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--surface-2);color:var(--text-dim);white-space:nowrap;}
 .rank-chip.r1{background:rgba(224,179,65,.18);color:var(--gold);}
 .rank-chip.r2,.rank-chip.r3{background:var(--accent-bg);color:var(--accent);}
+
+.round-rank-badge{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:8px;background:var(--accent-bg);color:var(--accent);white-space:nowrap;flex-shrink:0;}
+.round-rank-badge .rrb-sep{color:var(--text-faint);font-weight:400;font-size:11px;}
+.round-rank-badge .rrb-cum{color:var(--text-dim);font-weight:600;}
+.round-rank-badge.r1{background:rgba(224,179,65,.2);color:var(--gold);}
 
 .stats-panel{background:var(--surface-2);border-radius:10px;padding:14px 16px;margin-bottom:16px;}
 .stats-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:11.5px;color:var(--text-dim);margin-bottom:12px;}
@@ -209,6 +221,11 @@ button{font-family:inherit;}
       <div class="htitle" data-i18n-kr="100마리 말 목록" data-i18n-en="All 100 Horses">100마리 말 목록</div>
       <div class="unit-price-note" data-i18n-kr="1구좌 = 100P · 말당 최대 100구좌 · 일일한도 4,000구좌" data-i18n-en="1 unit = 100P · Max 100 units per horse · Daily limit 4,000 units">1구좌 = 100P · 말당 최대 100구좌 · 일일한도 4,000구좌</div>
     </div>
+    <div class="sort-toolbar">
+      <span class="sort-label" data-i18n-kr="정렬:" data-i18n-en="Sort by:">정렬:</span>
+      <button class="sort-btn active" id="sortBtn_always_recent" onclick="setSortMode('always','recent')" data-i18n-kr="최근순위" data-i18n-en="Recent Rank">최근순위</button>
+      <button class="sort-btn" id="sortBtn_always_cumulative" onclick="setSortMode('always','cumulative')" data-i18n-kr="누적순위" data-i18n-en="Cumulative Rank">누적순위</button>
+    </div>
     <div class="horse-grid" id="horseGrid_always">
       <div class="list-empty" data-i18n-kr="불러오는 중..." data-i18n-en="Loading...">불러오는 중...</div>
     </div>
@@ -241,6 +258,11 @@ button{font-family:inherit;}
     <div class="horse-toolbar">
       <div class="htitle" data-i18n-kr="100마리 말 목록" data-i18n-en="All 100 Horses">100마리 말 목록</div>
       <div class="unit-price-note" data-i18n-kr="1구좌 = 100P · 말당 최대 100구좌 · 일일한도 4,000구좌" data-i18n-en="1 unit = 100P · Max 100 units per horse · Daily limit 4,000 units">1구좌 = 100P · 말당 최대 100구좌 · 일일한도 4,000구좌</div>
+    </div>
+    <div class="sort-toolbar">
+      <span class="sort-label" data-i18n-kr="정렬:" data-i18n-en="Sort by:">정렬:</span>
+      <button class="sort-btn active" id="sortBtn_standard_recent" onclick="setSortMode('standard','recent')" data-i18n-kr="최근순위" data-i18n-en="Recent Rank">최근순위</button>
+      <button class="sort-btn" id="sortBtn_standard_cumulative" onclick="setSortMode('standard','cumulative')" data-i18n-kr="누적순위" data-i18n-en="Cumulative Rank">누적순위</button>
     </div>
     <div class="horse-grid" id="horseGrid_standard">
       <div class="list-empty" data-i18n-kr="불러오는 중..." data-i18n-en="Loading...">불러오는 중...</div>
@@ -316,14 +338,31 @@ function authBodyExtra(){
 
 var HORSES = [];
 var STATE = {
-  always:   { round: null, unitPrice: 100, timer: null, myBets: [], history: [], stats: {}, rankStats: {} },
-  standard: { round: null, unitPrice: 100, timer: null, myBets: [], history: [], stats: {}, rankStats: {} },
+  always:   { round: null, unitPrice: 100, timer: null, myBets: [], history: [], stats: {}, rankStats: {}, closedWindow: false, sortBy: 'recent' },
+  standard: { round: null, unitPrice: 100, timer: null, myBets: [], history: [], stats: {}, rankStats: {}, closedWindow: false, sortBy: 'recent' },
 };
 var TYPE_LABEL = {
   cond:  { kr: '전략중시형', en: 'Strategy-based' },
   fixed: { kr: '일편단심형', en: 'Fixed-combo' },
   rand:  { kr: '될대로되라', en: 'Pure Random' },
 };
+
+// ── 대상경마(standard) 전용: 서버 데이터와 무관하게 "일요일 00:00 ~ 토요일
+// 20:00(KST)"라는 고정 스케줄을 프론트에서 직접 계산해서, 추첨일 20:00~24:00
+// (자정 전) 구간에는 항상 마감 상태로 강제 표시하고 베팅도 막는다. ──
+function getKstNow(){
+  var parts = new Intl.DateTimeFormat('en-US', {
+    timeZone:'Asia/Seoul', hour12:false,
+    hour:'2-digit', minute:'2-digit', second:'2-digit', weekday:'short'
+  }).formatToParts(new Date());
+  var o = {}; parts.forEach(function(p){ o[p.type] = p.value; });
+  var wdMap = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
+  return { weekday: wdMap[o.weekday], hour: parseInt(o.hour,10), minute: parseInt(o.minute,10), second: parseInt(o.second,10) };
+}
+function isStandardClosedWindow(){
+  var k = getKstNow();
+  return k.weekday === 6 && k.hour >= 20; // 토요일 20:00~23:59:59
+}
 
 async function loadHorses(){
   try {
@@ -351,15 +390,57 @@ async function loadHorseStats(mode){
   } catch(e){ console.error('[seoul-race] horse stats load error(' + mode + ')', e); }
 }
 
+// 100마리 전체를 avg_rank(누적 평균순위) 오름차순으로 줄세워서, 각 말의
+// "누적 순위(1~100위)"를 계산한다. avg_rank가 아직 없는 말은 순위 계산에서 제외.
+function computeCumulativeRanks(rankMap){
+  var withAvg = HORSES.map(function(h){
+    var r = rankMap[h.no];
+    return { no: h.no, avg: (r && r.avg_rank != null) ? r.avg_rank : null };
+  }).filter(function(x){ return x.avg != null; });
+  withAvg.sort(function(a, b){ return a.avg - b.avg; });
+  var posMap = {};
+  withAvg.forEach(function(x, i){ posMap[x.no] = i + 1; });
+  return posMap;
+}
+
+function setSortMode(mode, sortBy){
+  STATE[mode].sortBy = sortBy;
+  var recentBtn = document.getElementById('sortBtn_' + mode + '_recent');
+  var cumBtn = document.getElementById('sortBtn_' + mode + '_cumulative');
+  if (recentBtn) recentBtn.classList.toggle('active', sortBy === 'recent');
+  if (cumBtn) cumBtn.classList.toggle('active', sortBy === 'cumulative');
+  renderHorses(mode);
+}
+
 function renderHorses(mode){
   var grid = document.getElementById('horseGrid_' + mode);
   if (!grid) return;
   if (!HORSES.length) { grid.innerHTML = '<div class="list-empty">' + (LANG==='en' ? 'No horses found.' : '말 데이터가 없습니다.') + '</div>'; return; }
   var round = STATE[mode].round;
   var rankMap = STATE[mode].rankStats || {};
-  grid.innerHTML = HORSES.map(function(h){
-    var typeLbl = (TYPE_LABEL[h.horse_type] || {})[LANG] || h.horse_type;
+  var cumRankMap = computeCumulativeRanks(rankMap);
+  var sortBy = STATE[mode].sortBy || 'recent';
+
+  // ⚠ 매 회차 채점이 끝나면 "이번회차 순위(가장 최근 recent_ranks[0]) > 누적순위"를
+  // 함께 보여주고, 목록 정렬은 상단 정렬버튼(최근순위/누적순위)이 고른 기준을 따른다.
+  // 기본값은 최근순위. 해당 기준의 기록이 아직 없는 말은 맨 뒤로 보낸다.
+  var rows = HORSES.map(function(h){
     var rank = rankMap[h.no];
+    var thisRoundRank = (rank && rank.recent_ranks && rank.recent_ranks.length) ? rank.recent_ranks[0] : null;
+    var cumRank = cumRankMap[h.no] != null ? cumRankMap[h.no] : null;
+    return { h: h, rank: rank, thisRoundRank: thisRoundRank, cumRank: cumRank };
+  });
+  rows.sort(function(a, b){
+    var aKey = sortBy === 'cumulative' ? a.cumRank : a.thisRoundRank;
+    var bKey = sortBy === 'cumulative' ? b.cumRank : b.thisRoundRank;
+    var av = aKey == null ? Infinity : aKey;
+    var bv = bKey == null ? Infinity : bKey;
+    return av - bv;
+  });
+
+  grid.innerHTML = rows.map(function(item){
+    var h = item.h, rank = item.rank;
+    var typeLbl = (TYPE_LABEL[h.horse_type] || {})[LANG] || h.horse_type;
     var recentHtml = '';
     if (rank && rank.recent_ranks && rank.recent_ranks.length) {
       recentHtml = '<div class="recent-ranks"><span class="rr-label">' + (LANG==='en' ? 'Recent:' : '최근 3회:') + '</span>' + rank.recent_ranks.map(function(r){
@@ -367,18 +448,28 @@ function renderHorses(mode){
         return '<span class="' + cls + '">' + r + (LANG==='en' ? (r===1?'st':r===2?'nd':r===3?'rd':'th') : '위') + '</span>';
       }).join('') + '</div>';
     }
+    var rankBadgeHtml = '';
+    if (item.thisRoundRank != null || item.cumRank != null) {
+      var badgeCls = 'round-rank-badge' + (item.thisRoundRank === 1 ? ' r1' : '');
+      var thisTxt = item.thisRoundRank != null ? (item.thisRoundRank + (LANG==='en' ? '' : '위')) : '-';
+      var cumTxt = item.cumRank != null ? (item.cumRank + (LANG==='en' ? '' : '위')) : '-';
+      rankBadgeHtml = '<span class="' + badgeCls + '" title="' + (LANG==='en' ? 'This round rank › Cumulative rank' : '이번회차 순위 › 누적 순위') + '">' +
+        thisTxt + '<span class="rrb-sep">›</span><span class="rrb-cum">' + cumTxt + '</span>' +
+      '</span>';
+    }
     return '' +
       '<div class="horse-row">' +
         '<div class="horse-no">' + h.no + '</div>' +
         '<div class="horse-name">' +
           '<div class="hn-kr">' + h.name_kr + ' <span class="hn-en">(' + h.name_en + ')</span></div>' +
         '</div>' +
+        rankBadgeHtml +
         '<span class="horse-type ' + h.horse_type + '">' + typeLbl + '</span>' +
         recentHtml +
         '<button class="view-combos-btn" onclick="viewCombos(\'' + mode + '\', ' + h.no + ')">' + (LANG==='en' ? 'Details' : '상세보기') + '</button>' +
         '<div class="bet-controls">' +
           '<input class="unit-input" type="number" min="1" max="100" value="1" id="units_' + mode + '_' + h.no + '">' +
-          '<button class="bet-btn" onclick="placeBet(\'' + mode + '\', ' + h.no + ')" ' + (round ? '' : 'disabled') + '>' + (LANG==='en' ? 'Bet' : '베팅') + '</button>' +
+          '<button class="bet-btn" onclick="placeBet(\'' + mode + '\', ' + h.no + ')" ' + ((round && !STATE[mode].closedWindow) ? '' : 'disabled') + '>' + (LANG==='en' ? 'Bet' : '베팅') + '</button>' +
         '</div>' +
       '</div>';
   }).join('');
@@ -399,6 +490,28 @@ function renderRoundCard(mode){
   var cycleEl = document.getElementById('rcCycle_' + mode);
   var pillEl = document.getElementById('rcStatusPill_' + mode);
   var round = STATE[mode].round;
+
+  // ⚠ 대상경마 마감구간(토요일 20:00~24:00 KST) — 서버가 아직 이전 회차 데이터를
+  // 그대로 주고 있어도, 이 구간엔 항상 "마감" 상태로 강제 표시하고 베팅을 막는다.
+  STATE[mode].closedWindow = (mode === 'standard' && isStandardClosedWindow());
+  if (STATE[mode].closedWindow) {
+    var closingNo = round ? round.cycle_no : null;
+    var nextNo = closingNo != null ? (closingNo + 1) : null;
+    cycleEl.textContent = (closingNo != null && nextNo != null)
+      ? (LANG==='en'
+          ? ('Round #' + closingNo + ' closed — Round #' + nextNo + ' opens at midnight (00:00 KST)')
+          : (closingNo + '회 마감 ' + nextNo + '회 자정부터 발매'))
+      : ((LANG==='en') ? 'Betting closed — reopens at midnight' : '베팅 마감 — 자정부터 재개');
+    pillEl.textContent = (LANG==='en') ? 'Closed' : '마감';
+    pillEl.className = 'status-pill closed';
+    var winElClosed = document.getElementById('rcWindow_' + mode);
+    if (winElClosed) winElClosed.textContent = '';
+    if (STATE[mode].timer) { clearInterval(STATE[mode].timer); STATE[mode].timer = null; }
+    document.getElementById('rcCountdown_' + mode).textContent = '--:--:--';
+    renderHorses(mode); // 베팅 버튼 비활성화를 즉시 반영
+    return;
+  }
+
   if (!round) {
     cycleEl.textContent = (LANG==='en') ? 'No round open right now' : '지금은 열린 라운드가 없어요';
     pillEl.textContent = (LANG==='en') ? 'Waiting' : '대기중';
@@ -445,6 +558,14 @@ function startCountdown(mode){
 }
 
 async function placeBet(mode, horseNo){
+  if (mode === 'standard' && isStandardClosedWindow()) {
+    var closingNo = STATE[mode].round ? STATE[mode].round.cycle_no : null;
+    var nextNo = closingNo != null ? (closingNo + 1) : null;
+    alert(nextNo != null
+      ? ((LANG==='en') ? ('Round #' + nextNo + ' opens at midnight (00:00 KST).') : (nextNo + '회차 발매는 24:00부터입니다.'))
+      : ((LANG==='en') ? 'Betting is closed right now.' : '지금은 베팅이 마감된 시간입니다.'));
+    return;
+  }
   var state = MLL.getAuthState();
   if (!state.type) {
     alert((LANG==='en') ? 'Please log in or register as a guest first.' : '먼저 로그인 또는 비회원 등록을 해주세요.');
@@ -609,6 +730,11 @@ document.addEventListener('DOMContentLoaded', function(){
   setInterval(function(){ loadCurrentRound('always'); }, 30000);
   setInterval(function(){ loadCurrentRound('standard'); }, 5 * 60 * 1000);
   setInterval(function(){ loadHorseStats('always'); loadHorseStats('standard'); }, 5 * 60 * 1000);
+  // 대상경마 마감구간(토요일 20:00 KST) 전환은 5분 대기 없이 20초마다 즉시 반영
+  setInterval(function(){
+    var wasClosed = STATE.standard.closedWindow;
+    if (isStandardClosedWindow() !== wasClosed) renderRoundCard('standard');
+  }, 20000);
 });
 </script>
 
