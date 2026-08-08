@@ -373,19 +373,27 @@ async function startCamScan(){
 }
 
 var CROP_SCALES=[1.0, 0.55, 0.32];
+var MAX_DECODE_DIM=1280;
 
 async function decodeSource(drawFn, srcW, srcH){
+  var down=Math.min(1, MAX_DECODE_DIM/Math.max(srcW,srcH));
+  var baseW=Math.max(1,Math.round(srcW*down)), baseH=Math.max(1,Math.round(srcH*down));
+  var baseCanvas=document.createElement('canvas');
+  baseCanvas.width=baseW; baseCanvas.height=baseH;
+  var baseCtx=baseCanvas.getContext('2d');
+  drawFn(baseCtx, 0,0,srcW,srcH, 0,0,baseW,baseH);
+
   for(var i=0;i<CROP_SCALES.length;i++){
     var scale=CROP_SCALES[i];
-    var side=Math.min(srcW,srcH)*scale;
-    var sx=(srcW-side)/2, sy=(srcH-side)/2;
+    var side=Math.min(baseW,baseH)*scale;
+    var sx=(baseW-side)/2, sy=(baseH-side)/2;
     camCanvas.width=side; camCanvas.height=side;
     var ctx=camCanvas.getContext('2d');
     ctx.clearRect(0,0,side,side);
-    drawFn(ctx, sx,sy,side,side, 0,0,side,side);
+    ctx.drawImage(baseCanvas, sx,sy,side,side, 0,0,side,side);
     var r=await decodeCanvas(ctx, side);
-    if(r.text) return {text:r.text, note:r.note+' (배율'+scale+'x)'};
-    if(i===CROP_SCALES.length-1) return {text:null, note:r.note+' (배율 '+CROP_SCALES.join('/')+' 다 시도함)'};
+    if(r.text) return {text:r.text, note:r.note+' (축소'+baseW+'x'+baseH+',배율'+scale+'x)'};
+    if(i===CROP_SCALES.length-1) return {text:null, note:r.note+' (축소'+baseW+'x'+baseH+', 배율 '+CROP_SCALES.join('/')+' 다 시도함)'};
   }
 }
 
