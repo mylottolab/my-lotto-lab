@@ -269,7 +269,7 @@ document.addEventListener('click',function(e){
 </div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.0/dist/iife/reader/index.js"></script>
 <script>
 // ── 세션 및 회차 ──
 var SESSION_TAG = MLL.getSession('camera');
@@ -536,6 +536,27 @@ async function decodeCanvas(ctx, side){
   return {text:qrText, note:note};
 }
 
+// 미리보기 화면과 실제 정지사진의 촬영범위(화각)가 서로 달라서, 화면상으론
+// QR이 표적 안에 커 보여도 실제 캡처된 이미지에선 QR이 작게 찍히는 경우가 있음.
+// 그래서 "전체 정사각형"과 "중앙을 바짝 확대한 crop" 두 단계로 나눠서 각각
+// 시도해본다 — 사용자가 더 가까이 안 가도 자동으로 확대해서 재시도하는 효과.
+var CROP_SCALES=[1.0, 0.55, 0.32];
+
+async function decodeSource(drawFn, srcW, srcH){
+  for(var i=0;i<CROP_SCALES.length;i++){
+    var scale=CROP_SCALES[i];
+    var side=Math.min(srcW,srcH)*scale;
+    var sx=(srcW-side)/2, sy=(srcH-side)/2;
+    camCanvas.width=side; camCanvas.height=side;
+    var ctx=camCanvas.getContext('2d');
+    ctx.clearRect(0,0,side,side);
+    drawFn(ctx, sx,sy,side,side, 0,0,side,side);
+    var r=await decodeCanvas(ctx, side);
+    if(r.text) return {text:r.text, note:r.note+' (배율'+scale+'x)'};
+    if(i===CROP_SCALES.length-1) return {text:null, note:r.note+' (배율 '+CROP_SCALES.join('/')+' 다 시도함)'};
+  }
+}
+
 async function scanLoop(){
   if(!camStream) return; // stopCamScan()으로 이미 종료된 경우 루프 중단
   if(camBusy){ camScanTimer=setTimeout(scanLoop, camImageCapture?300:150); return; }
@@ -548,12 +569,7 @@ async function scanLoop(){
         var t0=performance.now();
         var blob=await camImageCapture.takePhoto();
         var bmp=await createImageBitmap(blob);
-        var side=Math.min(bmp.width,bmp.height);
-        var sx=(bmp.width-side)/2, sy=(bmp.height-side)/2;
-        camCanvas.width=side; camCanvas.height=side;
-        var ctx=camCanvas.getContext('2d');
-        ctx.drawImage(bmp, sx,sy,side,side, 0,0,side,side);
-        var r=await decodeCanvas(ctx, side);
+        var r=await decodeSource(function(ctx,sx,sy,sw,sh,dx,dy,dw,dh){ ctx.drawImage(bmp,sx,sy,sw,sh,dx,dy,dw,dh); }, bmp.width, bmp.height);
         qrText=r.text; path='사진('+bmp.width+'x'+bmp.height+','+Math.round(performance.now()-t0)+'ms)'; note=r.note;
       }catch(e){ path='사진실패:'+e.message; }
     }
@@ -561,12 +577,7 @@ async function scanLoop(){
       // ── 동영상 프레임 경로 (ImageCapture 미지원 기기용 폴백, 혹은 사진경로 실패시) ──
       var vw=camVideo.videoWidth, vh=camVideo.videoHeight;
       if(vw && vh){
-        var side2=Math.min(vw,vh);
-        var sx2=(vw-side2)/2, sy2=(vh-side2)/2;
-        camCanvas.width=side2; camCanvas.height=side2;
-        var ctx2=camCanvas.getContext('2d');
-        ctx2.drawImage(camVideo, sx2,sy2,side2,side2, 0,0,side2,side2);
-        var r2=await decodeCanvas(ctx2, side2);
+        var r2=await decodeSource(function(ctx,sx,sy,sw,sh,dx,dy,dw,dh){ ctx.drawImage(camVideo,sx,sy,sw,sh,dx,dy,dw,dh); }, vw, vh);
         qrText=r2.text; path=(path?path+' → ':'')+'영상('+vw+'x'+vh+')'; note=r2.note;
       }
     }
@@ -653,18 +664,17 @@ function parseLottoQrUrl(url){
   }catch(e){return null;}
 }
 
-function zxingDecode(imageData,w,h){
-  return new Promise(function(resolve){
-    try{
-      var hints=new Map();
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE]);
-      hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-      var reader=new ZXing.MultiFormatReader(); reader.setHints(hints);
-      var src=new ZXing.RGBLuminanceSource(imageData.data,w,h);
-      var bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(src));
-      resolve(reader.decode(bitmap).getText());
-    }catch(e){resolve(null);}
-  });
+// ⚠ 2026-08-08: 기존 순수 JS 포트(@zxing/library)는 실제 인쇄물 사진에서
+//   자꾸 인식을 놓쳐서, 진짜 C++ ZXing 엔진을 WASM으로 컴파일한 zxing-wasm으로
+//   교체함. 훨씬 견고하게 인식된다는 걸 직접 테스트로 확인함.
+async function zxingDecode(imageData,w,h){
+  try{
+    var results = await ZXingWASM.readBarcodesFromImageData(imageData, {
+      formats: ['QRCode'], tryHarder: true, maxNumberOfSymbols: 1
+    });
+    if(results && results.length>0) return results[0].text;
+    return null;
+  }catch(e){ return null; }
 }
 
 function loadImage(src){
@@ -691,6 +701,9 @@ async function mllInit(){
   refreshTable();
 }
 mllInit();
+if(window.ZXingWASM && ZXingWASM.prepareZXingModule){
+  try{ ZXingWASM.prepareZXingModule({ fireImmediately:true }); }catch(e){}
+}
 
 // ── onclick 전역 등록 ──
 window.switchTab    = switchTab;
