@@ -213,7 +213,7 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
 
 <div class="topbar">
   <div class="topbar-inner">
-    <div class="brand">
+    <div class="brand" onclick="location.href='main_page.html'" style="cursor:pointer;" title="메인으로 돌아가기">
       <div class="brand-mark">🧪</div>
       <div>
         <div class="brand-name" data-i18n-kr="My Lotto Lab — 모의테스트" data-i18n-en="My Lotto Lab — Mock Test">My Lotto Lab — 모의테스트</div>
@@ -821,6 +821,11 @@ MU.downloadWinningFile = async function(fileType, code, isFree){
     else if (res.error !== 'AUTH_REQUIRED') alert(T('winning_file_fail'));
     return;
   }
+  // ⚠ 2026-08-10: 성공했는데도 얼마가 차감됐는지 안내가 전혀 없었다 — 자동 배너 추가.
+  // (이 다운로드는 CSV 파일을 응답 바디로 그대로 받는 방식이라 서버가 정확한 차감액을
+  // 별도 필드로 내려주지 않음 — 무료 재다운로드가 아니면 위 확인창에서 안내한 2,500P가
+  // 그대로 차감된 것이므로 그 값을 그대로 보여준다.)
+  if (window.MLL && MLL.showPointToast) MLL.showPointToast(res.freeRedownload ? 0 : 2500);
   var blobUrl = URL.createObjectURL(res.blob);
   var a = document.createElement('a');
   a.href = blobUrl;
@@ -1244,6 +1249,8 @@ MU.confirmSubmit = async function(isFinal){
   }
   var result = await MT.submitEntry(payload);
   if (!result.ok) return;
+  // ⚠ 2026-08-10: 성공했는데도 얼마가 차감됐는지 안내가 전혀 없었다 — 자동 배너 추가.
+  if (window.MLL && MLL.showPointToast && result.cost) MLL.showPointToast(result.cost);
   MU.state.picks = [];
   MU.refreshBalance();
   // 제출완료(마감)가 아니면, 지금 방금 등록한 이 응시를 계속 이어붙일 대상으로 자동 지정한다
