@@ -3363,18 +3363,17 @@ MLL._updateMarkingPriceBox = function(){
   var rows = MLL.markingState.pendingRows || [];
   var cfg = MLL.MARKING_CONFIG;
   var gameCount = rows.length;
-  var sheetCount = Math.ceil(gameCount / cfg.gamesPerSheet); // 5게임당 1매, 나머지가 있으면 올림(1매 더)
+  // ⚠ 2026-08-10: 이전에는 용지매수 기준 "원"단위 견적을 보여주면서 정작 실제로는
+  // 차감이 전혀 안 되는 "테스트 모드"였다. 실제 과금은 조합(게임) 1개당 100P 고정
+  // (관리자모드 "메뉴별 포인트 차감 단가"의 action_key: strategy_marking, 단가 100)이므로
+  // 그 실제 차감액과 일치하는 값을 보여주도록 교체한다.
+  var perComboPrice = 100;
+  var total = gameCount * perComboPrice;
   var maxUsefulImages = Math.max(1, Math.ceil(gameCount / cfg.pageSize));
-  var imgCount = Math.max(1, Math.min(MLL.markingState.selectedCids.length, maxUsefulImages));
-  var sheetCost = sheetCount * cfg.pricePerSheet;
-  var extraImgCost = Math.max(0, imgCount-1) * cfg.extraImagePrice;
-  var total = sheetCost + extraImgCost;
   document.getElementById('mllMarkingPriceBox').innerHTML =
-    gameCount+'게임 → 용지 '+sheetCount+'매('+cfg.gamesPerSheet+'게임/매) × '+cfg.pricePerSheet.toLocaleString()+'원 = '+sheetCost.toLocaleString()+'원' +
-    (extraImgCost>0 ? ' + 이미지 추가 '+(imgCount-1)+'개 × '+cfg.extraImagePrice.toLocaleString()+'원 = '+extraImgCost.toLocaleString()+'원' : ' (이미지 1개는 무료)') +
-    '<br><b style="color:#2FBFA3;font-size:14px;">합계: '+total.toLocaleString()+'원</b>' +
-    '<div style="font-size:10px;color:var(--text-faint,#5a6080);margin-top:4px;">💡 이미지는 15게임(용지 3매)마다 바뀝니다 — 지금은 최대 '+maxUsefulImages+'개까지 의미있게 선택 가능해요.</div>' +
-    '<div style="font-size:10px;color:var(--text-faint,#5a6080);margin-top:2px;">⚠️ 테스트 모드: 현재는 실제 포인트 차감 없이 동작만 확인합니다. (서버 구축 후 정식 차감 적용)</div>';
+    gameCount+'게임 → 조합당 '+perComboPrice.toLocaleString()+'P × '+gameCount+'개 = ' +
+    '<b style="color:#2FBFA3;font-size:14px;">'+total.toLocaleString()+'P</b>' +
+    '<div style="font-size:10px;color:var(--text-faint,#5a6080);margin-top:4px;">💡 이미지는 15게임(용지 3매)마다 바뀝니다 — 지금은 최대 '+maxUsefulImages+'개까지 의미있게 선택 가능해요.</div>';
 };
 
 MLL.closeMarkingModal = function(){
@@ -3392,9 +3391,19 @@ MLL._showMarkingResult = function(type, msg){
 };
 
 // ── makinglotto.com 연동 ──
-MLL.submitMarkingRequest = function(){
+// ⚠ 2026-08-10: 실제 포인트 차감 연결 — 조합(게임) 1개당 100P
+// (관리자모드 "메뉴별 포인트 차감 단가"에 action_key: strategy_marking, 단가 100P로
+// 등록해주셔야 합니다. 그 값을 기준으로 서버가 quantity(=게임 수)를 곱해 차감합니다.)
+MLL.submitMarkingRequest = async function(){
   var rows = MLL.markingState.pendingRows;
   if (!rows || !rows.length) { MLL._showMarkingResult('error','받을 번호조합이 없습니다.'); return; }
+
+  var spend = await MLL.spendPoints('strategy_marking', rows.length);
+  if (!spend.success) {
+    if (!spend.needAuth && !spend.insufficientPoints) MLL._showMarkingResult('error', '⛔ 처리 실패: ' + (spend.message||''));
+    return;
+  }
+
   MLL._showMarkingResult('success', '⏳ PDF 생성 요청 중입니다... (여러 페이지인 경우 다소 시간이 걸려요)');
   MLL._runMarkingPipeline(rows, MLL.markingState.selectedCids, MLL.markingState.pendingFileBase);
 };
