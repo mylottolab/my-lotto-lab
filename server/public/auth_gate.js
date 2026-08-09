@@ -376,6 +376,62 @@
    * 사용법(변동금액 - 토토/프로토처럼 사용자가 금액을 고르는 경우):
    *        await MLL.spendPoints('toto_deungsu', 1, { amount: 5000 });
    */
+  // ── 포인트 차감 후 안내 배너 (2026-08-10 신규) ──────────────────────────────
+  // ⚠ 발견된 문제: results_stats.html / strategy_compare.html / strategy_storage.html
+  // 세 파일 모두 번호조합 등록 성공 시 "MLL._showPointToast(...)"를 호출하도록 이미
+  // 코드가 있었는데, 정작 그 함수 자체가 어디에도 정의되어 있지 않아서 아무 일도
+  // 일어나지 않고 있었다(에러도 없이 조용히 무시됨). 그래서 "차감 후 확인" 안내가
+  // 거의 모든 페이지에서 빠져있었던 것 — 사용자가 얼마가 빠져나갔는지 알 수 없어
+  // 분쟁 소지가 있는 심각한 문제였다.
+  // 여기서 실제로 화면 우측 상단에 뜨는 배너를 만들고, MLL.spendPoints() 성공 시
+  // 자동으로 호출되도록 아래에서 연결한다. (addEntries 계열에서 이미 이 함수를
+  // 부르고 있던 3개 파일도 이제부터 정상 동작한다.)
+  // ⚠ deducted/balanceAfter/freeCount/chargedCount 필드명은 기존에 이미 작성되어
+  // 있던 호출부(results_stats.html 등)의 관례를 그대로 따른 것입니다. 서버가 실제로
+  // 내려주는 응답 필드명과 다르면(특히 /api/points/spend 응답), 서버 코드를 확인해서
+  // 아래 spendPoints 안의 data.deducted / data.balanceAfter 부분을 실제 필드명으로
+  // 맞춰주셔야 정확한 금액이 표시됩니다.
+  function showPointToast(deducted, balanceAfter, freeCount, chargedCount) {
+    try {
+      var existing = document.getElementById('mll-point-toast');
+      if (existing) existing.remove();
+
+      var msg;
+      if (deducted === 0 || deducted === undefined || deducted === null) {
+        msg = '✅ 무료로 처리되었습니다.';
+      } else {
+        msg = '💳 ' + Number(deducted).toLocaleString() + 'P가 차감되었습니다.';
+      }
+      if (freeCount || chargedCount) {
+        var parts = [];
+        if (freeCount)    parts.push('무료 ' + freeCount + '건');
+        if (chargedCount) parts.push('유료 ' + chargedCount + '건');
+        if (parts.length) msg += ' (' + parts.join(' + ') + ')';
+      }
+      if (balanceAfter !== undefined && balanceAfter !== null) {
+        msg += '\n현재 잔액: ' + Number(balanceAfter).toLocaleString() + 'P';
+      }
+
+      var toast = document.createElement('div');
+      toast.id = 'mll-point-toast';
+      toast.style.cssText =
+        'position:fixed;top:18px;right:18px;z-index:10000;' +
+        'background:#123024;color:#eef0f6;border:1px solid #2f9e6a;border-radius:12px;' +
+        'padding:14px 18px;font-size:13px;font-weight:600;line-height:1.6;white-space:pre-line;' +
+        'box-shadow:0 6px 24px rgba(0,0,0,.35);font-family:inherit;max-width:280px;';
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+
+      setTimeout(function () {
+        if (toast && toast.parentNode) toast.remove();
+      }, 5000);
+    } catch (e) { console.error('[MLL] 포인트 안내 배너 표시 오류:', e); }
+  }
+  window.MLL.showPointToast = showPointToast;
+  // ⚠ 기존에 이미 작성돼 있던 다른 파일들의 호출부(MLL._showPointToast)와 이름을
+  // 맞춰 그대로도 동작하도록 별칭을 하나 더 등록한다.
+  window.MLL._showPointToast = showPointToast;
+
   window.MLL.spendPoints = async function (actionKey, quantity, options) {
     options = options || {};
     var state = getAuthState();
@@ -416,6 +472,13 @@
       if (!res.ok) {
         return { success: false, message: data.error || '처리 중 오류가 발생했습니다.' };
       }
+      // ⚠ 2026-08-10: 성공했는데도 "얼마가 차감됐는지" 사용자에게 전혀 알려주지
+      // 않고 있었다 — 이제 자동으로 안내 배너를 띄운다.
+      // ⚠ 2026-08-10 정정: 서버(routes/points.js POST /api/points/spend)의 실제 성공
+      // 응답 필드명은 data.deducted가 아니라 data.amountDeducted입니다(서버 코드 확인 후
+      // 수정). balanceAfter 필드는 이 엔드포인트가 아예 내려주지 않으므로 표시하지 않음
+      // (필요하면 서버에서 별도로 balance를 함께 내려주도록 추가하는 걸 권장드립니다).
+      showPointToast(data.amountDeducted);
       return { success: true, data: data };
     } catch (e) {
       console.error('[MLL.spendPoints] 오류:', e);
