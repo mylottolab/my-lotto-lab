@@ -182,7 +182,28 @@ MLL.uuid = function() {
 //   동일한 방식으로 서버 기준으로 통일한다.
 // =====================================================
 
-function _mllAuthState() { return (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type: null }; }
+// ⚠ 2026-08-09: 이 페이지는 MLL.ensureFreshToken()을 아예 호출하지 않고 있어서, 로그인한
+// 지 오래되어 액세스 토큰이 만료된 경우 갱신 시도조차 없이 그대로 만료된 토큰을 서버에
+// 보내 요청이 실패했다(사용자에게는 원인 불명의 오류로만 보였음). mocktest_hub.html/
+// results_stats.html과 동일한 방식으로 갱신 시도 + 실패 시 "다시 로그인하기" 자동 복귀
+// 모달(auth_gate.js 제공)을 띄우도록 통일한다. (동기 함수였던 것을 비동기로 변경 —
+// 아래 모든 호출부에 await를 추가함)
+async function _mllAuthState() {
+  var state = (window.MLL && MLL.getAuthState) ? MLL.getAuthState() : { type: null };
+  if (state.type === 'member' && window.MLL && MLL.ensureFreshToken) {
+    try {
+      var fresh = await MLL.ensureFreshToken();
+      if (!fresh || fresh === 'guest') {
+        if (window.MLL && MLL.showSessionExpiredModal) MLL.showSessionExpiredModal();
+        return { type: null, _sessionExpired: true };
+      }
+      state = MLL.getAuthState();
+    } catch (e) {
+      return { type: null, _sessionExpired: true };
+    }
+  }
+  return state;
+}
 function _mllHeaders(state) {
   var h = { 'Content-Type': 'application/json' };
   if (state.type === 'member') h['Authorization'] = 'Bearer ' + state.token;
@@ -201,7 +222,7 @@ MLL.loadEntries = function() { return MLL._entriesCache; };
 MLL.loadResults = function() { return MLL._resultsCache; };
 
 MLL.refreshEntries = async function() {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) { MLL._entriesCache = []; return []; }
   var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
   try {
@@ -232,8 +253,8 @@ MLL.refreshResults = async function() {
 MLL.addEntry = async function(item) { return MLL.addEntries([item]); };
 
 MLL.addEntries = async function(items) {
-  var state = _mllAuthState();
-  if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return { id: null, _failed: true }; }
+  var state = await _mllAuthState();
+  if (!state.type) { if (!state._sessionExpired && window.MLL.requireAuth) MLL.requireAuth(function(){}); return { id: null, _failed: true }; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/lotto/entries', {
       method: 'POST', headers: _mllHeaders(state),
@@ -251,7 +272,7 @@ MLL.addEntries = async function(items) {
 };
 
 MLL.deleteEntry = async function(id) {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) return false;
   try {
     var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
@@ -310,8 +331,8 @@ MLL.getResult = function(round) {
 // =====================================================
 
 MLL.toggleFavorite = async function(id) {
-  var state = _mllAuthState();
-  if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return null; }
+  var state = await _mllAuthState();
+  if (!state.type) { if (!state._sessionExpired && window.MLL.requireAuth) MLL.requireAuth(function(){}); return null; }
   try {
     var resp = await fetch(MLL.API_BASE + '/api/lotto/entries/' + id + '/favorite', { method: 'PATCH', headers: _mllHeaders(state) });
     var data = await resp.json();
@@ -517,7 +538,7 @@ MLL.applyCheck = function(sessionTag) {
 
   async function doCheck(allItems) {
     document.body.removeChild(overlay);
-    var state = _mllAuthState();
+    var state = await _mllAuthState();
     var body = allItems ? {} : { sessionTag: sessionTag };
     body = _mllAuthBody(state, body);
     try {
@@ -714,7 +735,7 @@ MLL._strategyResultsCache = [];
 MLL.loadStrategyResults = function() { return MLL._strategyResultsCache; };
 
 MLL.refreshStrategyResults = async function() {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) { MLL._strategyResultsCache = []; return []; }
   var qs = state.type === 'guest' ? ('?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email)) : '';
   try {
@@ -1108,7 +1129,7 @@ var TAB_TO_CATEGORY = { fav: 'quick_favorite', battle: 'battle_game', etc: 'etc'
 var _tabDataCache = { fav: [], battle: [], etc: [] };
 
 async function refreshTabData(tab) {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) { _tabDataCache[tab] = []; return []; }
   var qs = '?category=' + TAB_TO_CATEGORY[tab];
   if (state.type === 'guest') qs += '&nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
@@ -1131,8 +1152,8 @@ function loadTabData(tab){ return _tabDataCache[tab] || []; }
 
 // 항목 1개 저장 (예전엔 배열 전체를 다시 저장하는 방식이었지만, 서버는 항목 단위로 저장)
 async function saveTabItem(tab, item) {
-  var state = _mllAuthState();
-  if (!state.type) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return null; }
+  var state = await _mllAuthState();
+  if (!state.type) { if (!state._sessionExpired && window.MLL.requireAuth) MLL.requireAuth(function(){}); return null; }
   var body = _mllAuthBody(state, {
     category: TAB_TO_CATEGORY[tab],
     title: item.name || item.title || '',
@@ -1155,7 +1176,7 @@ async function saveTabItem(tab, item) {
 }
 
 async function deleteTabItem(tab, id) {
-  var state = _mllAuthState();
+  var state = await _mllAuthState();
   if (!state.type) return false;
   try {
     var resp = await fetch(MLL.API_BASE + '/api/scratchpad/' + id, { method: 'DELETE', headers: _mllHeaders(state) });
