@@ -188,14 +188,27 @@ function _mllAuthOrNull() {
 // 회원(member)인 경우, 서버 호출 전에 auth_gate.js의 MLL.ensureFreshToken()으로
 // 만료된 토큰을 먼저 자동 갱신한 뒤, 갱신된 토큰을 반영해 상태를 다시 읽어온다.
 // (비회원은 토큰이 없으므로 그대로 통과)
+// ⚠ 2026-08-09: 예전에는 MLL.ensureFreshToken()의 성공/실패 여부를 확인하지 않고
+// 그냥 넘어가서, 갱신에 실패해도(리프레시 토큰 만료 등) 이미 만료된 옛날 토큰을 그대로
+// state.token에 담아 반환했다. 그 결과 서버가 401로 거부하고, 사용자는 원인 불명의
+// 오류만 보고 등록/구매를 포기하는 경우가 많았음. 이제 갱신 실패를 명확히 감지해서
+// "다시 로그인하기" 자동 복귀 모달(auth_gate.js 제공)을 띄우고 null을 반환한다 —
+// 호출부는 이미 "!state"일 때 로그인 필요 처리를 하고 있으므로 자연스럽게 이어진다.
 async function _mllAuthOrNullFresh() {
   var state = MLL.getAuthState();
+  MLL._lastAuthWasSessionExpired = false; // 호출부가 중복 모달을 띄우지 않도록 하는 플래그
   if (!state.type) return null;
   if (state.type === 'member' && typeof MLL.ensureFreshToken === 'function') {
+    var fresh = null;
     try {
-      await MLL.ensureFreshToken();
+      fresh = await MLL.ensureFreshToken();
     } catch (e) {
       console.error('[MLL] 토큰 갱신 오류:', e);
+    }
+    if (!fresh || fresh === 'guest') {
+      if (window.MLL && MLL.showSessionExpiredModal) MLL.showSessionExpiredModal();
+      MLL._lastAuthWasSessionExpired = true;
+      return null;
     }
     state = MLL.getAuthState(); // 갱신된 토큰을 반영해 다시 조회
   }
@@ -287,7 +300,7 @@ MLL.applyCheck = async function() {
 // 포인트부족시 { success:false, insufficientPoints:true, shortfall, message } 를 반환.
 MLL.addEntries = async function(items) {
   var state = await _mllAuthOrNullFresh();
-  if (!state) { if (window.MLL.requireAuth) MLL.requireAuth(function(){}); return { success:false, needAuth:true }; }
+  if (!state) { if (!MLL._lastAuthWasSessionExpired && window.MLL.requireAuth) MLL.requireAuth(function(){}); return { success:false, needAuth:true }; }
 
   var body = { entries: items };
   if (state.type === 'guest') { body.nickname = state.nickname; body.email = state.email; }
