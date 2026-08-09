@@ -143,6 +143,30 @@ button{font-family:inherit;}
 .rank-chip{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--surface-2);color:var(--text-dim);white-space:nowrap;}
 .rank-chip.r1{background:rgba(224,179,65,.18);color:var(--gold);}
 .rank-chip.r2,.rank-chip.r3{background:var(--accent-bg);color:var(--accent);}
+/* 2026-08-10: 100전략레이스>경마장의 "🌟 1구좌 100P 배팅중" 배지와 동일한 방식 —
+   이번 회차에 이미 베팅해둔 말의 카드 하단에 표시 */
+.horse-my-bet{
+  order:11;
+  width:100%;
+  margin-top:2px;
+  display:inline-block;
+  font-size:10px;
+  font-weight:800;
+  padding:4px 9px;
+  border-radius:8px;
+  color:#1a1305;
+  background:linear-gradient(90deg, #e0b341 0%, #fff3c4 50%, #e0b341 100%);
+  background-size:200% 100%;
+  animation:hcBetShimmer 2s linear infinite, hcBetGlow 1.3s ease-in-out infinite;
+}
+@keyframes hcBetShimmer{
+  0%{background-position:0% 50%;}
+  100%{background-position:200% 50%;}
+}
+@keyframes hcBetGlow{
+  0%,100%{box-shadow:0 0 0 rgba(224,179,65,0);}
+  50%{box-shadow:0 0 8px rgba(224,179,65,.6);}
+}
 
 .round-rank-badge{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:8px;background:var(--accent-bg);color:var(--accent);white-space:nowrap;flex-shrink:0;}
 .round-rank-badge .rrb-sep{color:var(--text-faint);font-weight:400;font-size:11px;}
@@ -420,6 +444,24 @@ function setSortMode(mode, sortBy){
   renderHorses(mode);
 }
 
+// 2026-08-10: 이번 회차에 이미 걸어둔 베팅을 "말번호" 맵으로 만들어서 카드 배지에 쓴다.
+// (100전략레이스>경마장의 RACE.fetchMyBetsMapForRound와 동일한 방식)
+function currentRoundBetMap(mode){
+  var map = {};
+  var round = STATE[mode].round;
+  var roundKey = round ? (round.id !== undefined ? round.id : round.cycle_no) : undefined;
+  (STATE[mode].myBets || []).forEach(function(b){
+    if (roundKey !== undefined) {
+      var betRoundKey = b.round_id !== undefined ? b.round_id : (b.roundId !== undefined ? b.roundId : (b.cycle_no !== undefined ? b.cycle_no : undefined));
+      if (betRoundKey !== undefined && betRoundKey !== roundKey) return; // 다른(지난) 회차 베팅은 배지에 반영 안 함
+    }
+    if (!map[b.horse_no]) map[b.horse_no] = { units: 0, amount: 0 };
+    map[b.horse_no].units += b.units;
+    map[b.horse_no].amount += (b.amount !== undefined ? b.amount : b.units * (STATE[mode].unitPrice || 100));
+  });
+  return map;
+}
+
 function renderHorses(mode){
   var grid = document.getElementById('horseGrid_' + mode);
   if (!grid) return;
@@ -428,6 +470,7 @@ function renderHorses(mode){
   var rankMap = STATE[mode].rankStats || {};
   var cumRankMap = computeCumulativeRanks(rankMap);
   var sortBy = STATE[mode].sortBy || 'recent';
+  var myBetMap = currentRoundBetMap(mode);
 
   // ⚠ 매 회차 채점이 끝나면 "이번회차 순위(가장 최근 recent_ranks[0]) > 누적순위"를
   // 함께 보여주고, 목록 정렬은 상단 정렬버튼(최근순위/누적순위)이 고른 기준을 따른다.
@@ -465,6 +508,8 @@ function renderHorses(mode){
         thisTxt + '<span class="rrb-sep">›</span><span class="rrb-cum">' + cumTxt + '</span>' +
       '</span>';
     }
+    var myBet = myBetMap[h.no];
+    var myBetHtml = myBet ? ('<div class="horse-my-bet">🌟 ' + myBet.units + (LANG==='en' ? ' unit(s) ' : '구좌 ') + myBet.amount.toLocaleString() + (LANG==='en' ? 'P bet placed' : 'P 베팅중') + '</div>') : '';
     return '' +
       '<div class="horse-row">' +
         '<div class="horse-no">' + h.no + '</div>' +
@@ -474,6 +519,7 @@ function renderHorses(mode){
         rankBadgeHtml +
         '<span class="horse-type ' + h.horse_type + '">' + typeLbl + '</span>' +
         recentHtml +
+        myBetHtml +
         '<button class="view-combos-btn" onclick="viewCombos(\'' + mode + '\', ' + h.no + ')">' + (LANG==='en' ? 'Details' : '상세보기') + '</button>' +
         '<div class="bet-controls">' +
           '<input class="unit-input" type="number" min="1" max="100" value="1" id="units_' + mode + '_' + h.no + '">' +
@@ -640,6 +686,7 @@ async function loadMyBets(mode){
     var data = await resp.json();
     STATE[mode].myBets = data.items || [];
     renderMyBets(mode);
+    renderHorses(mode); // ⚠ 2026-08-10: 방금 건 베팅이 카드 배지에 바로 반영되도록 다시 그림
   } catch(e){ console.error('[seoul-race] my-bets error', e); }
 }
 function renderMyBets(mode){
