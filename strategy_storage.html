@@ -1644,6 +1644,23 @@ FSync.getCheckedRows = function() {
   return favs.filter(function(f){ return FSync.checkedIds[f.id]; });
 };
 
+// ⚠ 2026-08-10: 이 페이지의 엑셀/PDF 다운로드는 실제 포인트가 차감되는데도
+// 차감 전 예고가 전혀 없었다(분쟁 소지) — 서버의 단가표를 조회해서 정확한 금액을
+// 확인창에 보여주도록 추가한다. (mocktest_hub.html의 MT.getPrice와 동일한 방식)
+FSync._priceCache = null;
+FSync.getPrice = async function(actionKey){
+  if (!FSync._priceCache) {
+    try {
+      var resp = await fetch(MLL.API_BASE + '/api/points/price-list');
+      var data = await resp.json();
+      var map = {};
+      (data.items || []).forEach(function(it){ map[it.action_key] = Number(it.cost_points); });
+      FSync._priceCache = map;
+    } catch(e) { FSync._priceCache = {}; }
+  }
+  return FSync._priceCache[actionKey];
+};
+
 FSync.exportExcel = async function() {
   if (typeof XLSX === 'undefined') {
     alert('엑셀 라이브러리를 불러오지 못했습니다. 네트워크 연결을 확인하고 다시 시도해주세요.');
@@ -1651,6 +1668,13 @@ FSync.exportExcel = async function() {
   }
   var favs = FSync.getCheckedRows();
   if (!favs.length) { alert('엑셀로 받을 항목을 먼저 체크해주세요.'); return; }
+
+  // ⚠ 2026-08-10: 차감 전 예고 추가.
+  var price = await FSync.getPrice('favorite_excel_download');
+  var confirmMsg = price !== undefined
+    ? '엑셀 다운로드는 ' + price.toLocaleString() + 'P가 차감됩니다.\n계속하시겠습니까?'
+    : '엑셀 다운로드 시 포인트가 차감됩니다.\n계속하시겠습니까?';
+  if (!confirm(confirmMsg)) return;
 
   var spend = await MLL.spendPoints('favorite_excel_download', 1);
   if (!spend.success) {
@@ -1691,6 +1715,13 @@ FSync.exportExcel = async function() {
 FSync.printList = async function() {
   var favs = FSync.getCheckedRows();
   if (!favs.length) { alert('PDF로 출력할 항목을 먼저 체크해주세요.'); return; }
+
+  // ⚠ 2026-08-10: 차감 전 예고 추가.
+  var price = await FSync.getPrice('favorite_pdf_download');
+  var confirmMsg = price !== undefined
+    ? 'PDF 출력은 ' + price.toLocaleString() + 'P가 차감됩니다.\n계속하시겠습니까?'
+    : 'PDF 출력 시 포인트가 차감됩니다.\n계속하시겠습니까?';
+  if (!confirm(confirmMsg)) return;
 
   var spend = await MLL.spendPoints('favorite_pdf_download', 1);
   if (!spend.success) {
