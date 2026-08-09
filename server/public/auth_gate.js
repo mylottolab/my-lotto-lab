@@ -298,11 +298,42 @@
     });
   }
 
+  // ── 세션 만료 안내 모달 (2026-08-09 신규) ────────────────────────
+  // ⚠ 기존 문제: ensureFreshToken()이 실패하면(리프레시 토큰이 없거나 만료됨)
+  // 각 페이지가 그냥 alert('로그인이 만료됐습니다...')만 띄우고 멈춰서, 사용자가
+  // 직접 로그아웃 → 로그인 → 원래 구매하려던 화면을 다시 찾아가야 했다.
+  // 일반 이용자는 이 경고창을 보고 구매를 포기하는 경우가 많았음.
+  // → 이제 "다시 로그인하기" 버튼을 누르면 login.html이 지원하는 ?redirect= 파라미터로
+  //   현재 페이지 주소를 실어 보내고, 로그인 완료 후 자동으로 이 페이지(구매하려던 화면)로
+  //   돌아오게 한다. 사용자는 로그인만 다시 하면 되고, 그 다음 구매 버튼을 한 번 더
+  //   누르기만 하면 된다 (수동으로 화면을 다시 찾아갈 필요 없음).
+  function showSessionExpiredModal() {
+    var overlay = document.createElement('div');
+    overlay.className = 'mll-overlay';
+    overlay.innerHTML =
+      '<div class="mll-modal">' +
+        '<h2>로그인이 만료됐습니다</h2>' +
+        '<p>오래 접속해 계셔서 로그인 정보가 만료됐어요.<br>' +
+          '다시 로그인하시면 방금 하시려던 화면으로 자동으로 돌아옵니다.</p>' +
+        '<a class="mll-btn mll-primary" href="' + withRedirect(LOGIN_URL) + '">다시 로그인하기</a>' +
+        '<button class="mll-close" type="button">닫기</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('.mll-close').addEventListener('click', function () {
+      document.body.removeChild(overlay);
+    });
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) document.body.removeChild(overlay);
+    });
+  }
+
   // ── 전역 API ───────────────────────────────────────────────
   window.MLL = window.MLL || {};
   window.MLL.getAuthState = getAuthState;
   window.MLL.crossOriginUrl = crossOriginUrl;
   window.MLL.logout = logout;
+  window.MLL.showSessionExpiredModal = showSessionExpiredModal;
   window.MLL.requireAuth = function (callback) {
     var state = getAuthState();
     if (state.type) {
@@ -327,7 +358,10 @@
     var headers = { 'Content-Type': 'application/json' };
     if (state.type === 'member') {
       var freshToken = await window.MLL.ensureFreshToken();
-      if (!freshToken || freshToken === 'guest') { showAuthModal(); return null; }
+      // ⚠ 2026-08-09: 이미 로그인/등록되어 있던 회원의 세션이 "만료"된 경우인데,
+      // 예전에는 showAuthModal()(회원가입이 필요하다는 문구)을 잘못 띄우고 있었다.
+      // 세션 만료 전용 안내(로그인 페이지로 자동 복귀 링크 포함)로 교체.
+      if (!freshToken || freshToken === 'guest') { showSessionExpiredModal(); return null; }
       headers['Authorization'] = 'Bearer ' + freshToken;
     } else {
       body.nickname = state.nickname;
@@ -356,8 +390,9 @@
     if (options.refId !== undefined) body.refId = options.refId;
     if (state.type === 'member') {
       var freshToken = await window.MLL.ensureFreshToken();
+      // ⚠ 2026-08-09: 위와 동일한 이유로 세션 만료 전용 안내로 교체.
       if (!freshToken || freshToken === 'guest') {
-        showAuthModal();
+        showSessionExpiredModal();
         return { success: false, needAuth: true };
       }
       headers['Authorization'] = 'Bearer ' + freshToken;
