@@ -251,6 +251,7 @@ var PRODUCT_ICON = { unique_combos:'🎯', repeat_marked:'🔁', past_winners:'�
 var PRICING = { pricePerCombo: 100, pricePerBlankPage: 1000 };
 var SELECTED_CIDS = [];
 var CURRENT_PRODUCT = null;
+var CURRENT_QUOTE_AMOUNT = 0; // ⚠ 2026-08-10: 구매 확인창/완료 안내용 — updateQuote()가 채움
 
 async function loadPricing(){
   try {
@@ -438,6 +439,7 @@ async function updateQuote(){
     document.getElementById('pmPriceBox').innerHTML =
       qtyLabel + ' → <b>' + data.amount.toLocaleString() + 'P</b>';
     document.getElementById('pmPurchaseBtn').disabled = false;
+    CURRENT_QUOTE_AMOUNT = data.amount; // ⚠ 2026-08-10: 구매 확인창/완료 안내에 재사용하기 위해 저장
   } catch(e){
     console.error('[shop] quote error', e);
   }
@@ -471,6 +473,14 @@ async function doPurchase(){
     if (window.MLL && MLL.requireAuth) { MLL.requireAuth(function(){}); return; }
   }
 
+  // ⚠ 2026-08-10: 구매 전 금액 확인창이 없었다 — 분쟁 소지가 있는 문제라 추가한다.
+  var confirmMsg = CURRENT_QUOTE_AMOUNT
+    ? ((LANG==='en')
+        ? ('This purchase will charge ' + CURRENT_QUOTE_AMOUNT.toLocaleString() + ' points. Continue?')
+        : ('이 구매로 ' + CURRENT_QUOTE_AMOUNT.toLocaleString() + 'P가 차감됩니다. 계속하시겠어요?'))
+    : ((LANG==='en') ? 'Proceed with this purchase?' : '구매를 진행하시겠어요?');
+  if (!confirm(confirmMsg)) return;
+
   var btn = document.getElementById('pmPurchaseBtn');
   btn.disabled = true;
   btn.textContent = (LANG==='en') ? 'Generating...' : '생성 중...';
@@ -497,7 +507,9 @@ async function doPurchase(){
     resultBox.style.background = 'rgba(63,179,127,.1)';
     resultBox.style.border = '1px solid rgba(63,179,127,.25)';
     resultBox.style.color = 'var(--green)';
-    resultBox.textContent = (LANG==='en') ? '✅ Purchase complete! PDF downloaded.' : '✅ 구매 완료! PDF가 다운로드됐습니다.';
+    resultBox.textContent = (LANG==='en')
+      ? ('✅ Purchase complete! ' + CURRENT_QUOTE_AMOUNT.toLocaleString() + ' points charged. PDF downloaded.')
+      : ('✅ 구매 완료! ' + CURRENT_QUOTE_AMOUNT.toLocaleString() + 'P가 차감되었습니다. PDF가 다운로드됐습니다.');
     loadPoints(); loadMyOrders();
   } catch(e){
     console.error('[shop] purchase error', e);
