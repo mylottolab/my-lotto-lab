@@ -2302,7 +2302,7 @@ RACE.placeBet = async function(){
       else alert('베팅 실패: ' + (data.error || resp.status));
       return;
     }
-    alert('🏇 베팅이 등록되었습니다!');
+    alert('🏇 베팅이 등록되었습니다!\n' + (units*RACE.betting.unitPrice).toLocaleString() + 'P가 차감되었습니다.' + (data.balance && data.balance.total!==undefined ? ('\n현재 잔액: '+data.balance.total.toLocaleString()+'P') : ''));
     document.getElementById('betBox').style.display = 'none';
     RACE.betting.selectedLeague = null; RACE.betting.selectedHorse = null;
     document.querySelectorAll('.horse-card').forEach(function(el){ el.classList.remove('selected'); });
@@ -2854,6 +2854,8 @@ MLL.chargeDownload = async function(payload){
       }
       return { ok:false, error:data.error };
     }
+    // ⚠ 2026-08-10: 성공했는데도 얼마가 차감됐는지 안내가 전혀 없었다 — 자동 배너 추가.
+    if (window.MLL && MLL.showPointToast) MLL.showPointToast(data.charged, data.balance && data.balance.total);
     return { ok:true, charged:data.charged, balance:data.balance };
   } catch(e) {
     alert((LANG==='en'?'Network error: ':'네트워크 오류: ')+e.message);
