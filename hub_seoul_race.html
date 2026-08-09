@@ -324,10 +324,18 @@ function switchTab(tab){
   document.getElementById('panelStandard').classList.toggle('active', tab==='standard');
 }
 
-function authHeaders(){
+// ⚠ 2026-08-09: hub_shop.html과 동일한 문제 — 토큰 갱신 시도 없이 만료된 토큰을 그대로
+// 서버에 보내서, 오래 로그인해둔 사용자의 베팅(구매)이 원인 불명의 오류로 실패했다.
+// authHeaders()는 배경 조회(내 베팅내역 등)에도 쓰이므로 여기서는 모달 없이 조용히
+// 갱신만 시도하고, 실제 "베팅" 버튼을 누르는 placeBet()에서만 갱신 실패 시 안내 모달을
+// 띄운다(아래 참고).
+async function authHeaders(){
   var state = MLL.getAuthState();
   var h = { 'Content-Type': 'application/json' };
-  if (state.type === 'member') h['Authorization'] = 'Bearer ' + state.token;
+  if (state.type === 'member') {
+    var fresh = await MLL.ensureFreshToken();
+    if (fresh && fresh !== 'guest') h['Authorization'] = 'Bearer ' + fresh;
+  }
   return h;
 }
 function authBodyExtra(){
@@ -571,6 +579,17 @@ async function placeBet(mode, horseNo){
     alert((LANG==='en') ? 'Please log in or register as a guest first.' : '먼저 로그인 또는 비회원 등록을 해주세요.');
     return;
   }
+  // ⚠ 2026-08-09: 실제 "베팅" 버튼을 누르는 시점에 미리 토큰 상태를 확인해서, 만료됐다면
+  // 애초에 요청을 보내지 않고 곧바로 "다시 로그인하기" 자동 복귀 모달을 띄운다
+  // (로그인하면 이 베팅 화면으로 자동으로 돌아옴).
+  if (state.type === 'member') {
+    var fresh = await MLL.ensureFreshToken();
+    if (!fresh || fresh === 'guest') {
+      if (window.MLL && MLL.showSessionExpiredModal) MLL.showSessionExpiredModal();
+      else alert((LANG==='en') ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.');
+      return;
+    }
+  }
   var round = STATE[mode].round;
   if (!round) return;
   var units = Number(document.getElementById('units_' + mode + '_' + horseNo).value) || 0;
@@ -579,7 +598,7 @@ async function placeBet(mode, horseNo){
   var body = Object.assign({ roundId: round.id, horseNo: horseNo, units: units }, authBodyExtra());
   try {
     var resp = await fetch(MLL.API_BASE + '/api/seoul-race/bet', {
-      method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+      method: 'POST', headers: await authHeaders(), body: JSON.stringify(body)
     });
     var data = await resp.json();
     if (!resp.ok) {
@@ -604,7 +623,7 @@ async function loadMyBets(mode){
   try {
     var qs = '';
     if (state.type === 'guest') qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
-    var resp = await fetch(MLL.API_BASE + '/api/seoul-race/my-bets' + qs, { headers: authHeaders() });
+    var resp = await fetch(MLL.API_BASE + '/api/seoul-race/my-bets' + qs, { headers: await authHeaders() });
     var data = await resp.json();
     STATE[mode].myBets = data.items || [];
     renderMyBets(mode);
