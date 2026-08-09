@@ -634,12 +634,20 @@ MOCK.requireAuth = function(){
 };
 
 // 서버 요청에 필요한 인증 헤더/바디를 만들어준다 (회원=Authorization 헤더, 비회원=닉네임+이메일)
+// ⚠ 2026-08-09: freshToken 갱신 실패(세션 만료) 시 그냥 null만 반환하고, 호출부마다
+// alert('로그인이 만료됐습니다...')만 띄우고 멈춰서, 사용자가 직접 로그아웃→로그인→
+// 이 화면을 다시 찾아와야 했다. 여기서 바로 "다시 로그인하기" 자동 복귀 모달(auth_gate.js
+// 제공)을 띄우도록 하고, 호출부의 중복 alert는 제거한다.
 MOCK._authRequest = async function(state, body){
   body = body || {};
   var headers = { 'Content-Type': 'application/json' };
   if (state.type === 'member') {
     var freshToken = await MLL.ensureFreshToken();
-    if (!freshToken || freshToken === 'guest') return null;
+    if (!freshToken || freshToken === 'guest') {
+      if (window.MLL && MLL.showSessionExpiredModal) MLL.showSessionExpiredModal();
+      else alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.');
+      return null;
+    }
     headers['Authorization'] = 'Bearer ' + freshToken;
   } else {
     body.nickname = state.nickname;
@@ -686,7 +694,7 @@ MOCK.addEntries = async function(items){
     return { round: it.round, nums: it.nums, purchaseType: it.type, inputMethod: it.inputMethod };
   });
   var req = await MOCK._authRequest(state, { items: payloadItems });
-  if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
+  if (!req) return { ok:false }; // 세션 만료 안내는 MOCK._authRequest 안에서 이미 처리(모달)
 
   try {
     var resp = await fetch(MLL.API_BASE + '/api/mock/entries', {
@@ -764,7 +772,7 @@ MOCK.chargeExcel = async function(count){
   var state = MOCK.requireAuth();
   if (!state) return { ok:false, cancelled:true };
   var req = await MOCK._authRequest(state, { actionKey:'mock_excel_download', quantity: count });
-  if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
+  if (!req) return { ok:false }; // 세션 만료 안내는 MOCK._authRequest 안에서 이미 처리(모달)
   try {
     var resp = await fetch(MLL.API_BASE + '/api/points/spend', { method:'POST', headers:req.headers, body: JSON.stringify(req.body) });
     var data = await resp.json();
@@ -788,7 +796,7 @@ MOCK.chargeMarking = async function(gameCount, imgCount){
   var state = MOCK.requireAuth();
   if (!state) return { ok:false, cancelled:true };
   var req = await MOCK._authRequest(state, { gameCount: gameCount, imgCount: imgCount });
-  if (!req) { alert(LANG==='en' ? 'Your session has expired. Please log in again.' : '로그인이 만료됐습니다. 다시 로그인해주세요.'); return { ok:false }; }
+  if (!req) return { ok:false }; // 세션 만료 안내는 MOCK._authRequest 안에서 이미 처리(모달)
   try {
     var resp = await fetch(MLL.API_BASE + '/api/mock/charge-marking', { method:'POST', headers:req.headers, body: JSON.stringify(req.body) });
     var data = await resp.json();
