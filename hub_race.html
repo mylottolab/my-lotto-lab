@@ -1160,6 +1160,18 @@ RACE._data = {
   fixedCombos: {}           // { strategyNo: [[n1..n6], ...] }
 };
 
+// 서버 응답 { round, items:[{strategy_no, combos}, ...] } 을
+// { round, generatedAt, [전략번호]: [조합들] } 형태(말 번호로 바로 접근하는 평평한 객체)로 변환.
+// (RACE.computeNextNumbers가 만들어 저장하는 형태 및 RACE.renderNext가 읽는 형태와 맞추기 위함)
+RACE._normalizeNextNumbers = function(nextRes){
+  if (!nextRes || !nextRes.round) return null;
+  var out = { round: nextRes.round, generatedAt: nextRes.generatedAt || Date.now() };
+  (nextRes.items || []).forEach(function(it){
+    out[it.strategy_no] = it.combos || [];
+  });
+  return out;
+};
+
 // 서버에서 전략/누적집계/메타/다음회차예상/고정조합을 한 번에 병렬로 불러와 캐시에 채운다.
 RACE.loadServerData = async function(){
   var base = MLL.API_BASE;
@@ -1182,7 +1194,13 @@ RACE.loadServerData = async function(){
   RACE._data.strategies = (strategiesRes.items || []).map(RACE._strategyFromServerRow);
   RACE._data.overallSummary = overallRes.items || [];
   RACE._data.meta = metaRes || { lastSimulatedRound: 0 };
-  RACE._data.nextNumbers = (nextRes && nextRes.round) ? nextRes : null;
+  // ⚠️ 2026-08-09 버그 수정: 서버는 다음회차 예상번호를 { round, items:[{strategy_no, combos}, ...] }
+  // 형태(배열)로 내려주는데, RACE.computeNextNumbers()가 만드는 형태 및 RACE.renderNext()가 읽는 형태는
+  // { round, generatedAt, [전략번호]: [조합들] } 형태(말 번호로 바로 접근하는 평평한 객체)입니다.
+  // 이 변환 없이 서버 응답을 그대로 저장해버려서, 새로고침하거나 다른 사용자가 접속하면
+  // nextData[s.no]가 항상 undefined가 되어 "다음회차 예상번호" 탭에 모든 말이 "0개 보관"으로 보이는
+  // 문제가 있었습니다. 아래에서 items 배열을 말 번호 키의 평평한 객체로 변환합니다.
+  RACE._data.nextNumbers = RACE._normalizeNextNumbers(nextRes);
   RACE._data.fixedCombos = {};
   (fixedRes.items || []).forEach(function(it){ RACE._data.fixedCombos[it.strategy_no] = it.combos; });
 
