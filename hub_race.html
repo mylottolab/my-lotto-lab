@@ -718,6 +718,10 @@ table.race-table{width:100%;border-collapse:collapse;min-width:880px;}
 .horse-tag.cond{background:rgba(91,110,232,.22);color:#b6c0ff;}
 .horse-tag.rand{background:rgba(200,205,224,.18);color:#e4e6f0;}
 .horse-tag.fixed{background:rgba(232,179,65,.22);color:#f3cd6f;}
+/* 2026-08-09: 위 색상은 어두운 배경 기준이라 라이트모드(흰 배경)에서는 글자가 흐리게 보임 — 라이트모드 전용으로 더 진한 색을 덮어씀 */
+body.light-mode .horse-tag.cond{background:rgba(68,83,201,.14);color:#3542a8;}
+body.light-mode .horse-tag.rand{background:rgba(76,83,114,.14);color:#4c5372;}
+body.light-mode .horse-tag.fixed{background:rgba(168,120,31,.16);color:#7a5a10;}
 .combo-link{color:var(--gold);font-weight:700;text-decoration:underline;cursor:pointer;}
 .combo-link:hover{opacity:.8;}
 .combo-detail-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;background:var(--surface-2);}
