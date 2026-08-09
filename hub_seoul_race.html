@@ -595,6 +595,17 @@ async function placeBet(mode, horseNo){
   var units = Number(document.getElementById('units_' + mode + '_' + horseNo).value) || 0;
   if (units <= 0) { alert((LANG==='en') ? 'Enter a valid number of units.' : '올바른 구좌 수를 입력해주세요.'); return; }
 
+  // ⚠ 2026-08-10: 이 페이지는 베팅(=포인트 차감) 전에 금액을 전혀 예고하지 않고 있었다 —
+  // 분쟁 소지가 있는 문제라 명시적 확인창을 추가한다.
+  var unitPrice = STATE[mode].unitPrice || (STATE[mode].round && STATE[mode].round.unit_price) || 0;
+  var totalCost = units * unitPrice;
+  var confirmMsg = unitPrice
+    ? ((LANG==='en')
+        ? ('This bet will charge ' + totalCost.toLocaleString() + ' points (' + units + ' unit(s) x ' + unitPrice.toLocaleString() + 'P). Continue?')
+        : ('이 베팅으로 ' + totalCost.toLocaleString() + 'P가 차감됩니다 (' + units + '구좌 x ' + unitPrice.toLocaleString() + 'P). 계속하시겠어요?'))
+    : ((LANG==='en') ? 'Place this bet?' : '이 베팅을 진행하시겠어요?');
+  if (!confirm(confirmMsg)) return;
+
   var body = Object.assign({ roundId: round.id, horseNo: horseNo, units: units }, authBodyExtra());
   try {
     var resp = await fetch(MLL.API_BASE + '/api/seoul-race/bet', {
@@ -605,6 +616,8 @@ async function placeBet(mode, horseNo){
       alert(data.error || ((LANG==='en') ? 'Failed to place bet.' : '베팅에 실패했습니다.'));
       return;
     }
+    // ⚠ 2026-08-10: 성공했는데도 얼마가 차감됐는지 안내가 전혀 없었다 — 자동 배너 추가.
+    if (window.MLL && MLL.showPointToast) MLL.showPointToast(data.charged !== undefined ? data.charged : totalCost, data.balance && data.balance.total);
     alert((LANG==='en') ? 'Bet placed!' : '베팅이 완료되었습니다!');
     loadMyBets(mode);
   } catch(e){
