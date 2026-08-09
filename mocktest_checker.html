@@ -67,7 +67,13 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
 @media (max-width:420px){
   .wrap{padding:14px;}
   .topbar-inner{padding:0 14px;}
-}
+}/* ── 네이티브 앱(ML Kit) 스캔 오버레이 (2026-08-09 추가) ── */
+body.mlkit-scanning > *:not(#mlkitOverlay){visibility:hidden!important;}
+body.mlkit-scanning{background:transparent!important;}
+#mlkitOverlay{display:none;position:fixed;inset:0;z-index:99999;}
+body.mlkit-scanning #mlkitOverlay{display:block;visibility:visible!important;}
+#mlkitOverlay .mlkit-target{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:72vw;max-width:280px;aspect-ratio:1/1;border:3px solid #7048e8;border-radius:16px;box-shadow:0 0 0 2000px rgba(0,0,0,.35);}
+#mlkitOverlay .mlkit-cancel{position:absolute;bottom:8%;left:50%;transform:translateX(-50%);padding:12px 26px;border-radius:24px;background:#fff;color:#222;font-weight:700;border:none;font-size:14px;}
 </style>
 </head>
 <body>
@@ -97,6 +103,7 @@ select.scroll-picker option:checked{background:var(--game-accent);color:#fff;}
       또는 <b>크롬(Chrome) 브라우저</b>로 이 페이지를 열어서 시도해보시면 조금 더 잘 잡히는 경우가 있어요.
     </div>
     <div id="qr-reader" style="display:none;"></div>
+    <div id="mlkitOverlay"><div class="mlkit-target"></div><button class="mlkit-cancel" type="button" onclick="cancelNativeScan()">취소</button></div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-accent" id="btnQrStart" style="flex:1;" onclick="startCamScan()">📷 QR 스캔 시작</button>
       <button class="btn" id="btnQrStop" style="flex:1;display:none;" onclick="stopCamScan()">⏹ 종료</button>
@@ -321,7 +328,55 @@ function toggleTorch(){
   document.getElementById('btnTorch').textContent = torchOn ? '🔦 끄기' : '🔦';
 }
 
+// ── 네이티브 앱(Capacitor) 안에서 실행 중이면 ML Kit을 우선 사용 (2026-08-09 추가) ──
+function isNativeApp(){
+  return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+function mlkitPlugin(){
+  return (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins.BarcodeScanner : null;
+}
+var _mlkitListener=null;
+
+async function startNativeMlkitScan(){
+  var plugin=mlkitPlugin();
+  if(!plugin) return false;
+  try{
+    var perm=await plugin.checkPermissions();
+    if(perm.camera!=='granted' && perm.camera!=='limited'){
+      var req=await plugin.requestPermissions();
+      if(req.camera!=='granted' && req.camera!=='limited'){
+        document.getElementById('qrStatus').textContent='카메라 권한이 필요합니다. 설정에서 허용해주세요.';
+        return true;
+      }
+    }
+    document.getElementById('btnQrStart').style.display='none';
+    document.body.classList.add('mlkit-scanning');
+    _mlkitListener=await plugin.addListener('barcodeScanned', async function(ev){
+      await stopNativeMlkitScan();
+      if(ev && ev.barcode && ev.barcode.rawValue) handleQrSuccess(ev.barcode.rawValue);
+    });
+    await plugin.startScan({ formats:['QR_CODE'] });
+    return true;
+  }catch(e){
+    await stopNativeMlkitScan();
+    document.getElementById('qrStatus').textContent='카메라 오류: '+e.message;
+    return true;
+  }
+}
+async function stopNativeMlkitScan(){
+  var plugin=mlkitPlugin();
+  if(_mlkitListener){ try{ await _mlkitListener.remove(); }catch(e){} _mlkitListener=null; }
+  if(plugin){ try{ await plugin.stopScan(); }catch(e){} }
+  document.body.classList.remove('mlkit-scanning');
+  document.getElementById('btnQrStart').style.display='block';
+}
+function cancelNativeScan(){ stopNativeMlkitScan(); }
+
 async function startCamScan(){
+  if(isNativeApp()){
+    var handled=await startNativeMlkitScan();
+    if(handled) return;
+  }
   try {
     var reader=document.getElementById('qr-reader');
     reader.style.display='block'; reader.innerHTML='';
