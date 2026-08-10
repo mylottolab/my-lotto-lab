@@ -249,6 +249,9 @@ button{font-family:inherit;}
 
   <!-- ═══════════════════════════════════════════════════════════════
        정산 규칙 안내 박스 / Payout Rules Notice (2026-08-10 정산룰 개정)
+       ⚠ 2026-08-10 수정: 자체 한글/영어 토글 대신, 사이트 전역 KR/EN 버튼과
+       자동 연동되는 data-i18n-kr/en 방식으로 교체함 (접혀있을 때 제목이
+       한글로 고정되던 문제 수정).
        ═══════════════════════════════════════════════════════════════ -->
   <style>
   .payout-rules{background:var(--surface);border:1px solid var(--border);border-radius:14px;margin:18px 0;overflow:hidden;box-shadow:var(--card-shadow);}
@@ -260,17 +263,11 @@ button{font-family:inherit;}
   .payout-rules summary .pr-chev{color:var(--text-faint);font-size:11px;transition:transform .18s;}
   .payout-rules[open] summary .pr-chev{transform:rotate(90deg);}
   .payout-rules .pr-body{padding:2px 18px 18px;border-top:1px solid var(--border-soft);}
-  .payout-rules .pr-langtabs{display:flex;gap:6px;margin:14px 0 14px;}
-  .payout-rules .pr-langtab{border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:8px;cursor:pointer;}
-  .payout-rules .pr-langtab.active{background:var(--gold);color:#1a1404;border-color:var(--gold);}
-  .payout-rules .pr-lang{display:none;}
-  .payout-rules .pr-lang.active{display:block;}
   .payout-rules .pr-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-soft);}
   .payout-rules .pr-item:last-child{border-bottom:none;padding-bottom:2px;}
   .payout-rules .pr-num{width:24px;height:24px;border-radius:50%;background:var(--gold);color:#1a1404;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
   .payout-rules .pr-text{font-size:12.5px;line-height:1.65;color:var(--text-dim);}
   .payout-rules .pr-text b{color:var(--text);font-weight:700;}
-  .payout-rules .pr-text .pr-good{color:var(--green);font-weight:700;}
   .payout-rules .pr-example{margin-top:14px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:10px;padding:12px 14px;font-size:11.5px;color:var(--text-faint);line-height:1.7;}
   .payout-rules .pr-example b{color:var(--text-dim);}
   .payout-rules .pr-date{margin-top:12px;font-size:10.5px;color:var(--text-faint);text-align:right;}
@@ -278,77 +275,39 @@ button{font-family:inherit;}
   <details class="payout-rules">
     <summary>
       <span class="pr-ico">🏆</span>
-      <span class="pr-title" data-pr-title>정산 규칙 안내</span>
-      <span class="pr-badge">2026-08-10 개정</span>
+      <span class="pr-title" data-i18n-kr="정산 규칙 안내" data-i18n-en="Payout Rules">정산 규칙 안내</span>
+      <span class="pr-badge" data-i18n-kr="2026-08-10 개정" data-i18n-en="Updated Aug 10, 2026">2026-08-10 개정</span>
       <span class="pr-chev">▶</span>
     </summary>
     <div class="pr-body">
-      <div class="pr-langtabs">
-        <button type="button" class="pr-langtab active" data-pr-lang-btn="kr">한글</button>
-        <button type="button" class="pr-langtab" data-pr-lang-btn="en">English</button>
+      <div class="pr-item">
+        <div class="pr-num">1</div>
+        <div class="pr-text" data-i18n-html="true"
+          data-i18n-kr="<b>1등을 아무도 못 맞혀도 무산되지 않습니다.</b><br>1등에 베팅한 사람이 없으면 2등으로, 2등도 없으면 3등으로 — 실제로 베팅한 사람이 있는 가장 높은 순위를 찾을 때까지 순서대로 내려가서 그 순위에 배당합니다."
+          data-i18n-en="<b>A race is never voided just because nobody picked the winner.</b><br>If no one bet on the 1st-place horse, the payout moves down to 2nd place — and if no one bet there either, it moves to 3rd, and so on — until it reaches the highest-ranked horse that actually has bettors."
+        ><b>1등을 아무도 못 맞혀도 무산되지 않습니다.</b><br>1등에 베팅한 사람이 없으면 2등으로, 2등도 없으면 3등으로 — 실제로 베팅한 사람이 있는 가장 높은 순위를 찾을 때까지 순서대로 내려가서 그 순위에 배당합니다.</div>
       </div>
-
-      <!-- ── 한글 ── -->
-      <div class="pr-lang active" data-pr-lang="kr">
-        <div class="pr-item">
-          <div class="pr-num">1</div>
-          <div class="pr-text"><b>1등을 아무도 못 맞혀도 무산되지 않습니다.</b><br>1등에 베팅한 사람이 없으면 2등으로, 2등도 없으면 3등으로 — 실제로 베팅한 사람이 있는 가장 높은 순위를 찾을 때까지 순서대로 내려가서 그 순위에 배당합니다.</div>
-        </div>
-        <div class="pr-item">
-          <div class="pr-num">2</div>
-          <div class="pr-text"><b>당첨자는 원금을 잃지 않습니다.</b><br>내가 건 돈은 <span class="pr-good">공제 없이 그대로</span> 돌려받고, 거기에 낙첨자들이 건 돈의 80%를 당첨자끼리 베팅 비율대로 나눠 갖습니다. 수수료 20%는 <b>낙첨자 몫에서만</b> 떼며, 당첨자 원금에서는 절대 떼지 않습니다.</div>
-        </div>
-        <div class="pr-item">
-          <div class="pr-num">3</div>
-          <div class="pr-text"><b>나 혼자 베팅했다면 결과와 상관없이 전액 환불됩니다.</b><br>그 경마에 베팅자가 나 한 명뿐이었다면, 이기고 지는 것과 무관하게 베팅한 금액을 100% 그대로 돌려받습니다.</div>
-        </div>
-        <div class="pr-example">
-          <b>예시</b> — A·B·C 세 명이 각각 1,000P·100P·100P를 배팅했고 A의 말이 우승한 경우:<br>
-          A는 자기 베팅액 1,000P를 그대로 돌려받고, 여기에 낙첨자(B·C) 200P의 80%인 160P를 더 받아 <b>총 1,160P</b>를 받습니다.
-        </div>
-        <div class="pr-date">100전략레이스 · 서울경마장(대상경마·상시경마) 공통 적용</div>
+      <div class="pr-item">
+        <div class="pr-num">2</div>
+        <div class="pr-text" data-i18n-html="true"
+          data-i18n-kr="<b>당첨자는 원금을 잃지 않습니다.</b><br>내가 건 돈은 공제 없이 그대로 돌려받고, 거기에 낙첨자들이 건 돈의 80%를 당첨자끼리 베팅 비율대로 나눠 갖습니다. 수수료 20%는 낙첨자 몫에서만 떼며, 당첨자 원금에서는 절대 떼지 않습니다."
+          data-i18n-en="<b>Winners never lose their own money.</b><br>You always get your own stake back in full, with no fee deducted, plus a share of 80% of everyone else's losing stakes, split among winners in proportion to their bets. Our 20% fee is taken only from the losing side — never from a winner's own stake."
+        ><b>당첨자는 원금을 잃지 않습니다.</b><br>내가 건 돈은 공제 없이 그대로 돌려받고, 거기에 낙첨자들이 건 돈의 80%를 당첨자끼리 베팅 비율대로 나눠 갖습니다. 수수료 20%는 낙첨자 몫에서만 떼며, 당첨자 원금에서는 절대 떼지 않습니다.</div>
       </div>
-
-      <!-- ── English ── -->
-      <div class="pr-lang" data-pr-lang="en">
-        <div class="pr-item">
-          <div class="pr-num">1</div>
-          <div class="pr-text"><b>A race is never voided just because nobody picked the winner.</b><br>If no one bet on the 1st-place horse, the payout moves down to 2nd place — and if no one bet there either, it moves to 3rd, and so on — until it reaches the highest-ranked horse that actually has bettors.</div>
-        </div>
-        <div class="pr-item">
-          <div class="pr-num">2</div>
-          <div class="pr-text"><b>Winners never lose their own money.</b><br>You always get your own stake back <span class="pr-good">in full, with no fee deducted</span>, plus a share of 80% of everyone else's losing stakes, split among winners in proportion to their bets. Our 20% fee is taken <b>only from the losing side</b> — never from a winner's own stake.</div>
-        </div>
-        <div class="pr-item">
-          <div class="pr-num">3</div>
-          <div class="pr-text"><b>If you're the only bettor in a race, you get a full refund regardless of outcome.</b><br>When you're the sole bettor on that race, you receive 100% of your stake back whether your horse wins or loses.</div>
-        </div>
-        <div class="pr-example">
-          <b>Example</b> — Three bettors A, B, and C wager 1,000P, 100P, and 100P respectively, and A's horse wins:<br>
-          A gets their own 1,000P stake back in full, plus 80% of the losers' combined 200P (=160P), for a <b>total of 1,160P</b>.
-        </div>
-        <div class="pr-date">Applies to both the 100-Strategy Race and Seoul Jackpot Racetrack (Standard &amp; Always-on modes)</div>
+      <div class="pr-item">
+        <div class="pr-num">3</div>
+        <div class="pr-text" data-i18n-html="true"
+          data-i18n-kr="<b>나 혼자 베팅했다면 결과와 상관없이 전액 환불됩니다.</b><br>그 경마에 베팅자가 나 한 명뿐이었다면, 이기고 지는 것과 무관하게 베팅한 금액을 100% 그대로 돌려받습니다."
+          data-i18n-en="<b>If you're the only bettor in a race, you get a full refund regardless of outcome.</b><br>When you're the sole bettor on that race, you receive 100% of your stake back whether your horse wins or loses."
+        ><b>나 혼자 베팅했다면 결과와 상관없이 전액 환불됩니다.</b><br>그 경마에 베팅자가 나 한 명뿐이었다면, 이기고 지는 것과 무관하게 베팅한 금액을 100% 그대로 돌려받습니다.</div>
       </div>
+      <div class="pr-example" data-i18n-html="true"
+        data-i18n-kr="<b>예시</b> — A·B·C 세 명이 각각 1,000P·100P·100P를 베팅했고 A의 말이 우승한 경우:<br>A는 자기 베팅액 1,000P를 그대로 돌려받고, 여기에 낙첨자(B·C) 200P의 80%인 160P를 더 받아 <b>총 1,160P</b>를 받습니다."
+        data-i18n-en="<b>Example</b> — Three bettors A, B, and C wager 1,000P, 100P, and 100P respectively, and A's horse wins:<br>A gets their own 1,000P stake back in full, plus 80% of the losers' combined 200P (=160P), for a <b>total of 1,160P</b>."
+      ><b>예시</b> — A·B·C 세 명이 각각 1,000P·100P·100P를 베팅했고 A의 말이 우승한 경우:<br>A는 자기 베팅액 1,000P를 그대로 돌려받고, 여기에 낙첨자(B·C) 200P의 80%인 160P를 더 받아 <b>총 1,160P</b>를 받습니다.</div>
+      <div class="pr-date" data-i18n-html="true" data-i18n-kr="100전략레이스 · 서울경마장(대상경마·상시경마) 공통 적용" data-i18n-en="Applies to both the 100-Strategy Race and Seoul Jackpot Racetrack (Standard &amp; Always-on modes)">100전략레이스 · 서울경마장(대상경마·상시경마) 공통 적용</div>
     </div>
   </details>
-  <script>
-  (function(){
-    document.querySelectorAll('.payout-rules').forEach(function(box){
-      var titleEl = box.querySelector('[data-pr-title]');
-      box.querySelectorAll('[data-pr-lang-btn]').forEach(function(btn){
-        btn.addEventListener('click', function(e){
-          e.preventDefault();
-          var lang = btn.getAttribute('data-pr-lang-btn');
-          box.querySelectorAll('[data-pr-lang-btn]').forEach(function(b){ b.classList.toggle('active', b === btn); });
-          box.querySelectorAll('[data-pr-lang]').forEach(function(panel){
-            panel.classList.toggle('active', panel.getAttribute('data-pr-lang') === lang);
-          });
-          if (titleEl) titleEl.textContent = (lang === 'en') ? 'Payout Rules' : '정산 규칙 안내';
-        });
-      });
-    });
-  })();
-  </script>
 
   <div class="tabs">
     <button class="tab-btn active" id="tabBtnAlways" onclick="switchTab('always')" data-i18n-kr="상시경마 (24시간)" data-i18n-en="Standing Race (24/7)">상시경마 (24시간)</button>
@@ -463,7 +422,8 @@ var LANG = localStorage.getItem('mll_lang') || 'kr';
 function applyLang(){
   document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
     var t = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
-    if (t !== undefined) el.textContent = t;
+    if (t === undefined) return;
+    if (el.dataset.i18nHtml === 'true') el.innerHTML = t; else el.textContent = t;
   });
   var krBtn = document.getElementById('langKrBtn'), enBtn = document.getElementById('langEnBtn');
   if (krBtn) { krBtn.style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface)'; krBtn.style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)'; }
