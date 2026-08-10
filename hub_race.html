@@ -808,6 +808,35 @@ body.light-mode .horse-tag.fixed{background:rgba(168,120,31,.16);color:#7a5a10;}
 
 .league-section{margin-bottom:26px;}
 .league-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.bet-status-badge{
+  margin-left:auto;
+  background:var(--accent-bg,rgba(91,110,232,.15));
+  color:var(--accent,#5b6ee8);
+  border:none;
+  padding:5px 11px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:700;
+  cursor:pointer;
+}
+.bet-status-badge:hover{filter:brightness(1.1);}
+.bsm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;}
+.bsm-box{background:var(--bg-card,#1b1f33);border-radius:14px;width:100%;max-width:620px;max-height:85vh;overflow-y:auto;padding:20px;}
+.bsm-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.bsm-title{font-size:15px;font-weight:700;}
+.bsm-close{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;line-height:1;}
+.bsm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.bsm-stat{background:var(--bg-input,rgba(255,255,255,.04));border-radius:10px;padding:10px;}
+.bsm-stat-label{font-size:11px;color:var(--text-dim);margin-bottom:2px;}
+.bsm-stat-val{font-size:15px;font-weight:700;}
+.bsm-table{width:100%;border-collapse:collapse;font-size:11.5px;}
+.bsm-table th{text-align:left;padding:6px 4px;color:var(--text-dim);border-bottom:1px solid var(--border-color,rgba(255,255,255,.1));font-weight:600;}
+.bsm-table td{padding:6px 4px;border-bottom:1px solid var(--border-color,rgba(255,255,255,.06));}
+.bsm-table tr.winner{background:rgba(63,179,127,.12);}
+.bsm-est{color:var(--accent,#5b6ee8);}
+.bsm-actual-win{color:#3fb37f;font-weight:700;}
+.bsm-actual-lose{color:var(--text-dim);}
+.bsm-note{font-size:10.5px;color:var(--text-dim);margin-top:8px;}
 .league-badge{font-size:13px;font-weight:800;padding:5px 14px;border-radius:20px;color:#fff;}
 .league-badge.l1{background:linear-gradient(135deg,#e0b341,#8a6f2f);}
 .league-badge.l2{background:linear-gradient(135deg,#8a9be8,#4b5aa8);}
@@ -2236,7 +2265,9 @@ RACE.loadLeagues = async function(){
       }).join('');
       return '<div class="league-section">' +
         '<div class="league-header"><span class="league-badge l'+league+'">' + leagueNames[league] + '</span>' +
-        '<span style="font-size:11.5px;color:var(--text-dim);">' + horses.length + '마리</span></div>' +
+        '<span style="font-size:11.5px;color:var(--text-dim);">' + horses.length + '마리</span>' +
+        '<button type="button" class="bet-status-badge" onclick="RACE.openBetStatus(' + league + ')">📊 베팅현황</button>' +
+        '</div>' +
         '<div class="horse-grid">' + horsesHtml + '</div>' +
       '</div>';
     }).join('');
@@ -2244,6 +2275,14 @@ RACE.loadLeagues = async function(){
     emptyMsg.style.display = 'block';
     emptyMsg.textContent = '불러오는 중 오류가 발생했습니다.';
   }
+};
+
+// ── 베팅현황판 팝업 (2026-08-10 신규) — auth_gate.js의 공용 모달 함수를 그대로 사용 ──
+RACE.openBetStatus = function(league){
+  if (!RACE.betting.round) return;
+  var leagueNames = { 1:'1부', 2:'2부', 3:'3부', 4:'4부', 5:'5부' };
+  var url = MLL.API_BASE + '/api/race-betting/bet-status?round=' + RACE.betting.round + '&league=' + league;
+  MLL.showBetStatusModal(url, RACE.roundLabel(RACE.betting.round) + ' ' + leagueNames[league] + ' 베팅현황');
 };
 
 // ── 말 선택 (베팅 박스 표시) ──
