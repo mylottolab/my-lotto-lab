@@ -131,4 +131,98 @@ router.post('/heal-standard', requireAdmin, async (req, res) => {
   }
 });
 
+// [8] 서울경마장 배당 내역 조회 (관리자, 2026-08-11 신규)
+// GET /api/admin/seoul-race/payouts?from=&to=&mode=standard|always&limit=
+router.get('/payouts', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 200));
+    let q = supabase
+      .from('seoul_race_bets')
+      .select('id, round_id, horse_no, user_id, amount, units, payout, settled_at')
+      .gt('payout', 0)
+      .order('settled_at', { ascending: false })
+      .limit(limit);
+    if (req.query.from) q = q.gte('settled_at', req.query.from + 'T00:00:00');
+    if (req.query.to) q = q.lte('settled_at', req.query.to + 'T23:59:59');
+
+    const { data: bets, error } = await q;
+    if (error) throw error;
+
+    const roundIds = [...new Set((bets || []).map(b => b.round_id))];
+    let roundById = {};
+    if (roundIds.length) {
+      const { data: rounds } = await supabase
+        .from('seoul_race_rounds').select('id, cycle_no, race_mode').in('id', roundIds);
+      (rounds || []).forEach(r => { roundById[r.id] = r; });
+    }
+
+    const userIds = [...new Set((bets || []).map(b => b.user_id))];
+    let profileById = {};
+    if (userIds.length) {
+      const { data: profiles } = await supabase.from('profiles').select('id, nickname, email').in('id', userIds);
+      (profiles || []).forEach(p => { profileById[p.id] = p; });
+    }
+
+    const items = (bets || []).map(b => {
+      const round = roundById[b.round_id] || {};
+      return {
+        game: '서울경마장(' + (round.race_mode === 'standard' ? '대상경마' : '상시경마') + ')',
+        round: round.cycle_no,
+        horseNo: b.horse_no,
+        nickname: (profileById[b.user_id] || {}).nickname || '(알수없음)',
+        email: (profileById[b.user_id] || {}).email || '',
+        betAmount: b.amount,
+        payout: b.payout,
+        settledAt: b.settled_at,
+      };
+    });
+
+    return res.json({ items });
+  } catch (err) {
+    console.error('[seoul-race-admin] payouts 조회 오류:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// [9] 서울경마장 수익금 조회 (관리자, 2026-08-11 신규)
+// GET /api/admin/seoul-race/revenue?from=&to=
+router.get('/revenue', requireAdmin, async (req, res) => {
+  try {
+    let q = supabase
+      .from('seoul_race_bets')
+      .select('round_id, amount, payout')
+      .eq('status', 'settled');
+    if (req.query.from) q = q.gte('settled_at', req.query.from + 'T00:00:00');
+    if (req.query.to) q = q.lte('settled_at', req.query.to + 'T23:59:59');
+
+    const { data: bets, error } = await q;
+    if (error) throw error;
+
+    const roundIds = [...new Set((bets || []).map(b => b.round_id))];
+    let modeByRoundId = {};
+    if (roundIds.length) {
+      const { data: rounds } = await supabase.from('seoul_race_rounds').select('id, race_mode').in('id', roundIds);
+      (rounds || []).forEach(r => { modeByRoundId[r.id] = r.race_mode; });
+    }
+
+    const byMode = { standard: { mode: 'standard', pool: 0, payout: 0 }, always: { mode: 'always', pool: 0, payout: 0 } };
+    let totalPool = 0, totalPayout = 0;
+    (bets || []).forEach(b => {
+      totalPool += b.amount || 0;
+      totalPayout += b.payout || 0;
+      const mode = modeByRoundId[b.round_id] || 'always';
+      if (byMode[mode]) { byMode[mode].pool += b.amount || 0; byMode[mode].payout += b.payout || 0; }
+    });
+
+    return res.json({
+      totalPool, totalPayout, revenue: totalPool - totalPayout,
+      settledCount: (bets || []).length,
+      byMode: Object.values(byMode).map(m => ({ ...m, revenue: m.pool - m.payout })),
+    });
+  } catch (err) {
+    console.error('[seoul-race-admin] revenue 조회 오류:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
