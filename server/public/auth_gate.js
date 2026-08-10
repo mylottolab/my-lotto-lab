@@ -432,6 +432,71 @@
   // 맞춰 그대로도 동작하도록 별칭을 하나 더 등록한다.
   window.MLL._showPointToast = showPointToast;
 
+  // ── 베팅현황판 모달 (2026-08-10 신규) ────────────────────────────────────
+  // 100전략레이스(hub_race.html)의 리그별 20마리, 서울경마장(hub_seoul_race.html)의
+  // 상시/대상 100마리 양쪽에서 공용으로 쓰는 "전체 베팅현황" 팝업. 서버가 내려주는
+  // {settled, poolAmount, payoutRate, bettorsTotal, horses:[...]} 형태를 그대로 그린다.
+  // horses 배열의 각 항목은 strategyNo(100전략) 또는 horseNo(서울경마), name 또는
+  // nameKr 필드를 쓰므로 아래에서 둘 다 대응한다. 이 모달을 쓰는 페이지는 반드시
+  // .bsm-overlay/.bsm-box/... CSS 클래스를 자체 <style>에 갖고 있어야 한다.
+  async function showBetStatusModal(fetchUrl, title) {
+    var existing = document.getElementById('mllBsmOverlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'mllBsmOverlay';
+    overlay.className = 'bsm-overlay';
+    overlay.innerHTML =
+      '<div class="bsm-box">' +
+        '<div class="bsm-head"><div class="bsm-title">' + title + '</div><button type="button" class="bsm-close" id="mllBsmCloseBtn">✕</button></div>' +
+        '<div id="mllBsmBody" style="text-align:center;padding:30px 0;color:var(--text-dim,#8b91ab);">불러오는 중...</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+    document.getElementById('mllBsmCloseBtn').addEventListener('click', function () { overlay.remove(); });
+
+    try {
+      var resp = await fetch(fetchUrl);
+      var data = await resp.json();
+      if (!resp.ok) {
+        document.getElementById('mllBsmBody').textContent = data.error || '베팅현황을 불러오지 못했습니다.';
+        return;
+      }
+      var horses = data.horses || [];
+      var rowsHtml = horses.map(function (h) {
+        var no = h.strategyNo !== undefined ? h.strategyNo : h.horseNo;
+        var name = h.name || h.nameKr || ('말 ' + no + '번');
+        var lastCol = data.settled
+          ? (h.isWinner
+              ? '<span class="bsm-actual-win">🏆 ' + h.payoutPerUnit.toLocaleString() + 'P</span>'
+              : '<span class="bsm-actual-lose">낙첨</span>')
+          : '<span class="bsm-est">' + h.estPayoutPerUnit.toLocaleString() + 'P</span>';
+        return '<tr class="' + (data.settled && h.isWinner ? 'winner' : '') + '">' +
+          '<td>' + no + '</td>' +
+          '<td>' + name + '</td>' +
+          '<td>' + h.bettorsCount + '명</td>' +
+          '<td>' + h.totalUnits.toLocaleString() + '</td>' +
+          '<td>' + h.totalAmount.toLocaleString() + 'P</td>' +
+          '<td>' + lastCol + '</td>' +
+        '</tr>';
+      }).join('');
+
+      document.getElementById('mllBsmBody').innerHTML =
+        '<div class="bsm-stats">' +
+          '<div class="bsm-stat"><div class="bsm-stat-label">전체 참여</div><div class="bsm-stat-val">' + data.bettorsTotal.toLocaleString() + '명</div></div>' +
+          '<div class="bsm-stat"><div class="bsm-stat-label">총 판돈</div><div class="bsm-stat-val">' + data.poolAmount.toLocaleString() + 'P</div></div>' +
+          '<div class="bsm-stat"><div class="bsm-stat-label">배당재원(' + Math.round(data.payoutRate * 100) + '%)</div><div class="bsm-stat-val">' + Math.floor(data.poolAmount * data.payoutRate).toLocaleString() + 'P</div></div>' +
+        '</div>' +
+        '<table class="bsm-table"><thead><tr>' +
+          '<th>번호</th><th>이름</th><th>참여자</th><th>총구좌</th><th>총베팅액</th><th>' + (data.settled ? '배당/구좌' : '1등시 구좌당') + '</th>' +
+        '</tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
+        '<div class="bsm-note">' + (data.settled ? '실제 배당 확정 · 우승마에 초록 강조' : '총구좌 많은 순 정렬 · "1등시 구좌당"은 지금 판돈 기준 실시간 예상치입니다') + '</div>';
+    } catch (e) {
+      document.getElementById('mllBsmBody').textContent = '베팅현황을 불러오지 못했습니다.';
+    }
+  }
+  window.MLL.showBetStatusModal = showBetStatusModal;
+
   window.MLL.spendPoints = async function (actionKey, quantity, options) {
     options = options || {};
     var state = getAuthState();
