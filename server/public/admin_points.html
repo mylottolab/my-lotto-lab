@@ -268,6 +268,37 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <div class="card">
+    <h2>🏆 경마 배당 내역 &amp; 수익금 (100전략레이스 + 서울경마장)</h2>
+    <p class="desc" style="margin-bottom:12px;">실제로 지급된 배당 건과, 그 기간 동안 회사가 가져간 수수료 수익(20% 공제분)을 보여줍니다. 수익금은 "베팅총액 − 지급된 배당총액"으로 계산되어, 정산 로직이 바뀌어도 항상 정확합니다.</p>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      <label style="font-size:11.5px;color:var(--text-dim);">기간:</label>
+      <input type="date" id="racePayoutFrom" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <span style="color:var(--text-dim);font-size:12px;">~</span>
+      <input type="date" id="racePayoutTo" style="background:var(--bg);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;">
+      <button onclick="loadRacePayoutsAndRevenue()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">조회</button>
+      <button onclick="clearRacePayoutDates()" style="background:var(--surface);border:1px solid var(--border-soft);color:var(--text-dim);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">전체기간</button>
+    </div>
+
+    <div id="raceRevenueSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px;"></div>
+
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:8px;color:var(--text-dim);">부문별 상세 (리그/모드별)</div>
+    <table style="margin-bottom:20px;">
+      <thead>
+        <tr><th>게임</th><th>구분</th><th>베팅총액</th><th>지급배당</th><th>수익금</th></tr>
+      </thead>
+      <tbody id="raceRevenueByGroupBody"></tbody>
+    </table>
+
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:8px;color:var(--text-dim);">개별 배당 내역 (최근 200건, 기간 내)</div>
+    <table>
+      <thead>
+        <tr><th>게임</th><th>회차</th><th>닉네임</th><th>이메일</th><th>베팅액</th><th>배당액</th><th>지급일시</th></tr>
+      </thead>
+      <tbody id="racePayoutsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
     <h2>👤 회원 명단</h2>
     <p class="desc" style="margin-bottom:12px;">최근 가입순 상위 200명(전체 목록 중 회원만). 전화번호는 아직 수집하는 곳이 없어 비어있습니다.</p>
     <table>
@@ -486,6 +517,7 @@ async function loadAll(){
     renderUsers(users.items);
 
     await loadRevenue();
+    await loadRacePayoutsAndRevenue();
     await loadDepositStats();
     await loadSignupStats();
     await loadVisitStats();
@@ -1051,6 +1083,91 @@ function renderRevenue(items, grandTotal){
   }).join('');
   rows += '<tr style="font-weight:700;"><td>합계</td><td>' + (grandTotal||0).toLocaleString() + 'P</td><td></td></tr>';
   body.innerHTML = rows;
+}
+
+// ── 경마 배당 내역 & 수익금 (100전략레이스 + 서울경마장, 2026-08-11 신규) ──
+function clearRacePayoutDates(){
+  document.getElementById('racePayoutFrom').value = '';
+  document.getElementById('racePayoutTo').value = '';
+  loadRacePayoutsAndRevenue();
+}
+
+async function loadRacePayoutsAndRevenue(){
+  var from = document.getElementById('racePayoutFrom').value;
+  var to = document.getElementById('racePayoutTo').value;
+  var qs = [];
+  if (from) qs.push('from=' + from);
+  if (to) qs.push('to=' + to);
+  var suffix = qs.length ? ('?' + qs.join('&')) : '';
+
+  try {
+    var strategyRevenue = await apiGet('/api/admin/race/revenue' + suffix);
+    var seoulRevenue = await apiGet('/api/admin/seoul-race/revenue' + suffix);
+    var strategyPayouts = await apiGet('/api/admin/race/payouts' + suffix);
+    var seoulPayouts = await apiGet('/api/admin/seoul-race/payouts' + suffix);
+
+    renderRaceRevenueSummary(strategyRevenue, seoulRevenue);
+    renderRaceRevenueByGroup(strategyRevenue, seoulRevenue);
+
+    var allPayouts = (strategyPayouts.items || []).concat(seoulPayouts.items || []);
+    allPayouts.sort(function(a, b){ return new Date(b.settledAt) - new Date(a.settledAt); });
+    renderRacePayouts(allPayouts.slice(0, 200));
+  } catch(e) {}
+}
+
+function renderRaceRevenueSummary(strategyRevenue, seoulRevenue){
+  var totalPool = (strategyRevenue.totalPool || 0) + (seoulRevenue.totalPool || 0);
+  var totalPayout = (strategyRevenue.totalPayout || 0) + (seoulRevenue.totalPayout || 0);
+  var totalRevenue = (strategyRevenue.revenue || 0) + (seoulRevenue.revenue || 0);
+  var settledCount = (strategyRevenue.settledCount || 0) + (seoulRevenue.settledCount || 0);
+
+  var box = document.getElementById('raceRevenueSummary');
+  function statBox(label, value, color){
+    return '<div style="background:var(--bg);border:1px solid var(--border-soft);border-radius:10px;padding:14px;">' +
+      '<div style="font-size:10.5px;color:var(--text-dim);margin-bottom:6px;">' + label + '</div>' +
+      '<div style="font-size:18px;font-weight:800;' + (color ? 'color:' + color + ';' : '') + '">' + value + '</div>' +
+    '</div>';
+  }
+  box.innerHTML =
+    statBox('총 베팅액', totalPool.toLocaleString() + 'P') +
+    statBox('총 지급 배당', totalPayout.toLocaleString() + 'P') +
+    statBox('💰 회사 수익금', totalRevenue.toLocaleString() + 'P', 'var(--gold)') +
+    statBox('정산건수', settledCount.toLocaleString() + '건');
+}
+
+function renderRaceRevenueByGroup(strategyRevenue, seoulRevenue){
+  var rows = [];
+  (strategyRevenue.byLeague || []).forEach(function(l){
+    rows.push('<tr><td>100전략레이스</td><td>' + l.league + '부</td><td>' + l.pool.toLocaleString() + 'P</td><td>' + l.payout.toLocaleString() + 'P</td><td style="color:var(--gold);font-weight:700;">' + l.revenue.toLocaleString() + 'P</td></tr>');
+  });
+  (seoulRevenue.byMode || []).forEach(function(m){
+    if (m.pool === 0 && m.payout === 0) return;
+    var modeLabel = m.mode === 'standard' ? '대상경마' : '상시경마';
+    rows.push('<tr><td>서울경마장</td><td>' + modeLabel + '</td><td>' + m.pool.toLocaleString() + 'P</td><td>' + m.payout.toLocaleString() + 'P</td><td style="color:var(--gold);font-weight:700;">' + m.revenue.toLocaleString() + 'P</td></tr>');
+  });
+  var body = document.getElementById('raceRevenueByGroupBody');
+  body.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">해당 기간 정산 내역이 없습니다.</td></tr>';
+}
+
+function renderRacePayouts(items){
+  var body = document.getElementById('racePayoutsBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:20px;">해당 기간 배당 내역이 없습니다.</td></tr>';
+    return;
+  }
+  body.innerHTML = items.map(function(r){
+    return (
+      '<tr>' +
+        '<td>' + r.game + '</td>' +
+        '<td>' + (r.round || '-') + '회차' + (r.league ? (' ' + r.league + '부 #' + r.strategyNo) : (r.horseNo ? (' #' + r.horseNo) : '')) + '</td>' +
+        '<td>' + r.nickname + '</td>' +
+        '<td style="color:var(--text-dim);font-size:11px;">' + r.email + '</td>' +
+        '<td>' + r.betAmount.toLocaleString() + 'P</td>' +
+        '<td style="color:var(--green);font-weight:700;">' + r.payout.toLocaleString() + 'P</td>' +
+        '<td style="font-size:11px;color:var(--text-dim);">' + (r.settledAt ? new Date(r.settledAt).toLocaleString('ko-KR') : '-') + '</td>' +
+      '</tr>'
+    );
+  }).join('');
 }
 
 async function approveBankTransfer(id){
