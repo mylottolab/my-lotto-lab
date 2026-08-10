@@ -219,6 +219,78 @@ router.get('/lots', async (req, res) => {
   }
 });
 
+// ─── 포인트 입출금 내역 (충전/적립/배당 + 차감을 시간순으로 합쳐서 보여줌, 2026-08-11 신규) ──
+// 회원: Authorization 헤더 / 비회원: nickname+email 쿼리파라미터
+// 두 개의 서로 다른 테이블(point_ledger=적립, point_spend_log=차감)을 최근순으로 각각
+// 가져와서 합친 뒤 다시 정렬합니다. 아주 오래된 내역까지 파고드는 무한스크롤용은 아니고,
+// "최근 내역 확인" 용도입니다 (한 번에 최대 200건).
+const SOURCE_LABELS_KR = {
+  bank_transfer: '무통장입금 충전', inicis: '신용카드 충전', paypal: 'PayPal 충전',
+  reward: '보상 적립',
+};
+router.get('/history', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req);
+    if (!userId) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
+
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 100));
+
+    const { data: credits, error: cErr } = await supabase
+      .from('point_ledger')
+      .select('id, point_type, amount, source, earned_at')
+      .eq('user_id', userId)
+      .order('earned_at', { ascending: false })
+      .limit(limit);
+    if (cErr) throw cErr;
+
+    const { data: debits, error: dErr } = await supabase
+      .from('point_spend_log')
+      .select('id, action_key, amount, spent_activity, spent_deposit, ref_id, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (dErr) throw dErr;
+
+    // action_key → 한글 라벨 매핑 (point_costs 테이블 재사용, 관리자가 새 항목 추가해도 자동 반영됨)
+    const actionKeys = [...new Set((debits || []).map(d => d.action_key))];
+    let labelByActionKey = {};
+    if (actionKeys.length) {
+      const { data: costs } = await supabase
+        .from('point_costs').select('action_key, label_kr').in('action_key', actionKeys);
+      (costs || []).forEach(c => { labelByActionKey[c.action_key] = c.label_kr; });
+    }
+
+    const items = [];
+    (credits || []).forEach(c => {
+      items.push({
+        kind: 'credit',
+        at: c.earned_at,
+        amount: c.amount,
+        pointType: c.point_type, // 'activity' | 'deposit'
+        label: SOURCE_LABELS_KR[c.source] || c.source || '적립',
+      });
+    });
+    (debits || []).forEach(d => {
+      items.push({
+        kind: 'debit',
+        at: d.created_at,
+        amount: d.amount,
+        spentActivity: d.spent_activity,
+        spentDeposit: d.spent_deposit,
+        label: labelByActionKey[d.action_key] || d.action_key,
+        refId: d.ref_id,
+      });
+    });
+
+    items.sort((a, b) => new Date(b.at) - new Date(a.at));
+
+    return res.json({ items: items.slice(0, limit) });
+  } catch (err) {
+    console.error('[points] history 오류:', err);
+    return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+  }
+});
+
 // ─── 포인트 차감 실행 (실제 게임/기능 페이지에서 호출) ─────────────────────────
 // 요청: { actionKey, quantity(기본1), refId }
 router.post('/spend', async (req, res) => {
