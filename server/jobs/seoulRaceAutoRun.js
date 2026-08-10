@@ -201,29 +201,66 @@ async function settleRound(round, winData, horses, fixedCombosMap) {
     }
   }
 
-  // 우승마 결정 (동석이면 공동우승)
-  const ranked = engine.rankHorses(resultsByHorseNo);
-  const topScore = ranked.length ? ranked[0].bestGrade : 0;
-  const topCount = ranked.length ? ranked[0].gradeCounts[topScore] || 0 : 0;
-  const winners = ranked.filter(r => r.bestGrade === topScore && (r.gradeCounts[topScore] || 0) === topCount).map(r => r.horseNo);
+  // ═══════════════════════════════════════════════════════════════
+  // 2026-08-10 정산룰 개정 (race_betting.js/100전략레이스와 동일한 규칙)
+  // ① 1등 묶음에 아무도 안 걸었으면 → 2등 묶음, 그래도 없으면 3등 묶음... 순서대로
+  //    내려가며 "실제 베팅이 있는 첫 순위 묶음"을 찾아 그 묶음을 당첨 그룹으로 함.
+  // ② 당첨자는 자기 베팅액을 공제 없이 그대로 돌려받고, 거기에 더해 "패자(낙첨자)들의
+  //    베팅 총액 중 20% 공제 후 80%"를 자신의 당첨풀 내 베팅비율만큼 나눠 가짐.
+  // ③ 베팅자가 딱 1명뿐이면 자동으로 패자풀=0이 되어 위 공식이 "전액환불"과 동일해짐
+  //    (별도 분기 처리 불필요).
+  // ═══════════════════════════════════════════════════════════════
 
-  // 베팅 정산 (pari-mutuel, 우승마에 건 사람들끼리 배당재원 n분할)
+  // 1) 100마리를 성적순(engine.rankHorses와 동일 기준: bestGrade낮을수록 우선, 그 등수
+  //    달성개수 많을수록 우선)으로 "동점 묶음" 단위로 나눔
+  const ranked = engine.rankHorses(resultsByHorseNo);
+  function tierKeyFor(r) {
+    const g = r.bestGrade === 0 ? 999 : r.bestGrade;
+    const c = g === 999 ? 0 : (r.gradeCounts[g] || 0);
+    return `${g}:${c}`;
+  }
+  const tiers = [];
+  for (const r of ranked) {
+    const key = tierKeyFor(r);
+    const last = tiers[tiers.length - 1];
+    if (last && last.key === key) last.horseNos.push(r.horseNo);
+    else tiers.push({ key, horseNos: [r.horseNo] });
+  }
+
   const { data: bets, error: betErr } = await supabase
     .from('seoul_race_bets').select('*').eq('round_id', round.id).eq('status', 'pending');
   if (betErr) throw betErr;
 
+  // 2) 1등 묶음부터 순서대로, 베팅이 있는 첫 묶음을 찾음
+  let winTier = null;
+  let winnerBets = [];
+  for (const tier of tiers) {
+    const betsOnTier = (bets || []).filter(b => tier.horseNos.includes(b.horse_no));
+    if (betsOnTier.length > 0) { winTier = tier; winnerBets = betsOnTier; break; }
+  }
+  // 베팅 자체가 아무도 없으면(정산할 사람 없음) — 기록용으로 진짜 1등 묶음을 남김
+  const winners = winTier ? winTier.horseNos : (tiers[0] ? tiers[0].horseNos : []);
+
   if (bets && bets.length) {
-    const poolAmount = bets.reduce((s, b) => s + b.amount, 0);
-    const winningBets = bets.filter(b => winners.includes(b.horse_no));
-    const winningUnits = winningBets.reduce((s, b) => s + b.units, 0);
-    const payoutPerUnit = winningUnits > 0 ? Math.floor((poolAmount * PAYOUT_RATE) / winningUnits) : 0;
+    const winnerBetIds = new Set(winnerBets.map(b => b.id));
+    const loserBets = bets.filter(b => !winnerBetIds.has(b.id));
+    const winnerPoolAmount = winnerBets.reduce((s, b) => s + b.amount, 0);
+    const loserPoolAmount = loserBets.reduce((s, b) => s + b.amount, 0);
+
+    // 3) 새 배당 공식: 자기 원금 그대로 + 패자풀(80%)을 당첨풀 내 베팅비율로 분배
+    const sharedFromLosers = Math.floor(loserPoolAmount * PAYOUT_RATE);
+    const payoutById = {};
+    for (const b of winnerBets) {
+      const bonus = winnerPoolAmount > 0 ? Math.floor((b.amount / winnerPoolAmount) * sharedFromLosers) : 0;
+      payoutById[b.id] = b.amount + bonus;
+    }
 
     const updates = bets.map(b => {
-      const isWinner = winners.includes(b.horse_no);
-      const payout = isWinner ? payoutPerUnit * b.units : 0;
+      const payout = payoutById[b.id] || 0;
+      const isWinner = payout > 0;
       return {
         id: b.id, status: 'settled', payout,
-        payout_note: isWinner ? null : `${round.cycle_no}회차 우승마 아님 (우승마: ${winners.join(',')})`,
+        payout_note: isWinner ? null : `${round.cycle_no}회차 배당대상 아님 (배당대상: ${winners.join(',')})`,
       };
     });
     for (const u of updates) {
