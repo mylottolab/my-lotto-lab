@@ -319,4 +319,95 @@ router.post('/betting/init-league', requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * [6] 경마배팅 배당 내역 조회 (관리자, 2026-08-11 신규)
+ * GET /api/admin/race/payouts?from=&to=&limit=
+ * 실제 배당(payout>0)이 지급된 베팅 건들을 최근순으로 반환. 닉네임/이메일까지 조인해서 준다.
+ * from/to는 YYYY-MM-DD (settled_at 기준, 생략하면 전체기간)
+ */
+router.get('/payouts', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 200));
+    let q = supabase
+      .from('race_bets')
+      .select('id, round, league, strategy_no, user_id, amount, units, payout, settled_at')
+      .gt('payout', 0)
+      .order('settled_at', { ascending: false })
+      .limit(limit);
+    if (req.query.from) q = q.gte('settled_at', req.query.from + 'T00:00:00');
+    if (req.query.to) q = q.lte('settled_at', req.query.to + 'T23:59:59');
+
+    const { data: bets, error } = await q;
+    if (error) throw error;
+
+    const userIds = [...new Set((bets || []).map(b => b.user_id))];
+    let profileById = {};
+    if (userIds.length) {
+      const { data: profiles } = await supabase.from('profiles').select('id, nickname, email').in('id', userIds);
+      (profiles || []).forEach(p => { profileById[p.id] = p; });
+    }
+
+    const items = (bets || []).map(b => ({
+      game: '100전략레이스',
+      round: b.round,
+      league: b.league,
+      strategyNo: b.strategy_no,
+      nickname: (profileById[b.user_id] || {}).nickname || '(알수없음)',
+      email: (profileById[b.user_id] || {}).email || '',
+      betAmount: b.amount,
+      payout: b.payout,
+      settledAt: b.settled_at,
+    }));
+
+    return res.json({ items });
+  } catch (err) {
+    console.error('[race-admin] payouts 조회 오류:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * [7] 경마배팅 수익금 조회 (관리자, 2026-08-11 신규)
+ * GET /api/admin/race/revenue?from=&to=
+ * 수익금 = (정산완료된 베팅 총액) - (실제 지급된 배당 총액). 별도 계산식 없이
+ * 이미 저장된 베팅 기록(amount, payout)에서 바로 집계 — 정산 로직이 바뀌어도 항상 정확함.
+ */
+router.get('/revenue', requireAdmin, async (req, res) => {
+  try {
+    let q = supabase
+      .from('race_bets')
+      .select('league, amount, payout')
+      .in('status', ['won', 'lost']);
+    if (req.query.from) q = q.gte('settled_at', req.query.from + 'T00:00:00');
+    if (req.query.to) q = q.lte('settled_at', req.query.to + 'T23:59:59');
+
+    const { data: bets, error } = await q;
+    if (error) throw error;
+
+    const byLeague = {};
+    let totalPool = 0, totalPayout = 0;
+    (bets || []).forEach(b => {
+      totalPool += b.amount || 0;
+      totalPayout += b.payout || 0;
+      const l = byLeague[b.league] || { league: b.league, pool: 0, payout: 0 };
+      l.pool += b.amount || 0;
+      l.payout += b.payout || 0;
+      byLeague[b.league] = l;
+    });
+
+    const byLeagueArr = Object.values(byLeague)
+      .map(l => ({ ...l, revenue: l.pool - l.payout }))
+      .sort((a, b) => a.league - b.league);
+
+    return res.json({
+      totalPool, totalPayout, revenue: totalPool - totalPayout,
+      settledCount: (bets || []).length,
+      byLeague: byLeagueArr,
+    });
+  } catch (err) {
+    console.error('[race-admin] revenue 조회 오류:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
