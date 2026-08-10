@@ -184,22 +184,65 @@ async function settleRoundBets(round) {
     const members = assignments.filter(a => a.league === league);
     if (!members.length) continue;
 
-    // 그 리그 20마리 중, 이번 회차 개별 획득상금(total_prize)이 가장 높은 말(들)이 우승마.
-    // 동률이면 전부 공동우승 처리 (베팅자에게 불리하지 않은 방향으로).
-    let maxPrize = -1;
-    members.forEach(m => { const p = prizeByStrategy[m.strategy_no] || 0; if (p > maxPrize) maxPrize = p; });
-    const winners = members
-      .filter(m => (prizeByStrategy[m.strategy_no] || 0) === maxPrize)
-      .map(m => m.strategy_no);
+    // ═══════════════════════════════════════════════════════════════
+    // 2026-08-10 정산룰 개정
+    // ① 1등(최고상금) 묶음에 아무도 안 걸었으면 → 2등 묶음, 그래도 없으면 3등 묶음...
+    //    순서대로 내려가며 "실제 베팅이 있는 첫 순위 묶음"을 찾아 그 묶음을 당첨 그룹으로 함.
+    // ② 당첨자는 자기 베팅액을 공제 없이 그대로 돌려받고, 거기에 더해 "패자(낙첨자)들의
+    //    베팅 총액 중 20% 공제 후 80%"를 자신의 당첨풀 내 베팅비율만큼 나눠 가짐.
+    //    (우승자 몫에서는 수수료를 걷지 않고, 낙첨자 몫에서만 20% 수수료를 걷는 구조)
+    // ③ 이 리그에 베팅자가 딱 1명뿐이면 자동으로 패자풀=0이 되어, 위 공식이 자연스럽게
+    //    "전액환불"과 동일한 결과를 만들어냄 (별도 분기 처리 불필요).
+    // ═══════════════════════════════════════════════════════════════
+
+    // 1) 20마리를 이번 회차 개별상금(total_prize) 내림차순으로 "동점 묶음" 단위로 정렬
+    const membersByPrizeDesc = members.slice()
+      .sort((a, b) => (prizeByStrategy[b.strategy_no] || 0) - (prizeByStrategy[a.strategy_no] || 0));
+    const tiers = [];
+    for (const m of membersByPrizeDesc) {
+      const p = prizeByStrategy[m.strategy_no] || 0;
+      const last = tiers[tiers.length - 1];
+      if (last && last.prize === p) last.strategyNos.push(m.strategy_no);
+      else tiers.push({ prize: p, strategyNos: [m.strategy_no] });
+    }
 
     const leagueBets = (bets || []).filter(b => b.league === league);
+
+    // 2) 1등 묶음부터 순서대로, 베팅이 있는 첫 묶음을 찾음
+    let winTier = null;
+    let winnerBets = [];
+    for (const tier of tiers) {
+      const betsOnTier = leagueBets.filter(b => tier.strategyNos.includes(b.strategy_no));
+      if (betsOnTier.length > 0) { winTier = tier; winnerBets = betsOnTier; break; }
+    }
+    // 이 리그에 베팅 자체가 아무도 없으면(정산할 사람 없음) — 기록용으로 진짜 1등 묶음을 남김
+    const winners = winTier ? winTier.strategyNos : (tiers[0] ? tiers[0].strategyNos : []);
+    const recordedPrize = winTier ? winTier.prize : (tiers[0] ? tiers[0].prize : 0);
+
     const poolAmount = leagueBets.reduce((s, b) => s + b.amount, 0);
     const totalUnits = leagueBets.reduce((s, b) => s + b.units, 0);
-    const payoutPerUnit = totalUnits > 0 ? Math.floor((poolAmount * PAYOUT_RATE) / totalUnits) : 0;
+    const winnerBetIds = new Set(winnerBets.map(b => b.id));
+    const loserBets = leagueBets.filter(b => !winnerBetIds.has(b.id));
+    const winnerPoolAmount = winnerBets.reduce((s, b) => s + b.amount, 0);
+    const loserPoolAmount = loserBets.reduce((s, b) => s + b.amount, 0);
+    const winnerUnits = winnerBets.reduce((s, b) => s + b.units, 0);
+
+    // 3) 새 배당 공식: 자기 원금 그대로 + 패자풀(80%)을 당첨풀 내 베팅비율로 분배
+    const sharedFromLosers = Math.floor(loserPoolAmount * PAYOUT_RATE);
+    const payoutById = {};
+    for (const b of winnerBets) {
+      const bonus = winnerPoolAmount > 0 ? Math.floor((b.amount / winnerPoolAmount) * sharedFromLosers) : 0;
+      payoutById[b.id] = b.amount + bonus;
+    }
+    // 이력(history) 화면 표시용 "1구좌당 평균 배당" — 실제 지급은 위 payoutById로 베팅건별 정확히 계산됨.
+    // (개별 베팅 배당은 베팅액 비례라 구좌당 금액이 100% 균일하진 않을 수 있어, 이 값은 참고용 평균치)
+    const payoutPerUnit = winnerUnits > 0
+      ? Math.floor((winnerPoolAmount + sharedFromLosers) / winnerUnits)
+      : 0;
 
     for (const bet of leagueBets) {
-      const isWin = winners.includes(bet.strategy_no);
-      const payout = isWin ? bet.units * payoutPerUnit : 0;
+      const payout = payoutById[bet.id] || 0;
+      const isWin = payout > 0;
 
       const { error: updErr } = await supabase
         .from('race_bets')
@@ -210,7 +253,7 @@ async function settleRoundBets(round) {
       if (isWin && payout > 0) {
         try {
           await creditPoints(bet.user_id, payout, {
-            reason: `100전략레이스 ${round}회차 ${league}부 우승 배당`,
+            reason: `100전략레이스 ${round}회차 ${league}부 배당`,
             refId: String(bet.id),
             expiresInDays: 365,
           });
@@ -223,14 +266,14 @@ async function settleRoundBets(round) {
     const { error: histErr } = await supabase.from('race_league_history').upsert({
       round, league,
       winning_strategy_nos: winners,
-      round_prize: maxPrize,
+      round_prize: recordedPrize,
       pool_amount: poolAmount,
       total_units: totalUnits,
       payout_per_unit: payoutPerUnit,
     }, { onConflict: 'round,league' });
     if (histErr) console.error(`[race-betting] 이력 저장 오류 (round=${round}, league=${league}):`, histErr);
 
-    console.log(`[race-betting] ${round}회차 ${league}부 정산 완료 — 우승마 #${winners.join(',#')}, 배팅${leagueBets.length}건, 1구좌당 ${payoutPerUnit}P`);
+    console.log(`[race-betting] ${round}회차 ${league}부 정산 완료 — 당첨묶음 #${winners.join(',#')}, 배팅${leagueBets.length}건, 패자풀분배재원 ${sharedFromLosers}P`);
   }
 }
 
@@ -504,7 +547,12 @@ router.get('/bet-status', async (req, res) => {
           bettorsCount: h.bettors.size,
           totalUnits: h.units,
           totalAmount: h.amount,
-          estPayoutPerUnit: h.units > 0 ? Math.floor((poolAmount * PAYOUT_RATE) / h.units) : 0,
+          // 2026-08-10 개정: "이 말이 당첨된다면" 가정한 예상배당 — 자기 원금은 그대로 돌아오고,
+          // 나머지 리그 전체 베팅액(다른 말들 몫)의 80%를 이 말의 구좌 수로 나눠 더한 값.
+          // (실제 정산 시엔 1등이 아니어도 순위 캐스케이드로 당첨될 수 있어 최종금액은 다를 수 있음)
+          estPayoutPerUnit: h.units > 0
+            ? Math.floor((h.amount + Math.floor((poolAmount - h.amount) * PAYOUT_RATE)) / h.units)
+            : 0,
         };
         if (settled) {
           item.isWinner = (histRow.winning_strategy_nos || []).includes(no);
