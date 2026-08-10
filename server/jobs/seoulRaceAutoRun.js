@@ -265,18 +265,25 @@ async function settleRound(round, winData, horses, fixedCombosMap) {
     });
     for (const u of updates) {
       const { error: upErr } = await supabase.from('seoul_race_bets').update({
-        status: u.status, payout: u.payout, payout_note: u.payout_note,
+        status: u.status, payout: u.payout, payout_note: u.payout_note, settled_at: new Date().toISOString(),
       }).eq('id', u.id);
       if (upErr) console.error('[seoulRaceAutoRun] 베팅 정산 개별 업데이트 오류:', upErr);
     }
 
     // 당첨 포인트 지급 (points.js 공용 로직 재사용 — My Lotto Lab은 일반 Node 서버라 import 가능)
+    // ⚠ 2026-08-11 수정: creditPoints는 meta.reason을 point_ledger.source로 저장하는데
+    // 여기선 그동안 actionKey를 넘겨서 사실상 무시되고 있었음(항상 기본값 'reward'로 기록됨) —
+    // 이용자 포인트 내역 화면에 "서울경마 배당"이라고 정확히 뜨도록 reason으로 수정.
     try {
       const { creditPoints } = require('../points');
+      const modeLabel = round.race_mode === 'standard' ? '대상경마' : '상시경마';
       for (const u of updates) {
         if (u.payout > 0) {
           const bet = bets.find(b => b.id === u.id);
-          await creditPoints(bet.user_id, u.payout, { actionKey: 'seoul_race_payout', refId: `${round.id}` });
+          await creditPoints(bet.user_id, u.payout, {
+            reason: `서울경마장(${modeLabel}) ${round.cycle_no}회차 배당`,
+            refId: `seoul_race-${round.id}-bet-${bet.id}`,
+          });
         }
       }
     } catch (e) {
