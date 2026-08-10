@@ -317,7 +317,12 @@ router.get('/bet-status', async (req, res) => {
           bettorsCount: agg.bettors.size,
           totalUnits: agg.units,
           totalAmount: agg.amount,
-          estPayoutPerUnit: agg.units > 0 ? Math.floor((poolAmount * PAYOUT_RATE) / agg.units) : 0,
+          // 2026-08-10 개정: "이 말이 당첨된다면" 가정한 예상배당 — 자기 원금은 그대로 돌아오고,
+          // 나머지 라운드 전체 베팅액(다른 말들 몫)의 80%를 이 말의 구좌 수로 나눠 더한 값.
+          // (실제 정산 시엔 1등이 아니어도 순위 캐스케이드로 당첨될 수 있어 최종금액은 다를 수 있음)
+          estPayoutPerUnit: agg.units > 0
+            ? Math.floor((agg.amount + Math.floor((poolAmount - agg.amount) * PAYOUT_RATE)) / agg.units)
+            : 0,
         };
         if (settled) {
           item.isWinner = winnerSet.has(h.no);
