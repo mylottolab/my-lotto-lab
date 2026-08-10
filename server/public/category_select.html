@@ -35,6 +35,21 @@ h1{font-size:22px;font-weight:700;margin-bottom:6px;}
 .charge-btn .flag{font-size:22px;margin-bottom:4px;}
 .charge-btn .ko{font-size:13px;font-weight:700;}
 .charge-btn .en{font-size:10.5px;color:var(--text-dim);margin-top:1px;}
+
+/* 2026-08-10: 하단 "더 보기" 섹션 — 기존 카드보다 작은 글씨로 2열 그리드 표시 */
+.more-divider{display:flex;align-items:center;gap:10px;margin:26px 0 14px;}
+.more-divider .line{flex:1;height:1px;background:var(--border-soft);}
+.more-divider .lbl{font-size:11px;color:var(--text-dim);white-space:nowrap;}
+.more-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.more-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:12px 10px;text-decoration:none;color:var(--text);text-align:left;transition:border-color .15s, background .15s;}
+.more-card:hover{background:var(--surface-hover);border-color:var(--accent);}
+.more-card .emoji{font-size:18px;margin-bottom:5px;display:block;}
+.more-card .ko{font-size:12px;font-weight:700;line-height:1.3;}
+.more-card .en{font-size:9.5px;color:var(--text-dim);margin-top:2px;line-height:1.3;}
+@media (max-width:360px){
+  .more-card .ko{font-size:11px;}
+  .more-card .en{font-size:9px;}
+}
 </style>
 </head>
 <body>
@@ -106,12 +121,47 @@ h1{font-size:22px;font-weight:700;margin-bottom:6px;}
       </div>
     </div>
   </div>
+
+  <div class="more-divider">
+    <div class="line"></div>
+    <div class="lbl">더 보기 / More</div>
+    <div class="line"></div>
+  </div>
+
+  <div class="more-grid">
+    <a class="more-card" href="https://mylottolab.github.io/my-lotto-lab/hub_data.html">
+      <span class="emoji">📋</span>
+      <div class="ko">Data등록과 관리</div>
+      <div class="en">Data Entry & Management</div>
+    </a>
+
+    <a class="more-card" href="https://mylottolab.github.io/my-lotto-lab/hub_shop.html">
+      <span class="emoji">🛍️</span>
+      <div class="ko">포인트샵</div>
+      <div class="en">Point Shop</div>
+    </a>
+
+    <a class="more-card" href="https://mylottolab.github.io/my-lotto-lab/mock_simulation.html">
+      <span class="emoji">🧬</span>
+      <div class="ko">모의실전시뮬레이션</div>
+      <div class="en">Mock Live Simulation</div>
+    </a>
+
+    <a class="more-card" href="https://mylottolab.github.io/my-lotto-lab/hub_seoul_race.html">
+      <span class="emoji">🐎</span>
+      <div class="ko">Seoul Jackpot Racetrack</div>
+      <div class="en">Seoul Jackpot Racetrack</div>
+    </a>
+  </div>
 </div>
 
 <script>
 function getAuthState(){
   var token = localStorage.getItem('mll_token') || sessionStorage.getItem('mll_token');
-  if (token) return { type: 'member', token: token };
+  if (token) {
+    var refreshToken = localStorage.getItem('mll_refresh_token') || sessionStorage.getItem('mll_refresh_token');
+    return { type: 'member', token: token, refreshToken: refreshToken };
+  }
   var gNick = localStorage.getItem('mll_guest_nickname');
   var gEmail = localStorage.getItem('mll_guest_email');
   if (gNick && gEmail) return { type: 'guest', nickname: gNick, email: gEmail };
@@ -120,19 +170,26 @@ function getAuthState(){
 
 // 다른 도메인(mylottolab.github.io)으로 이동하는 링크에 인증정보를 실어 보낸다.
 // (localStorage는 도메인별로 분리 저장되므로, 그냥 링크만 걸면 도착 페이지에서 로그인이 풀려보임)
+// ⚠ 2026-08-10: mll_rt(리프레시 토큰)를 안 실어 보내고 있던 버그 수정 — 이게 빠지면
+// 도착 페이지에서 액세스 토큰이 만료됐을 때 자동갱신이 안 되고, 얼마 후 다시 로그인해야
+// 하는 문제가 생긴다(다른 페이지들에서 이미 같은 버그를 발견해 고쳤던 것과 동일한 문제).
 function withAuthParams(url, state){
   if (!state.type) return url;
   var sep = url.indexOf('?') >= 0 ? '&' : '?';
-  if (state.type === 'member') return url + sep + 'mll_auth=member&mll_tok=' + encodeURIComponent(state.token);
+  if (state.type === 'member') {
+    var out = url + sep + 'mll_auth=member&mll_tok=' + encodeURIComponent(state.token);
+    if (state.refreshToken) out += '&mll_rt=' + encodeURIComponent(state.refreshToken);
+    return out;
+  }
   return url + sep + 'mll_auth=guest&mll_nick=' + encodeURIComponent(state.nickname) + '&mll_em=' + encodeURIComponent(state.email);
 }
 
-// 상단 3개 카드(한국로또/해외복권/토토프로토)는 GitHub Pages 도메인으로 넘어가므로
-// 로그인/비회원등록 상태라면 링크에 인증정보를 실어준다.
+// 상단 카드들(한국로또/해외복권/모의테스트/경마장 + 하단 "더 보기" 카드들)은 모두
+// GitHub Pages 도메인으로 넘어가므로, 로그인/비회원등록 상태라면 링크에 인증정보를 실어준다.
 (function patchNavLinks(){
   var state = getAuthState();
   if (!state.type) return;
-  document.querySelectorAll('a.card[href]').forEach(function(a){
+  document.querySelectorAll('a.card[href], a.more-card[href]').forEach(function(a){
     a.href = withAuthParams(a.getAttribute('href'), state);
   });
 })();
