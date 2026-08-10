@@ -9,6 +9,7 @@ const supabase = createClient(
 );
 
 const UNIT_PRICE_DEFAULT = 100;
+const PAYOUT_RATE = 0.8; // seoulRaceAutoRun.js의 정산 로직과 동일한 배당재원 비율 (2026-08-10 베팅현황판용으로 여기에도 추가)
 
 // ── 베팅 한도 (PaperLotto 월드잭팟 레이스트랙과 동일한 말당 한도 + Seoul 전용 일일한도) ──
 const PER_HORSE_ROUND_CAP = 100;             // 말 1마리당 최대 100구좌(=1만P) / 그 라운드 — PaperLotto와 동일
@@ -254,6 +255,86 @@ router.get('/my-bets', async (req, res) => {
     return res.json({ items: data });
   } catch (err) {
     console.error('[seoul-race] my-bets 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
+// ── [공개] 라운드 하나(100마리)의 실시간 베팅현황 — 참여자수/총구좌/총베팅액(베팅중),
+// 정산됐으면 실제 우승마·배당까지 포함 (2026-08-10 신규 — 베팅현황판 기능) ──
+// GET /api/seoul-race/bet-status?roundId=123
+router.get('/bet-status', async (req, res) => {
+  try {
+    const roundId = Number(req.query.roundId);
+    if (!roundId) return res.status(400).json({ error: '올바른 roundId가 아닙니다.' });
+
+    const { data: round, error: rErr } = await supabase
+      .from('seoul_race_rounds').select('*').eq('id', roundId).maybeSingle();
+    if (rErr || !round) return res.status(404).json({ error: '해당 라운드를 찾을 수 없습니다.' });
+
+    const { data: horses, error: hErr } = await supabase
+      .from('seoul_race_horses').select('no, name_kr, name_en, horse_type').order('no', { ascending: true });
+    if (hErr) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+
+    const { data: bets, error: bErr } = await supabase
+      .from('seoul_race_bets').select('horse_no, user_id, units, amount, payout')
+      .eq('round_id', roundId);
+    if (bErr) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+
+    const byHorse = {};
+    (horses || []).forEach(h => { byHorse[h.no] = { bettors: new Set(), units: 0, amount: 0 }; });
+    (bets || []).forEach(b => {
+      const h = byHorse[b.horse_no];
+      if (!h) return;
+      h.bettors.add(b.user_id);
+      h.units += b.units;
+      h.amount += b.amount;
+    });
+
+    const poolAmount = (bets || []).reduce((s, b) => s + b.amount, 0);
+    const bettorsTotal = new Set((bets || []).map(b => b.user_id)).size;
+    const settled = round.status === 'settled';
+
+    // 정산됐으면, 배당액이 찍힌(=payout>0) 베팅들에서 우승마 목록과 1구좌당 배당금을 역산한다
+    // (seoul_race_bets에는 이력 요약 테이블이 따로 없어, 실제 저장된 payout값에서 그대로 복원).
+    let winnerSet = new Set();
+    let payoutPerUnit = 0;
+    if (settled && bets && bets.length) {
+      const winningBets = bets.filter(b => b.payout > 0);
+      winningBets.forEach(b => winnerSet.add(b.horse_no));
+      if (winningBets[0] && winningBets[0].units > 0) {
+        payoutPerUnit = Math.floor(winningBets[0].payout / winningBets[0].units);
+      }
+    }
+
+    const items = (horses || [])
+      .map(h => {
+        const agg = byHorse[h.no];
+        const item = {
+          horseNo: h.no,
+          nameKr: h.name_kr,
+          nameEn: h.name_en,
+          horseType: h.horse_type,
+          bettorsCount: agg.bettors.size,
+          totalUnits: agg.units,
+          totalAmount: agg.amount,
+          estPayoutPerUnit: agg.units > 0 ? Math.floor((poolAmount * PAYOUT_RATE) / agg.units) : 0,
+        };
+        if (settled) {
+          item.isWinner = winnerSet.has(h.no);
+          item.payoutPerUnit = item.isWinner ? payoutPerUnit : 0;
+        }
+        return item;
+      })
+      .sort((a, b) => b.totalUnits - a.totalUnits); // 베팅중: 총구좌 많은순 정렬(정산후도 동일 기준 유지)
+
+    return res.json({
+      roundId, cycleNo: round.cycle_no, raceMode: round.race_mode, settled,
+      poolAmount, payoutRate: PAYOUT_RATE, bettorsTotal,
+      winners: settled ? Array.from(winnerSet) : null,
+      horses: items,
+    });
+  } catch (err) {
+    console.error('[seoul-race] bet-status 오류:', err);
     return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
   }
 });
