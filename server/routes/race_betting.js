@@ -246,7 +246,7 @@ async function settleRoundBets(round) {
 
       const { error: updErr } = await supabase
         .from('race_bets')
-        .update({ status: isWin ? 'won' : 'lost', payout })
+        .update({ status: isWin ? 'won' : 'lost', payout, settled_at: new Date().toISOString() })
         .eq('id', bet.id);
       if (updErr) console.error(`[race-betting] 베팅 정산 반영 오류 (bet id=${bet.id}):`, updErr);
 
