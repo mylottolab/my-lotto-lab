@@ -443,6 +443,90 @@ router.get('/history/:league', async (req, res) => {
   return res.json({ items });
 });
 
+// ── [공개] 리그 하나(20마리)의 실시간 베팅현황 — 참여자수/총구좌/총베팅액(베팅중),
+// 정산됐으면 실제 우승마·배당까지 포함 (2026-08-10 신규 — 베팅현황판 기능) ──
+// GET /api/race-betting/bet-status?round=1237&league=1
+router.get('/bet-status', async (req, res) => {
+  try {
+    const round = Number(req.query.round);
+    const league = Number(req.query.league);
+    if (!round || ![1,2,3,4,5].includes(league)) {
+      return res.status(400).json({ error: 'round, league(1~5)를 올바르게 지정해주세요.' });
+    }
+
+    const { data: assignments, error: aErr } = await supabase
+      .from('race_league_assignments').select('strategy_no')
+      .eq('round', round).eq('league', league);
+    if (aErr) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    if (!assignments || !assignments.length) {
+      return res.status(404).json({ error: '해당 회차·리그 편성을 찾을 수 없습니다.' });
+    }
+    const horseNos = assignments.map(a => a.strategy_no);
+
+    const { data: strategies } = await supabase
+      .from('race_strategies').select('no, name, name_en, is_random, is_fixed_combo')
+      .in('no', horseNos);
+    const nameByNo = {};
+    (strategies || []).forEach(s => { nameByNo[s.no] = { name: s.name, nameEn: s.name_en, ...classifyHorseType(s) }; });
+
+    const { data: bets, error: bErr } = await supabase
+      .from('race_bets').select('strategy_no, user_id, units, amount')
+      .eq('round', round).eq('league', league);
+    if (bErr) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+
+    const byHorse = {};
+    horseNos.forEach(no => { byHorse[no] = { bettors: new Set(), units: 0, amount: 0 }; });
+    (bets || []).forEach(b => {
+      const h = byHorse[b.strategy_no];
+      if (!h) return;
+      h.bettors.add(b.user_id);
+      h.units += b.units;
+      h.amount += b.amount;
+    });
+
+    const poolAmount = (bets || []).reduce((s, b) => s + b.amount, 0);
+    const bettorsTotal = new Set((bets || []).map(b => b.user_id)).size;
+
+    const { data: histRow } = await supabase
+      .from('race_league_history').select('*').eq('round', round).eq('league', league).maybeSingle();
+    const settled = !!histRow;
+
+    const horses = horseNos
+      .map(no => {
+        const h = byHorse[no];
+        const info = nameByNo[no] || {};
+        const item = {
+          strategyNo: no,
+          name: info.name || ('전략 ' + no + '번'),
+          nameEn: info.nameEn || null,
+          horseType: info.type || 'cond',
+          horseTypeLabel: info.label || '전략중시형',
+          bettorsCount: h.bettors.size,
+          totalUnits: h.units,
+          totalAmount: h.amount,
+          estPayoutPerUnit: h.units > 0 ? Math.floor((poolAmount * PAYOUT_RATE) / h.units) : 0,
+        };
+        if (settled) {
+          item.isWinner = (histRow.winning_strategy_nos || []).includes(no);
+          item.payoutPerUnit = item.isWinner ? histRow.payout_per_unit : 0;
+        }
+        return item;
+      })
+      .sort((a, b) => b.totalUnits - a.totalUnits); // 베팅중: 총구좌 많은순 정렬(정산후도 동일 기준 유지)
+
+    return res.json({
+      round, league, settled,
+      poolAmount, payoutRate: PAYOUT_RATE,
+      bettorsTotal,
+      winners: settled ? histRow.winning_strategy_nos : null,
+      horses,
+    });
+  } catch (err) {
+    console.error('[race-betting] bet-status 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
 module.exports = router;
 module.exports.assignLeaguesForRound = assignLeaguesForRound;
 module.exports.settleRoundBets = settleRoundBets;
