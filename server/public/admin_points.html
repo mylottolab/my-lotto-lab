@@ -299,6 +299,18 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <div class="card">
+    <h2>⚠️ 결제 실패 로그 (특히 PayPal, 2026-08-11 신규)</h2>
+    <p class="desc" style="margin-bottom:12px;">손님이 "결제가 안 된다"고 하는데 근거가 없을 때 확인하는 곳입니다. 브라우저에서 결제가 어느 단계(서버 응답 지연, PayPal SDK 로딩 실패, 주문생성 실패, 승인실패 등)에서 왜 실패했는지 자동으로 여기 쌓입니다.</p>
+    <button onclick="loadPaymentErrors()" style="background:var(--gold);color:#1a1305;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:14px;">새로고침</button>
+    <table>
+      <thead>
+        <tr><th>시각</th><th>결제수단</th><th>단계</th><th>메시지</th><th>언어</th><th>기기/브라우저</th></tr>
+      </thead>
+      <tbody id="paymentErrorsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
     <h2>👤 회원 명단</h2>
     <p class="desc" style="margin-bottom:12px;">최근 가입순 상위 200명(전체 목록 중 회원만). 전화번호는 아직 수집하는 곳이 없어 비어있습니다.</p>
     <table>
@@ -518,6 +530,7 @@ async function loadAll(){
 
     await loadRevenue();
     await loadRacePayoutsAndRevenue();
+    await loadPaymentErrors();
     await loadDepositStats();
     await loadSignupStats();
     await loadVisitStats();
@@ -1168,6 +1181,31 @@ function renderRacePayouts(items){
       '</tr>'
     );
   }).join('');
+}
+
+// ── 결제 실패 로그 (2026-08-11 신규) ──
+async function loadPaymentErrors(){
+  try {
+    var data = await apiGet('/api/payment/admin/client-errors?limit=50');
+    var body = document.getElementById('paymentErrorsBody');
+    var items = data.items || [];
+    if (!items.length) {
+      body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:16px;">최근 기록된 결제 실패가 없습니다.</td></tr>';
+      return;
+    }
+    body.innerHTML = items.map(function(r){
+      return (
+        '<tr>' +
+          '<td style="font-size:11px;color:var(--text-dim);">' + new Date(r.created_at).toLocaleString('ko-KR') + '</td>' +
+          '<td>' + (r.gateway || '-') + '</td>' +
+          '<td>' + (r.stage || '-') + '</td>' +
+          '<td style="max-width:280px;white-space:normal;">' + (r.message || '-') + '</td>' +
+          '<td>' + (r.lang || '-') + '</td>' +
+          '<td style="font-size:10.5px;color:var(--text-dim);max-width:220px;white-space:normal;">' + (r.user_agent || '-') + '</td>' +
+        '</tr>'
+      );
+    }).join('');
+  } catch(e) {}
 }
 
 async function approveBankTransfer(id){
