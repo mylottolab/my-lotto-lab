@@ -69,10 +69,23 @@ router.get('/current', async (req, res) => {
   if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
   if (!round) return res.json({ round: null });
 
+  // ⚠ 2026-08-11: 상시경마는 이미 지나간(=이미 공개된) 실제 로또645 결과를 재생하는
+  // 방식이라, 어차피 마음만 먹으면 누구나 알아낼 수 있는 정보다. 그래서 숨기지 않고
+  // 아예 베팅 시작 시점부터 "이번 회차 기준 + 당첨번호"를 투명하게 공개한다.
+  // 대신 각 말의 100개 조합 자체는 베팅 마감 전까지 숨기고(로직만 공개), 추첨 후에만
+  // 조합+일치번호를 보여준다 (자세한 내용은 entries API 및 프론트 viewCombos 참고).
+  let winNums = null, winBonus = null, winRound = null;
+  if (mode === 'always' && round.lotto_round_ref) {
+    const { data: lotto } = await supabase
+      .from('kr_lotto_results').select('round, nums, bonus').eq('round', round.lotto_round_ref).maybeSingle();
+    if (lotto) { winNums = lotto.nums; winBonus = lotto.bonus; winRound = lotto.round; }
+  }
+
   return res.json({
     round,
     unitPrice: await getUnitPrice(),
     now: new Date().toISOString(),
+    winNums, winBonus, winRound,
   });
 });
 
@@ -106,11 +119,36 @@ router.get('/horse-rank-stats', async (req, res) => {
   return res.json({ items: data });
 });
 
-// ── [공개] 특정 라운드의 100마리 배팅 전 조합 미리보기 (seoul_race_entries: round_id/horse_no/combos) ──
+// ── [공개] 특정 라운드의 100마리 조합 (+정산된 라운드면 당첨번호도 같이 반환 — 2026-08-11 신규) ──
 // GET /api/seoul-race/entries/:roundId
+//
+// ⚠ 2026-08-11 보안수정: 상시경마는 베팅 시작 시점부터 "이번 회차 기준 + 당첨번호"를
+// 이미 공개한다(/current 참고 — 실제 로또645 과거 결과라 숨겨봐야 역산 가능하므로 투명하게
+// 공개하는 방향으로 설계함). 그런데 그 상태에서 100개 조합까지 같이 보여주면, 당첨번호와
+// 조합을 대조해서 100% 적중 말만 골라 베팅하는 게 가능해진다. 그래서 "상시경마 + 아직
+// 정산 안 된(베팅중) 라운드"일 때는 조합 자체를 내려주지 않고 combosHidden:true만 반환한다.
+// (대상경마는 미래 결과를 쓰므로 이 제한이 필요 없어 그대로 항상 공개함.)
 router.get('/entries/:roundId', async (req, res) => {
   const roundId = Number(req.params.roundId);
   if (!roundId) return res.status(400).json({ error: '올바른 round id가 아닙니다.' });
+
+  const { data: roundRow } = await supabase
+    .from('seoul_race_rounds').select('status, race_mode, lotto_round_ref').eq('id', roundId).maybeSingle();
+  if (!roundRow) return res.status(404).json({ error: '해당 라운드를 찾을 수 없습니다.' });
+
+  const isSettled = roundRow.status === 'settled';
+  const combosHidden = roundRow.race_mode === 'always' && !isSettled;
+
+  let winNums = null, winBonus = null, winRound = null;
+  if (isSettled && roundRow.lotto_round_ref) {
+    const { data: lotto } = await supabase
+      .from('kr_lotto_results').select('round, nums, bonus').eq('round', roundRow.lotto_round_ref).maybeSingle();
+    if (lotto) { winNums = lotto.nums; winBonus = lotto.bonus; winRound = lotto.round; }
+  }
+
+  if (combosHidden) {
+    return res.json({ items: [], combosHidden: true, winNums, winBonus, winRound });
+  }
 
   const { data, error } = await supabase
     .from('seoul_race_entries').select('horse_no, combos').eq('round_id', roundId).order('horse_no', { ascending: true });
@@ -119,7 +157,8 @@ router.get('/entries/:roundId', async (req, res) => {
   const items = (data || []).map(function (row) {
     return { horse_no: row.horse_no, combos: row.combos };
   });
-  return res.json({ items });
+
+  return res.json({ items, combosHidden: false, winNums, winBonus, winRound });
 });
 
 // ── [공개] 현재 진행중인 상시경마 라운드 + 남은시간 ──
@@ -139,7 +178,7 @@ router.get('/always/current', async (req, res) => {
   });
 });
 
-// ── [공개] 특정 라운드의 100마리 성적 ──
+// ── [공개] 특정 라운드의 100마리 성적 (+당첨번호 — 2026-08-11 신규) ──
 // GET /api/seoul-race/results/:roundId
 router.get('/results/:roundId', async (req, res) => {
   const roundId = Number(req.params.roundId);
@@ -148,7 +187,17 @@ router.get('/results/:roundId', async (req, res) => {
   const { data, error } = await supabase
     .from('seoul_race_results').select('*').eq('round_id', roundId).order('horse_no', { ascending: true });
   if (error) return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
-  return res.json({ items: data });
+
+  let winNums = null, winBonus = null, winRound = null;
+  const { data: roundRow } = await supabase
+    .from('seoul_race_rounds').select('status, lotto_round_ref').eq('id', roundId).maybeSingle();
+  if (roundRow && roundRow.status === 'settled' && roundRow.lotto_round_ref) {
+    const { data: lotto } = await supabase
+      .from('kr_lotto_results').select('round, nums, bonus').eq('round', roundRow.lotto_round_ref).maybeSingle();
+    if (lotto) { winNums = lotto.nums; winBonus = lotto.bonus; winRound = lotto.round; }
+  }
+
+  return res.json({ items: data, winNums, winBonus, winRound });
 });
 
 // ── [공개] 최근 정산된 상시경마 라운드 이력 (최근 30개) ──
