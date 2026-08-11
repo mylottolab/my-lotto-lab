@@ -70,6 +70,7 @@ var STR = {
   new_round_registered: { kr: '새 회차가 등록되었습니다', en: 'A new round has been registered' },
   new_round_desc_mid: { kr: '가 새로 등록되어, 확인을 누르면 자동으로 시뮬레이션을 이어서 진행합니다.', en: 'have been newly registered. Press confirm to automatically continue the simulation.' },
   no_combos: { kr: '받을 번호조합이 없습니다.', en: 'No number combinations to receive.' },
+  win_nums_label: { kr: '당첨번호', en: 'Winning numbers' },
   submitted_combos_title: { kr: '제출 번호조합', en: 'Submitted Number Combos' },
   grade_lose: { kr: '낙첨', en: 'No Prize' },
   grade1: { kr: '1등', en: '1st' },
@@ -763,6 +764,8 @@ body.light-mode .horse-tag.fixed{background:rgba(168,120,31,.16);color:#7a5a10;}
 .modal-row .k{color:var(--text-dim);}
 .modal-row .v{font-weight:600;}
 .ball{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;}
+.ball.ball-hit{box-shadow:0 0 0 2.5px #22c55e;transform:scale(1.08);}
+.ball.ball-bonus-hit{box-shadow:0 0 0 2.5px #a855f7;transform:scale(1.08);}
 
 /* ── 다운로드 패널 ── */
 .dl-panel{margin-top:16px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
@@ -2043,12 +2046,16 @@ RACE.downloadComboXLSX = async function(strategyNo, count){
 RACE.fmtMoney = function(n){ return (n||0).toLocaleString()+T('won_suffix'); };
 RACE.fmtPct = function(n){ return (n||0).toFixed(1)+'%'; };
 
-RACE.ballsHtml = function(nums, bonus){
+RACE.ballsHtml = function(nums, bonus, winNums, winBonus){
+  var winSet = {};
+  (winNums||[]).forEach(function(n){ winSet[n] = true; });
   var html = (nums||[]).map(function(n){
-    return '<span class="ball" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+n+'</span>';
+    var isHit = winSet[n];
+    return '<span class="ball'+(isHit?' ball-hit':'')+'" style="background:'+MLL.BC(n)+';color:'+MLL.TC(n)+';">'+n+'</span>';
   }).join(' ');
   if (bonus) {
-    html += ' <span style="color:var(--text-faint);">+</span> <span class="ball" style="background:transparent;border:1.5px solid var(--text-faint);color:var(--text-dim);">'+bonus+'</span>';
+    var bonusHit = (winBonus != null && bonus === winBonus);
+    html += ' <span style="color:var(--text-faint);">+</span> <span class="ball'+(bonusHit?' ball-bonus-hit':'')+'" style="background:transparent;border:1.5px solid var(--text-faint);color:var(--text-dim);">'+bonus+'</span>';
   }
   return html;
 };
@@ -2079,16 +2086,19 @@ RACE.openComboDetail = function(round, strategyNo){
     var hit = grade > 0;
     return '<div class="combo-detail-row'+(hit?' hit':'')+'">' +
       '<span class="cd-idx">'+(i+1)+'</span>' +
-      '<span class="cd-balls">'+RACE.ballsHtml(nums, null)+'</span>' +
+      '<span class="cd-balls">'+RACE.ballsHtml(nums, null, winData.nums, winData.bonus)+'</span>' +
       '<span class="cd-grade'+(hit?' hit':'')+'">'+RACE.GRADE_LABEL(grade)+'</span>' +
       '<span class="cd-prize">'+(prize ? RACE.fmtMoney(prize) : '-')+'</span>' +
     '</div>';
   }).join('');
 
   document.getElementById('comboDetailTitle').textContent = '🐎 '+RACE.horseName(s)+' — '+RACE.roundLabel(round)+' '+T('submitted_combos_for_round');
-  document.getElementById('comboDetailSub').textContent =
+  document.getElementById('comboDetailSub').innerHTML =
     T('total_of_label')+combos.length+T('combos_unit')+combos.filter(function(n){return MLL.raceGrade(n, winData.nums, winData.bonus)>0;}).length+T('cases_unit') +
-    (s.isRandom && s.isFixedCombo ? T('fixed_combo_note') : '');
+    (s.isRandom && s.isFixedCombo ? T('fixed_combo_note') : '') +
+    '<br><span style="display:inline-flex;align-items:center;gap:6px;margin-top:6px;">' +
+      '<span style="color:var(--text-faint);">'+T('win_nums_label')+'</span>' + RACE.ballsHtml(winData.nums, winData.bonus, winData.nums, winData.bonus) +
+    '</span>';
   document.getElementById('comboDetailList').innerHTML = rows;
   document.getElementById('comboDetailModal').classList.add('show');
 };
