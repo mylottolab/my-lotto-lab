@@ -166,6 +166,27 @@ button{font-family:inherit;}
 .combo-item{background:var(--surface-2);border-radius:8px;padding:7px 10px;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text-dim);}
 .combo-item b{color:var(--text);}
 
+/* ── 2026-08-11 신규: 일치번호 하이라이트 표시 ── */
+.win-nums-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--surface-2);border-radius:10px;font-size:11.5px;}
+.target-round-banner{background:linear-gradient(135deg,rgba(232,179,65,.14),rgba(232,179,65,.05));border:1px solid var(--gold-dim);border-radius:14px;padding:16px 18px;margin-bottom:16px;}
+.target-round-banner .trb-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px;font-weight:700;color:var(--text);}
+.target-round-banner .trb-nums{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.target-round-banner .trb-guide{font-size:11.5px;color:var(--text-dim);line-height:1.6;}
+.target-round-banner .trb-guide b{color:var(--gold);}
+.num-ball{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;background:var(--surface);color:var(--text-dim);}
+.num-ball.hit{background:#22c55e;color:#062b13;}
+.num-ball.bonus-hit{background:#a855f7;color:#fff;}
+.combo-item .n{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 3px;border-radius:50%;margin:0 1px;}
+.combo-item .n.hit{background:#22c55e;color:#062b13;font-weight:800;}
+.combo-item .n.bonus-hit{background:#a855f7;color:#fff;font-weight:800;}
+.round-result-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border-soft);font-size:12px;}
+.round-result-row:last-child{border-bottom:none;}
+.round-result-row .rr-rank{width:26px;flex-shrink:0;color:var(--text-faint);font-size:11px;}
+.round-result-row .rr-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.round-result-row .rr-grade{font-size:11px;color:var(--text-dim);flex-shrink:0;}
+.round-result-row button{border:1px solid var(--border);border-radius:7px;background:none;color:var(--text-dim);font-size:10.5px;padding:4px 8px;cursor:pointer;flex-shrink:0;}
+.round-result-row button:hover{border-color:var(--accent);color:var(--accent);}
+
 .recent-ranks{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;order:10;font-size:10.5px;color:var(--text-faint);padding-top:2px;}
 .recent-ranks .rr-label{flex-shrink:0;}
 .rank-chip{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--surface-2);color:var(--text-dim);white-space:nowrap;}
@@ -332,6 +353,8 @@ button{font-family:inherit;}
 
     <div class="notice-box" data-i18n-kr="⏱ 20분 배팅 → 결과발표·정산 → 10분 휴식, 무한 반복됩니다. 매시 정각(00분)과 30분에 항상 배팅이 새로 시작돼요. 채점은 과거 실제 로또645 당첨번호를 순서대로 재생하는 방식입니다." data-i18n-en="⏱ 20 min betting → results & settlement → 10 min rest, repeating endlessly. Betting always opens fresh at :00 and :30 each hour. Grading replays past real Lotto 6/45 results in sequence.">⏱ 20분 배팅 → 결과발표·정산 → 10분 휴식, 무한 반복됩니다. 매시 정각(00분)과 30분에 항상 배팅이 새로 시작돼요. 채점은 과거 실제 로또645 당첨번호를 순서대로 재생하는 방식입니다.</div>
 
+    <div class="target-round-banner" id="targetRoundBanner_always"></div>
+
     <div class="horse-toolbar">
       <div class="htitle" data-i18n-kr="100마리 말 목록" data-i18n-en="All 100 Horses">100마리 말 목록</div>
       <div class="unit-price-note" data-i18n-kr="1구좌 = 100P · 말당 최대 100구좌 · 일일한도 4,000구좌" data-i18n-en="1 unit = 100P · Max 100 units per horse · Daily limit 4,000 units">1구좌 = 100P · 말당 최대 100구좌 · 일일한도 4,000구좌</div>
@@ -403,7 +426,19 @@ button{font-family:inherit;}
       <button class="modal-close" onclick="closeCombosModal()">✕</button>
     </div>
     <div class="stats-panel" id="statsPanel"></div>
+    <div id="combosWinNumsBar"></div>
     <div class="combo-grid" id="combosGrid"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="roundResultModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="roundResultTitle">-</div>
+      <button class="modal-close" onclick="closeRoundResultModal()">✕</button>
+    </div>
+    <div id="roundResultWinNumsBar"></div>
+    <div id="roundResultList"></div>
   </div>
 </div>
 
@@ -429,6 +464,7 @@ function applyLang(){
   if (krBtn) { krBtn.style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface)'; krBtn.style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)'; }
   if (enBtn) { enBtn.style.background = LANG==='en' ? 'var(--gold)' : 'var(--surface)'; enBtn.style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)'; }
   ['always','standard'].forEach(function(m){ renderHorses(m); renderMyBets(m); renderHistory(m); });
+  renderTargetRoundBanner();
 }
 function setLang(lang){ LANG = lang; localStorage.setItem('mll_lang', lang); applyLang(); }
 
@@ -628,9 +664,36 @@ async function loadCurrentRound(mode){
     var data = await resp.json();
     STATE[mode].round = data.round || null;
     STATE[mode].unitPrice = data.unitPrice || 100;
+    STATE[mode].winNums = data.winNums || null;
+    STATE[mode].winBonus = (data.winBonus != null) ? data.winBonus : null;
+    STATE[mode].winRound = data.winRound || null;
     renderRoundCard(mode);
     renderHorses(mode);
+    if (mode === 'always') renderTargetRoundBanner();
   } catch(e){ console.error('[seoul-race] round load error(' + mode + ')', e); }
+}
+
+// ── 2026-08-11 신규: 상시경마 상단 "이번 회차 기준 + 당첨번호 선공개 + 안내" 배너 ──
+function renderTargetRoundBanner(){
+  var el = document.getElementById('targetRoundBanner_always');
+  if (!el) return;
+  var round = STATE.always.round;
+  var winNums = STATE.always.winNums, winBonus = STATE.always.winBonus, winRound = STATE.always.winRound;
+  if (!round || !winNums || !winNums.length) { el.innerHTML = ''; return; }
+
+  var topLine = LANG==='en'
+    ? ('🎯 This round grades against Lotto 6/45 round <b style="color:var(--gold);">#' + winRound + '</b> — and since that round already happened, its winning numbers are shown below up front.')
+    : ('🎯 이번 상시경마는 로또6/45 <b style="color:var(--gold);">' + winRound + '회차</b>를 기준으로 채점됩니다 — 이미 지난 회차라 당첨번호를 미리 공개해드립니다.');
+  var numsHtml = winNums.map(function(n){ return '<span class="num-ball hit">' + n + '</span>'; }).join('');
+  var bonusHtml = (winBonus != null) ? ('<span style="color:var(--text-faint);font-size:11px;margin:0 2px;">+</span><span class="num-ball bonus-hit">' + winBonus + '</span>') : '';
+  var guide = LANG==='en'
+    ? '📖 To keep this fair, each horse\'s exact 100 number combos stay hidden until betting closes — only their <b>strategy logic</b> (odd/even ratio, number-sum range, recent hot-number usage, etc.) is shown. Study each horse\'s logic below and choose the one whose approach you trust.'
+    : '📖 공정성을 위해, 베팅이 끝나기 전까지는 각 말이 가진 정확한 100개 번호조합은 공개하지 않습니다 — 대신 <b>말의 로직</b>(홀짝비율·번호합범위·최근 상위빈도 활용 등)만 보여드립니다. 아래에서 각 말의 로직을 파악하시고, 신뢰가 가는 말을 선택해 베팅해주세요.';
+
+  el.innerHTML =
+    '<div class="trb-top">' + topLine + '</div>' +
+    '<div class="trb-nums">' + numsHtml + bonusHtml + '</div>' +
+    '<div class="trb-guide">' + guide + '</div>';
 }
 
 function renderRoundCard(mode){
@@ -813,7 +876,8 @@ function renderHistory(mode){
   listEl.innerHTML = items.slice(0, 15).map(function(r){
     var label = (LANG==='en' ? 'Cycle #' : '제 ') + r.cycle_no + (LANG==='en' ? '' : '회');
     var ref = r.lotto_round_ref ? ((LANG==='en' ? 'based on Lotto round ' : '로또 ') + r.lotto_round_ref + (LANG==='en' ? '' : '회차 기준')) : '';
-    return '<div class="list-row"><div><div class="lr-main">' + label + '</div><div class="lr-sub">' + ref + '</div></div><div class="lr-sub">' + (r.settled_at ? new Date(r.settled_at).toLocaleString(LANG==='en'?'en-US':'ko-KR') : '') + '</div></div>';
+    var resultBtnLabel = LANG==='en' ? 'Results' : '결과보기';
+    return '<div class="list-row"><div><div class="lr-main">' + label + '</div><div class="lr-sub">' + ref + '</div></div><div style="display:flex;align-items:center;gap:8px;"><div class="lr-sub">' + (r.settled_at ? new Date(r.settled_at).toLocaleString(LANG==='en'?'en-US':'ko-KR') : '') + '</div><button class="view-combos-btn" onclick="viewRoundResult(\'' + mode + '\', ' + r.id + ')">' + resultBtnLabel + '</button></div></div>';
   }).join('');
 }
 
@@ -859,29 +923,84 @@ function renderStatsPanel(mode, horseNo){
   panel.innerHTML = summaryHtml + barsTitle + barsHtml;
 }
 
-async function viewCombos(mode, horseNo){
+// ── 2026-08-11 신규: 일치번호 하이라이트 렌더링 헬퍼 ──
+function renderWinNumsBar(winNums, winBonus, winRound){
+  if (!winNums || !winNums.length) return '';
+  var label = (LANG==='en' ? ('Winning numbers (Lotto round ' + winRound + ')') : ('당첨번호 (로또 ' + winRound + '회차)'));
+  var balls = winNums.map(function(n){ return '<span class="num-ball hit">' + n + '</span>'; }).join('');
+  var bonusBall = (winBonus != null) ? ('<span style="color:var(--text-faint);font-size:11px;margin:0 2px;">+</span><span class="num-ball bonus-hit">' + winBonus + '</span>') : '';
+  return '<div class="win-nums-bar"><span style="color:var(--text-faint);">' + label + '</span>' + balls + bonusBall + '</div>';
+}
+function renderComboWithHighlight(combo, winNums, winBonus){
+  var winSet = {};
+  (winNums || []).forEach(function(n){ winSet[n] = true; });
+  return combo.map(function(n){
+    var cls = winSet[n] ? 'n hit' : (n === winBonus ? 'n bonus-hit' : 'n');
+    return '<span class="' + cls + '">' + n + '</span>';
+  }).join(' ');
+}
+
+// ── 2026-08-11 신규: 조합이 숨겨진 상시경마 진행중 라운드용 "말의 로직" 표시 ──
+function renderHorseLogic(horse){
+  if (!horse) return '';
+  var typeLabel = { cond: (LANG==='en'?'Strategy-based':'전략중시형'), fixed: (LANG==='en'?'Fixed-combo':'일편단심형'), rand: (LANG==='en'?'Pure Random':'될대로되라형') }[horse.horse_type] || horse.horse_type;
+  var rows = [];
+  rows.push([LANG==='en'?'Type':'유형', typeLabel]);
+  if (horse.horse_type === 'cond') {
+    if (horse.odd_even) rows.push([LANG==='en'?'Odd:Even ratio':'홀짝비율', horse.odd_even]);
+    if (horse.sum_min != null || horse.sum_max != null) rows.push([LANG==='en'?'Number-sum range':'번호합 범위', (horse.sum_min ?? '-') + ' ~ ' + (horse.sum_max ?? '-')]);
+    if (horse.consecutive_limit != null) rows.push([LANG==='en'?'Consecutive-number limit':'연속번호 제한', horse.consecutive_limit]);
+    if (horse.top_range) rows.push([LANG==='en'?'Hot-number usage':'상위빈도 활용', (LANG==='en' ? ('uses ' + horse.top_use + ' from top ' + horse.top_range + ' (last ' + (horse.recent_rounds||'all') + ' rounds)') : ('최근 ' + (horse.recent_rounds||'전체') + '회차 상위 ' + horse.top_range + '개 중 ' + horse.top_use + '개 포함'))]);
+    if (horse.bonus_include != null) rows.push([LANG==='en'?'Includes bonus number':'보너스번호 포함', horse.bonus_include ? (LANG==='en'?'Yes':'예') : (LANG==='en'?'No':'아니오')]);
+  } else if (horse.horse_type === 'fixed') {
+    rows.push([LANG==='en'?'Note':'참고', LANG==='en' ? 'Standing race: regenerated fresh every cycle for fairness (not permanently fixed here).' : '상시경마에서는 공정성을 위해 매 사이클 새로 무작위 생성됩니다 (영구고정 아님).']);
+  } else {
+    rows.push([LANG==='en'?'Note':'참고', LANG==='en' ? 'Fully random combos, no conditions.' : '조건 없이 완전 무작위로 생성됩니다.']);
+  }
+  return '<div class="rt-cond-rows" style="display:flex;flex-direction:column;gap:6px;">' +
+    rows.map(function(r){ return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border-soft);"><span style="color:var(--text-faint);">' + r[0] + '</span><span style="color:var(--text);font-weight:600;">' + r[1] + '</span></div>'; }).join('') +
+  '</div>';
+}
+
+async function viewCombos(mode, horseNo, roundIdOverride){
   var round = STATE[mode].round;
+  var roundId = roundIdOverride || (round ? round.id : null);
   var horse = HORSES.find(function(h){ return h.no === horseNo; });
   var title = (horse ? (LANG==='en' ? horse.name_en : horse.name_kr) : ('#' + horseNo)) + ' · ' + (LANG==='en' ? 'Details' : '상세정보');
   document.getElementById('combosModalTitle').textContent = title;
+  document.getElementById('combosWinNumsBar').innerHTML = '';
   renderStatsPanel(mode, horseNo);
   document.getElementById('combosModal').classList.add('show');
 
-  if (!round) {
+  if (!roundId) {
     document.getElementById('combosGrid').innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'No round open — combos unavailable right now.' : '지금은 열린 라운드가 없어 조합을 볼 수 없어요.') + '</div>';
     return;
   }
   document.getElementById('combosGrid').innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'Loading...' : '불러오는 중...') + '</div>';
   try {
-    var resp = await fetch(MLL.API_BASE + '/api/seoul-race/entries/' + round.id);
+    var resp = await fetch(MLL.API_BASE + '/api/seoul-race/entries/' + roundId);
     var data = await resp.json();
+
+    // ⚠ 2026-08-11: 상시경마의 아직 정산 안 된(베팅중) 라운드는 서버가 조합을 아예
+    // 안 내려주고 combosHidden:true만 준다 — 이땐 조합 대신 말의 로직을 보여준다.
+    if (data.combosHidden) {
+      document.getElementById('combosGrid').innerHTML =
+        '<div class="list-empty" style="margin-bottom:10px;">' +
+          ((LANG==='en') ? '🔒 Combos are hidden until betting closes for this round. Here is this horse\'s logic instead:' : '🔒 이번 라운드는 베팅 마감 전까지 조합이 공개되지 않습니다. 대신 이 말의 로직을 보여드립니다:') +
+        '</div>' + renderHorseLogic(horse);
+      return;
+    }
+
     var entry = (data.items || []).find(function(e){ return e.horse_no === horseNo; });
     if (!entry || !entry.combos || !entry.combos.length) {
       document.getElementById('combosGrid').innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'Not generated yet.' : '아직 생성되지 않았습니다.') + '</div>';
       return;
     }
+    var winNums = data.winNums, winBonus = data.winBonus;
+    document.getElementById('combosWinNumsBar').innerHTML = renderWinNumsBar(winNums, winBonus, data.winRound);
     document.getElementById('combosGrid').innerHTML = entry.combos.map(function(c, i){
-      return '<div class="combo-item"><b>' + (i+1) + '.</b> ' + c.join(', ') + '</div>';
+      var body = winNums ? renderComboWithHighlight(c, winNums, winBonus) : c.join(', ');
+      return '<div class="combo-item"><b>' + (i+1) + '.</b> ' + body + '</div>';
     }).join('');
   } catch(e){
     console.error('[seoul-race] entries load error', e);
@@ -889,6 +1008,53 @@ async function viewCombos(mode, horseNo){
   }
 }
 function closeCombosModal(){ document.getElementById('combosModal').classList.remove('show'); }
+
+// ── 2026-08-11 신규: 지난 라운드 "결과보기" — 100마리 성적순 리스트 + 당첨번호 ──
+async function viewRoundResult(mode, roundId){
+  var r = (STATE[mode].history || []).find(function(x){ return x.id === roundId; });
+  var titleLabel = r ? ((LANG==='en' ? 'Cycle #' : '제 ') + r.cycle_no + (LANG==='en' ? '' : '회') + ' ' + (LANG==='en' ? 'Results' : '결과')) : (LANG==='en' ? 'Results' : '결과');
+  document.getElementById('roundResultTitle').textContent = titleLabel;
+  document.getElementById('roundResultWinNumsBar').innerHTML = '';
+  document.getElementById('roundResultList').innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'Loading...' : '불러오는 중...') + '</div>';
+  document.getElementById('roundResultModal').classList.add('show');
+
+  try {
+    var resp = await fetch(MLL.API_BASE + '/api/seoul-race/results/' + roundId);
+    var data = await resp.json();
+    var items = (data.items || []).slice().sort(function(a, b){
+      var ag = a.best_grade === 0 ? 999 : a.best_grade, bg = b.best_grade === 0 ? 999 : b.best_grade;
+      if (ag !== bg) return ag - bg;
+      var ac = ag === 999 ? 0 : (a['grade' + ag + '_count'] || 0);
+      var bc = bg === 999 ? 0 : (b['grade' + bg + '_count'] || 0);
+      if (ac !== bc) return bc - ac;
+      return a.horse_no - b.horse_no;
+    });
+
+    document.getElementById('roundResultWinNumsBar').innerHTML = renderWinNumsBar(data.winNums, data.winBonus, data.winRound);
+
+    if (!items.length) {
+      document.getElementById('roundResultList').innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'No results.' : '결과가 없습니다.') + '</div>';
+      return;
+    }
+
+    document.getElementById('roundResultList').innerHTML = items.map(function(it, i){
+      var horse = HORSES.find(function(h){ return h.no === it.horse_no; });
+      var name = horse ? (LANG==='en' ? horse.name_en : horse.name_kr) : ('#' + it.horse_no);
+      var gradeLabel = it.best_grade > 0 ? (it.best_grade + (LANG==='en' ? (LANG==='en'?'st':'') : '등')) : (LANG==='en' ? 'No win' : '낙첨');
+      var btnLabel = LANG==='en' ? 'View combos' : '조합보기';
+      return '<div class="round-result-row">' +
+        '<div class="rr-rank">' + (i+1) + '</div>' +
+        '<div class="rr-name">' + name + '</div>' +
+        '<div class="rr-grade">' + gradeLabel + '</div>' +
+        '<button onclick="viewCombos(\'' + mode + '\', ' + it.horse_no + ', ' + roundId + ')">' + btnLabel + '</button>' +
+      '</div>';
+    }).join('');
+  } catch(e){
+    console.error('[seoul-race] round result load error', e);
+    document.getElementById('roundResultList').innerHTML = '<div class="list-empty">' + ((LANG==='en') ? 'Failed to load.' : '불러오기 실패') + '</div>';
+  }
+}
+function closeRoundResultModal(){ document.getElementById('roundResultModal').classList.remove('show'); }
 
 // ── 베팅현황판 팝업 (2026-08-10 신규) — auth_gate.js의 공용 모달 함수를 그대로 사용 ──
 function openBetStatus(mode){
