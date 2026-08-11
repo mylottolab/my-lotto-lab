@@ -330,7 +330,14 @@ async function healStandardRace() {
 async function tickAlwaysRace() {
   const horses = await loadHorses();
   if (!horses.length) return { skipped: true, reason: 'no_horses_seeded' };
-  const fixedCombosMap = await ensureFixedCombos(horses);
+  // ⚠ 2026-08-11 보안수정: 상시경마는 이미 지나간(=이미 공개된) 실제 로또645 결과를 순서대로
+  // 재생하는 방식이라, 일편단심형(fixed) 말의 조합이 "영구고정"이면 다음과 같은 치명적 결함이
+  // 생김 — 사용자가 회차 매핑을 한 번이라도 역산해내면, 그 이후 모든 사이클에서 그 말이
+  // 당첨될지 베팅 전에 100% 알 수 있게 됨(대상경마/100전략레이스는 "미래" 결과를 쓰므로
+  // 이 문제가 없어 영구고정을 그대로 유지함). 그래서 상시경마에서만 fixedCombosMap을 빈
+  // 객체로 넘겨, 일편단심형도 매 사이클 새로 무작위 생성되도록 함(seoulRaceEngine.js의
+  // resolveCombosForHorse가 fixedCombosMap에 값이 없으면 자동으로 새 난수 100개를 만듦).
+  const NO_FIXED_COMBOS = {};
 
   const now = new Date();
 
@@ -363,7 +370,7 @@ async function tickAlwaysRace() {
       console.error(`[seoulRaceAutoRun] round(id=${due.id})의 lotto_round_ref=${replayRound} 결과를 찾을 수 없어 채점은 건너뜁니다(다음 라운드는 정상 생성).`);
       await supabase.from('seoul_race_rounds').update({ status: 'settled', settled_at: now.toISOString() }).eq('id', due.id);
     } else {
-      await settleRound(due, { ...winData, round: replayRound }, horses, fixedCombosMap);
+      await settleRound(due, { ...winData, round: replayRound }, horses, NO_FIXED_COMBOS);
       await saveReplayProgress(replayRound);
       await supabase.from('seoul_race_rounds').update({
         status: 'settled', settled_at: now.toISOString(),
@@ -393,7 +400,7 @@ async function tickAlwaysRace() {
     }).select('id').single();
     if (insErr) throw insErr;
 
-    await createEntriesForRound(newRound.id, nextTargetRound, horses, fixedCombosMap);
+    await createEntriesForRound(newRound.id, nextTargetRound, horses, NO_FIXED_COMBOS);
 
     processed++;
   }
@@ -419,7 +426,7 @@ async function tickAlwaysRace() {
       lotto_round_ref: nextTargetRound,
     }).select('id').single();
     if (insErr) throw insErr;
-    await createEntriesForRound(newRound.id, nextTargetRound, horses, fixedCombosMap);
+    await createEntriesForRound(newRound.id, nextTargetRound, horses, NO_FIXED_COMBOS);
     return { success: true, recovered: true, processedRounds: processed, newCycle: nextCycle };
   }
 
@@ -438,7 +445,7 @@ async function tickAlwaysRace() {
       lotto_round_ref: targetRound,
     }).select('id').single();
     if (insErr) throw insErr;
-    await createEntriesForRound(newRound.id, targetRound, horses, fixedCombosMap);
+    await createEntriesForRound(newRound.id, targetRound, horses, NO_FIXED_COMBOS);
     return { bootstrapped: true };
   }
 
