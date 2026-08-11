@@ -119,6 +119,54 @@ async function getAccessToken() {
   return data.access_token;
 }
 
+// ─── 관리자 인증 (다른 관리자 라우트들과 동일한 공유키 방식) ───────────────────
+function requireAdmin(req, res, next) {
+  const key = req.headers['x-admin-key'];
+  if (!process.env.ADMIN_API_KEY) {
+    return res.status(500).json({ error: '관리자 기능이 아직 설정되지 않았습니다.' });
+  }
+  if (!key || key !== process.env.ADMIN_API_KEY) {
+    return res.status(401).json({ error: '관리자 인증이 필요합니다.' });
+  }
+  next();
+}
+
+// ─── [관리자] 최근 결제 실패 로그 조회 (2026-08-11 신규) ──────────────────────
+// GET /api/payment/admin/client-errors?limit=50
+router.get('/admin/client-errors', requireAdmin, async (req, res) => {
+  const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
+  const { data, error } = await supabase
+    .from('payment_client_errors').select('*').order('created_at', { ascending: false }).limit(limit);
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json({ items: data });
+});
+
+// ─── 클라이언트(브라우저)에서 발생한 결제 실패 기록 (2026-08-11 신규) ───────────
+// "손님이 결제가 안 된다는데 근거가 없다"는 문제를 해결하기 위한 것.
+// PayPal(또는 다른 결제수단) 프론트엔드가 어느 단계에서 왜 실패했는지 보내오면
+// 여기서 콘솔 + DB(payment_client_errors 테이블)에 남긴다. 인증 불필요(로그인 전에도
+// 실패할 수 있으므로) — 대신 페이로드 크기/빈도는 낮아서 남용 위험은 낮음.
+// 사전 준비 SQL:
+//   create table if not exists payment_client_errors (
+//     id bigint generated always as identity primary key,
+//     gateway text, stage text, message text, user_agent text, lang text,
+//     extra jsonb, created_at timestamptz default now()
+//   );
+router.post('/client-error', async (req, res) => {
+  const { gateway, stage, message, userAgent, lang, extra } = req.body || {};
+  console.error(`[payment-client-error] gateway=${gateway} stage=${stage} msg=${message} ua=${userAgent} lang=${lang} extra=${JSON.stringify(extra)}`);
+  try {
+    await supabase.from('payment_client_errors').insert({
+      gateway: gateway || null, stage: stage || null, message: message || null,
+      user_agent: userAgent || null, lang: lang || null, extra: extra || null,
+    });
+  } catch (e) {
+    // 테이블이 아직 없어도(사전 SQL 미실행) 콘솔 로그는 이미 남았으니 요청 자체는 실패시키지 않음
+    console.error('[payment-client-error] DB 저장 실패(콘솔 로그는 위에 남음):', e.message);
+  }
+  return res.json({ ok: true });
+});
+
 // ─── 0) 공개 Client ID 조회 (프론트가 PayPal Buttons SDK 스크립트를 동적으로
 //     로드할 때 필요 - CLIENT_ID는 비밀값이 아니라 공개해도 안전함. CLIENT_SECRET만
 //     서버에만 남아있으면 됨) ───────────────────────────────────────────────
