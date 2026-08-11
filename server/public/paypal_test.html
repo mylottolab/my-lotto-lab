@@ -192,13 +192,49 @@ function buildAuthPayload(){
   return { headers: {}, body: { nickname: state.nickname, email: state.email } };
 }
 
+// ── 클라이언트에서 발생한 결제 실패를 서버에 기록 (2026-08-11 신규) ──
+// 지금까지는 "손님이 결제 안 된다"고만 하고 근거가 전혀 안 남아서 원인 파악이
+// 불가능했음. 이제부터는 어느 단계에서 왜 실패했는지 서버 로그(+DB)에 남긴다.
+function reportPaymentError(stage, message, extra){
+  try {
+    fetch(API + '/api/payment/client-error', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gateway: 'paypal', stage: stage, message: String(message || ''),
+        userAgent: navigator.userAgent, lang: LANG,
+        extra: extra || null,
+      }),
+      keepalive: true, // 페이지 이탈 중에도 전송 시도
+    }).catch(function(){});
+  } catch(e){}
+}
+
 // ── PayPal Buttons SDK 동적 로드 + 렌더링 ────────────────────────────────────
-// client-id는 스크립트 태그의 쿼리 파라미터로 넘겨야 하는 SDK 특성상,
-// 서버에서 공개 Client ID를 먼저 받아온 뒤 <script>를 동적으로 만들어 붙인다.
+// ⚠ 2026-08-11 수정: Render 서버가 무료 플랜이면 한동안 요청이 없다가 처음
+// 접속하면 서버가 깨어나는 데 30초~1분 걸릴 수 있음. 예전엔 이 사이 "결제
+// 모듈을 불러오는 중..."만 무한정 떠 있어서, 손님이 그냥 포기하고 나가버려도
+// PayPal 쪽엔 아무 기록도 안 남는 문제가 있었음(=지금까지 겪으신 미스터리).
+// 이제는 일정 시간 지나면 안내문구를 바꾸고, 진짜 실패하면 "다시 시도" 버튼과
+// 함께 서버에 실패 기록을 남긴다.
+function fetchWithTimeout(url, options, timeoutMs){
+  var controller = new AbortController();
+  var timer = setTimeout(function(){ controller.abort(); }, timeoutMs);
+  return fetch(url, Object.assign({}, options, { signal: controller.signal }))
+    .finally(function(){ clearTimeout(timer); });
+}
+
 async function initPaypalButtons(){
   var loadingMsg = document.getElementById('loadingMsg');
+  var slowHintTimer = setTimeout(function(){
+    loadingMsg.textContent = LANG==='en'
+      ? 'Still loading... the payment server may be waking up from sleep, this can take up to a minute.'
+      : '아직 불러오는 중입니다... 결제 서버가 잠에서 깨어나는 중일 수 있어요, 최대 1분 정도 걸릴 수 있습니다.';
+  }, 5000);
+
   try {
-    var res = await fetch(API + '/api/payment/paypal/client-id');
+    var res = await fetchWithTimeout(API + '/api/payment/paypal/client-id', {}, 45000);
+    clearTimeout(slowHintTimer);
     var data = await res.json();
     if (!res.ok || !data.clientId) throw new Error(data.error || 'PayPal 설정을 불러올 수 없습니다.');
 
@@ -210,11 +246,22 @@ async function initPaypalButtons(){
     };
     script.onerror = function(){
       loadingMsg.textContent = LANG==='en' ? 'Failed to load PayPal. Please refresh.' : 'PayPal 로딩에 실패했습니다. 새로고침해 주세요.';
+      reportPaymentError('sdk-script-load', 'PayPal SDK script failed to load (script.onerror)');
     };
     document.head.appendChild(script);
   } catch (e) {
-    loadingMsg.textContent = (LANG==='en' ? 'Error: ' : '오류: ') + e.message;
+    clearTimeout(slowHintTimer);
+    var isTimeout = e.name === 'AbortError';
+    var msg = isTimeout
+      ? (LANG==='en' ? 'The payment server is taking too long to respond.' : '결제 서버 응답이 너무 오래 걸리고 있습니다.')
+      : ((LANG==='en' ? 'Error: ' : '오류: ') + e.message);
+    loadingMsg.innerHTML = msg + '<br><button type="button" onclick="retryInitPaypal()" style="margin-top:8px;background:var(--gold);color:#1a1305;border:none;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;">' + (LANG==='en' ? 'Try again' : '다시 시도') + '</button>';
+    reportPaymentError('client-id-fetch', isTimeout ? 'timeout after 45s' : e.message);
   }
+}
+function retryInitPaypal(){
+  document.getElementById('loadingMsg').textContent = LANG==='en' ? 'Loading payment module...' : '결제 모듈을 불러오는 중...';
+  initPaypalButtons();
 }
 
 function renderPaypalButtons(){
@@ -244,6 +291,7 @@ function renderPaypalButtons(){
       var data = await res.json();
       if (!res.ok) {
         showResultMsg(document.getElementById('errMsg'), data.error || (LANG==='en' ? 'Failed to create order.' : '주문 생성에 실패했습니다.'));
+        reportPaymentError('create-order', data.error || 'create-order failed', { usd: usd });
         throw new Error(data.error || 'create-order failed');
       }
       return data.id;
@@ -258,6 +306,7 @@ function renderPaypalButtons(){
         var result = await res.json();
         if (!res.ok || result.status !== 'success') {
           showResultMsg(document.getElementById('errMsg'), result.error || (LANG==='en' ? 'Payment approval failed.' : '결제 승인에 실패했습니다.'));
+          reportPaymentError('capture-order', result.error || 'capture failed', { orderID: data.orderID });
           return;
         }
         showResultMsg(document.getElementById('okMsg'), LANG==='en'
@@ -266,11 +315,13 @@ function renderPaypalButtons(){
         loadBalance();
       } catch (e) {
         showResultMsg(document.getElementById('errMsg'), (LANG==='en' ? 'Error: ' : '오류: ') + e.message);
+        reportPaymentError('capture-order-exception', e.message, { orderID: data.orderID });
       }
     },
     onError: function(err){
       console.error('[PayPal] Buttons 오류:', err);
       showResultMsg(document.getElementById('errMsg'), LANG==='en' ? 'A PayPal error occurred. Please try again.' : 'PayPal 처리 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      reportPaymentError('paypal-buttons-onerror', (err && err.message) || String(err));
     }
   }).render('#paypal-button-container');
 }
