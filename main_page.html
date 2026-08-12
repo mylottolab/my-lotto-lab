@@ -305,6 +305,7 @@ body{
 .c-results{--card-accent:#3fb37f;--card-accent-bg:rgba(63,179,127,.14);}
 .c-shop{--card-accent:#d4537e;--card-accent-bg:rgba(212,83,126,.14);}
 .c-race{--card-accent:#e8732f;--card-accent-bg:rgba(232,115,47,.13);}
+.c-battles{--card-accent:#e05c5c;--card-accent-bg:rgba(224,92,92,.14);}
 .c-lounge{--card-accent:#34a8c4;--card-accent-bg:rgba(52,168,196,.14);}
 .c-mock{--card-accent:#3fb37f;--card-accent-bg:rgba(63,179,127,.14);}
 
@@ -518,6 +519,20 @@ body{
         <div class="hcard-desc" data-i18n-kr="1회부터 누적된 전략별 성적과 추천" data-i18n-en="Per-strategy results and recommendations, accumulated since round 1">1회부터 누적된 전략별 성적과 추천</div>
       </div>
       <div class="hcard-stat" style="padding-right:30px;"><span class="num font-num" id="statRaceRound">0</span><span class="unit" id="statRaceUnit">회차 시뮬레이션 완료</span><span class="hcard-stat-next" id="statRaceNext"></span></div>
+      <div class="hcard-arrow">→</div>
+    </div>
+
+    <div class="hcard c-battles" onclick="location.href='hub_battles.html'" tabindex="0" role="button">
+      <div class="glow"></div>
+      <div class="hcard-top">
+        <div class="hcard-icon"><svg viewBox="0 0 24 24"><path d="M6.5 17.5l11-11M6.5 6.5l11 11" stroke-linecap="round"/><circle cx="6.5" cy="6.5" r="2.3"/><circle cx="17.5" cy="17.5" r="2.3"/></svg></div>
+        <span class="hcard-tag live" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
+      </div>
+      <div>
+        <div class="hcard-name" data-i18n-kr="전략 대결" data-i18n-en="Battles">전략 대결</div>
+        <div class="hcard-desc" data-i18n-kr="무제한 대결 — 인원 제한 없이 누구나 참가, 조합 개수만큼 베팅" data-i18n-en="Free-for-all battles — join with no headcount limit, bet by how many combos you submit">무제한 대결 — 인원 제한 없이 누구나 참가, 조합 개수만큼 베팅</div>
+      </div>
+      <div class="hcard-stat"><span class="num font-num" id="statBattleCount">0</span><span class="unit" data-i18n-kr="개 활성 대결방" data-i18n-en=" active battle rooms">개 활성 대결방</span></div>
       <div class="hcard-arrow">→</div>
     </div>
 
@@ -1063,14 +1078,26 @@ function refreshDynamicStats(){
     })
     .catch(function(e){ console.error('[main_page] 서버 결과 조회 실패:', e); });
 
+  // ⚠ 2026-08-12: 이 요소를 읽던 예전 코드는 hub_battles.html이 채워주지 않는
+  // localStorage 캐시(mll_battle_rooms)에 의존하고 있어서 항상 0으로만 보이는
+  // 문제가 있었다. 이 페이지의 다른 통계(100전략레이스, 모의시뮬레이션 등)와
+  // 동일하게 서버에서 직접 최신값을 가져오도록 교체 — 대결부활(2026-08-12) 반영.
   var battleCountEl = document.getElementById('statBattleCount');
   if (battleCountEl) {
-    try {
-      var battleRooms = JSON.parse(localStorage.getItem('mll_battle_rooms')||'[]');
-      var activeStatuses = ['waiting','pending_numbers','active','stage_running'];
-      var activeCount = battleRooms.filter(function(r){ return activeStatuses.indexOf(r.status)>=0; }).length;
+    var activeStatuses = ['waiting', 'pending_numbers', 'active', 'stage_running'];
+    Promise.all(['1v1', 'team', 'ffa'].map(function(type){
+      return fetch('https://my-lotto-lab-api.onrender.com/api/battles/rooms?type=' + type)
+        .then(function(r){ return r.json(); })
+        .then(function(data){ return data.items || []; })
+        .catch(function(){ return []; });
+    })).then(function(results){
+      var allRooms = results[0].concat(results[1], results[2]);
+      var activeCount = allRooms.filter(function(r){ return activeStatuses.indexOf(r.status) >= 0; }).length;
       battleCountEl.textContent = activeCount.toLocaleString();
-    } catch(e) { battleCountEl.textContent = '0'; }
+    }).catch(function(e){
+      console.error('[main_page] 대결 활성방 수 조회 오류:', e);
+      battleCountEl.textContent = '0';
+    });
   }
 }
 
