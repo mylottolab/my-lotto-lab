@@ -102,34 +102,60 @@ async function gradeRoom1v1(room, winRow, pricing) {
 }
 
 // ─── 무제한 대결(FFA) 채점 ───────────────────────────────────────────────────
-// 1:1과 완전히 같은 승자산출 로직(compareParticipants: 당첨금 합계 desc → 제출건수 asc)을
-// 참가자가 몇 명이든 그대로 적용한다. 1등이 여럿(동점)이면 1:1의 무승부 처리를 N명으로
-// 확장해서 참가비 절반씩 환불한다.
-async function gradeRoomFFA(room, winRow, pricing) {
+// ⚠ 2026-08-12 재설계: 조합 1개 = 100P 베팅(최대 100개=10,000P)으로 경제로직이
+// 바뀌면서, 배당도 경마와 동일한 방식으로 재설계함 — 우승자(들)는 자기 베팅액
+// (제출한 조합수×100P)을 공제 없이 그대로 돌려받고, 거기에 낙첨자들 베팅총액의
+// 80%를 우승자끼리 베팅비율(=조합수 비율)로 나눠 가짐. 수수료 20%는 낙첨자 몫에서만
+// 뗀다. 혼자 참가했을 땐 낙첨자풀이 자동으로 0이 되어 이 공식이 그대로 "전액환불"이
+// 되므로("혼자면 게임취소=환불" 규칙), 별도 분기 처리가 필요 없다.
+//
+// 순위 기준: 당첨금 합계(desc) → 동점이면 당첨된 조합 개수(desc, win_count).
+// (1:1 대결의 compareParticipants와는 별개 — 그쪽은 "제출건수 적은 쪽 우대"를 그대로 유지)
+function compareParticipantsFFA(a, b) {
+  if (a.forfeited && !b.forfeited) return 1;
+  if (!a.forfeited && b.forfeited) return -1;
+  if (a.forfeited && b.forfeited) return 0;
+  if (a.total_prize !== b.total_prize) return a.total_prize > b.total_prize ? -1 : 1;
+  if (a.win_count !== b.win_count) return a.win_count > b.win_count ? -1 : 1; // 당첨개수 많은 쪽 우대
+  return 0;
+}
+
+// ⚠ 2026-08-12 재설계: 배당 기준이 "제출한 조합 개수"에서 "구매한 방(단위) 개수"로
+// 바뀌었다 — 방을 사놓고 하나도 안 채워도(포기해도) 그 베팅액은 그대로 유효하다.
+// 방을 다 채웠는지는 순위(당첨금 합계)에만 영향을 줄 뿐, 베팅액 자체와는 무관하다.
+const FFA_UNIT_PRICE = 100;
+const FFA_PAYOUT_RATE = 0.8;
+
+async function gradeRoomFFA(room, winRow) {
   const participants = await gradeParticipants(room, winRow);
   const allForfeited = participants.length > 0 && participants.every(p => p.forfeited);
   let winnerIds = [], isDraw = false;
 
   if (!allForfeited && participants.length > 0) {
-    const sorted = participants.slice().sort(compareParticipants);
+    const sorted = participants.slice().sort(compareParticipantsFFA);
     const best = sorted[0];
-    const trueTies = best.forfeited ? [] : sorted.filter(p => compareParticipants(p, best) === 0);
+    const tieWinners = best.forfeited ? [] : sorted.filter(p => compareParticipantsFFA(p, best) === 0);
 
-    if (trueTies.length > 1) {
-      isDraw = true;
-      if (pricing.entry > 0) {
-        for (const p of trueTies) {
-          await creditPoints(p.user_id, Math.floor(pricing.entry / 2), {
-            reason: `"${room.name}" 무제한 대결 공동 1위 참가비 절반 환불`, refId: room.id,
+    if (tieWinners.length > 0) {
+      winnerIds = tieWinners.map(p => p.id);
+      isDraw = tieWinners.length > 1; // 배당 계산과는 무관, 화면 표시용 플래그
+
+      const winnerIdSet = new Set(winnerIds);
+      const loserParticipants = participants.filter(p => !winnerIdSet.has(p.id));
+      const winnerPool = tieWinners.reduce((s, p) => s + (p.units_bought || 0) * FFA_UNIT_PRICE, 0);
+      const loserPool = loserParticipants.reduce((s, p) => s + (p.units_bought || 0) * FFA_UNIT_PRICE, 0);
+      const sharedFromLosers = Math.floor(loserPool * FFA_PAYOUT_RATE);
+
+      for (const p of tieWinners) {
+        const ownBet = (p.units_bought || 0) * FFA_UNIT_PRICE;
+        const bonus = winnerPool > 0 ? Math.floor((ownBet / winnerPool) * sharedFromLosers) : 0;
+        const payout = ownBet + bonus;
+        if (payout > 0) {
+          await creditPoints(p.user_id, payout, {
+            reason: isDraw ? `"${room.name}" 무제한 대결 공동 1위 배당` : `"${room.name}" 무제한 대결 1위 배당`,
+            refId: room.id,
           });
         }
-      }
-    } else {
-      winnerIds = [best.id];
-      if (pricing.reward > 0 && !best.forfeited) {
-        await creditPoints(best.user_id, pricing.reward, {
-          reason: `"${room.name}" 무제한 대결 1위 보상`, refId: room.id,
-        });
       }
     }
   }
@@ -241,11 +267,17 @@ async function gradeRound(round) {
   const pricingCache = {};
   for (const room of rooms) {
     try {
-      if (!pricingCache[room.type]) pricingCache[room.type] = await getPriceReward(room.type);
-      const pricing = pricingCache[room.type];
-      if (room.type === 'team') await gradeRoomTeam(room, winRow, pricing);
-      else if (room.type === 'ffa') await gradeRoomFFA(room, winRow, pricing);
-      else await gradeRoom1v1(room, winRow, pricing);
+      if (room.type === 'team') {
+        if (!pricingCache.team) pricingCache.team = await getPriceReward('team');
+        await gradeRoomTeam(room, winRow, pricingCache.team);
+      } else if (room.type === 'ffa') {
+        // ⚠ 2026-08-12: ffa는 더 이상 point_costs의 고정 참가비/보상을 쓰지 않고
+        // (조합수 기반 베팅 + 판돈 분배 방식으로 재설계됨) pricing 조회 자체가 불필요함.
+        await gradeRoomFFA(room, winRow);
+      } else {
+        if (!pricingCache['1v1']) pricingCache['1v1'] = await getPriceReward('1v1');
+        await gradeRoom1v1(room, winRow, pricingCache['1v1']);
+      }
       graded++;
     } catch (e) {
       console.error(`[battlesAutoGrade] 방 ${room.id}(${room.type}) 채점 오류:`, e.message);
