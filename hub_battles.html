@@ -503,9 +503,6 @@ button{font-family:inherit;cursor:pointer;}
       <div class="page-title" id="pageTitleArea">⚔️ Battles</div>
       <div class="page-sub" id="pageSubArea" data-i18n-kr="같은 회차에 번호를 미리 제출하고, 추첨 결과로 승부를 가립니다." data-i18n-en="Submit your numbers in advance for the same round, and the draw result decides the winner.">같은 회차에 번호를 미리 제출하고, 추첨 결과로 승부를 가립니다.</div>
     </div>
-    <div style="display:flex;gap:8px;">
-      <button class="btn btn-outline" id="adminEntryBtn" onclick="BUI.openAdminView()">🔒 <span data-i18n-kr="관리자" data-i18n-en="Admin">관리자</span></button>
-    </div>
   </div>
 
   <!-- ===== 메인 화면: 요약 + 좌(새 방 만들기) / 우(참가가능한 방) + 하단(내 진행상황) ===== -->
@@ -535,12 +532,6 @@ button{font-family:inherit;cursor:pointer;}
       <div class="hub-col-title"><span id="allRoomsTitle">📊 전체 배틀참여현황 (1:1 대결)</span> <span class="cnt" id="allRoomCount">0개</span></div>
       <div id="allRoomsTableBody"></div>
     </div>
-  </div>
-
-  <!-- ===== 관리자 화면 ===== -->
-  <div id="viewAdmin" style="display:none;">
-    <button class="btn btn-outline" style="margin-bottom:16px;" onclick="BUI.backToTypeSelect()">← 메인으로</button>
-    <div id="adminBody"></div>
   </div>
 </div>
 
@@ -602,7 +593,6 @@ BUI.pendingBannerHtml = function(){
 BUI.showView = function(view){
   BUI.state.view = view;
   document.getElementById('viewTypeSelect').style.display = (view==='typeSelect') ? '' : 'none';
-  document.getElementById('viewAdmin').style.display = (view==='admin') ? '' : 'none';
 };
 
 BUI.showTypeSelectView = async function(){
@@ -622,16 +612,6 @@ BUI.showTypeSelectView = async function(){
 };
 
 BUI.backToTypeSelect = function(){ BUI.showTypeSelectView(); };
-
-// 참가비/보상은 포인트관리자(admin_points.html)에서, 채점은 서버가 자동으로 처리하므로
-// 이 페이지에는 더 이상 별도 관리자 화면이 필요 없습니다 — 버튼은 그 화면으로 안내만 합니다.
-BUI.openAdminView = function(){
-  if (confirm(LANG==='en'
-    ? 'Battle pricing is managed in the Points Admin screen, and grading happens automatically. Go there now?'
-    : '배틀 참가비/보상은 포인트관리자 화면에서 관리하고, 채점은 서버가 자동으로 처리합니다.\\n지금 그 화면으로 이동할까요?')) {
-    location.href = 'admin_points.html';
-  }
-};
 
 // ── 새 방 만들기: 무제한 대결만 서비스 (2026-08-12) ──
 // ⚠️ 2026-08-12: 1:1/팀전/토너먼트는 아예 카드 자체를 화면에서 제거함(회색 비활성화가
