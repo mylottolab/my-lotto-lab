@@ -871,6 +871,7 @@ BUI.openTournamentRun = async function(runId){
   BUI.state.currentTournamentRunId = runId;
   BUI.state.selectedBalls = [];
   BUI.state.multiCombos = [];
+  BUI.state.lastAddedCount = 0;
   BUI.state.submitConfirmShown = false;
   BUI.state.submitRemaining = null;
   document.getElementById('roomModal').classList.add('show');
@@ -947,6 +948,7 @@ BUI.openRoom = async function(roomId){
   BUI.state.currentRoomId = roomId;
   BUI.state.selectedBalls = [];
   BUI.state.multiCombos = [];
+  BUI.state.lastAddedCount = 0;
   BUI.state.submitConfirmShown = false;
   BUI.state.submitRemaining = null;
   document.getElementById('roomModal').classList.add('show');
@@ -1239,6 +1241,7 @@ BUI.confirmSubmit = async function(isFinal){
     : await BATTLE.submitPicksList(BUI.state.currentRoomId, combos, isFinal);
   if (!result.ok) return;
   BUI.state.multiCombos = [];
+  BUI.state.lastAddedCount = 0;
   BUI.state.selectedBalls = [];
   BUI.state.submitConfirmShown = false;
   alert(isFinal
@@ -1271,14 +1274,16 @@ BUI.toggleMultiBall = function(n){
 BUI.addCombo = function(combo){
   var cap = (BUI.state.submitRemaining != null) ? BUI.state.submitRemaining : BATTLE.MAX_COMBOS_PER_PARTICIPANT;
   if (BUI.state.multiCombos.length >= cap) {
-    alert('지금 추가로 등록할 수 있는 조합은 최대 ' + cap + '개입니다.');
+    alert(LANG==='en' ? ('You can add up to ' + cap + ' combos right now.') : ('지금 추가로 등록할 수 있는 조합은 최대 ' + cap + '개입니다.'));
     return;
   }
   BUI.state.multiCombos.push(combo);
+  BUI.state.lastAddedCount = 1; // ⚠ 2026-08-12: 방금 추가한 개수를 기억해서 목록에서 강조 표시
   BUI.renderMultiComboList();
 };
 BUI.removeCombo = function(idx){
   BUI.state.multiCombos.splice(idx, 1);
+  BUI.state.lastAddedCount = 0; // 삭제하면 인덱스가 밀리므로 강조 표시를 초기화
   BUI.renderMultiComboList();
 };
 BUI.addAutoCombos = function(){
@@ -1292,17 +1297,31 @@ BUI.addAutoCombos = function(){
     while (picked.length < 6) { var idx = Math.floor(Math.random()*pool.length); picked.push(pool.splice(idx,1)[0]); }
     BUI.state.multiCombos.push(picked.sort(function(a,b){return a-b;}));
   }
+  BUI.state.lastAddedCount = count; // ⚠ 2026-08-12: 방금 추가한 개수를 기억해서 목록에서 강조 표시
   BUI.renderMultiComboList();
 };
+// ⚠ 2026-08-12 개선: 목록이 길어질수록 방금 넣은 게 맨 아래에 묻혀서 안 보인다는 문제
+// 해결 — 최신순(방금 추가한 게 맨 위)으로 보여주고, 방금 추가한 항목은 금색 테두리로
+// 강조 표시한다. 실제 저장 순서(BUI.state.multiCombos 배열 자체)는 안 바뀌고, 화면에
+// 보여줄 때만 뒤집어서 보여준다 — 삭제 버튼은 원래 배열의 진짜 인덱스를 그대로 쓴다.
 BUI.renderMultiComboList = function(){
   var el = document.getElementById('multiComboList');
   if (!el) return;
   var cap = (BUI.state.submitRemaining != null) ? BUI.state.submitRemaining : BATTLE.MAX_COMBOS_PER_PARTICIPANT;
   var combos = BUI.state.multiCombos;
-  var listHtml = combos.map(function(c, i){
-    return '<div class="participant-row"><span class="font-num">' + (i+1) + '. ' + c.join(', ') + '</span><span style="color:var(--red);cursor:pointer;" onclick="BUI.removeCombo(' + i + ')">✕ ' + (LANG==='en'?'Remove':'삭제') + '</span></div>';
+  var lastAdded = BUI.state.lastAddedCount || 0;
+  var indexed = combos.map(function(c, i){ return { combo: c, realIndex: i }; });
+  indexed.reverse(); // 최신(배열 끝에 방금 추가된 것)이 맨 위로 오도록
+  var listHtml = indexed.map(function(item, displayIdx){
+    var isNew = lastAdded > 0 && displayIdx < lastAdded; // 뒤집었으므로 앞쪽 = 최근 추가분
+    var rowStyle = isNew ? ' style="border:1.5px solid var(--gold);"' : '';
+    var newTag = isNew ? ('<span style="color:var(--gold);font-weight:700;margin-right:6px;">' + (LANG==='en'?'NEW':'신규') + '</span>') : '';
+    return '<div class="participant-row"' + rowStyle + '><span class="font-num">' + newTag + (item.realIndex+1) + '. ' + item.combo.join(', ') + '</span><span style="color:var(--red);cursor:pointer;" onclick="BUI.removeCombo(' + item.realIndex + ')">✕ ' + (LANG==='en'?'Remove':'삭제') + '</span></div>';
   }).join('') || '<div style="font-size:11.5px;color:var(--text-faint);padding:8px 0;">' + (LANG==='en' ? 'No combos registered yet.' : '아직 등록된 조합이 없습니다.') + '</div>';
-  el.innerHTML = '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">' + (LANG==='en' ? 'Ready to register: ' : '지금 등록 준비된 조합: ') + '<b style="color:var(--gold);">' + combos.length + ' / ' + cap + '</b></div>' + listHtml;
+  var summaryLine = lastAdded > 0
+    ? ('<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">' + (LANG==='en' ? ('Ready to register: ') : ('지금 등록 준비된 조합: ')) + '<b style="color:var(--gold);">' + combos.length + ' / ' + cap + '</b>' + (LANG==='en' ? (' — ' + lastAdded + ' just added (marked NEW, shown at top)') : (' — 방금 ' + lastAdded + '개 추가됨 (맨 위 "신규" 표시)')) + '</div>')
+    : ('<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">' + (LANG==='en' ? 'Ready to register: ' : '지금 등록 준비된 조합: ') + '<b style="color:var(--gold);">' + combos.length + ' / ' + cap + '</b></div>');
+  el.innerHTML = summaryLine + listHtml;
   var btn = document.getElementById('submitMultiPicksBtn');
   if (btn) btn.disabled = combos.length === 0;
   BUI.refreshFFARoomPlates(); // ⚠ 2026-08-12: 아직 제출 전이라도 담는 즉시 방 문패에 실시간 반영
