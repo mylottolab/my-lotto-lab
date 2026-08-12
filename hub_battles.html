@@ -954,7 +954,16 @@ BUI.openRoom = async function(roomId){
   document.getElementById('roomModal').classList.add('show');
   await BUI.renderRoomModal();
 };
-BUI.closeRoom = function(){
+// ⚠ 2026-08-12 신규: 확인/최종제출 없이 그냥 나가면 스테이징된 조합이 통째로 사라지는
+// 문제 — 닫기 직전에 저장 안 한 게 있으면 경고하고, 저장 후 닫을지 물어본다.
+BUI.closeRoom = async function(){
+  if (BUI.state.multiCombos && BUI.state.multiCombos.length > 0) {
+    var msg = LANG==='en'
+      ? ('You have ' + BUI.state.multiCombos.length + ' unsaved combo(s). Save them before closing? (OK = save & close, Cancel = keep editing)')
+      : ('저장 안 한 조합이 ' + BUI.state.multiCombos.length + '개 있습니다. 저장하고 닫을까요? (확인 = 저장 후 닫기, 취소 = 계속 편집)');
+    if (!confirm(msg)) return; // 취소 = 닫지 않고 계속 편집 (실수로 다 날리는 것 방지)
+    await BUI.quickSaveCombos();
+  }
   document.getElementById('roomModal').classList.remove('show');
   BUI.renderAvailableRooms();
   BUI.renderMyTimeline();
@@ -1217,8 +1226,31 @@ BUI.comboSubmitWidgetHtml = function(alreadySubmitted, introHtml, isFFA, maxComb
     '<div class="form-row"><label>' + (LANG==='en'?'Pick manually':'직접 선택') + '</label><span style="font-size:11px;color:var(--text-faint);">' + (LANG==='en' ? 'Pick 6 balls below to add a combo' : '아래 공에서 6개를 고르면 조합이 1개씩 추가됩니다') + '</span></div>' +
     '<div class="ball-grid" id="multiBallGrid"></div>' +
     '<div id="multiComboList" style="margin-top:12px;"></div>' +
-    '<button class="btn btn-gold" style="width:100%;margin-top:10px;" id="submitMultiPicksBtn" disabled onclick="BUI.openSubmitConfirm()">' + (LANG==='en'?'Register':'등록하기') + '</button>' +
+    '<div style="display:flex;gap:8px;margin-top:10px;">' +
+      '<button class="btn btn-outline" style="flex:1;" id="quickSaveBtn" disabled onclick="BUI.quickSaveCombos()">💾 ' + (LANG==='en'?'Save now':'바로 저장') + '</button>' +
+      '<button class="btn btn-gold" style="flex:1;" id="submitMultiPicksBtn" disabled onclick="BUI.openSubmitConfirm()">' + (LANG==='en'?'Review & Register':'검토 후 등록하기') + '</button>' +
+    '</div>' +
+    '<p style="font-size:10.5px;color:var(--text-faint);margin-top:6px;text-align:center;">' + (LANG==='en'
+      ? '"Save now" instantly saves what you\'ve added — handy if you need to leave partway through.'
+      : '"바로 저장"은 지금까지 담은 것을 확인 없이 즉시 저장합니다 — 중간에 나가야 할 때 유용해요.') + '</p>' +
   '</div>';
+};
+
+// ⚠ 2026-08-12 신규: "등록하기"(확인화면 경유)와 별개로, 확인 절차 없이 지금 담은 조합을
+// 바로 서버에 저장하는 단축 버튼. 마감 전까지 계속 추가 가능한 무제한 대결 특성상,
+// 중간에 급히 나가야 할 때 스테이징된 조합이 통째로 날아가는 걸 막기 위함.
+BUI.quickSaveCombos = async function(){
+  if (!BUI.state.multiCombos.length) return;
+  var combos = BUI.state.multiCombos;
+  var result = (BUI.state.modalKind === 'tournament')
+    ? await TOUR.submit(BUI.state.currentTournamentRunId, combos, false)
+    : await BATTLE.submitPicksList(BUI.state.currentRoomId, combos, false);
+  if (!result.ok) return;
+  BUI.state.multiCombos = [];
+  BUI.state.lastAddedCount = 0;
+  BUI.state.selectedBalls = [];
+  alert(LANG==='en' ? ('💾 Saved ' + combos.length + ' combos.') : ('💾 ' + combos.length + '개 저장했습니다.'));
+  BUI.rerenderCurrentSubmitUI();
 };
 
 BUI.openSubmitConfirm = function(){
@@ -1315,8 +1347,11 @@ BUI.renderMultiComboList = function(){
   var listHtml = indexed.map(function(item, displayIdx){
     var isNew = lastAdded > 0 && displayIdx < lastAdded; // 뒤집었으므로 앞쪽 = 최근 추가분
     var rowStyle = isNew ? ' style="border:1.5px solid var(--gold);"' : '';
-    var newTag = isNew ? ('<span style="color:var(--gold);font-weight:700;margin-right:6px;">' + (LANG==='en'?'NEW':'신규') + '</span>') : '';
-    return '<div class="participant-row"' + rowStyle + '><span class="font-num">' + newTag + (item.realIndex+1) + '. ' + item.combo.join(', ') + '</span><span style="color:var(--red);cursor:pointer;" onclick="BUI.removeCombo(' + item.realIndex + ')">✕ ' + (LANG==='en'?'Remove':'삭제') + '</span></div>';
+    // ⚠ 2026-08-12 수정: "신규" 표시가 번호 목록 바로 앞에 붙어있으니 "신규10. 3, 8..."처럼
+    // 숫자로 착각하기 쉬웠다(실제 6개인데 7개로 보임). 번호와 완전히 분리된 알약 배지로
+    // 바꾸고, 번호 목록 뒤쪽(오른쪽)에 배치해서 절대 숫자로 헷갈리지 않게 한다.
+    var newBadge = isNew ? ('<span style="background:var(--gold);color:#1a1305;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:20px;margin-left:8px;">' + (LANG==='en'?'NEW':'신규') + '</span>') : '';
+    return '<div class="participant-row"' + rowStyle + '><span class="font-num">' + (item.realIndex+1) + '. ' + item.combo.join(', ') + newBadge + '</span><span style="color:var(--red);cursor:pointer;" onclick="BUI.removeCombo(' + item.realIndex + ')">✕ ' + (LANG==='en'?'Remove':'삭제') + '</span></div>';
   }).join('') || '<div style="font-size:11.5px;color:var(--text-faint);padding:8px 0;">' + (LANG==='en' ? 'No combos registered yet.' : '아직 등록된 조합이 없습니다.') + '</div>';
   var summaryLine = lastAdded > 0
     ? ('<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">' + (LANG==='en' ? ('Ready to register: ') : ('지금 등록 준비된 조합: ')) + '<b style="color:var(--gold);">' + combos.length + ' / ' + cap + '</b>' + (LANG==='en' ? (' — ' + lastAdded + ' just added (marked NEW, shown at top)') : (' — 방금 ' + lastAdded + '개 추가됨 (맨 위 "신규" 표시)')) + '</div>')
@@ -1324,6 +1359,8 @@ BUI.renderMultiComboList = function(){
   el.innerHTML = summaryLine + listHtml;
   var btn = document.getElementById('submitMultiPicksBtn');
   if (btn) btn.disabled = combos.length === 0;
+  var quickBtn = document.getElementById('quickSaveBtn');
+  if (quickBtn) quickBtn.disabled = combos.length === 0;
   BUI.refreshFFARoomPlates(); // ⚠ 2026-08-12: 아직 제출 전이라도 담는 즉시 방 문패에 실시간 반영
 };
 
