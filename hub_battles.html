@@ -1070,6 +1070,14 @@ BUI.roomFFAHtml = function(room, myParticipant){
   BUI.state.ffaUnitsBought = unitsBought;
   BUI.state.ffaAlreadyCombos = alreadyCombos;
 
+  // ⚠ 2026-08-12 버그수정: "등록하기"를 눌러 확인화면으로 넘어갈 때 모달 전체가 다시
+  // 그려지는데, 이때 방 문패는 alreadyCombos만 보고 그려서 스테이징된 조합이 반영 안 된
+  // 예전 숫자로 되돌아가 보이는 문제가 있었다("251→261(추가 후)→251(확인화면 진입 시)"로
+  // 오히려 줄어든 것처럼 보임). 문패 표시는 항상 "제출됨+지금 담는 중"을 합친 값으로
+  // 통일해서, 어느 화면에 있든 숫자가 일관되게 보이도록 한다.
+  var stagedCount = BUI.state.multiCombos ? BUI.state.multiCombos.length : 0;
+  var previewCombos = alreadyCombos + stagedCount;
+
   // ── 방 구매 UI (100단위 다 살 때까지 계속 노출, 제출완료 여부와 무관) ──
   var buyUnitsHtml = '';
   if (remainingUnits > 0) {
@@ -1086,9 +1094,9 @@ BUI.roomFFAHtml = function(room, myParticipant){
         '</div>');
   }
 
-  // ── 내 방 현황 ("방1, 방2..." 문패 — 산 방 개수만큼, 채워진 조합 개수를 실시간 표시) ──
+  // ── 내 방 현황 ("방1, 방2..." 문패 — 산 방 개수만큼, 제출됨+스테이징 합친 값을 실시간 표시) ──
   var roomsHtml = unitsBought > 0
-    ? '<div class="card"><h3>🚪 ' + (LANG==='en' ? ('My rooms (' + unitsBought + ')') : ('내 방 현황 (' + unitsBought + '개)')) + '</h3><div class="ffa-room-grid" id="ffaRoomPlates">' + BUI.ffaRoomPlatesHtml(unitsBought, alreadyCombos) + '</div></div>'
+    ? '<div class="card"><h3>🚪 ' + (LANG==='en' ? ('My rooms (' + unitsBought + ')') : ('내 방 현황 (' + unitsBought + '개)')) + '</h3><div class="ffa-room-grid" id="ffaRoomPlates">' + BUI.ffaRoomPlatesHtml(unitsBought, previewCombos) + '</div></div>'
     : '';
 
   // ── 조합 채우기 위젯 (방을 최소 1개는 사야 나타남, 마감 전까지 계속 추가 가능) ──
