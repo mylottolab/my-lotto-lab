@@ -106,7 +106,11 @@ BATTLE._viewerFetch = async function(url){
     var sep = url.indexOf('?') >= 0 ? '&' : '?';
     finalUrl = url + sep + 'nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
   }
-  return fetch(finalUrl, { headers: headers });
+  // ⚠ 2026-08-12 버그수정: 방 구매/조합 제출 직후 이 함수로 방 정보를 다시 가져올 때
+  // 브라우저가 캐시된(제출 전) 옛날 응답을 그대로 재사용해서, 실제로는 저장이 잘 됐는데도
+  // 화면(예: "내 방 현황" N/100)이 강력새로고침 전까지 안 바뀌는 문제가 있었다.
+  // cache:'no-store'로 항상 서버에서 최신 데이터를 새로 받아오도록 강제한다.
+  return fetch(finalUrl, { headers: headers, cache: 'no-store' });
 };
 
 BATTLE.listAvailableRooms = async function(type){
