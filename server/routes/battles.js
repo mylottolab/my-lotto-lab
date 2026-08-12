@@ -96,6 +96,7 @@ function shapeRoom(room, participants, viewerUserId) {
       submitted: !!(p.picks_list && p.picks_list.length),
       finalized: !!p.finalized,
       comboCount: p.combo_count,
+      unitsBought: p.units_bought || 0, // ⚠ 2026-08-12 신규: 산 방 개수(=베팅액 기준). ffa 전용, 1v1/팀전은 0으로 옴
       // 상대방의 실제 번호조합은 채점이 끝나기(completed) 전까지는 숨김 — 눈치싸움 방지
       picksList: (revealed || p.user_id === viewerUserId) ? p.picks_list : null,
       totalPrize: revealed ? p.total_prize : null,
@@ -198,6 +199,12 @@ router.post('/rooms', async (req, res) => {
     if (req.body.type === 'ffa') {
       return res.status(400).json({ error: '무제한 대결은 회차마다 시스템이 자동으로 개설합니다. 참가가능한 방에서 참가해주세요.' });
     }
+    // ⚠️ 2026-08-12: 1:1/팀전은 서비스하지 않기로 결정 — 화면(hub_battles.html)에서는
+    // 이미 비활성화했지만, API를 직접 호출하는 우회 시도까지 막기 위해 서버에서도 차단한다.
+    // (기존에 이미 만들어진 방/데이터는 그대로 두고, "새로 만드는 것"만 막음)
+    if (req.body.type === 'team' || (!req.body.type || req.body.type === '1v1')) {
+      return res.status(400).json({ error: '1:1 대결·팀전은 현재 서비스하지 않습니다. 무제한 대결을 이용해주세요.' });
+    }
     const type = req.body.type === 'team' ? 'team' : '1v1';
     let teamSize = null, side = null, maxParticipants = 2;
 
@@ -265,6 +272,11 @@ router.post('/rooms/:id/join', async (req, res) => {
     const { id } = req.params;
     const { data: room, error: roomErr } = await supabase.from('battle_rooms').select('*').eq('id', id).maybeSingle();
     if (roomErr || !room) return res.status(404).json({ error: '방을 찾을 수 없습니다.' });
+    // ⚠ 2026-08-12 재설계: 무제한 대결은 이제 "방(=단위) 구매" 방식으로 완전히 바뀌어서
+    // /join이 아니라 /rooms/:id/buy-units를 쓴다 (아래 참고).
+    if (room.type === 'ffa') {
+      return res.status(400).json({ error: '무제한 대결은 참가 방식이 바뀌었습니다. buy-units API를 이용해주세요.' });
+    }
     if (room.status !== 'waiting') return res.status(409).json({ error: '이미 마감되었거나 진행 중인 방입니다.' });
 
     const { data: existing } = await supabase.from('battle_participants').select('id').eq('room_id', id).eq('user_id', user.id).maybeSingle();
@@ -282,7 +294,7 @@ router.post('/rooms/:id/join', async (req, res) => {
       if (sideCount >= room.team_size) return res.status(409).json({ error: `그 팀은 이미 정원(${room.team_size}명)이 찼습니다. 다른 팀을 선택해주세요.` });
     }
 
-    // 참가비 조회 및 차감
+    // 참가비 조회 및 차감 (1:1/팀전 전용 — ffa는 위에서 이미 걸러져서 여기 도달 안 함)
     const pricing = await getPriceReward(room.type);
     if (pricing.entry > 0) {
       const actionKey = PRICE_ACTION_KEYS[room.type].entry;
@@ -332,6 +344,81 @@ router.post('/rooms/:id/join', async (req, res) => {
   }
 });
 
+// ⚠ 2026-08-12 재설계: 무제한 대결(ffa) 경제로직을 다시 바꿈 —
+// "조합 개수만큼 그때그때 베팅"이 아니라, "방(=단위)을 미리 구매하면 그 방마다
+// 최대 100개까지 조합을 무료로 채울 수 있는" 방식으로 변경. 1단위 = 방 1개 = 100P.
+// 경마 베팅처럼 마감 전까지 몇 번이든 나눠서 추가 구매 가능, 최대 100단위(10,000P).
+// 실제로 그 방들을 다 채우든 하나도 안 채우든 상관없음 — 베팅액(=배당 계산 기준)은
+// "산 방 개수"이지 "채운 조합 개수"가 아님.
+const FFA_UNIT_PRICE = 100;
+const FFA_MAX_UNITS = 100;
+
+// ─── [인증 필요] 무제한 대결 방(단위) 구매 (2026-08-12 신규) ──────────────────
+// POST /api/battles/rooms/:id/buy-units   body: { units: N, nickname, email }
+// 처음 구매하면 참가자로 등록되고, 이미 참가 중이면 단위만 추가된다(append).
+router.post('/rooms/:id/buy-units', async (req, res) => {
+  try {
+    const user = await resolveUser(req);
+    if (!user) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
+
+    const { id } = req.params;
+    const units = Math.floor(Number(req.body.units));
+    if (!units || units < 1) return res.status(400).json({ error: '1단위 이상 구매해주세요.' });
+
+    const { data: room } = await supabase.from('battle_rooms').select('*').eq('id', id).maybeSingle();
+    if (!room) return res.status(404).json({ error: '방을 찾을 수 없습니다.' });
+    if (room.type !== 'ffa') return res.status(400).json({ error: '무제한 대결 방에서만 사용할 수 있습니다.' });
+    if (room.status !== 'waiting') return res.status(409).json({ error: '이미 마감되었습니다.' });
+    const currentSaleRound = await getSaleRound();
+    if (room.round !== currentSaleRound) return res.status(409).json({ error: '이미 마감된 회차입니다.' });
+
+    const { data: existingParticipant } = await supabase.from('battle_participants').select('*').eq('room_id', id).eq('user_id', user.id).maybeSingle();
+    const currentUnits = existingParticipant ? (existingParticipant.units_bought || 0) : 0;
+
+    if (currentUnits + units > FFA_MAX_UNITS) {
+      return res.status(400).json({
+        error: `이미 ${currentUnits}단위 구매하셨습니다. 최대 ${FFA_MAX_UNITS}단위까지 가능하니 ${FFA_MAX_UNITS - currentUnits}단위까지만 추가할 수 있어요.`,
+        alreadyBought: currentUnits,
+        remaining: Math.max(0, FFA_MAX_UNITS - currentUnits),
+      });
+    }
+
+    const betAmount = units * FFA_UNIT_PRICE;
+    const result = await deductPoints(user.id, betAmount, { actionKey: PRICE_ACTION_KEYS.ffa.entry, refId: id });
+    if (!result.success) {
+      return res.status(402).json({
+        error: '포인트가 부족합니다. 충전해주세요.',
+        shortfall: result.shortfall, balance: result.balance,
+        chargeUrl: '/pay/category_select.html',
+      });
+    }
+
+    if (!existingParticipant) {
+      const { error: insErr } = await supabase.from('battle_participants').insert({
+        room_id: id, user_id: user.id, nickname: user.nickname, units_bought: units,
+      });
+      if (insErr) {
+        console.error('[battles] buy-units 참가 등록 오류 (포인트는 이미 차감됨):', insErr);
+        return res.status(500).json({ error: '처리 중 오류가 발생했습니다. 관리자에게 문의해주세요.' });
+      }
+    } else {
+      const { error: updErr } = await supabase.from('battle_participants')
+        .update({ units_bought: currentUnits + units }).eq('id', existingParticipant.id);
+      if (updErr) {
+        console.error('[battles] buy-units 단위 추가 오류 (포인트는 이미 차감됨):', updErr);
+        return res.status(500).json({ error: '처리 중 오류가 발생했습니다. 관리자에게 문의해주세요.' });
+      }
+    }
+
+    const { data: updatedRoom } = await supabase.from('battle_rooms').select('*').eq('id', id).single();
+    const { data: allParticipants } = await supabase.from('battle_participants').select('*').eq('room_id', id).order('created_at', { ascending: true });
+    return res.json({ success: true, unitsBought: currentUnits + units, room: shapeRoom(updatedRoom, allParticipants, user.id) });
+  } catch (err) {
+    console.error('[battles] buy-units 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
 // ─── [인증 필요] 번호조합 제출 (마감 전까지 여러 번 나눠서 추가 가능, 최대 100개) ───
 // POST /api/battles/rooms/:id/submit   body: { combos:[[6개],...], nickname, email }
 // ⚠️ 2026-07-11: "한 번 제출하면 끝"이던 방식을 "append(추가)" 방식으로 바꿨다 — 실수로
@@ -359,15 +446,20 @@ router.post('/rooms/:id/submit', async (req, res) => {
     }
 
     const { data: participant } = await supabase.from('battle_participants').select('*').eq('room_id', id).eq('user_id', user.id).maybeSingle();
-    if (!participant) return res.status(403).json({ error: '이 방의 참가자가 아닙니다.' });
+    if (!participant) return res.status(403).json({ error: '이 방의 참가자가 아닙니다. 먼저 방을 구매(참가)해주세요.' });
     if (participant.finalized) return res.status(409).json({ error: '이미 "제출완료" 처리하셔서 더 이상 추가할 수 없습니다.' });
 
+    // ⚠ 2026-08-12 재설계: 조합 제출은 이제 무료(이미 방을 살 때 베팅이 끝남).
+    // 한도는 "산 방 개수 × 100개"로, 방을 안 사면 0개, 3단위 사면 300개까지 채울 수 있다.
     const existingPicks = participant.picks_list || [];
-    if (existingPicks.length + combos.length > 100) {
+    const maxCombos = room.type === 'ffa' ? (participant.units_bought || 0) * 100 : 100;
+    if (existingPicks.length + combos.length > maxCombos) {
       return res.status(400).json({
-        error: `이미 ${existingPicks.length}개를 제출하셨습니다. 최대 100개까지 가능하니 ${100 - existingPicks.length}개까지만 추가할 수 있어요.`,
+        error: room.type === 'ffa'
+          ? `구매하신 방 ${participant.units_bought || 0}개(총 ${maxCombos}칸) 중 이미 ${existingPicks.length}개를 채우셨습니다. ${maxCombos - existingPicks.length}개까지만 더 추가할 수 있어요 (더 채우려면 방을 추가로 구매해주세요).`
+          : `이미 ${existingPicks.length}개를 제출하셨습니다. 최대 100개까지 가능하니 ${100 - existingPicks.length}개까지만 추가할 수 있어요.`,
         alreadySubmitted: existingPicks.length,
-        remaining: Math.max(0, 100 - existingPicks.length),
+        remaining: Math.max(0, maxCombos - existingPicks.length),
       });
     }
 
@@ -413,6 +505,112 @@ async function createSystemFFARoom(round) {
   if (error) throw error;
   return data;
 }
+
+// ─── 관리자 인증 (다른 관리자 라우트들과 동일한 공유키 방식) ───────────────────
+function requireAdmin(req, res, next) {
+  const key = req.headers['x-admin-key'];
+  if (!process.env.ADMIN_API_KEY) {
+    return res.status(500).json({ error: '관리자 기능이 아직 설정되지 않았습니다.' });
+  }
+  if (!key || key !== process.env.ADMIN_API_KEY) {
+    return res.status(401).json({ error: '관리자 인증이 필요합니다.' });
+  }
+  next();
+}
+
+// Battles 관련 point_ledger.source 매칭 패턴 — 어떤 방 이름이든 이 문구는 항상 고정 포함됨
+// (battlesAutoGrade.js의 creditPoints reason 문자열과 반드시 일치시켜야 함)
+const BATTLE_SOURCE_PATTERNS = ['1:1 대결', '팀전', '무제한 대결'];
+function battleTypeFromSource(source) {
+  if (!source) return null;
+  if (source.includes('1:1 대결')) return '1v1';
+  if (source.includes('팀전')) return 'team';
+  if (source.includes('무제한 대결')) return 'ffa';
+  return null;
+}
+const BATTLE_SPEND_ACTION_KEYS = ['battle_1v1_entry', 'battle_team_entry', 'battle_ffa_entry'];
+function battleTypeFromActionKey(key) {
+  if (key === 'battle_1v1_entry') return '1v1';
+  if (key === 'battle_team_entry') return 'team';
+  if (key === 'battle_ffa_entry') return 'ffa';
+  return null;
+}
+const BATTLE_TYPE_LABEL = { '1v1': '1:1 대결', team: '팀전', ffa: '무제한 대결' };
+
+// ─── [관리자] 최근 배당(지급) 내역 조회 (2026-08-12 신규) ──────────────────────
+// GET /api/battles/admin/payouts?from=&to=&limit=
+router.get('/admin/payouts', requireAdmin, async (req, res) => {
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 200));
+  let q = supabase.from('point_ledger').select('*')
+    .or(BATTLE_SOURCE_PATTERNS.map(p => `source.ilike.%${p}%`).join(','))
+    .order('earned_at', { ascending: false }).limit(limit);
+  if (req.query.from) q = q.gte('earned_at', req.query.from + 'T00:00:00');
+  if (req.query.to) q = q.lte('earned_at', req.query.to + 'T23:59:59');
+
+  const { data: rows, error } = await q;
+  if (error) return res.status(500).json({ error: error.message });
+
+  const userIds = [...new Set((rows || []).map(r => r.user_id))];
+  let nicknameById = {};
+  if (userIds.length) {
+    const { data: profiles } = await supabase.from('profiles').select('id, nickname').in('id', userIds);
+    (profiles || []).forEach(p => { nicknameById[p.id] = p.nickname; });
+  }
+
+  const items = (rows || []).map(r => ({
+    type: battleTypeFromSource(r.source),
+    typeLabel: BATTLE_TYPE_LABEL[battleTypeFromSource(r.source)] || '대결',
+    detail: r.source,
+    nickname: nicknameById[r.user_id] || '(알수없음)',
+    payout: r.amount,
+    settledAt: r.earned_at,
+  }));
+
+  return res.json({ items });
+});
+
+// ─── [관리자] 수익금 조회 (2026-08-12 신규) ────────────────────────────────────
+// GET /api/battles/admin/revenue?from=&to=
+// 수익금 = (베팅으로 나간 돈 총액) - (배당으로 지급된 돈 총액). 이미 저장된
+// point_spend_log/point_ledger 기록에서 바로 집계하므로, 정산 로직이 바뀌어도 항상 정확함.
+router.get('/admin/revenue', requireAdmin, async (req, res) => {
+  let spendQ = supabase.from('point_spend_log').select('amount, action_key').in('action_key', BATTLE_SPEND_ACTION_KEYS);
+  if (req.query.from) spendQ = spendQ.gte('created_at', req.query.from + 'T00:00:00');
+  if (req.query.to) spendQ = spendQ.lte('created_at', req.query.to + 'T23:59:59');
+  const { data: spends, error: spendErr } = await spendQ;
+  if (spendErr) return res.status(500).json({ error: spendErr.message });
+
+  let payQ = supabase.from('point_ledger').select('amount, source')
+    .or(BATTLE_SOURCE_PATTERNS.map(p => `source.ilike.%${p}%`).join(','));
+  if (req.query.from) payQ = payQ.gte('earned_at', req.query.from + 'T00:00:00');
+  if (req.query.to) payQ = payQ.lte('earned_at', req.query.to + 'T23:59:59');
+  const { data: pays, error: payErr } = await payQ;
+  if (payErr) return res.status(500).json({ error: payErr.message });
+
+  const byType = { '1v1': { type: '1v1', spent: 0, paid: 0 }, team: { type: 'team', spent: 0, paid: 0 }, ffa: { type: 'ffa', spent: 0, paid: 0 } };
+  let totalSpent = 0;
+  (spends || []).forEach(r => {
+    const t = battleTypeFromActionKey(r.action_key);
+    totalSpent += r.amount || 0;
+    if (t) byType[t].spent += r.amount || 0;
+  });
+  let totalPaid = 0;
+  (pays || []).forEach(r => {
+    const t = battleTypeFromSource(r.source);
+    totalPaid += r.amount || 0;
+    if (t) byType[t].paid += r.amount || 0;
+  });
+
+  const byTypeArr = Object.values(byType)
+    .map(t => ({ ...t, typeLabel: BATTLE_TYPE_LABEL[t.type], revenue: t.spent - t.paid }))
+    .filter(t => t.spent > 0 || t.paid > 0);
+
+  return res.json({
+    totalSpent, totalPaid, revenue: totalSpent - totalPaid,
+    settledCount: (pays || []).length,
+    byType: byTypeArr,
+  });
+});
 
 module.exports = router;
 module.exports.getSaleRound = getSaleRound;
