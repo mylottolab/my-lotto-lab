@@ -1,3 +1,6 @@
+// =====================================================
+// My Lotto Lab - 이니시스(INIpay PRO) 카드결제
+// =====================================================
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
@@ -65,17 +68,11 @@ async function creditDepositPoints(userId, points, meta) {
   return true;
 }
 
-// prepare 단계에서 만든 oid를 키로 잠깐 저장해뒀다가 return 단계에서 꺼내 씁니다.
-// (서버 재시작 시 초기화됨 — 운영에서는 DB/Redis 사용 권장, 기존 방식 그대로 유지)
-const orderStore = new Map();
-
-// 1시간 지난 주문 정보는 자동 정리 (메모리 누수 방지)
-setInterval(() => {
-  const oneHourAgo = Date.now() - 60 * 60 * 1000;
-  for (const [oid, info] of orderStore.entries()) {
-    if (info.createdAt < oneHourAgo) orderStore.delete(oid);
-  }
-}, 10 * 60 * 1000);
+// ⚠ 2026-08-12 버그수정: 예전엔 prepare 단계에서 만든 주문 정보를 서버 메모리(Map)에만
+// 잠깐 저장해뒀는데, 그 사이 서버가 재시작/재배포되면 정보가 통째로 사라져서 return
+// 단계에서 "주문 정보를 찾을 수 없습니다" 오류가 나는 문제가 있었다(PayPal 쪽에서 실제
+// 발생 확인 후 구조가 같은 이니시스도 같이 점검). 이제는 inicis_orders 테이블(DB)에
+// 저장해서 서버가 재시작돼도 안전하다. (사전 준비 SQL: inicis_orders_table.sql 실행 필요)
 
 // ─── 결제 준비 (INIpay PRO) ──────────────────────────────────────────────────
 router.post('/prepare', async (req, res) => {
@@ -99,10 +96,17 @@ router.post('/prepare', async (req, res) => {
   const chkfake = sha512Base64(`${amt}${oid}${timestamp}${HASH_KEY}`);
 
   // return 단계에서 조회할 수 있도록 주문 정보 저장 (결제자 식별자 포함)
-  orderStore.set(oid, {
-    price, goodname, buyername, payerId,
-    createdAt: Date.now()
+  // ⚠ 2026-08-12: 메모리(Map) 대신 DB에 저장 + 저장 결과 확인. 저장이 실패하면
+  // 애초에 결제창을 띄우지 않도록 여기서 바로 에러로 끝낸다.
+  const { error: insertErr } = await supabase.from('inicis_orders').insert({
+    oid, price: Number(price), goodname, buyername,
+    buyertel: buyertel || '', buyeremail: buyeremail || '',
+    payer_id: payerId, status: 'created',
   });
+  if (insertErr) {
+    console.error('[payment] inicis_orders 저장 실패:', insertErr.message);
+    return res.status(500).json({ error: '결제 준비 중 오류가 발생했습니다. 다시 시도해주세요.' });
+  }
 
   return res.json({
     mid: MID, oid, amt, goodname, buyername,
@@ -130,16 +134,30 @@ router.post('/return', async (req, res) => {
     return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent(P_RMESG || '결제실패')}`);
   }
 
-  // prepare 단계에서 저장해둔 주문 정보 조회 (P_OID === oid)
-  const orderInfo = orderStore.get(P_OID) || {};
-  const price = orderInfo.price;
-  const goodName = orderInfo.goodname;
-  const buyerName = orderInfo.buyername;
+  // ⚠ 2026-08-12: 메모리(Map) 대신 DB에서 조회
+  const { data: orderInfo, error: fetchErr } = await supabase
+    .from('inicis_orders').select('*').eq('oid', P_OID).maybeSingle();
+  if (fetchErr) {
+    console.error('[payment] inicis_orders 조회 오류:', fetchErr.message);
+    return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent('결제 정보 조회 중 오류가 발생했습니다.')}`);
+  }
   console.log('저장된 주문 정보:', JSON.stringify(orderInfo));
 
-  if (!price) {
+  if (!orderInfo) {
     console.error('주문 정보를 찾을 수 없습니다. P_OID:', P_OID);
     return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent('주문 정보를 찾을 수 없습니다.')}`);
+  }
+
+  // ── 멱등성: 이미 완료 처리된 주문이면 재적립하지 않고 바로 성공 페이지로 ──
+  if (orderInfo.status === 'completed') {
+    return res.redirect(
+      `${SERVER_URL}/pay/payment_result.html?status=success` +
+      `&orderNumber=${encodeURIComponent(P_OID || '')}` +
+      `&price=${orderInfo.price}` +
+      `&goodName=${encodeURIComponent(orderInfo.goodname || '')}` +
+      `&buyerName=${encodeURIComponent(orderInfo.buyername || '')}` +
+      `&tid=${encodeURIComponent(orderInfo.tid || '')}`
+    );
   }
 
   try {
@@ -148,22 +166,27 @@ router.post('/return', async (req, res) => {
 
     if (result.P_STATUS === '00') {
       // 실제 DB에 입금포인트 적립 (1원 = 1포인트)
-      await creditDepositPoints(orderInfo.payerId, Number(price), { source: 'inicis', orderId: P_OID });
+      await creditDepositPoints(orderInfo.payer_id, Number(orderInfo.price), { source: 'inicis', orderId: P_OID });
 
-      orderStore.delete(P_OID); // 사용 완료된 주문 정보 정리
+      await supabase.from('inicis_orders').update({
+        status: 'completed', tid: result.P_APPL_TID || null, completed_at: new Date().toISOString(),
+      }).eq('oid', P_OID);
+
       return res.redirect(
         `${SERVER_URL}/pay/payment_result.html?status=success` +
         `&orderNumber=${encodeURIComponent(P_OID || '')}` +
-        `&price=${price}` +
-        `&goodName=${encodeURIComponent(goodName || '')}` +
-        `&buyerName=${encodeURIComponent(buyerName || '')}` +
+        `&price=${orderInfo.price}` +
+        `&goodName=${encodeURIComponent(orderInfo.goodname || '')}` +
+        `&buyerName=${encodeURIComponent(orderInfo.buyername || '')}` +
         `&tid=${encodeURIComponent(result.P_APPL_TID || '')}`
       );
     } else {
+      await supabase.from('inicis_orders').update({ status: 'failed' }).eq('oid', P_OID);
       return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=${encodeURIComponent(result.P_RMESG || '승인실패')}`);
     }
   } catch (err) {
     console.error('승인 오류:', err);
+    await supabase.from('inicis_orders').update({ status: 'failed' }).eq('oid', P_OID);
     return res.redirect(`${SERVER_URL}/pay/payment_result.html?status=fail&msg=승인요청오류`);
   }
 });
