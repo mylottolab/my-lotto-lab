@@ -979,7 +979,14 @@ BUI.renderRoomModal = async function(){
 
   box.innerHTML = header + bodyHtml;
   var needsComboWidget = !BUI.state.submitConfirmShown && ((room.status === 'pending_numbers') || (room.type === 'ffa' && room.status === 'waiting'));
-  if (needsComboWidget && myParticipant && !myParticipant.finalized && (myParticipant.comboCount || 0) < 100 && document.getElementById('multiBallGrid')) {
+  // ⚠ 2026-08-12 버그수정: 여기 있던 "100개 미만일 때만 위젯 초기화" 체크가 옛날 고정
+  // 100개 상한 기준 그대로 남아있어서, 무제한 대결에서 방을 여러 개 사서 200개, 300개를
+  // 이미 채운 뒤에는(가득 찬 게 아닌데도) 위젯이 아예 초기화조차 안 되는 문제가 있었다.
+  // ffa는 "산 방 개수×100"이 진짜 상한이고, finalized(영구잠금)도 더 이상 적용 안 하므로
+  // 그 두 가지를 반영해서 다시 계산한다.
+  var comboCap = (room.type === 'ffa') ? ((myParticipant ? (myParticipant.unitsBought || 0) : 0) * 100) : 100;
+  var lockedOut = (room.type === 'ffa') ? false : !!(myParticipant && myParticipant.finalized);
+  if (needsComboWidget && myParticipant && !lockedOut && (myParticipant.comboCount || 0) < comboCap && document.getElementById('multiBallGrid')) {
     BUI.renderMultiBallGrid();
     BUI.renderMultiComboList();
   }
