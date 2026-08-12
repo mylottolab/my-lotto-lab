@@ -16,9 +16,6 @@ const PAYPAL_API_BASE = PAYPAL_MODE === 'live'
   ? 'https://api-m.paypal.com'
   : 'https://api-m.sandbox.paypal.com';
 
-// USD → 포인트 환산 비율은 관리자 화면(admin.js)에서 DB의 exchange_rate
-// 테이블을 수정하면 실시간 반영됩니다. 여기서는 매 주문 생성 시점에 조회합니다.
-// (DB 조회 실패 시에만 대비용 기본값 사용)
 const FALLBACK_EXCHANGE_RATE = 1400;
 
 async function getExchangeRate() {
@@ -35,22 +32,15 @@ async function getExchangeRate() {
   return Number(data.usd_to_point);
 }
 
-// 결제 한도 (USD 기준) - 국내 카드결제 한도(최소 1,000원~최대 100만원)와
-// 균형을 맞춰 대략적으로 설정. 필요시 조정하세요.
 const MIN_USD = 1;
 const MAX_USD = 1000;
 
-// ─── 주문 상태 저장소 ─────────────────────────────────────────────────────────
-// PayPal 주문번호(orderID)를 키로, 결제 준비~완료 상태를 잠깐 저장합니다.
-// (서버 재시작 시 초기화됨 — 운영 전환 시 DB로 교체 필요, 이니시스 orderStore와 동일한 패턴)
-const orderStore = new Map();
-
-setInterval(() => {
-  const oneHourAgo = Date.now() - 60 * 60 * 1000;
-  for (const [orderId, info] of orderStore.entries()) {
-    if (info.createdAt < oneHourAgo) orderStore.delete(orderId);
-  }
-}, 10 * 60 * 1000);
+// ⚠ 2026-08-12 버그수정: 예전에는 주문 정보를 서버 메모리(Map)에만 잠깐 저장했는데,
+// 서버가 재시작/재배포되면 그 사이 결제 중이던 주문 정보가 통째로 사라져서
+// capture-order 단계에서 "주문 정보를 찾을 수 없습니다" 오류가 나는 문제가 있었다
+// (PaperLotto에서 실제로 발생 확인됨 — My Lotto Lab도 구조상 동일 위험이 있어 같이 수정).
+// 이제는 payments 테이블(DB)에 저장해서 서버가 재시작돼도 안전하다.
+// (사전 준비 SQL: payments_table.sql 실행 필요)
 
 // ─── 결제자(회원/비회원) 식별 ────────────────────────────────────────────────
 async function resolvePayerId(req) {
@@ -132,7 +122,6 @@ function requireAdmin(req, res, next) {
 }
 
 // ─── [관리자] 최근 결제 실패 로그 조회 (2026-08-11 신규) ──────────────────────
-// GET /api/payment/admin/client-errors?limit=50
 router.get('/admin/client-errors', requireAdmin, async (req, res) => {
   const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
   const { data, error } = await supabase
@@ -142,16 +131,6 @@ router.get('/admin/client-errors', requireAdmin, async (req, res) => {
 });
 
 // ─── 클라이언트(브라우저)에서 발생한 결제 실패 기록 (2026-08-11 신규) ───────────
-// "손님이 결제가 안 된다는데 근거가 없다"는 문제를 해결하기 위한 것.
-// PayPal(또는 다른 결제수단) 프론트엔드가 어느 단계에서 왜 실패했는지 보내오면
-// 여기서 콘솔 + DB(payment_client_errors 테이블)에 남긴다. 인증 불필요(로그인 전에도
-// 실패할 수 있으므로) — 대신 페이로드 크기/빈도는 낮아서 남용 위험은 낮음.
-// 사전 준비 SQL:
-//   create table if not exists payment_client_errors (
-//     id bigint generated always as identity primary key,
-//     gateway text, stage text, message text, user_agent text, lang text,
-//     extra jsonb, created_at timestamptz default now()
-//   );
 router.post('/client-error', async (req, res) => {
   const { gateway, stage, message, userAgent, lang, extra } = req.body || {};
   console.error(`[payment-client-error] gateway=${gateway} stage=${stage} msg=${message} ua=${userAgent} lang=${lang} extra=${JSON.stringify(extra)}`);
@@ -161,16 +140,12 @@ router.post('/client-error', async (req, res) => {
       user_agent: userAgent || null, lang: lang || null, extra: extra || null,
     });
   } catch (e) {
-    // 테이블이 아직 없어도(사전 SQL 미실행) 콘솔 로그는 이미 남았으니 요청 자체는 실패시키지 않음
     console.error('[payment-client-error] DB 저장 실패(콘솔 로그는 위에 남음):', e.message);
   }
   return res.json({ ok: true });
 });
 
-// ─── 0) 공개 Client ID 조회 (프론트가 PayPal Buttons SDK 스크립트를 동적으로
-//     로드할 때 필요 - CLIENT_ID는 비밀값이 아니라 공개해도 안전함. CLIENT_SECRET만
-//     서버에만 남아있으면 됨) ───────────────────────────────────────────────
-// GET /api/payment/paypal/client-id
+// ─── 0) 공개 Client ID 조회 ────────────────────────────────────────────────
 router.get('/client-id', (req, res) => {
   if (!PAYPAL_CLIENT_ID) {
     return res.status(500).json({ error: 'PAYPAL_CLIENT_ID 환경변수가 설정되지 않았습니다.' });
@@ -178,9 +153,7 @@ router.get('/client-id', (req, res) => {
   return res.json({ clientId: PAYPAL_CLIENT_ID, mode: PAYPAL_MODE });
 });
 
-// ─── 1) 주문 생성 (프론트에서 PayPal 버튼 렌더링 시 호출) ─────────────────────────
-// 요청: { usdAmount: number }
-// 응답: { id: PayPal 주문ID }  ← 프론트 PayPal Buttons SDK가 그대로 사용
+// ─── 1) 주문 생성 ──────────────────────────────────────────────────────────
 router.post('/create-order', async (req, res) => {
   try {
     const usdAmount = Number(req.body.usdAmount);
@@ -212,10 +185,7 @@ router.post('/create-order', async (req, res) => {
       body: JSON.stringify({
         intent: 'CAPTURE',
         purchase_units: [{
-          amount: {
-            currency_code: 'USD',
-            value: amountStr
-          },
+          amount: { currency_code: 'USD', value: amountStr },
           description: 'My Lotto Lab 포인트 충전'
         }]
       })
@@ -227,22 +197,27 @@ router.post('/create-order', async (req, res) => {
       return res.status(500).json({ error: '결제 주문 생성에 실패했습니다.' });
     }
 
-    // 적립될 포인트 미리 계산해서 저장 (승인 시점에 이 값을 그대로 사용 —
-    // 승인 시점 환율 변동과 무관하게 결제(주문 생성) 시점 환율로 고정됩니다.
-    // ※ 이미 계산된 포인트는 이후 관리자가 환율을 바꿔도 소급 변경되지 않습니다.
     const exchangeRate = await getExchangeRate();
     const points = Math.round(usdAmount * exchangeRate);
 
-    orderStore.set(orderData.id, {
-      usdAmount,
+    // ⚠ 2026-08-12 버그수정: 예전엔 이 저장이 서버 메모리(Map)에만 있어서, 저장 직후
+    // 서버가 재시작되면 주문 정보가 사라졌다. 이제는 DB(payments 테이블)에 저장하고,
+    // 저장 결과도 확인해서 실패하면(=PaperLotto와 같은 종류의 버그가 재발하는 것을 막기
+    // 위해) 애초에 주문ID를 프론트에 넘기지 않고 여기서 바로 에러로 끝낸다.
+    const { error: insertErr } = await supabase.from('payments').insert({
+      order_id: orderData.id,
+      payer_id: payerId,
+      method: 'paypal',
+      amount_usd: usdAmount,
       points,
-      payerId,
       status: 'created',
-      createdAt: Date.now()
     });
+    if (insertErr) {
+      console.error('[PayPal] payments 저장 실패 (PayPal 주문은 이미 생성됨, orderID=' + orderData.id + '):', insertErr.message);
+      return res.status(500).json({ error: '결제 준비 중 오류가 발생했습니다. 다시 시도해주세요.' });
+    }
 
     console.log(`[PayPal] 주문 생성: orderID=${orderData.id}, $${amountStr}, ${points}P`);
-
     return res.json({ id: orderData.id });
   } catch (err) {
     console.error('[PayPal] create-order 오류:', err);
@@ -250,8 +225,7 @@ router.post('/create-order', async (req, res) => {
   }
 });
 
-// ─── 2) 주문 승인/캡처 (사용자가 PayPal 결제창에서 승인 완료 후 호출) ──────────────
-// 요청: { orderID: string }
+// ─── 2) 주문 승인/캡처 ─────────────────────────────────────────────────────
 router.post('/capture-order', async (req, res) => {
   try {
     const { orderID } = req.body;
@@ -259,59 +233,57 @@ router.post('/capture-order', async (req, res) => {
       return res.status(400).json({ error: 'orderID가 필요합니다.' });
     }
 
-    const orderInfo = orderStore.get(orderID);
+    // ⚠ 2026-08-12 버그수정: orderStore(메모리) 대신 DB에서 조회
+    const { data: orderInfo, error: fetchErr } = await supabase
+      .from('payments').select('*').eq('order_id', orderID).maybeSingle();
+    if (fetchErr) {
+      console.error('[PayPal] payments 조회 오류:', fetchErr.message);
+      return res.status(500).json({ error: '결제 정보 조회 중 오류가 발생했습니다.' });
+    }
     if (!orderInfo) {
       console.error('[PayPal] 저장된 주문 정보를 찾을 수 없음:', orderID);
       return res.status(400).json({ error: '주문 정보를 찾을 수 없습니다.' });
     }
 
-    // ── 멱등성 처리: 이미 완료 처리된 주문이면 재적립하지 않고 바로 성공 응답 ──
     if (orderInfo.status === 'completed') {
-      return res.json({
-        status: 'success',
-        points: orderInfo.points,
-        message: '이미 처리된 결제입니다.'
-      });
+      return res.json({ status: 'success', points: orderInfo.points, message: '이미 처리된 결제입니다.' });
     }
 
     const accessToken = await getAccessToken();
 
     const captureRes = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderID}/capture`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      }
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` }
     });
 
     const captureData = await captureRes.json();
     console.log('[PayPal] 캡처 응답:', JSON.stringify(captureData));
 
-    // PayPal이 이미 캡처된 주문에 대해 422(ORDER_ALREADY_CAPTURED)를 줄 수 있음 → 멱등 처리
     if (captureRes.status === 422 && captureData.details?.[0]?.issue === 'ORDER_ALREADY_CAPTURED') {
-      orderInfo.status = 'completed';
+      await supabase.from('payments').update({ status: 'completed' }).eq('order_id', orderID);
       return res.json({ status: 'success', points: orderInfo.points, message: '이미 처리된 결제입니다.' });
     }
 
     if (!captureRes.ok || captureData.status !== 'COMPLETED') {
       console.error('[PayPal] 캡처 실패:', JSON.stringify(captureData));
-      orderInfo.status = 'failed';
+      await supabase.from('payments').update({ status: 'failed' }).eq('order_id', orderID);
       return res.status(400).json({ error: '결제 승인에 실패했습니다.' });
     }
 
-    // ── 서버 간 통신으로 확정된 결제만 신뢰하여 포인트 적립 ──────────────────────
-    await creditDepositPoints(orderInfo.payerId, orderInfo.points, { source: 'paypal', orderId: orderID });
+    await creditDepositPoints(orderInfo.payer_id, orderInfo.points, { source: 'paypal', orderId: orderID });
 
-    orderInfo.status = 'completed';
-    orderInfo.tid = captureData.purchase_units?.[0]?.payments?.captures?.[0]?.id;
+    const tid = captureData.purchase_units?.[0]?.payments?.captures?.[0]?.id;
+    await supabase.from('payments').update({
+      status: 'completed', tid, completed_at: new Date().toISOString(),
+    }).eq('order_id', orderID);
 
-    console.log(`[PayPal] 결제 완료: orderID=${orderID}, ${orderInfo.points}P 적립 예정, tid=${orderInfo.tid}`);
+    console.log(`[PayPal] 결제 완료: orderID=${orderID}, ${orderInfo.points}P 적립 예정, tid=${tid}`);
 
     return res.json({
       status: 'success',
       points: orderInfo.points,
-      usdAmount: orderInfo.usdAmount,
-      tid: orderInfo.tid
+      usdAmount: orderInfo.amount_usd,
+      tid
     });
   } catch (err) {
     console.error('[PayPal] capture-order 오류:', err);
