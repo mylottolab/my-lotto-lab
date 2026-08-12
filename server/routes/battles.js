@@ -447,7 +447,12 @@ router.post('/rooms/:id/submit', async (req, res) => {
 
     const { data: participant } = await supabase.from('battle_participants').select('*').eq('room_id', id).eq('user_id', user.id).maybeSingle();
     if (!participant) return res.status(403).json({ error: '이 방의 참가자가 아닙니다. 먼저 방을 구매(참가)해주세요.' });
-    if (participant.finalized) return res.status(409).json({ error: '이미 "제출완료" 처리하셔서 더 이상 추가할 수 없습니다.' });
+    // ⚠ 2026-08-12: 무제한 대결은 마감 전까지 계속 방 추가구매·조합추가가 가능해야 하므로
+    // "제출완료" 영구잠금 개념 자체를 적용하지 않는다 (1:1/팀전은 원래 취지대로 유지 —
+    // 다만 현재 비활성화 상태라 실제로는 도달하지 않음).
+    if (participant.finalized && room.type !== 'ffa') {
+      return res.status(409).json({ error: '이미 "제출완료" 처리하셔서 더 이상 추가할 수 없습니다.' });
+    }
 
     // ⚠ 2026-08-12 재설계: 조합 제출은 이제 무료(이미 방을 살 때 베팅이 끝남).
     // 한도는 "산 방 개수 × 100개"로, 방을 안 사면 0개, 3단위 사면 300개까지 채울 수 있다.
