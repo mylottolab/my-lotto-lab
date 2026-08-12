@@ -628,12 +628,14 @@ BUI.renderCreateTypeGrid = function(){
     var active = c.enabled && BUI.state.createType === c.key;
     var style = c.enabled ? '' : 'opacity:.42;cursor:default;';
     var onclick = c.enabled ? ("BUI.selectCreateType('" + c.key + "')") : '';
-    var tag = !c.enabled ? ' <span style="font-size:9.5px;color:var(--text-faint);">(준비중)</span>'
-      : (c.systemOnly ? ' <span style="font-size:9.5px;color:var(--blue);">(참가전용)</span>' : '');
+    var label = c.key === 'ffa' ? (LANG==='en' ? 'Free-for-all' : '무제한 대결') : c.label;
+    var desc = c.key === 'ffa' ? (LANG==='en' ? 'System opens a new room every round — no headcount limit, join anytime' : '회차마다 시스템이 자동 개설 — 인원 제한 없이 참가만') : c.desc;
+    var tag = !c.enabled ? ' <span style="font-size:9.5px;color:var(--text-faint);">(' + (LANG==='en'?'Coming soon':'준비중') + ')</span>'
+      : (c.systemOnly ? ' <span style="font-size:9.5px;color:var(--blue);">(' + (LANG==='en'?'Join only':'참가전용') + ')</span>' : '');
     return '<div class="create-type-card' + (active?' active':'') + '" style="' + style + '" onclick="' + onclick + '">' +
       '<div class="ti">' + c.icon + '</div>' +
-      '<div class="tn">' + c.label + tag + '</div>' +
-      '<div class="td">' + c.desc + '</div>' +
+      '<div class="tn">' + label + tag + '</div>' +
+      '<div class="td">' + desc + '</div>' +
     '</div>';
   }).join('');
 };
@@ -649,7 +651,7 @@ BUI.selectCreateType = function(cardKey){
 BUI.renderCreateForm = async function(){
   var createType = BUI.state.createType;
   if (!createType) {
-    document.getElementById('createFormBody').innerHTML = '<div class="card"><div class="empty-state" style="padding:18px;">위에서 대결 종류를 선택해주세요.</div></div>';
+    document.getElementById('createFormBody').innerHTML = '<div class="card"><div class="empty-state" style="padding:18px;">' + (LANG==='en' ? 'Please select a battle type above.' : '위에서 대결 종류를 선택해주세요.') + '</div></div>';
     return;
   }
 
@@ -661,16 +663,26 @@ BUI.renderCreateForm = async function(){
   if (createType === 'ffa') {
     document.getElementById('createFormBody').innerHTML =
       '<div class="card">' +
-      '<div class="empty-state" style="padding:14px 4px;">🌀 무제한 대결은 회차마다 <b style="color:var(--text);">시스템이 자동으로 방을 개설</b>합니다.<br>아래 "참가가능한 방"에서 지금 열려있는 방을 눌러 참가해주세요.</div>' +
+      '<div class="empty-state" style="padding:14px 4px;">🌀 ' + (LANG==='en'
+        ? 'The system automatically opens a new Free-for-all room every round. <br>Click an open room in "Available rooms" on the right to join.'
+        : '무제한 대결은 회차마다 <b style="color:var(--text);">시스템이 자동으로 방을 개설</b>합니다.<br>아래 "참가가능한 방"에서 지금 열려있는 방을 눌러 참가해주세요.') + '</div>' +
       '<div class="form-row" style="margin-top:10px;flex-direction:column;align-items:flex-start;gap:6px;">' +
-        '<label style="color:var(--text-faint);">베팅/배당 방식</label>' +
-        '<div style="font-size:12px;line-height:1.7;color:var(--text-dim);">' +
-          '<span style="color:var(--gold);font-weight:700;">1단위(100P) = 방 1개</span> (최대 100개 조합을 무료로 채울 수 있는 공간) · 최대 100단위(10,000P)까지 나눠서 구매 가능<br>' +
-          '방을 다 채우든 하나도 안 채우든 상관없이, <b style="color:var(--text);">산 방 개수 자체가 그대로 베팅액</b>입니다.<br>' +
-          '추첨 후 <b style="color:var(--text);">당첨금 합계 1위</b>(동점이면 당첨개수 많은 쪽)가 우승 —<br>' +
-          '우승자는 자기 베팅액을 그대로 돌려받고, 거기에 <span style="color:var(--green);font-weight:700;">낙첨자 베팅총액의 80%</span>를 베팅비율로 나눠 가집니다 (공동우승이면 그만큼 n분할).<br>' +
-          '<span style="color:var(--text-faint);">※ 혼자 참가한 회차는 낙첨자가 없어 베팅액이 그대로 전액 환불됩니다.</span>' +
-        '</div>' +
+        '<label style="color:var(--text-faint);">' + (LANG==='en' ? 'Betting / Payout' : '베팅/배당 방식') + '</label>' +
+        (LANG==='en'
+          ? '<div style="font-size:12px;line-height:1.7;color:var(--text-dim);">' +
+              '<span style="color:var(--gold);font-weight:700;">1 unit (100P) = 1 room</span> (a space where you can freely add up to 100 combos) · buy up to 100 units (10,000P), in as many purchases as you like<br>' +
+              'Whether you fill your rooms fully or not, <b style="color:var(--text);">the number of rooms you bought is your bet amount</b>, no more no less.<br>' +
+              'After the draw, <b style="color:var(--text);">the highest total prize wins</b> (ties broken by number of winning combos) —<br>' +
+              'The winner gets their own bet back in full, plus <span style="color:var(--green);font-weight:700;">80% of the losers\' total bets</span>, split by bet ratio (shared evenly among co-winners).<br>' +
+              '<span style="color:var(--text-faint);">※ If you\'re the only participant this round, there are no losers, so your bet is fully refunded.</span>' +
+            '</div>'
+          : '<div style="font-size:12px;line-height:1.7;color:var(--text-dim);">' +
+              '<span style="color:var(--gold);font-weight:700;">1단위(100P) = 방 1개</span> (최대 100개 조합을 무료로 채울 수 있는 공간) · 최대 100단위(10,000P)까지 나눠서 구매 가능<br>' +
+              '방을 다 채우든 하나도 안 채우든 상관없이, <b style="color:var(--text);">산 방 개수 자체가 그대로 베팅액</b>입니다.<br>' +
+              '추첨 후 <b style="color:var(--text);">당첨금 합계 1위</b>(동점이면 당첨개수 많은 쪽)가 우승 —<br>' +
+              '우승자는 자기 베팅액을 그대로 돌려받고, 거기에 <span style="color:var(--green);font-weight:700;">낙첨자 베팅총액의 80%</span>를 베팅비율로 나눠 가집니다 (공동우승이면 그만큼 n분할).<br>' +
+              '<span style="color:var(--text-faint);">※ 혼자 참가한 회차는 낙첨자가 없어 베팅액이 그대로 전액 환불됩니다.</span>' +
+            '</div>') +
       '</div>' +
       '</div>';
     return;
@@ -1025,65 +1037,100 @@ BUI.doJoin = async function(){
 // 1단위=100P=방 1개(최대 100개 조합 무료로 채울 수 있음). 방을 다 채우든 안 채우든
 // 상관없이 "산 방 개수"가 곧 베팅액. 경마 베팅처럼 마감 전까지 나눠서 추가 구매 가능(최대 100단위).
 BUI.roomFFAHtml = function(room, myParticipant){
-  var deadlineNotice = '<div class="card" style="background:rgba(224,179,65,.06);border-color:var(--gold-dim);font-size:11px;color:var(--text-dim);">⏰ 방 구매 및 번호조합 등록 마감: 추첨일(토요일) 밤 20시까지. 인원 제한 없이 누구나 계속 참가할 수 있습니다.</div>';
+  var deadlineNotice = '<div class="card" style="background:rgba(224,179,65,.06);border-color:var(--gold-dim);font-size:11px;color:var(--text-dim);">⏰ ' + (LANG==='en'
+    ? 'Room purchase & number registration deadline: Saturday (draw day) 8 PM. No headcount limit — anyone can keep joining until then.'
+    : '방 구매 및 번호조합 등록 마감: 추첨일(토요일) 밤 20시까지. 인원 제한 없이 누구나 계속 참가할 수 있습니다.') + '</div>';
   var participantsHtml = room.participants.map(function(p){
-    var unitsLabel = p.unitsBought ? (' · 방 ' + p.unitsBought + '개') : '';
-    var comboLabel = p.comboCount ? (' · ' + p.comboCount + '개 조합') : '';
-    return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + unitsLabel + comboLabel + '</span><span style="color:' + (p.submitted?'var(--green)':'var(--text-faint)') + ';">' + (p.submitted?'제출완료':'대기중') + '</span></div>';
-  }).join('') || '<div class="empty-state">아직 참가자가 없습니다.</div>';
+    var unitsLabel = p.unitsBought ? (LANG==='en' ? (' · ' + p.unitsBought + ' room(s)') : (' · 방 ' + p.unitsBought + '개')) : '';
+    var comboLabel = p.comboCount ? (LANG==='en' ? (' · ' + p.comboCount + ' combos') : (' · ' + p.comboCount + '개 조합')) : '';
+    var statusLabel = p.submitted ? (LANG==='en' ? 'Submitted' : '제출완료') : (LANG==='en' ? 'Waiting' : '대기중');
+    return '<div class="participant-row"><span>' + p.nickname + (p.isMe?(LANG==='en'?' (me)':' (나)'):'') + unitsLabel + comboLabel + '</span><span style="color:' + (p.submitted?'var(--green)':'var(--text-faint)') + ';">' + statusLabel + '</span></div>';
+  }).join('') || '<div class="empty-state">' + (LANG==='en' ? 'No participants yet.' : '아직 참가자가 없습니다.') + '</div>';
 
   var unitsBought = myParticipant ? (myParticipant.unitsBought || 0) : 0;
   var remainingUnits = 100 - unitsBought;
   var alreadyCombos = myParticipant ? (myParticipant.comboCount || 0) : 0;
   var maxCombos = unitsBought * 100;
-  var finalized = myParticipant ? !!myParticipant.finalized : false;
+  // ⚠ 2026-08-12: 무제한 대결은 "제출완료 = 영구잠금" 개념을 없앴다 — 마감 전까지
+  // 언제든 방을 더 사고 조합을 더 채울 수 있어야 한다는 요청 반영. (예전에 이미
+  // finalized=true로 저장된 참가자가 있어도, 여기서 그 값을 아예 안 보고 무시한다.)
 
-  // ── 방 구매 UI (100단위 다 살 때까지 계속 노출) ──
+  // ⚠ 2026-08-12 개선: 방 문패가 "아직 최종 제출 안 한, 지금 담고 있는 중인 조합"까지
+  // 실시간으로 반영하도록, 필요한 값을 state에 저장해두고 renderMultiComboList()에서
+  // 조합을 추가/삭제할 때마다 BUI.refreshFFARoomPlates()로 문패만 다시 그린다.
+  // (예전엔 실제 서버 제출 전까지 방 문패가 안 움직여서, "100개 넣었는데 왜 0/100이냐"는
+  // 혼란이 있었음 — 이제는 입력창에 담는 즉시 바로 반영됨)
+  BUI.state.ffaUnitsBought = unitsBought;
+  BUI.state.ffaAlreadyCombos = alreadyCombos;
+
+  // ── 방 구매 UI (100단위 다 살 때까지 계속 노출, 제출완료 여부와 무관) ──
   var buyUnitsHtml = '';
-  if (!finalized && remainingUnits > 0) {
-    buyUnitsHtml = '<div class="card">' +
-      '<h3>🏠 방 구매 (보유 ' + unitsBought + '/100단위)</h3>' +
-      '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">1단위 = 100P = 방 1개(최대 100개 조합을 무료로 채울 수 있는 공간). 산 방을 다 채우든 하나도 안 채우든, <b style="color:var(--gold);">산 방 개수 자체가 그대로 베팅액</b>입니다. 추첨 후 각자 당첨금 합계가 가장 큰 사람이 1등이며(동점이면 당첨된 조합 개수로), 1등은 자기 베팅액 그대로 + 낙첨자 베팅총액의 80%를 나눠 받습니다.</p>' +
-      '<div class="form-row"><label>구매할 단위 수</label><input type="number" class="inp" id="ffaBuyUnitsInput" value="1" min="1" max="' + remainingUnits + '" style="width:100px;"> <button class="btn btn-gold" onclick="BUI.doBuyFFAUnits()">💰 방 구매하기</button></div>' +
-    '</div>';
+  if (remainingUnits > 0) {
+    buyUnitsHtml = LANG==='en'
+      ? ('<div class="card">' +
+          '<h3>🏠 Buy rooms (holding ' + unitsBought + '/100 units)</h3>' +
+          '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">1 unit = 100P = 1 room (a free space to add up to 100 combos). Whether you fill your rooms or not, <b style="color:var(--gold);">the number of rooms you bought is your bet amount</b>. You can buy more, in as many purchases as you like, until the deadline (draw day 8 PM).</p>' +
+          '<div class="form-row"><label>Units to buy</label><input type="number" class="inp" id="ffaBuyUnitsInput" value="1" min="1" max="' + remainingUnits + '" style="width:100px;"> <button class="btn btn-gold" onclick="BUI.doBuyFFAUnits()">💰 Buy rooms</button></div>' +
+        '</div>')
+      : ('<div class="card">' +
+          '<h3>🏠 방 구매 (보유 ' + unitsBought + '/100단위)</h3>' +
+          '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">1단위 = 100P = 방 1개(최대 100개 조합을 무료로 채울 수 있는 공간). 산 방을 다 채우든 하나도 안 채우든, <b style="color:var(--gold);">산 방 개수 자체가 그대로 베팅액</b>입니다. 마감(추첨일 20시) 전까지 몇 번이든 나눠서 추가 구매할 수 있어요. 추첨 후 각자 당첨금 합계가 가장 큰 사람이 1등이며(동점이면 당첨된 조합 개수로), 1등은 자기 베팅액 그대로 + 낙첨자 베팅총액의 80%를 나눠 받습니다.</p>' +
+          '<div class="form-row"><label>구매할 단위 수</label><input type="number" class="inp" id="ffaBuyUnitsInput" value="1" min="1" max="' + remainingUnits + '" style="width:100px;"> <button class="btn btn-gold" onclick="BUI.doBuyFFAUnits()">💰 방 구매하기</button></div>' +
+        '</div>');
   }
 
-  // ── 내 방 현황 ("방1, 방2..." 문패 — 산 방 개수만큼, 각자 채워진 조합 개수 표시) ──
-  var roomsHtml = '';
-  if (unitsBought > 0) {
-    var roomCards = [];
-    for (var i = 0; i < unitsBought; i++) {
-      var filled = Math.max(0, Math.min(100, alreadyCombos - i * 100));
-      var full = filled >= 100;
-      roomCards.push(
-        '<div class="ffa-room-plate' + (full ? ' full' : '') + '">' +
-          '<div class="frp-name">방 ' + (i + 1) + '</div>' +
-          '<div class="frp-fill">' + filled + '/100</div>' +
-        '</div>'
-      );
-    }
-    roomsHtml = '<div class="card"><h3>🚪 내 방 현황 (' + unitsBought + '개)</h3><div class="ffa-room-grid">' + roomCards.join('') + '</div></div>';
-  }
+  // ── 내 방 현황 ("방1, 방2..." 문패 — 산 방 개수만큼, 채워진 조합 개수를 실시간 표시) ──
+  var roomsHtml = unitsBought > 0
+    ? '<div class="card"><h3>🚪 ' + (LANG==='en' ? ('My rooms (' + unitsBought + ')') : ('내 방 현황 (' + unitsBought + '개)')) + '</h3><div class="ffa-room-grid" id="ffaRoomPlates">' + BUI.ffaRoomPlatesHtml(unitsBought, alreadyCombos) + '</div></div>'
+    : '';
 
-  // ── 조합 채우기 위젯 (방을 최소 1개는 사야 나타남) ──
+  // ── 조합 채우기 위젯 (방을 최소 1개는 사야 나타남, 마감 전까지 계속 추가 가능) ──
   var actionHtml = '';
-  if (finalized) {
-    actionHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✅ 제출완료 (' + alreadyCombos + '개) — 더 이상 추가할 수 없습니다.<br>추첨 결과를 기다려주세요.</div></div>';
-  } else if (unitsBought === 0) {
-    actionHtml = '<div class="card"><div class="empty-state">먼저 위에서 방을 구매하시면, 그 방들을 채울 번호조합 등록 화면이 나타납니다.</div></div>';
+  if (unitsBought === 0) {
+    actionHtml = '<div class="card"><div class="empty-state">' + (LANG==='en' ? 'Buy rooms above first, then a number-registration screen will appear here.' : '먼저 위에서 방을 구매하시면, 그 방들을 채울 번호조합 등록 화면이 나타납니다.') + '</div></div>';
   } else if (alreadyCombos >= maxCombos) {
-    actionHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">✓ 보유한 방(' + unitsBought + '개, ' + maxCombos + '칸) 전부 가득 채우셨습니다.<br>더 채우고 싶으면 방을 추가로 구매해주세요.</div></div>';
+    actionHtml = '<div class="card"><div style="font-size:12px;color:var(--green);text-align:center;">' + (LANG==='en'
+      ? ('✓ You\'ve filled all your rooms (' + unitsBought + ' rooms, ' + maxCombos + ' slots).<br>Buy more rooms if you\'d like to add more.')
+      : ('✓ 보유한 방(' + unitsBought + '개, ' + maxCombos + '칸) 전부 가득 채우셨습니다.<br>더 채우고 싶으면 방을 추가로 구매해주세요.')) + '</div></div>';
   } else {
-    actionHtml = BUI.comboSubmitWidgetHtml(alreadyCombos, '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">보유하신 ' + unitsBought + '개 방(총 ' + maxCombos + '칸)을 원하는 만큼 채워주세요 — 다 안 채워도 이미 낸 베팅액에는 영향 없습니다.</p>', true, maxCombos);
+    actionHtml = BUI.comboSubmitWidgetHtml(alreadyCombos, '<p style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">' + (LANG==='en'
+      ? ('Fill as much of your ' + unitsBought + ' room(s) (' + maxCombos + ' slots total) as you\'d like — leaving some unfilled doesn\'t affect your bet. You can keep coming back to add more until the deadline.')
+      : ('보유하신 ' + unitsBought + '개 방(총 ' + maxCombos + '칸)을 원하는 만큼 채워주세요 — 다 안 채워도 이미 낸 베팅액에는 영향 없습니다. 마감 전까지 몇 번이든 다시 들어와서 이어서 채울 수 있어요.')) + '</p>', true, maxCombos);
   }
 
   return deadlineNotice + '<div class="card"><h3>참가자 (' + room.participants.length + '명)</h3>' + participantsHtml + '</div>' + buyUnitsHtml + roomsHtml + actionHtml;
 };
 
+// ⚠ 2026-08-12: filledTotal은 "실제 제출됨(alreadyCombos) + 지금 담고 있는 중(staged)"을
+// 합친 값을 받는다 — 최종 제출 전이라도 방 문패가 실시간으로 채워지는 것처럼 보이게 하기 위함.
+BUI.ffaRoomPlatesHtml = function(unitsBought, filledTotal){
+  var cards = [];
+  for (var i = 0; i < unitsBought; i++) {
+    var filled = Math.max(0, Math.min(100, filledTotal - i * 100));
+    var full = filled >= 100;
+    var roomLabel = LANG==='en' ? ('Room ' + (i + 1)) : ('방 ' + (i + 1));
+    cards.push(
+      '<div class="ffa-room-plate' + (full ? ' full' : '') + '">' +
+        '<div class="frp-name">' + roomLabel + '</div>' +
+        '<div class="frp-fill">' + filled + '/100</div>' +
+      '</div>'
+    );
+  }
+  return cards.join('');
+};
+BUI.refreshFFARoomPlates = function(){
+  var el = document.getElementById('ffaRoomPlates');
+  if (!el) return;
+  var unitsBought = BUI.state.ffaUnitsBought || 0;
+  var alreadyCombos = BUI.state.ffaAlreadyCombos || 0;
+  var stagedCount = BUI.state.multiCombos ? BUI.state.multiCombos.length : 0;
+  el.innerHTML = BUI.ffaRoomPlatesHtml(unitsBought, alreadyCombos + stagedCount);
+};
+
 BUI.doBuyFFAUnits = async function(){
   var input = document.getElementById('ffaBuyUnitsInput');
   var units = parseInt(input.value) || 0;
-  if (units < 1) { alert('1단위 이상 입력해주세요.'); return; }
+  if (units < 1) { alert(LANG==='en' ? 'Please enter at least 1 unit.' : '1단위 이상 입력해주세요.'); return; }
   var result = await BATTLE.buyFFAUnits(BUI.state.currentRoomId, units);
   if (!result.ok) return;
   BUI.renderRoomModal();
@@ -1127,30 +1174,38 @@ BUI.comboSubmitWidgetHtml = function(alreadySubmitted, introHtml, isFFA, maxComb
     var staged = BUI.state.multiCombos.length;
     var total = alreadySubmitted + staged;
     return '<div class="card" style="border-color:var(--gold-dim);">' +
-      '<div style="font-size:13px;font-weight:700;margin-bottom:8px;">총 ' + maxCombos + '개 중 ' + total + '개 입력 (기존 ' + alreadySubmitted + '개 + 지금 ' + staged + '개) · 잔여 입력가능 ' + (maxCombos - total) + '개</div>' +
-      '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">⚠️ 한 번 제출한 조합은 <b style="color:var(--red);">수정·삭제가 불가능</b>합니다 (복권을 한 번 사면 취소할 수 없는 것과 같아요). 아직 제출 안 한 나머지는 마감 전까지 언제든 다시 들어와서 추가할 수 있어요.</div>' +
+      '<div style="font-size:13px;font-weight:700;margin-bottom:8px;">' + (LANG==='en'
+        ? ('Entered ' + total + ' of ' + maxCombos + ' (existing ' + alreadySubmitted + ' + now ' + staged + ') · ' + (maxCombos - total) + ' more slots available')
+        : ('총 ' + maxCombos + '개 중 ' + total + '개 입력 (기존 ' + alreadySubmitted + '개 + 지금 ' + staged + '개) · 잔여 입력가능 ' + (maxCombos - total) + '개')) + '</div>' +
+      '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">' + (LANG==='en'
+        ? '⚠️ Once submitted, combos can\'t be <b style="color:var(--red);">edited or deleted</b> (like a lottery ticket you can\'t cancel after buying). You can still come back and add more (unsubmitted ones) any time before the deadline.'
+        : '⚠️ 한 번 제출한 조합은 <b style="color:var(--red);">수정·삭제가 불가능</b>합니다 (복권을 한 번 사면 취소할 수 없는 것과 같아요). 아직 제출 안 한 나머지는 마감 전까지 언제든 다시 들어와서 추가할 수 있어요.') + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:8px;">' +
-        '<button class="btn btn-outline" onclick="BUI.cancelSubmitConfirm()">🔙 지금 더 추가하기</button>' +
-        '<button class="btn btn-outline" onclick="BUI.confirmSubmit(false)">💾 여기까지 제출, 나중에 더 추가하기</button>' +
-        '<button class="btn btn-gold" onclick="BUI.confirmSubmit(true)">✅ 이대로 제출완료</button>' +
+        '<button class="btn btn-outline" onclick="BUI.cancelSubmitConfirm()">🔙 ' + (LANG==='en'?'Add more now':'지금 더 추가하기') + '</button>' +
+        (isFFA
+          ? '<button class="btn btn-gold" onclick="BUI.confirmSubmit(false)">✅ ' + (LANG==='en'?'Submit (you can keep adding until the deadline)':'제출하기 (마감 전까지 계속 추가 가능)') + '</button>'
+          : '<button class="btn btn-outline" onclick="BUI.confirmSubmit(false)">💾 ' + (LANG==='en'?'Submit this batch, add more later':'여기까지 제출, 나중에 더 추가하기') + '</button>' +
+            '<button class="btn btn-gold" onclick="BUI.confirmSubmit(true)">✅ ' + (LANG==='en'?'Submit & finalize':'이대로 제출완료') + '</button>') +
       '</div>' +
     '</div>';
   }
 
   return '<div class="card">' +
-    (alreadySubmitted > 0 ? '<div style="font-size:12px;color:var(--green);margin-bottom:10px;">✓ 이미 ' + alreadySubmitted + '개 제출됨 — 마감 전까지 계속 추가할 수 있어요 (최대 ' + maxCombos + '개)</div>' : '') +
-    '<h3>번호조합 등록 (잔여 ' + remaining + '개 가능)</h3>' +
+    (alreadySubmitted > 0 ? '<div style="font-size:12px;color:var(--green);margin-bottom:10px;">✓ ' + (LANG==='en'
+      ? (alreadySubmitted + ' already submitted — you can keep adding until the deadline (up to ' + maxCombos + ')')
+      : ('이미 ' + alreadySubmitted + '개 제출됨 — 마감 전까지 계속 추가할 수 있어요 (최대 ' + maxCombos + '개)')) + '</div>' : '') +
+    '<h3>' + (LANG==='en' ? ('Register combos (' + remaining + ' more available)') : ('번호조합 등록 (잔여 ' + remaining + '개 가능)')) + '</h3>' +
     introHtml +
-    '<div class="form-row"><label>자동 생성 개수</label><input type="number" class="inp" id="multiGenCount" value="10" min="1" max="' + remaining + '" style="width:80px;"> <button class="btn btn-outline" onclick="BUI.addAutoCombos()">+ 자동 추가</button></div>' +
-    '<div class="form-row"><label>직접 선택</label><span style="font-size:11px;color:var(--text-faint);">아래 공에서 6개를 고르면 조합이 1개씩 추가됩니다</span></div>' +
+    '<div class="form-row"><label>' + (LANG==='en'?'Auto-generate count':'자동 생성 개수') + '</label><input type="number" class="inp" id="multiGenCount" value="10" min="1" max="' + remaining + '" style="width:80px;"> <button class="btn btn-outline" onclick="BUI.addAutoCombos()">+ ' + (LANG==='en'?'Auto add':'자동 추가') + '</button></div>' +
+    '<div class="form-row"><label>' + (LANG==='en'?'Pick manually':'직접 선택') + '</label><span style="font-size:11px;color:var(--text-faint);">' + (LANG==='en' ? 'Pick 6 balls below to add a combo' : '아래 공에서 6개를 고르면 조합이 1개씩 추가됩니다') + '</span></div>' +
     '<div class="ball-grid" id="multiBallGrid"></div>' +
     '<div id="multiComboList" style="margin-top:12px;"></div>' +
-    '<button class="btn btn-gold" style="width:100%;margin-top:10px;" id="submitMultiPicksBtn" disabled onclick="BUI.openSubmitConfirm()">등록하기</button>' +
+    '<button class="btn btn-gold" style="width:100%;margin-top:10px;" id="submitMultiPicksBtn" disabled onclick="BUI.openSubmitConfirm()">' + (LANG==='en'?'Register':'등록하기') + '</button>' +
   '</div>';
 };
 
 BUI.openSubmitConfirm = function(){
-  if (!BUI.state.multiCombos.length) { alert('번호조합을 1개 이상 등록해주세요.'); return; }
+  if (!BUI.state.multiCombos.length) { alert(LANG==='en' ? 'Please add at least 1 combo.' : '번호조합을 1개 이상 등록해주세요.'); return; }
   BUI.state.submitConfirmShown = true;
   BUI.rerenderCurrentSubmitUI();
 };
@@ -1172,8 +1227,8 @@ BUI.confirmSubmit = async function(isFinal){
   BUI.state.selectedBalls = [];
   BUI.state.submitConfirmShown = false;
   alert(isFinal
-    ? '✅ 제출 완료했습니다! 이제 이 조합은 수정·추가할 수 없습니다. 참여해주셔서 감사합니다.'
-    : '💾 지금까지 조합이 제출됐어요. 마감 전까지 언제든 다시 들어와서 추가하실 수 있습니다.');
+    ? (LANG==='en' ? '✅ Submitted! These combos can no longer be edited or added to. Thank you for participating.' : '✅ 제출 완료했습니다! 이제 이 조합은 수정·추가할 수 없습니다. 참여해주셔서 감사합니다.')
+    : (LANG==='en' ? '💾 Submitted! You can come back and add more any time before the deadline.' : '💾 지금까지 조합이 제출됐어요. 마감 전까지 언제든 다시 들어와서 추가하실 수 있습니다.'));
   BUI.rerenderCurrentSubmitUI();
 };
 
@@ -1215,7 +1270,7 @@ BUI.addAutoCombos = function(){
   var cap = (BUI.state.submitRemaining != null) ? BUI.state.submitRemaining : BATTLE.MAX_COMBOS_PER_PARTICIPANT;
   var countInput = document.getElementById('multiGenCount');
   var count = Math.max(1, Math.min(cap - BUI.state.multiCombos.length, parseInt(countInput.value)||1));
-  if (count <= 0) { alert('지금 추가로 등록할 수 있는 조합 한도(' + cap + '개)에 도달했어요.'); return; }
+  if (count <= 0) { alert(LANG==='en' ? ('You\'ve reached the current limit (' + cap + ') for adding combos.') : ('지금 추가로 등록할 수 있는 조합 한도(' + cap + '개)에 도달했어요.')); return; }
   for (var i=0;i<count;i++){
     var pool = []; for (var n=1;n<=45;n++) pool.push(n);
     var picked = [];
@@ -1230,11 +1285,12 @@ BUI.renderMultiComboList = function(){
   var cap = (BUI.state.submitRemaining != null) ? BUI.state.submitRemaining : BATTLE.MAX_COMBOS_PER_PARTICIPANT;
   var combos = BUI.state.multiCombos;
   var listHtml = combos.map(function(c, i){
-    return '<div class="participant-row"><span class="font-num">' + (i+1) + '. ' + c.join(', ') + '</span><span style="color:var(--red);cursor:pointer;" onclick="BUI.removeCombo(' + i + ')">✕ 삭제</span></div>';
-  }).join('') || '<div style="font-size:11.5px;color:var(--text-faint);padding:8px 0;">아직 등록된 조합이 없습니다.</div>';
-  el.innerHTML = '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">지금 등록 준비된 조합: <b style="color:var(--gold);">' + combos.length + ' / ' + cap + '</b></div>' + listHtml;
+    return '<div class="participant-row"><span class="font-num">' + (i+1) + '. ' + c.join(', ') + '</span><span style="color:var(--red);cursor:pointer;" onclick="BUI.removeCombo(' + i + ')">✕ ' + (LANG==='en'?'Remove':'삭제') + '</span></div>';
+  }).join('') || '<div style="font-size:11.5px;color:var(--text-faint);padding:8px 0;">' + (LANG==='en' ? 'No combos registered yet.' : '아직 등록된 조합이 없습니다.') + '</div>';
+  el.innerHTML = '<div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">' + (LANG==='en' ? 'Ready to register: ' : '지금 등록 준비된 조합: ') + '<b style="color:var(--gold);">' + combos.length + ' / ' + cap + '</b></div>' + listHtml;
   var btn = document.getElementById('submitMultiPicksBtn');
   if (btn) btn.disabled = combos.length === 0;
+  BUI.refreshFFARoomPlates(); // ⚠ 2026-08-12: 아직 제출 전이라도 담는 즉시 방 문패에 실시간 반영
 };
 
 BUI.roomActiveHtml = function(room){
@@ -1248,17 +1304,31 @@ BUI.roomActiveHtml = function(room){
 
 BUI.roomCompletedHtml = function(room){
   var isTeam = room.type === 'team';
+  var isFFA = room.type === 'ffa';
   var r = room.result;
-  var resultHtml = r ? ('<div class="card"><h3>추첨 결과</h3><div class="font-num" style="font-size:14px;">' + r.nums.join(', ') + ' <span style="color:var(--text-faint);">+ ' + r.bonus + '</span></div></div>') : '';
+  var resultHtml = r ? ('<div class="card"><h3>' + (LANG==='en'?'Draw Result':'추첨 결과') + '</h3><div class="font-num" style="font-size:14px;">' + r.nums.join(', ') + ' <span style="color:var(--text-faint);">+ ' + r.bonus + '</span></div></div>') : '';
 
   var rankedHtml;
   if (room.allForfeited) {
-    rankedHtml = '<div class="card" style="background:rgba(224,80,80,.08);border-color:#e05050;"><h3>⚠️ 전원 몰수패</h3><div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;">등록 마감(추첨일 20시)까지 아무도 번호조합을 제출하지 않아 우승자가 없습니다. 참가비 환불이나 보상 지급도 없습니다.</div></div>';
+    rankedHtml = '<div class="card" style="background:rgba(224,80,80,.08);border-color:#e05050;"><h3>⚠️ ' + (LANG==='en'?'Everyone forfeited':'전원 몰수패') + '</h3><div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;">' + (LANG==='en'
+      ? 'No one submitted any combos before the deadline (draw day 8 PM), so there is no winner. No refunds or payouts either.'
+      : '등록 마감(추첨일 20시)까지 아무도 번호조합을 제출하지 않아 우승자가 없습니다. 참가비 환불이나 보상 지급도 없습니다.') + '</div></div>';
   } else if (room.isDraw) {
-    rankedHtml = '<div class="card" style="background:rgba(91,156,213,.08);border-color:var(--blue);"><h3>🤝 무승부</h3><div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;">' + (isTeam?'양 팀':'') + '당첨금 합계와 등록건수까지 완전히 같아 우승자를 가릴 수 없었습니다.<br>참가자 전원에게 참가비의 절반이 활동포인트로 환불되었습니다.</div></div>' +
-      '<div class="card"><h3>결과</h3>' + room.participants.map(function(p){
+    // ⚠ 2026-08-12: ffa는 동점자가 여럿이어도 "절반 환불"이 아니라 낙첨자풀을 베팅비율로
+    // 나눠 갖는 방식이라 예전 1:1/팀전용 설명 문구를 그대로 쓰면 안 됨 — 종류별로 분기.
+    var drawDesc = isFFA
+      ? (LANG==='en'
+          ? 'Multiple participants tied for 1st place (same total prize and win count). They split the payout proportionally by how many rooms they each bought.'
+          : '여러 명이 공동 1위(당첨금 합계·당첨개수 동일)입니다. 각자 산 방 개수 비율로 배당을 나눠 받습니다.')
+      : (LANG==='en'
+          ? ((isTeam?'Both teams had ':'') + 'identical total prizes and entries, so no winner could be determined.<br>Half the entry fee was refunded to everyone as activity points.')
+          : ((isTeam?'양 팀':'') + '당첨금 합계와 등록건수까지 완전히 같아 우승자를 가릴 수 없었습니다.<br>참가자 전원에게 참가비의 절반이 활동포인트로 환불되었습니다.'));
+    rankedHtml = '<div class="card" style="background:rgba(91,156,213,.08);border-color:var(--blue);"><h3>🤝 ' + (LANG==='en'?'Tie':'무승부') + '</h3><div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;">' + drawDesc + '</div></div>' +
+      '<div class="card"><h3>' + (LANG==='en'?'Results':'결과') + '</h3>' + room.participants.map(function(p){
         var sideTag = isTeam ? (' <span style="color:var(--text-faint);">['+BUI.sideLabel(p.side)+']</span>') : '';
-        return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + sideTag + (p.forfeited?' (미제출)':'') + '</span><span class="font-num">누적 ' + (p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개 조합</span></div>';
+        var forfeitTag = p.forfeited ? (LANG==='en'?' (not submitted)':' (미제출)') : '';
+        var statLine = LANG==='en' ? ('total ' + (p.totalPrize||0).toLocaleString() + 'P · ' + (p.comboCount||0) + ' combos') : ('누적 ' + (p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개 조합');
+        return '<div class="participant-row"><span>' + p.nickname + (p.isMe?(LANG==='en'?' (me)':' (나)'):'') + sideTag + forfeitTag + '</span><span class="font-num">' + statLine + '</span></div>';
       }).join('') + '</div>';
   } else if (isTeam) {
     var teamTotalsHtml = [0,1].map(function(side){
@@ -1268,21 +1338,23 @@ BUI.roomCompletedHtml = function(room){
       var isWinningSide = room.winningSide === side;
       return '<div class="card" style="' + (isWinningSide?'border-color:var(--gold);background:rgba(224,179,65,.06);':'') + '">' +
         '<h3>' + BUI.sideLabel(side) + (isWinningSide?' 🏆':'') + '</h3>' +
-        '<div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">팀 합계: <b class="font-num" style="color:var(--gold);">' + totalPrize.toLocaleString() + '원</b> · 총 ' + totalCombo + '개 조합</div>' +
+        '<div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">' + (LANG==='en' ? ('Team total: <b class="font-num" style="color:var(--gold);">' + totalPrize.toLocaleString() + 'P</b> · ' + totalCombo + ' combos') : ('팀 합계: <b class="font-num" style="color:var(--gold);">' + totalPrize.toLocaleString() + '원</b> · 총 ' + totalCombo + '개 조합')) + '</div>' +
         members.map(function(p){
-          var forfeitTag = p.forfeited ? ' (미제출·몰수패)' : '';
-          return '<div class="participant-row"><span>' + p.nickname + (p.isMe?' (나)':'') + forfeitTag + '</span><span class="font-num">' + (p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개</span></div>';
+          var forfeitTag = p.forfeited ? (LANG==='en'?' (not submitted, forfeited)':' (미제출·몰수패)') : '';
+          var statLine = LANG==='en' ? ((p.totalPrize||0).toLocaleString() + 'P · ' + (p.comboCount||0)) : ((p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개');
+          return '<div class="participant-row"><span>' + p.nickname + (p.isMe?(LANG==='en'?' (me)':' (나)'):'') + forfeitTag + '</span><span class="font-num">' + statLine + '</span></div>';
         }).join('') +
       '</div>';
     }).join('');
     rankedHtml = teamTotalsHtml;
   } else {
     var sortedResult = room.participants.slice().sort(function(a,b){ return (b.totalPrize||0) - (a.totalPrize||0); });
-    rankedHtml = '<div class="card"><h3>🏆 결과' + (room.type==='ffa' ? ' (당첨금 합계 순)' : '') + '</h3>' + sortedResult.map(function(p, i){
+    rankedHtml = '<div class="card"><h3>🏆 ' + (LANG==='en'?'Results':'결과') + (isFFA ? (LANG==='en' ? ' (by total prize)' : ' (당첨금 합계 순)') : '') + '</h3>' + sortedResult.map(function(p, i){
       var isWinner = room.winnerIds.indexOf(p.id) >= 0;
-      var forfeitTag = p.forfeited ? ' (미제출·몰수패)' : '';
-      var rankTag = room.type==='ffa' ? ((i+1) + '위 · ') : '';
-      return '<div class="participant-row' + (isWinner?' winner':'') + '"><span>' + rankTag + p.nickname + (p.isMe?' (나)':'') + forfeitTag + (isWinner?' 🏆':'') + '</span><span class="font-num">누적 ' + (p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개 조합</span></div>';
+      var forfeitTag = p.forfeited ? (LANG==='en'?' (not submitted, forfeited)':' (미제출·몰수패)') : '';
+      var rankTag = isFFA ? ((i+1) + (LANG==='en' ? '. ' : '위 · ')) : '';
+      var statLine = LANG==='en' ? ('total ' + (p.totalPrize||0).toLocaleString() + 'P · ' + (p.comboCount||0) + ' combos') : ('누적 ' + (p.totalPrize||0).toLocaleString() + '원 · ' + (p.comboCount||0) + '개 조합');
+      return '<div class="participant-row' + (isWinner?' winner':'') + '"><span>' + rankTag + p.nickname + (p.isMe?(LANG==='en'?' (me)':' (나)'):'') + forfeitTag + (isWinner?' 🏆':'') + '</span><span class="font-num">' + statLine + '</span></div>';
     }).join('') + '</div>';
   }
 
@@ -1290,6 +1362,7 @@ BUI.roomCompletedHtml = function(room){
 };
 
 BUI.statusLabel = function(s){
+  if (LANG==='en') return { waiting:'Waiting', pending_numbers:'Submitting numbers', active:'Awaiting draw', completed:'Completed' }[s] || s;
   return { waiting:'대기중', pending_numbers:'번호제출중', active:'추첨대기', completed:'완료' }[s] || s;
 };
 
@@ -1297,36 +1370,44 @@ BUI.statusLabel = function(s){
 BUI.myResultBadge = function(r){
   var mine = r.participants.find(function(p){ return p.isMe; });
   if (!mine) return '';
-  if (r.allForfeited) return '<span class="result-badge draw">⚠️ 전원몰수</span>';
-  if (r.isDraw) return '<span class="result-badge draw">🤝 무승부</span>';
-  if (mine.forfeited) return '<span class="result-badge lose">패(몰수)</span>';
+  if (r.allForfeited) return '<span class="result-badge draw">⚠️ ' + (LANG==='en'?'All forfeited':'전원몰수') + '</span>';
+  if (r.isDraw) return '<span class="result-badge draw">🤝 ' + (LANG==='en'?'Tie':'무승부') + '</span>';
+  if (mine.forfeited) return '<span class="result-badge lose">' + (LANG==='en'?'Lost (forfeited)':'패(몰수)') + '</span>';
   var won = r.winnerIds.indexOf(mine.id) >= 0;
-  return won ? '<span class="result-badge win">🏆 승리</span>' : '<span class="result-badge lose">패배</span>';
+  return won ? '<span class="result-badge win">🏆 ' + (LANG==='en'?'Won':'승리') + '</span>' : '<span class="result-badge lose">' + (LANG==='en'?'Lost':'패배') + '</span>';
 };
 
 // ── 참가가능한 방 (1:1만, 이미 내가 낀 방은 제외) ──
 BUI.renderAvailableRooms = async function(){
   var titleEl0 = document.getElementById('availRoomsTitle');
-  if (titleEl0) titleEl0.textContent = '🙋 참가가능한 방';
+  if (titleEl0) titleEl0.textContent = LANG==='en' ? '🙋 Available rooms' : '🙋 참가가능한 방';
   var type = BUI.state.createType || 'ffa'; // ⚠️ 2026-08-12: 1v1이 비활성화되어 기본값을 ffa로 변경
   var rooms = await BATTLE.listAvailableRooms(type);
   // (내가 만든 방도 함께 표시합니다 — 카드에서 내 방인지 여부는 아래에서 구분)
-  document.getElementById('availRoomCount').textContent = rooms.length + '개';
+  document.getElementById('availRoomCount').textContent = rooms.length + (LANG==='en'?'':'개');
   if (!rooms.length) {
-    document.getElementById('availableRoomsBody').innerHTML = '<div class="card"><div class="empty-state">지금 참가할 수 있는 방이 없어요.<br>왼쪽에서 새 방을 만들어보세요!</div></div>';
+    document.getElementById('availableRoomsBody').innerHTML = '<div class="card"><div class="empty-state">' + (LANG==='en'
+      ? 'No rooms available to join right now.<br>Create one from the left!'
+      : '지금 참가할 수 있는 방이 없어요.<br>왼쪽에서 새 방을 만들어보세요!') + '</div></div>';
     return;
   }
   document.getElementById('availableRoomsBody').innerHTML = '<div class="avail-room-list">' + rooms.map(function(r){
     var isMine = r.participants.some(function(p){ return p.isMe; });
     var myP = r.participants.find(function(p){ return p.isMe; });
     var actionLabel;
-    if (r.type === 'ffa') actionLabel = isMine ? ('내 방 ' + (myP.unitsBought||0) + '개 · ' + (myP.finalized ? '제출완료' : '진행중') + ' →') : '방 구매하기 →';
-    else actionLabel = isMine ? '내 방 · 도전자 대기중' : '참가하기 →';
-    var teamMeta = r.type === 'team' ? (' (' + r.teamSize + '명씩)') : '';
-    var countMeta = r.type === 'ffa' ? (r.participants.length + '명 참가중') : (r.participants.length + '/' + r.maxParticipants + '명');
+    if (r.type === 'ffa') {
+      actionLabel = isMine
+        ? (LANG==='en' ? ('My rooms: ' + (myP.unitsBought||0) + ' · combos: ' + (myP.comboCount||0) + ' →') : ('내 방 ' + (myP.unitsBought||0) + '개 · 조합 ' + (myP.comboCount||0) + '개 →'))
+        : (LANG==='en' ? 'Buy rooms →' : '방 구매하기 →');
+    } else {
+      actionLabel = isMine ? (LANG==='en' ? 'My room · waiting for challenger' : '내 방 · 도전자 대기중') : (LANG==='en' ? 'Join →' : '참가하기 →');
+    }
+    var teamMeta = r.type === 'team' ? (' (' + r.teamSize + (LANG==='en'?' per team':'명씩') + ')') : '';
+    var countMeta = r.type === 'ffa' ? (r.participants.length + (LANG==='en'?' joined':'명 참가중')) : (r.participants.length + '/' + r.maxParticipants + (LANG==='en'?'':'명'));
+    var roundLabel = LANG==='en' ? ('Round ' + r.round) : ('제' + r.round + '회');
     return '<div class="avail-room-card" onclick="BUI.openRoom(\'' + r.id + '\')">' +
-      '<div><div class="arc-name">' + r.name + (isMine ? ' <span style="color:var(--text-faint);font-weight:400;">(내가 만든 방)</span>' : '') + '</div>' +
-      '<div class="arc-meta">제' + r.round + '회' + teamMeta + ' · ' + countMeta + '</div></div>' +
+      '<div><div class="arc-name">' + r.name + (isMine ? (' <span style="color:var(--text-faint);font-weight:400;">(' + (LANG==='en'?'room I created':'내가 만든 방') + ')</span>') : '') + '</div>' +
+      '<div class="arc-meta">' + roundLabel + teamMeta + ' · ' + countMeta + '</div></div>' +
       '<div class="arc-join"' + (isMine && r.type!=='ffa' ? ' style="color:var(--text-faint);"' : '') + '>' + actionLabel + '</div>' +
     '</div>';
   }).join('') + '</div>';
@@ -1362,7 +1443,10 @@ BUI.detailedStatusLabel = function(r){
   return BUI.statusLabel(r.status);
 };
 
-BUI.typeTagLabel = function(type){ return type === 'team' ? '팀전' : (type === 'ffa' ? '무제한 대결' : '1:1 대결'); };
+BUI.typeTagLabel = function(type){
+  if (LANG==='en') return type === 'team' ? 'Team' : (type === 'ffa' ? 'Free-for-all' : '1v1');
+  return type === 'team' ? '팀전' : (type === 'ffa' ? '무제한 대결' : '1:1 대결');
+};
 BUI.typeTagColor = function(type){ return type === 'team' ? { bg:'#3fb37f22', color:'#3fb37f' } : (type === 'ffa' ? { bg:'#e8732f22', color:'#e8732f' } : { bg:'#5b9bd522', color:'#5b9bd5' }); };
 
 // ── 내 진행상황: 내가 개설했든 도전했든, 모든 상태를 한 번에 타임라인으로 ──
@@ -1371,8 +1455,8 @@ BUI.renderMyTimeline = async function(){
   var countEl = document.getElementById('myRoomCount');
   var state = MLL.getAuthState();
   if (!state || !state.type) {
-    countEl.textContent = '0개';
-    body.innerHTML = '<div class="card"><div class="empty-state">로그인하시면 내가 만들거나 참가한 배틀을 한눈에 볼 수 있어요.</div></div>';
+    countEl.textContent = LANG==='en' ? '0' : '0개';
+    body.innerHTML = '<div class="card"><div class="empty-state">' + (LANG==='en' ? 'Log in to see all the battles you\'ve created or joined at a glance.' : '로그인하시면 내가 만들거나 참가한 배틀을 한눈에 볼 수 있어요.') + '</div></div>';
     return;
   }
   try {
@@ -1381,25 +1465,27 @@ BUI.renderMyTimeline = async function(){
     // ⚠️ 2026-08-12: 1:1/팀전은 서비스 종료 — 예전 참가 이력이 남아있어도 화면엔 안 보이게
     // 무제한 대결(ffa)만 필터링한다.
     var rooms = (data.items || []).filter(function(r){ return r.type === 'ffa'; });
-    countEl.textContent = rooms.length + '개';
-    if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">아직 참가한 배틀이 없습니다. 방을 만들거나 참가가능한 방에 도전해보세요!</div></div>'; return; }
+    countEl.textContent = rooms.length + (LANG==='en'?'':'개');
+    if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">' + (LANG==='en' ? 'No battles joined yet. Create a room or challenge an available one!' : '아직 참가한 배틀이 없습니다. 방을 만들거나 참가가능한 방에 도전해보세요!') + '</div></div>'; return; }
     body.innerHTML = '<div class="room-list">' + rooms.map(function(r){
       var badge = r.status === 'completed' ? BUI.myResultBadge(r) : '';
       var tc = BUI.typeTagColor(r.type);
+      var roundLabel = LANG==='en' ? ('Round ' + r.round) : ('제' + r.round + '회');
+      var countLabel = r.type==='ffa' ? (r.participants.length + (LANG==='en'?' joined':'명')) : (r.participants.length + '/' + r.maxParticipants + (LANG==='en'?'':'명'));
       return '<div class="room-card" onclick="BUI.openRoom(\'' + r.id + '\')">' +
         '<div class="rc-top"><span class="rc-type" style="background:' + tc.bg + ';color:' + tc.color + ';">' + BUI.typeTagLabel(r.type) + '</span>' + badge + '<span class="status-tag status-' + r.status + '">' + BUI.detailedStatusLabel(r) + '</span></div>' +
         '<div class="rc-name">' + r.name + '</div>' +
-        '<div class="rc-meta">제' + r.round + '회 · 참가자 ' + (r.type==='ffa' ? (r.participants.length + '명') : (r.participants.length + '/' + r.maxParticipants + '명')) + '</div>' +
+        '<div class="rc-meta">' + roundLabel + ' · ' + (LANG==='en'?'participants ':'참가자 ') + countLabel + '</div>' +
       '</div>';
     }).join('') + '</div>';
-  } catch(e) { body.innerHTML = '<div class="card"><div class="empty-state">불러오지 못했습니다.</div></div>'; }
+  } catch(e) { body.innerHTML = '<div class="card"><div class="empty-state">' + (LANG==='en'?'Failed to load.':'불러오지 못했습니다.') + '</div></div>'; }
 };
 
 // ── 전체 배틀참여현황: 현재 선택된 배틀종목에서 벌어지는 모든 방(남의 것 포함)을 표로 ──
 BUI.renderAllRoomsTable = async function(){
   var type = BUI.state.createType || 'ffa'; // ⚠️ 2026-08-12: 1v1이 비활성화되어 기본값을 ffa로 변경
   var titleEl = document.getElementById('allRoomsTitle');
-  if (titleEl) titleEl.textContent = '📊 전체 배틀참여현황 (' + BUI.typeTagLabel(type) + ')';
+  if (titleEl) titleEl.textContent = '📊 ' + (LANG==='en' ? ('All battles (' + BUI.typeTagLabel(type) + ')') : ('전체 배틀참여현황 (' + BUI.typeTagLabel(type) + ')'));
 
   var body = document.getElementById('allRoomsTableBody');
   var countEl = document.getElementById('allRoomCount');
@@ -1412,33 +1498,39 @@ BUI.renderAllRoomsTable = async function(){
       if (r.status !== 'waiting') return true;
       return r.participants.some(function(p){ return p.isMe; });
     });
-    countEl.textContent = rooms.length + '개';
-    if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">아직 개설된 배틀이 없습니다.</div></div>'; return; }
+    countEl.textContent = rooms.length + (LANG==='en'?'':'개');
+    if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">' + (LANG==='en'?'No battles opened yet.':'아직 개설된 배틀이 없습니다.') + '</div></div>'; return; }
 
     var rowsHtml = rooms.map(function(r){
       var namesLabel;
+      var meTag = LANG==='en' ? '(me)' : '(나)';
       if (r.type === 'team') {
         namesLabel = [0,1].map(function(side){
-          var names = r.participants.filter(function(p){ return p.side===side; }).map(function(p){ return p.nickname + (p.isMe?'(나)':''); });
+          var names = r.participants.filter(function(p){ return p.side===side; }).map(function(p){ return p.nickname + (p.isMe?meTag:''); });
           return BUI.sideLabel(side) + ': ' + (names.join(', ') || '-');
         }).join(' vs ');
       } else if (r.type === 'ffa') {
-        namesLabel = r.participants.length + '명 참가' + (r.participants.some(function(p){ return p.isMe; }) ? ' (나 포함)' : '');
+        namesLabel = LANG==='en'
+          ? (r.participants.length + ' joined' + (r.participants.some(function(p){ return p.isMe; }) ? ' (incl. me)' : ''))
+          : (r.participants.length + '명 참가' + (r.participants.some(function(p){ return p.isMe; }) ? ' (나 포함)' : ''));
       } else {
-        namesLabel = r.participants.map(function(p){ return p.nickname + (p.isMe?' (나)':''); }).join(' vs ') || '-';
+        namesLabel = r.participants.map(function(p){ return p.nickname + (p.isMe?(' '+meTag):''); }).join(' vs ') || '-';
       }
+      var roundLabel = LANG==='en' ? ('Round ' + r.round) : ('제' + r.round + '회');
       return '<tr onclick="BUI.openRoom(\'' + r.id + '\')">' +
         '<td>' + r.name + '</td>' +
-        '<td class="font-num">제' + r.round + '회</td>' +
+        '<td class="font-num">' + roundLabel + '</td>' +
         '<td>' + namesLabel + '</td>' +
         '<td class="font-num">' + (r.type==='ffa' ? r.participants.length : (r.participants.length + '/' + r.maxParticipants)) + '</td>' +
         '<td><span class="status-tag status-' + r.status + '">' + BUI.detailedStatusLabel(r) + '</span></td>' +
       '</tr>';
     }).join('');
     body.innerHTML = '<div class="card" style="padding:0;overflow-x:auto;"><table class="all-rooms-table">' +
-      '<thead><tr><th>방 이름</th><th>회차</th><th>참가자</th><th>인원</th><th>상태</th></tr></thead>' +
+      '<thead><tr>' + (LANG==='en'
+        ? '<th>Room</th><th>Round</th><th>Participants</th><th>Count</th><th>Status</th>'
+        : '<th>방 이름</th><th>회차</th><th>참가자</th><th>인원</th><th>상태</th>') + '</tr></thead>' +
       '<tbody>' + rowsHtml + '</tbody></table></div>';
-  } catch(e) { body.innerHTML = '<div class="card"><div class="empty-state">불러오지 못했습니다.</div></div>'; }
+  } catch(e) { body.innerHTML = '<div class="card"><div class="empty-state">' + (LANG==='en'?'Failed to load.':'불러오지 못했습니다.') + '</div></div>'; }
 };
 
 document.addEventListener('DOMContentLoaded', BUI.init);
