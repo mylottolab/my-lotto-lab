@@ -613,6 +613,8 @@ BUI.showTypeSelectView = async function(){
   var bannerEl = document.getElementById('typeSelectBanner');
   if (bannerEl) bannerEl.innerHTML = BUI.pendingBannerHtml();
   BUI.renderSummary();
+  // ⚠️ 2026-08-12: 무제한 대결 하나만 남아서, 매번 카드 클릭 안 해도 되게 자동 선택해둔다.
+  if (!BUI.state.createType) BUI.state.createType = 'ffa';
   BUI.renderCreateTypeGrid();
   BUI.renderCreateForm();
   BUI.showView('typeSelect');
@@ -631,15 +633,11 @@ BUI.openAdminView = function(){
   }
 };
 
-// ── 새 방 만들기: 1:1/팀전은 유저가 직접 개설. 무제한 대결·토너먼트는 회차마다
-// 시스템이 자동 개설하고 유저는 참가만 가능(systemOnly). ──
-// ⚠️ 2026-08-12: 1:1/팀전은 서비스하지 않기로 결정 — 화면에서 완전히 비활성화(준비중 표시,
-// 클릭 불가). 무제한 대결(FFA)만 실제로 운영한다.
+// ── 새 방 만들기: 무제한 대결만 서비스 (2026-08-12) ──
+// ⚠️ 2026-08-12: 1:1/팀전/토너먼트는 아예 카드 자체를 화면에서 제거함(회색 비활성화가
+// 아니라 목록에서 완전히 빠짐). 무제한 대결(FFA) 하나만 운영.
 BUI.CREATE_CARDS = [
-  { key:'1v1', icon:'⚔️', label:'1:1 대결', desc:'1:1 정면대결 — 둘 중 결과가 좋은 쪽이 승리', enabled:false },
-  { key:'team', icon:'🛡️', label:'팀전', desc:'여러 명씩 두 팀으로 나뉘어 팀 합계로 승부', enabled:false },
   { key:'ffa', icon:'🌀', label:'무제한 대결', desc:'회차마다 시스템이 자동 개설 — 인원 제한 없이 참가만', enabled:true, systemOnly:true },
-  { key:'tournament', icon:'🏆', label:'토너먼트', desc:'3~10주 연속 진행 — 매주 하위성적자 탈락, 최종 1~3위 보상', enabled:true, systemOnly:true },
 ];
 BUI.renderCreateTypeGrid = function(){
   document.getElementById('createTypeGrid').innerHTML = BUI.CREATE_CARDS.map(function(c){
@@ -1396,7 +1394,9 @@ BUI.renderMyTimeline = async function(){
   try {
     var resp = await BATTLE._viewerFetch(MLL.API_BASE + '/api/battles/my-rooms');
     var data = await resp.json();
-    var rooms = data.items || [];
+    // ⚠️ 2026-08-12: 1:1/팀전은 서비스 종료 — 예전 참가 이력이 남아있어도 화면엔 안 보이게
+    // 무제한 대결(ffa)만 필터링한다.
+    var rooms = (data.items || []).filter(function(r){ return r.type === 'ffa'; });
     countEl.textContent = rooms.length + '개';
     if (!rooms.length) { body.innerHTML = '<div class="card"><div class="empty-state">아직 참가한 배틀이 없습니다. 방을 만들거나 참가가능한 방에 도전해보세요!</div></div>'; return; }
     body.innerHTML = '<div class="room-list">' + rooms.map(function(r){
