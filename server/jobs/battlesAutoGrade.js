@@ -261,30 +261,54 @@ async function gradeRound(round) {
   const rooms = (roundRooms || []).filter(r => (
     r.type === 'ffa' ? r.status === 'waiting' : (r.status === 'pending_numbers' || r.status === 'active')
   ));
-  if (!rooms.length) return { skipped: true, reason: 'nothing_to_grade', round };
 
   let graded = 0;
-  const pricingCache = {};
-  for (const room of rooms) {
-    try {
-      if (room.type === 'team') {
-        if (!pricingCache.team) pricingCache.team = await getPriceReward('team');
-        await gradeRoomTeam(room, winRow, pricingCache.team);
-      } else if (room.type === 'ffa') {
-        // ⚠ 2026-08-12: ffa는 더 이상 point_costs의 고정 참가비/보상을 쓰지 않고
-        // (조합수 기반 베팅 + 판돈 분배 방식으로 재설계됨) pricing 조회 자체가 불필요함.
-        await gradeRoomFFA(room, winRow);
-      } else {
-        if (!pricingCache['1v1']) pricingCache['1v1'] = await getPriceReward('1v1');
-        await gradeRoom1v1(room, winRow, pricingCache['1v1']);
+  if (rooms.length) {
+    const pricingCache = {};
+    for (const room of rooms) {
+      try {
+        if (room.type === 'team') {
+          if (!pricingCache.team) pricingCache.team = await getPriceReward('team');
+          await gradeRoomTeam(room, winRow, pricingCache.team);
+        } else if (room.type === 'ffa') {
+          // ⚠ 2026-08-12: ffa는 더 이상 point_costs의 고정 참가비/보상을 쓰지 않고
+          // (조합수 기반 베팅 + 판돈 분배 방식으로 재설계됨) pricing 조회 자체가 불필요함.
+          await gradeRoomFFA(room, winRow);
+        } else {
+          if (!pricingCache['1v1']) pricingCache['1v1'] = await getPriceReward('1v1');
+          await gradeRoom1v1(room, winRow, pricingCache['1v1']);
+        }
+        graded++;
+      } catch (e) {
+        console.error(`[battlesAutoGrade] 방 ${room.id}(${room.type}) 채점 오류:`, e.message);
       }
-      graded++;
-    } catch (e) {
-      console.error(`[battlesAutoGrade] 방 ${room.id}(${room.type}) 채점 오류:`, e.message);
     }
   }
 
-  return { success: true, round, graded, totalRooms: rooms.length };
+  // ⚠ 2026-08-12 버그수정: 무제한 대결(FFA) 다음 회차 방을 자동으로 만드는 코드가
+  // 그동안 어디에도 없어서, 최초 1회(수동) 이후로 새 회차 방이 전혀 안 열리고 있었음.
+  // 채점 대상이 있었든 없었든(=이 함수가 호출됐다는 건 새 회차 결과가 저장됐다는 뜻이므로)
+  // 항상 "지금 접수 중인 회차"의 FFA 방이 있는지 확인하고, 없으면 새로 만든다.
+  let ffaSpawn = null;
+  try {
+    const { createSystemFFARoom, getSaleRound } = require('../routes/battles');
+    const nextSaleRound = await getSaleRound();
+    const { data: existingFFA } = await supabase
+      .from('battle_rooms').select('id').eq('type', 'ffa').eq('round', nextSaleRound).maybeSingle();
+    if (!existingFFA) {
+      const created = await createSystemFFARoom(nextSaleRound);
+      ffaSpawn = { created: true, round: nextSaleRound, roomId: created.id };
+      console.log(`[battlesAutoGrade] 무제한 대결 ${nextSaleRound}회차 방 신규 개설`);
+    } else {
+      ffaSpawn = { created: false, round: nextSaleRound, reason: 'already_exists' };
+    }
+  } catch (e) {
+    console.error('[battlesAutoGrade] 무제한 대결 다음 회차 방 개설 오류:', e.message);
+    ffaSpawn = { error: e.message };
+  }
+
+  if (!rooms.length) return { skipped: true, reason: 'nothing_to_grade', round, ffaSpawn };
+  return { success: true, round, graded, totalRooms: rooms.length, ffaSpawn };
 }
 
 module.exports = { gradeRound };
