@@ -11,6 +11,16 @@ MLL.ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
 MLL.WEEK_MS   = 7 * 24 * 60 * 60 * 1000;
 MLL.ADMIN_PW_KEY      = 'mll_admin_auth';   // 관리자 인증(간이, 세션단위 - 로또DB와 무관)
 MLL.SESSION_KEY       = 'mll_session';      // 현재 세션ID
+// ⚠ 2026-08-14 신설: "오늘 하루 전체"가 아니라 "방금 그 한 번의 저장"만 정확히
+// 구분해서 표시하기 위한 키. addEntries()가 성공할 때마다 새로 등록된 항목들의
+// id를 여기 덮어써서(이전 배치는 지워짐), 딱 "직전 입력분"만 하이라이트되게 한다.
+MLL.LAST_BATCH_KEY    = 'mll_last_batch_ids';
+MLL.getLastBatchIds = function() {
+  try { return JSON.parse(localStorage.getItem(MLL.LAST_BATCH_KEY) || '[]'); } catch(e) { return []; }
+};
+MLL.setLastBatchIds = function(ids) {
+  try { localStorage.setItem(MLL.LAST_BATCH_KEY, JSON.stringify(ids)); } catch(e) {}
+};
 
 // ── 서버 API 기본 주소 ──
 MLL.API_BASE = 'https://my-lotto-lab-api.onrender.com';
@@ -320,6 +330,9 @@ MLL.addEntries = async function(items) {
     }
     if (!resp.ok) return { success:false, message: data.error || '등록 중 오류가 발생했습니다.' };
     await MLL.refreshEntries();
+    // "방금 저장한 항목"을 기록 — 이전 배치는 덮어써서 지워짐(직전 입력분만 남음)
+    var newIds = (data.items || []).map(function(it){ return String(it.id); });
+    if (newIds.length) MLL.setLastBatchIds(newIds);
     return { success:true, items:data.items };
   } catch (e) {
     console.error('[MLL] addEntries 오류:', e);
@@ -417,7 +430,10 @@ MLL.renderBalls = function(nums, bonusNums, small) {
 // 통일된 테이블 행 생성
 MLL.renderRow = function(entry, sessionTag, opts) {
   opts = opts || {};
-  var isSession = sessionTag && entry.sessionTag === sessionTag;
+  // ⚠ 2026-08-14 수정: 예전엔 sessionTag(하루 단위로 묶임)가 같으면 전부 하이라이트해서,
+  // 오늘 여러 번 나눠 등록하면 다 섞여 보였음. 이제는 "가장 최근 저장 딱 한 번"만
+  // 정확히 구분해서 표시한다 (MLL.LAST_BATCH_KEY, addEntries 성공 시마다 갱신됨).
+  var isSession = MLL.getLastBatchIds().indexOf(String(entry.id)) >= 0;
   var result    = MLL.getResult(entry.round);
   var winNums   = result ? result.nums  : [];
   var bonusNum  = result ? result.bonus : null;
