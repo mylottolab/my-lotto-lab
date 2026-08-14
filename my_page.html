@@ -241,6 +241,11 @@ function mllAuthQuery(extra){
 }
 var SOON_ITEMS = []; // 8개 카테고리 전부 연결 완료 — 남은 준비중 항목 없음
 
+// ⚠ 2026-08-15 추가: 언어 전환 시 서버를 다시 호출하지 않고, 최초 1회 받아온 데이터를
+// 그대로 재사용해서 다시 그리기만 한다 — 언어 버튼을 눌러도 반영이 안 되던 문제의
+// 원인이었을 수 있는 비동기 재요청 자체를 없애서, 전환이 항상 즉시·확실하게 되도록 함.
+var CACHE = {};
+
 // =====================================================
 // 초기화
 // =====================================================
@@ -346,8 +351,12 @@ function renderRecent(entries){
 async function renderSeoulRace(){
   var html = '<div class="card"><h2>' + t('seoulTitle') + '</h2>';
   try {
-    var resp = await fetch(MLL.API_BASE + '/api/seoul-race/my-bets' + mllAuthQuery(), { headers: await mllAuthHeaders() });
-    var data = await resp.json();
+    var data = CACHE.seoulRace;
+    if (!data) {
+      var resp = await fetch(MLL.API_BASE + '/api/seoul-race/my-bets' + mllAuthQuery(), { headers: await mllAuthHeaders() });
+      data = await resp.json();
+      CACHE.seoulRace = data;
+    }
     var items = data.items || [];
     var settled = items.filter(function(b){ return b.status === 'settled'; });
     var totalPayout = settled.reduce(function(s,b){ return s + (b.payout||0); }, 0);
@@ -386,12 +395,16 @@ async function renderSeoulRace(){
 async function renderBattles(){
   var html = '<div class="card"><h2>' + t('battlesTitle') + '</h2>';
   try {
-    var state = MLL.getAuthState();
-    var headers = await mllAuthHeaders();
-    var url = MLL.API_BASE + '/api/battles/my-rooms';
-    if (state.type === 'guest') url += mllAuthQuery();
-    var resp = await fetch(url, { headers: headers });
-    var data = await resp.json();
+    var data = CACHE.battles;
+    if (!data) {
+      var state = MLL.getAuthState();
+      var headers = await mllAuthHeaders();
+      var url = MLL.API_BASE + '/api/battles/my-rooms';
+      if (state.type === 'guest') url += mllAuthQuery();
+      var resp = await fetch(url, { headers: headers });
+      data = await resp.json();
+      CACHE.battles = data;
+    }
     var rooms = (data.items || []).filter(function(r){ return r.type === 'ffa'; });
     var wonCount = rooms.filter(function(r){
       if (r.status !== 'completed') return false;
@@ -429,8 +442,12 @@ async function renderBattles(){
 async function renderMockSim(){
   var html = '<div class="card"><h2>' + t('mockTitle') + '</h2>';
   try {
-    var resp = await fetch(MLL.API_BASE + '/api/mock/entries' + mllAuthQuery(), { headers: await mllAuthHeaders() });
-    var data = await resp.json();
+    var data = CACHE.mock;
+    if (!data) {
+      var resp = await fetch(MLL.API_BASE + '/api/mock/entries' + mllAuthQuery(), { headers: await mllAuthHeaders() });
+      data = await resp.json();
+      CACHE.mock = data;
+    }
     var items = data.items || [];
     var wins = items.filter(function(e){ return e.grade && e.grade > 0; });
     var totalPrize = wins.reduce(function(s,e){ return s + (e.prize_money||0); }, 0);
@@ -457,15 +474,19 @@ async function renderMockSim(){
 async function renderMocktest(){
   var html = '<div class="card"><h2>' + t('mocktestTitle') + '</h2>';
   try {
-    var games = ['KR','POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
-    var headers = await mllAuthHeaders();
-    var results = await Promise.all(games.map(function(g){
-      var qs = mllAuthQuery(['game_code=' + g]);
-      return fetch(MLL.API_BASE + '/api/mocktest/entries' + qs, { headers: headers })
-        .then(function(r){ return r.ok ? r.json() : { items: [] }; })
-        .catch(function(){ return { items: [] }; });
-    }));
-    var allItems = [].concat.apply([], results.map(function(r){ return r.items || []; }));
+    var allItems = CACHE.mocktest;
+    if (!allItems) {
+      var games = ['KR','POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
+      var headers = await mllAuthHeaders();
+      var results = await Promise.all(games.map(function(g){
+        var qs = mllAuthQuery(['game_code=' + g]);
+        return fetch(MLL.API_BASE + '/api/mocktest/entries' + qs, { headers: headers })
+          .then(function(r){ return r.ok ? r.json() : { items: [] }; })
+          .catch(function(){ return { items: [] }; });
+      }));
+      allItems = [].concat.apply([], results.map(function(r){ return r.items || []; }));
+      CACHE.mocktest = allItems;
+    }
     var graded = allItems.filter(function(e){ return e.status === 'graded'; });
 
     html += '<div class="stat-grid">' +
@@ -487,8 +508,12 @@ async function renderMocktest(){
 async function renderShop(){
   var html = '<div class="card"><h2>' + t('shopTitle') + '</h2>';
   try {
-    var resp = await fetch(MLL.API_BASE + '/api/shop/my-orders' + mllAuthQuery(), { headers: await mllAuthHeaders() });
-    var data = await resp.json();
+    var data = CACHE.shop;
+    if (!data) {
+      var resp = await fetch(MLL.API_BASE + '/api/shop/my-orders' + mllAuthQuery(), { headers: await mllAuthHeaders() });
+      data = await resp.json();
+      CACHE.shop = data;
+    }
     var items = data.items || [];
     var totalSpent = items.reduce(function(s,o){ return s + (o.points_charged||0); }, 0);
 
@@ -522,8 +547,12 @@ async function renderShop(){
 async function renderGlobalLotto(){
   var html = '<div class="card"><h2>' + t('globalTitle') + '</h2>';
   try {
-    var resp = await fetch(MLL.API_BASE + '/api/global/tickets' + mllAuthQuery(), { headers: await mllAuthHeaders() });
-    var data = await resp.json();
+    var data = CACHE.global;
+    if (!data) {
+      var resp = await fetch(MLL.API_BASE + '/api/global/tickets' + mllAuthQuery(), { headers: await mllAuthHeaders() });
+      data = await resp.json();
+      CACHE.global = data;
+    }
     var items = data.items || [];
     var wins = items.filter(function(e){ return e.prize_tier && e.prize_tier > 0; });
     var totalPrize = wins.reduce(function(s,e){ return s + Number(e.prize_amount||0); }, 0);
@@ -576,10 +605,17 @@ async function renderGlobalLotto(){
 async function renderPointsHistory(){
   var html = '<div class="card"><h2>' + t('pointsTitle') + '</h2>';
   try {
-    var headers = await mllAuthHeaders();
-    var qs = mllAuthQuery();
-    var lotsResp = await fetch(MLL.API_BASE + '/api/points/lots' + qs, { headers: headers });
-    var lotsData = await lotsResp.json();
+    var lotsData = CACHE.pointsLots, histData = CACHE.pointsHistory;
+    if (!lotsData || !histData) {
+      var headers = await mllAuthHeaders();
+      var qs = mllAuthQuery();
+      var lotsResp = await fetch(MLL.API_BASE + '/api/points/lots' + qs, { headers: headers });
+      lotsData = await lotsResp.json();
+      CACHE.pointsLots = lotsData;
+      var histResp = await fetch(MLL.API_BASE + '/api/points/history' + qs, { headers: headers });
+      histData = await histResp.json();
+      CACHE.pointsHistory = histData;
+    }
     var total = lotsData.total || 0, deposit = lotsData.deposit || 0, activity = lotsData.activity || 0;
 
     html += '<div class="stat-grid">' +
@@ -588,8 +624,6 @@ async function renderPointsHistory(){
       '<div class="stat-box"><div class="num">' + activity.toLocaleString() + 'P</div><div class="lbl">' + t('statActivity') + '</div></div>' +
     '</div>';
 
-    var histResp = await fetch(MLL.API_BASE + '/api/points/history' + qs, { headers: headers });
-    var histData = await histResp.json();
     var items = histData.items || [];
     var locale = LANG==='en' ? 'en-US' : 'ko-KR';
 
