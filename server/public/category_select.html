@@ -8,150 +8,149 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{--bg:#0a0d18;--surface:#11152a;--surface-hover:#161b36;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--accent:#5b6ee8;--green:#3fb37f;}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+html,body{height:100%;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:12px;overflow:hidden;}
 .wrap{max-width:460px;width:100%;text-align:center;}
-h1{font-size:22px;font-weight:700;margin-bottom:6px;}
-.desc{font-size:13px;color:var(--text-dim);margin-bottom:32px;}
-.cards{display:flex;flex-direction:column;gap:14px;}
-.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:20px 22px;display:flex;align-items:center;gap:16px;text-align:left;text-decoration:none;color:var(--text);transition:transform .15s, background .15s, border-color .15s;cursor:pointer;}
-.card:hover{background:var(--surface-hover);border-color:var(--accent);transform:translateY(-2px);}
-.card .emoji{font-size:30px;flex-shrink:0;}
-.card .titles{flex:1;min-width:0;}
-.card .ko{font-size:16px;font-weight:700;}
-.card .en{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
-.card .badge{display:inline-block;margin-top:7px;font-size:10.5px;font-weight:700;color:var(--gold);background:rgba(224,179,65,.12);border-radius:6px;padding:3px 8px;line-height:1.4;}
-.card .arrow{font-size:18px;color:var(--text-dim);flex-shrink:0;}
+.user-badge{margin-bottom:4px;}
+h1{font-size:17px;font-weight:700;margin-bottom:2px;}
+.desc{font-size:11px;color:var(--text-dim);margin-bottom:10px;}
 
-.charge-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:20px 22px;}
-.charge-head{display:flex;align-items:center;gap:16px;margin-bottom:16px;}
-.charge-head .emoji{font-size:30px;flex-shrink:0;}
-.charge-head .titles{flex:1;text-align:left;}
-.charge-head .ko{font-size:16px;font-weight:700;}
-.charge-head .en{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
-.charge-head .my-balance{font-size:11px;color:var(--gold);text-align:right;line-height:1.6;font-weight:600;max-width:180px;}
-.charge-btns{display:flex;gap:10px;}
-.charge-btn{flex:1;background:var(--bg);border:1px solid var(--border-soft);border-radius:11px;padding:14px 10px;text-decoration:none;color:var(--text);transition:border-color .15s, background .15s;text-align:center;}
-.charge-btn:hover{border-color:var(--accent);background:var(--surface-hover);}
-.charge-btn .flag{font-size:22px;margin-bottom:4px;}
-.charge-btn .ko{font-size:13px;font-weight:700;}
-.charge-btn .en{font-size:10.5px;color:var(--text-dim);margin-top:1px;}
-
-/* 2026-08-10: 하단 "더 보기" 섹션 — 기존 카드보다 작은 글씨로 2열 그리드 표시 */
-.more-divider{display:flex;align-items:center;gap:10px;margin:26px 0 14px;}
-.more-divider .line{flex:1;height:1px;background:var(--border-soft);}
-.more-divider .lbl{font-size:11px;color:var(--text-dim);white-space:nowrap;}
-.more-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
-.more-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:12px 10px;text-decoration:none;color:var(--text);text-align:left;transition:border-color .15s, background .15s;}
-.more-card:hover{background:var(--surface-hover);border-color:var(--accent);}
-.more-card .emoji{font-size:18px;margin-bottom:5px;display:block;}
-.more-card .ko{font-size:12px;font-weight:700;line-height:1.3;}
-.more-card .en{font-size:9.5px;color:var(--text-dim);margin-top:2px;line-height:1.3;}
-@media (max-width:360px){
-  .more-card .ko{font-size:11px;}
-  .more-card .en{font-size:9px;}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.sqcard{
+  aspect-ratio:1/1;
+  background:var(--surface);
+  border:1px solid var(--border-soft);
+  border-radius:12px;
+  padding:8px 8px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  text-decoration:none;
+  color:var(--text);
+  transition:transform .15s, background .15s, border-color .15s;
+  cursor:pointer;
 }
+.sqcard:hover{background:var(--surface-hover);border-color:var(--accent);transform:translateY(-1px);}
+.sqcard .emoji{font-size:19px;margin-bottom:3px;line-height:1;}
+.sqcard .ko{font-size:11px;font-weight:700;line-height:1.2;}
+.sqcard .en{font-size:8px;color:var(--text-dim);margin-top:2px;line-height:1.2;}
+.sqcard .badge{display:inline-block;margin-top:4px;font-size:7.5px;font-weight:700;color:var(--gold);background:rgba(224,179,65,.12);border-radius:5px;padding:2px 5px;line-height:1.3;}
+.sqcard .sub-balance{margin-top:4px;font-size:8px;font-weight:700;color:var(--gold);line-height:1.3;}
+.sqcard.mypage-card .ko{color:var(--accent);}
+
+@media (max-height:640px){
+  h1{font-size:15px;}
+  .desc{font-size:10px;margin-bottom:8px;}
+  .sqcard .emoji{font-size:16px;}
+  .sqcard .ko{font-size:10px;}
+  .sqcard .en{font-size:7.5px;}
+}
+
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;padding:24px;}
+.modal-backdrop.open{display:flex;}
+.modal-box{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:22px;max-width:360px;width:100%;}
+.modal-box h2{font-size:16px;font-weight:700;margin-bottom:4px;}
+.modal-box .modal-desc{font-size:12px;color:var(--text-dim);margin-bottom:18px;}
+.modal-btns{display:flex;gap:10px;margin-bottom:14px;}
+.modal-btn{flex:1;background:var(--bg);border:1px solid var(--border-soft);border-radius:11px;padding:16px 10px;text-decoration:none;color:var(--text);transition:border-color .15s, background .15s;text-align:center;display:block;}
+.modal-btn:hover{border-color:var(--accent);background:var(--surface-hover);}
+.modal-btn .flag{font-size:24px;margin-bottom:5px;}
+.modal-btn .ko{font-size:13px;font-weight:700;}
+.modal-btn .en{font-size:10.5px;color:var(--text-dim);margin-top:1px;}
+.modal-close{width:100%;background:none;border:none;color:var(--text-dim);font-size:12px;padding:8px;cursor:pointer;text-decoration:underline;}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="user-badge" id="userBadge" style="display:none;color:var(--gold);font-size:15px;font-weight:700;margin-bottom:6px;"></div>
+  <div class="user-badge" id="userBadge" style="display:none;color:var(--gold);font-size:12px;font-weight:700;"></div>
   <h1>어디로 가시겠어요?</h1>
   <p class="desc">Where would you like to go?</p>
 
-  <div class="cards">
-    <a class="card" href="https://mylottolab.github.io/my-lotto-lab/main_page.html">
+  <div class="grid">
+    <a class="sqcard" href="https://mylottolab.github.io/my-lotto-lab/main_page.html">
       <span class="emoji">🇰🇷</span>
-      <span class="titles">
-        <div class="ko">한국로또</div>
-        <div class="en">Korea Lotto</div>
-      </span>
-      <span class="arrow">›</span>
+      <div class="ko">Main Page</div>
+      <div class="en">한국로또 · Korea Lotto</div>
     </a>
 
-    <a class="card" href="https://mylottolab.github.io/my-lotto-lab/global_lotto.html">
+    <a class="sqcard mypage-card" href="https://mylottolab.github.io/my-lotto-lab/my_page.html">
+      <span class="emoji">👤</span>
+      <div class="ko">My Page</div>
+      <div class="en">마이페이지</div>
+    </a>
+
+    <a class="sqcard" href="https://mylottolab.github.io/my-lotto-lab/global_lotto.html">
       <span class="emoji">🌎</span>
-      <span class="titles">
-        <div class="ko">해외복권 3종</div>
-        <div class="en">Global Lottery (Powerball · Mega Millions · EuroMillions)</div>
-        <div class="badge">초저비용 연습·실험용 시뮬레이터</div>
-      </span>
-      <span class="arrow">›</span>
+      <div class="ko">해외복권 3종</div>
+      <div class="en">Global Lottery</div>
+      <span class="badge">초저비용 실험용</span>
     </a>
 
-    <a class="card" href="https://mylottolab.github.io/my-lotto-lab/mocktest_hub.html">
+    <a class="sqcard" href="https://mylottolab.github.io/my-lotto-lab/mocktest_hub.html">
       <span class="emoji">🧪</span>
-      <span class="titles">
-        <div class="ko">로또 모의테스트 및 실험</div>
-        <div class="en">Lottery Mock Exam & Test</div>
-        <div class="badge">한국로또 · 파워볼 · 메가밀리언스 · 유로밀리언스</div>
-      </span>
-      <span class="arrow">›</span>
+      <div class="ko">로또 모의테스트</div>
+      <div class="en">Mock Exam & Test</div>
+      <span class="badge">4개국 지원</span>
     </a>
 
-    <a class="card" href="https://mylottolab.github.io/my-lotto-lab/hub_race.html">
+    <a class="sqcard" href="https://mylottolab.github.io/my-lotto-lab/hub_race.html">
       <span class="emoji">🏇</span>
-      <span class="titles">
-        <div class="ko">100 전략 레이스 / 경마장 가는 길</div>
-        <div class="en">100 Strategy Race / To the Racetrack</div>
-        <div class="badge">전략별 순위 경쟁 · 경마배팅</div>
-      </span>
-      <span class="arrow">›</span>
+      <div class="ko">100 전략 레이스</div>
+      <div class="en">100 Strategy Race</div>
     </a>
 
-    <div class="charge-card">
-      <div class="charge-head">
-        <span class="emoji">💰</span>
-        <span class="titles">
-          <div class="ko">포인트 충전소</div>
-          <div class="en">Point Charging Station</div>
-        </span>
-        <span class="my-balance" id="myBalance"></span>
-      </div>
-      <div class="charge-btns">
-        <a class="charge-btn" href="/pay/payment_test.html">
-          <div class="flag">🇰🇷</div>
-          <div class="ko">원화 충전</div>
-          <div class="en">KRW</div>
-        </a>
-        <a class="charge-btn" href="/pay/paypal_test.html">
-          <div class="flag">💵</div>
-          <div class="ko">달러 충전</div>
-          <div class="en">USD</div>
-        </a>
-      </div>
-    </div>
-  </div>
+    <a class="sqcard" href="https://mylottolab.github.io/my-lotto-lab/hub_seoul_race.html">
+      <span class="emoji">🐎</span>
+      <div class="ko">서울경마장</div>
+      <div class="en">Seoul Racetrack</div>
+    </a>
 
-  <div class="more-divider">
-    <div class="line"></div>
-    <div class="lbl">더 보기 / More</div>
-    <div class="line"></div>
-  </div>
-
-  <div class="more-grid">
-    <a class="more-card" href="https://mylottolab.github.io/my-lotto-lab/hub_data.html">
+    <a class="sqcard" href="https://mylottolab.github.io/my-lotto-lab/hub_data.html">
       <span class="emoji">📋</span>
       <div class="ko">Data등록과 관리</div>
-      <div class="en">Data Entry & Management</div>
+      <div class="en">Data Entry</div>
     </a>
 
-    <a class="more-card" href="https://mylottolab.github.io/my-lotto-lab/hub_shop.html">
+    <a class="sqcard" href="https://mylottolab.github.io/my-lotto-lab/hub_shop.html">
       <span class="emoji">🛍️</span>
       <div class="ko">포인트샵</div>
       <div class="en">Point Shop</div>
     </a>
 
-    <a class="more-card" href="https://mylottolab.github.io/my-lotto-lab/mock_simulation.html">
+    <a class="sqcard" href="https://mylottolab.github.io/my-lotto-lab/mock_simulation.html">
       <span class="emoji">🧬</span>
       <div class="ko">모의실전시뮬레이션</div>
-      <div class="en">Mock Live Simulation</div>
+      <div class="en">Mock Live Sim</div>
     </a>
 
-    <a class="more-card" href="https://mylottolab.github.io/my-lotto-lab/hub_seoul_race.html">
-      <span class="emoji">🐎</span>
-      <div class="ko">Seoul Jackpot Racetrack</div>
-      <div class="en">Seoul Jackpot Racetrack</div>
-    </a>
+    <div class="sqcard" id="chargeCard">
+      <span class="emoji">💰</span>
+      <div class="ko">포인트 충전소</div>
+      <div class="en">Charging Station</div>
+      <div class="sub-balance" id="myBalance"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="chargeModal">
+  <div class="modal-box">
+    <h2>포인트 충전</h2>
+    <p class="modal-desc">Point Charging</p>
+    <div class="modal-btns">
+      <a class="modal-btn" href="/pay/payment_test.html">
+        <div class="flag">🇰🇷</div>
+        <div class="ko">원화 충전</div>
+        <div class="en">KRW</div>
+      </a>
+      <a class="modal-btn" href="/pay/paypal_test.html">
+        <div class="flag">💵</div>
+        <div class="ko">달러 충전</div>
+        <div class="en">USD</div>
+      </a>
+    </div>
+    <button class="modal-close" id="chargeModalClose">닫기 / Close</button>
   </div>
 </div>
 
@@ -168,11 +167,6 @@ function getAuthState(){
   return { type: null };
 }
 
-// 다른 도메인(mylottolab.github.io)으로 이동하는 링크에 인증정보를 실어 보낸다.
-// (localStorage는 도메인별로 분리 저장되므로, 그냥 링크만 걸면 도착 페이지에서 로그인이 풀려보임)
-// ⚠ 2026-08-10: mll_rt(리프레시 토큰)를 안 실어 보내고 있던 버그 수정 — 이게 빠지면
-// 도착 페이지에서 액세스 토큰이 만료됐을 때 자동갱신이 안 되고, 얼마 후 다시 로그인해야
-// 하는 문제가 생긴다(다른 페이지들에서 이미 같은 버그를 발견해 고쳤던 것과 동일한 문제).
 function withAuthParams(url, state){
   if (!state.type) return url;
   var sep = url.indexOf('?') >= 0 ? '&' : '?';
@@ -184,14 +178,21 @@ function withAuthParams(url, state){
   return url + sep + 'mll_auth=guest&mll_nick=' + encodeURIComponent(state.nickname) + '&mll_em=' + encodeURIComponent(state.email);
 }
 
-// 상단 카드들(한국로또/해외복권/모의테스트/경마장 + 하단 "더 보기" 카드들)은 모두
-// GitHub Pages 도메인으로 넘어가므로, 로그인/비회원등록 상태라면 링크에 인증정보를 실어준다.
 (function patchNavLinks(){
   var state = getAuthState();
   if (!state.type) return;
-  document.querySelectorAll('a.card[href], a.more-card[href]').forEach(function(a){
+  document.querySelectorAll('a.sqcard[href]').forEach(function(a){
     a.href = withAuthParams(a.getAttribute('href'), state);
   });
+})();
+
+(function setupChargeModal(){
+  var card = document.getElementById('chargeCard');
+  var modal = document.getElementById('chargeModal');
+  var closeBtn = document.getElementById('chargeModalClose');
+  card.addEventListener('click', function(){ modal.classList.add('open'); });
+  closeBtn.addEventListener('click', function(){ modal.classList.remove('open'); });
+  modal.addEventListener('click', function(e){ if (e.target === modal) modal.classList.remove('open'); });
 })();
 
 (async function(){
@@ -205,7 +206,6 @@ function withAuthParams(url, state){
   if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
   else qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
 
-  // 닉네임 표시 (비회원은 이미 알고 있고, 회원은 /api/auth/me로 조회)
   var nickname = state.nickname || '';
   if (state.type === 'member') {
     try {
@@ -215,8 +215,8 @@ function withAuthParams(url, state){
     } catch (e) {}
   }
   if (nickname) {
-    badge.innerHTML = nickname + '님 <span style="font-size:11px;color:var(--text-dim);font-weight:600;">· Welcome</span>' +
-      ' <span onclick="if(confirm(\'로그아웃 하시겠습니까?\'))MLL.logout();" style="font-size:11px;color:var(--text-dim);font-weight:600;cursor:pointer;text-decoration:underline;margin-left:6px;">🚪 로그아웃</span>';
+    badge.innerHTML = nickname + '님 <span style="font-size:10px;color:var(--text-dim);font-weight:600;">· Welcome</span>' +
+      ' <span onclick="if(confirm(\'로그아웃 하시겠습니까?\'))MLL.logout();" style="font-size:10px;color:var(--text-dim);font-weight:600;cursor:pointer;text-decoration:underline;margin-left:6px;">🚪 로그아웃</span>';
     badge.style.display = 'block';
   }
 
@@ -225,9 +225,7 @@ function withAuthParams(url, state){
     var data = await res.json();
     if (res.ok) {
       var total = (data.deposit || 0) + (data.activity || 0);
-      el.innerHTML =
-        '잔여 사용가능포인트 <span style="color:var(--text-dim);font-weight:400;">(Available Points)</span><br>' +
-        total.toLocaleString() + '포인트 <span style="color:var(--text-dim);font-weight:400;">(' + total.toLocaleString() + ' pts)</span>';
+      el.innerHTML = total.toLocaleString() + 'P';
     }
   } catch(e){}
 })();
