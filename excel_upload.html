@@ -609,7 +609,7 @@ function refreshTable(){
       var result  =(actualSt==='추첨후')?MLL.getResult(entry.round):null;
       var winNums =result?result.nums:[];
       var bonusNum=result?result.bonus:null;
-      var isSession=entry.sessionTag===SESSION_TAG;
+      var isSession=MLL.getLastBatchIds().indexOf(String(entry.id))>=0;
       var autoNums=entry.autoNums||[];
 
       var balls=entry.nums.slice().sort(function(a,b){return a-b;}).map(function(n){
@@ -647,8 +647,8 @@ function refreshTable(){
 
       var rcColor=actualSt==='추첨전'?'#e03131':(actualSt==='미확인'?'#e67700':'#555');
       var defaultBg = actualSt==='추첨전'?'#fff8e1':(actualSt==='미확인'?'#fff3e0':'');
-      var rowBg=isSession?'#f0f8ff':(bgColor||defaultBg);
-      var borderL=isSession?'border-left:3px solid #1a7ad4;':'';
+      var rowBg=isSession?'#f3e0fa':(bgColor||defaultBg);
+      var borderL=isSession?'border-left:4px solid #9c36b5;':'';
       var rowStyle=borderL+'background:'+rowBg+';';
 
       var isSlipChecked = window.MLL_SLIP_CHECKED && window.MLL_SLIP_CHECKED[entry.id];
