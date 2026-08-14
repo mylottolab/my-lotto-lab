@@ -9,19 +9,22 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{--bg:#0a0d18;--surface:#11152a;--surface-hover:#161b36;--border-soft:#1b2038;--text:#eef0f6;--text-dim:#8b91ab;--gold:#e0b341;--accent:#5b6ee8;--green:#3fb37f;}
 html,body{height:100%;}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:12px;overflow:hidden;}
+/* 2026-08-15: overflow:hidden 이 화면보다 콘텐츠가 살짝 커질 때 스크롤 자체를 막아버려서
+   상단 타이틀이 잘려 보이는 버그의 원인이었음. auto로 바꿔 필요할 때만 스크롤되게 안전장치를 둠. */
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;}
 .wrap{max-width:460px;width:100%;text-align:center;}
-.user-badge{margin-bottom:4px;}
-h1{font-size:17px;font-weight:700;margin-bottom:2px;}
-.desc{font-size:11px;color:var(--text-dim);margin-bottom:10px;}
+.user-badge{margin-bottom:8px;}
+h1{font-size:22px;font-weight:700;margin-bottom:6px;}
+.desc{font-size:13px;color:var(--text-dim);margin-bottom:24px;}
 
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+/* 2026-08-15: 스크롤 허용되므로 여백/글씨를 다시 넉넉하게. 정사각 비율은 유지. */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
 .sqcard{
   aspect-ratio:1/1;
   background:var(--surface);
   border:1px solid var(--border-soft);
-  border-radius:12px;
-  padding:8px 8px;
+  border-radius:16px;
+  padding:16px;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -32,22 +35,21 @@ h1{font-size:17px;font-weight:700;margin-bottom:2px;}
   transition:transform .15s, background .15s, border-color .15s;
   cursor:pointer;
 }
-.sqcard:hover{background:var(--surface-hover);border-color:var(--accent);transform:translateY(-1px);}
-.sqcard .emoji{font-size:19px;margin-bottom:3px;line-height:1;}
-.sqcard .ko{font-size:11px;font-weight:700;line-height:1.2;}
-.sqcard .en{font-size:8px;color:var(--text-dim);margin-top:2px;line-height:1.2;}
-.sqcard .badge{display:inline-block;margin-top:4px;font-size:7.5px;font-weight:700;color:var(--gold);background:rgba(224,179,65,.12);border-radius:5px;padding:2px 5px;line-height:1.3;}
-.sqcard .sub-balance{margin-top:4px;font-size:8px;font-weight:700;color:var(--gold);line-height:1.3;}
+.sqcard:hover{background:var(--surface-hover);border-color:var(--accent);transform:translateY(-2px);}
+.sqcard .emoji{font-size:32px;margin-bottom:9px;line-height:1;}
+.sqcard .ko{font-size:16px;font-weight:700;line-height:1.3;}
+.sqcard .en{font-size:11.5px;color:var(--text-dim);margin-top:4px;line-height:1.3;}
+.sqcard .badge{display:inline-block;margin-top:8px;font-size:10px;font-weight:700;color:var(--gold);background:rgba(224,179,65,.12);border-radius:6px;padding:3px 8px;line-height:1.4;}
+.sqcard .sub-balance{margin-top:8px;font-size:11px;font-weight:700;color:var(--gold);line-height:1.4;}
 .sqcard.mypage-card .ko{color:var(--accent);}
 
-@media (max-height:640px){
-  h1{font-size:15px;}
-  .desc{font-size:10px;margin-bottom:8px;}
-  .sqcard .emoji{font-size:16px;}
-  .sqcard .ko{font-size:10px;}
-  .sqcard .en{font-size:7.5px;}
+@media (max-width:360px){
+  .sqcard .emoji{font-size:27px;}
+  .sqcard .ko{font-size:14px;}
+  .sqcard .en{font-size:10.5px;}
 }
 
+/* 충전소 선택 모달 */
 .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;padding:24px;}
 .modal-backdrop.open{display:flex;}
 .modal-box{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:22px;max-width:360px;width:100%;}
@@ -92,7 +94,7 @@ h1{font-size:17px;font-weight:700;margin-bottom:2px;}
       <span class="emoji">🧪</span>
       <div class="ko">로또 모의테스트</div>
       <div class="en">Mock Exam & Test</div>
-      <span class="badge">4개국 지원</span>
+      <span class="badge">4종 복권에 도전</span>
     </a>
 
     <a class="sqcard" href="https://mylottolab.github.io/my-lotto-lab/hub_race.html">
@@ -167,6 +169,8 @@ function getAuthState(){
   return { type: null };
 }
 
+// 다른 도메인(mylottolab.github.io)으로 이동하는 링크에 인증정보를 실어 보낸다.
+// (localStorage는 도메인별로 분리 저장되므로, 그냥 링크만 걸면 도착 페이지에서 로그인이 풀려보임)
 function withAuthParams(url, state){
   if (!state.type) return url;
   var sep = url.indexOf('?') >= 0 ? '&' : '?';
@@ -186,6 +190,7 @@ function withAuthParams(url, state){
   });
 })();
 
+// 충전소 모달 열기/닫기
 (function setupChargeModal(){
   var card = document.getElementById('chargeCard');
   var modal = document.getElementById('chargeModal');
@@ -206,6 +211,7 @@ function withAuthParams(url, state){
   if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
   else qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
 
+  // 닉네임 표시 (비회원은 이미 알고 있고, 회원은 /api/auth/me로 조회)
   var nickname = state.nickname || '';
   if (state.type === 'member') {
     try {
