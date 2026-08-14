@@ -496,9 +496,9 @@ MLL.renderRow = function(entry, sessionTag, opts) {
       entry.prizeMoney.toLocaleString()+'원</span>';
   }
 
-  // 세션 하이라이트 (2026-08-14: 배경색 더 진하게)
+  // 세션 하이라이트 (2026-08-14: 파란색이 기존 공/뱃지 색과 겹쳐 안 보여서 보라색으로 변경)
   var rowStyle = isSession
-    ? 'border-left:4px solid #1a7ad4;background:#cfe4fb;'
+    ? 'border-left:4px solid #9c36b5;background:#f3e0fa;'
     : (actualStatus==='추첨전' ? 'background:#fff8e1;' : '');
 
   var rcColor = actualStatus==='추첨전' ? '#e03131' : '#555';
