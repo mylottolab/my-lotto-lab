@@ -157,6 +157,15 @@ h1{font-size:22px;font-weight:700;margin-bottom:6px;}
 </div>
 
 <script>
+// 2026-08-15: 초기 화면이 중간부터 잘려 보이던 버그 수정.
+// 브라우저가 이전 스크롤 위치를 복원하거나, 로그인 배지(닉네임)가 비동기로
+// 뒤늦게 표시되며 레이아웃이 늘어나 스크롤이 밀리는 것이 원인으로 추정됨.
+// -> 스크롤 복원을 끄고, 로드 시점/레이아웃 변경 직후 항상 맨 위로 강제 고정.
+if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
+window.scrollTo(0, 0);
+window.addEventListener('load', function(){ window.scrollTo(0, 0); });
+document.addEventListener('DOMContentLoaded', function(){ window.scrollTo(0, 0); });
+
 function getAuthState(){
   var token = localStorage.getItem('mll_token') || sessionStorage.getItem('mll_token');
   if (token) {
@@ -224,6 +233,7 @@ function withAuthParams(url, state){
     badge.innerHTML = nickname + '님 <span style="font-size:10px;color:var(--text-dim);font-weight:600;">· Welcome</span>' +
       ' <span onclick="if(confirm(\'로그아웃 하시겠습니까?\'))MLL.logout();" style="font-size:10px;color:var(--text-dim);font-weight:600;cursor:pointer;text-decoration:underline;margin-left:6px;">🚪 로그아웃</span>';
     badge.style.display = 'block';
+    window.scrollTo(0, 0);
   }
 
   try {
