@@ -30,12 +30,17 @@ a{color:inherit;text-decoration:none;}
 
 header{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--border-soft);background:rgba(10,13,24,0.85);backdrop-filter:blur(6px);flex-wrap:wrap;gap:10px;}
 .brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
-.brand-mark{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#f3d785,var(--gold) 60%,var(--gold-dim));display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
 .brand-text .t1{font-size:14px;font-weight:700;}
+.brand-text .t2{font-size:10.5px;color:var(--text-faint);}
 .hdr-right{display:flex;align-items:center;gap:10px;}
 .theme-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;}
-.back-btn{font-size:12.5px;color:var(--text-dim);border:1px solid var(--border);padding:7px 13px;border-radius:8px;background:none;cursor:pointer;}
-.back-btn:hover{border-color:var(--gold);color:var(--gold);}
+.lang-toggle{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.lang-toggle button{border:none;background:var(--surface);color:var(--text-dim);padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+.lang-toggle button.active{background:var(--gold);color:#1a1305;}
+.lounge-mini-btn{display:flex;align-items:center;gap:6px;color:var(--text-dim);font-size:11.5px;cursor:pointer;border:1px solid var(--border);padding:6px 12px;border-radius:7px;background:none;font-family:inherit;transition:border-color .15s,color .15s;}
+.lounge-mini-btn:hover{border-color:var(--gold);color:var(--gold);}
 
 main{max-width:960px;margin:0 auto;padding:28px 20px 90px;}
 .page-title{font-size:23px;font-weight:600;margin-bottom:4px;}
@@ -80,35 +85,142 @@ main{max-width:960px;margin:0 auto;padding:28px 20px 90px;}
 <body>
 
 <header>
-  <a class="brand" href="main_page.html">
-    <div class="brand-mark">🗂️</div>
-    <div class="brand-text"><div class="t1">My Lotto Lab — My Page</div></div>
-  </a>
+  <div class="brand" onclick="location.href='main_page.html'">
+    <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="brand-text"><div class="t1">My Lotto Lab</div><div class="t2" id="brandSubTxt">My Page</div></div>
+  </div>
   <div class="hdr-right">
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">🌙</button>
-    <button class="back-btn" onclick="location.href='main_page.html'">← 메인으로</button>
+    <div class="lang-toggle">
+      <button id="langKrBtn" class="active" onclick="setLang('kr')">KR</button>
+      <button id="langEnBtn" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="lounge-mini-btn" onclick="location.href='hub_lounge.html'">
+      👤 <span id="loungeLabel">로그인·Lounge</span>
+    </button>
   </div>
 </header>
 
 <main>
-  <div class="page-title">🗂️ My Page</div>
-  <div class="page-sub">이 사이트에서 활동하신 내역을 한눈에 모아 봅니다.</div>
+  <div class="page-title" id="pageTitleTxt">🗂️ My Page</div>
+  <div class="page-sub" id="pageSubTxt">이 사이트에서 활동하신 내역을 한눈에 모아 봅니다.</div>
 
   <div id="body">
-    <div class="empty-state">불러오는 중…</div>
+    <div class="empty-state" id="loadingTxt">불러오는 중…</div>
   </div>
 </main>
 
 <script>
+// =====================================================
+// 테마 / 언어
+// =====================================================
 var THEME = localStorage.getItem('mll_theme') || ((window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark');
 function applyTheme(){ document.body.classList.toggle('light-mode', THEME==='light'); document.getElementById('themeBtn').textContent = THEME==='light' ? '☀️' : '🌙'; }
 function toggleTheme(){ THEME = THEME==='light' ? 'dark' : 'light'; localStorage.setItem('mll_theme', THEME); applyTheme(); }
 applyTheme();
 
-// ⚠ 4단계(완료): 포인트 충전·사용 내역까지 연결 완료 — /api/points/lots + /api/points/history
-// (hub_lounge.html에서 발견) — 이제 8개 카테고리 전부 실제 데이터 연결됨. "준비중" 없음.
-var SOON_ITEMS = [];
+var LANG = localStorage.getItem('mll_lang') || 'kr';
 
+var T = {
+  kr: {
+    brandSub:'My Page', pageTitle:'🗂️ My Page', pageSub:'이 사이트에서 활동하신 내역을 한눈에 모아 봅니다.',
+    loading:'불러오는 중…', loungeLabel:'로그인·Lounge',
+    loginNoticeP:'로그인하시면 이 사이트에서의 모든 활동 내역을 한눈에 보실 수 있어요.', loginLink:'로그인하러 가기 →',
+    fetchError:'불러오지 못했습니다.',
+    round:function(n){ return '제' + n + '회'; },
+    preDraw:'추첨전', postDraw:'추첨후',
+
+    summaryTitle:'📋 등록한 번호조합 요약', statTotal:'전체 등록 조합', statReal:'실구매', statVirtual:'가상',
+    statWinCount:'당첨 횟수', statTotalPrize:'누적 당첨금',
+    winsTitle:'🏆 당첨 이력', noWins:'아직 당첨 이력이 없습니다.',
+    recentTitle:'🕓 최근 등록한 번호조합 (10개)', noEntries:'등록한 번호조합이 없습니다.', viewAll:'전체 보기 →',
+    gradeLabels:['낙첨','1등','2등','3등','4등','5등'],
+
+    seoulTitle:'🐎 서울경마장 (대상경마·상시경마)', statBetCount:'전체 베팅 횟수', statPayoutCount:'배당 받은 횟수',
+    statTotalPayout:'누적 배당', noBets:'아직 베팅 내역이 없습니다.', goRace:'경마장 가기 →',
+    horseUnits:function(n,u){ return '#' + n + '번 · ' + u + '구좌'; }, lose:'낙첨', settled:'정산대기',
+
+    battlesTitle:'⚔️ 무제한 대결(Battles)', statJoinedRounds:'참가한 회차', statWinRounds:'우승 횟수',
+    noBattles:'아직 참가한 대결이 없습니다.', goBattles:'무제한 대결 가기 →',
+    unitsCombo:function(u,c){ return u + '단위 · ' + c + '개'; }, ended:'종료', inProgress:'진행중',
+
+    mockTitle:'⏱️ 모의 실전 시뮬레이션', statRegistered:'등록한 조합',
+    noMockEntries:'아직 등록한 조합이 없습니다.', goMock:'모의 실전 시뮬레이션 가기 →',
+
+    mocktestTitle:'🧪 로또 모의테스트 및 실험', statSessions:'응시 세션 수', statGraded:'채점 완료',
+    noMocktest:'아직 응시한 테스트가 없습니다.', goMocktest:'로또 모의테스트 가기 →',
+
+    shopTitle:'🛍️ 품샵 구매내역', statPurchaseCount:'구매 건수', statPointsUsed:'누적 사용 포인트',
+    noPurchases:'아직 구매내역이 없습니다.', goShop:'품샵 가기 →', pages:'페이지', games:'게임', product:'상품',
+
+    globalTitle:'🌍 해외 발행 복권 3종', statTotalReg:'전체 등록 건수', statTotalPrizeVirtual:'누적 당첨금(가상)',
+    noGlobalEntries:'아직 등록한 조합이 없습니다.', goGlobal:'해외 복권 가기 →',
+    pending:'대기', gradeSuffix:'등', gameNames:{ POWERBALL:'파워볼', MEGAMILLIONS:'메가밀리언스', EUROMILLIONS:'유로밀리언스' },
+
+    pointsTitle:'🪙 포인트 현황', statBalance:'총 잔액', statDeposit:'입금포인트', statActivity:'활동포인트',
+    recentTxTitle:'최근 포인트 입출금 내역', noTx:'입출금 내역이 없습니다.', goLounge:'회원 라운지 가기 →',
+  },
+  en: {
+    brandSub:'My Page', pageTitle:'🗂️ My Page', pageSub:'A one-stop overview of all your activity on this site.',
+    loading:'Loading…', loungeLabel:'Login·Lounge',
+    loginNoticeP:'Log in to see all your activity on this site in one place.', loginLink:'Go to Login →',
+    fetchError:'Failed to load.',
+    round:function(n){ return 'Round ' + n; },
+    preDraw:'Pending', postDraw:'Drawn',
+
+    summaryTitle:'📋 My Entries Summary', statTotal:'Total Entries', statReal:'Real Purchase', statVirtual:'Virtual',
+    statWinCount:'Wins', statTotalPrize:'Total Prize',
+    winsTitle:'🏆 Winning History', noWins:'No winnings yet.',
+    recentTitle:'🕓 Recently Registered (10)', noEntries:'No entries registered yet.', viewAll:'View all →',
+    gradeLabels:['No Prize','1st','2nd','3rd','4th','5th'],
+
+    seoulTitle:'🐎 Seoul Jackpot Racetrack (Grand Prix · Standing Race)', statBetCount:'Total Bets', statPayoutCount:'Winning Bets',
+    statTotalPayout:'Total Payout', noBets:'No bets placed yet.', goRace:'Go to Racetrack →',
+    horseUnits:function(n,u){ return '#' + n + ' · ' + u + ' units'; }, lose:'Lost', settled:'Pending',
+
+    battlesTitle:'⚔️ Battles (Free-for-All)', statJoinedRounds:'Rounds Joined', statWinRounds:'Wins',
+    noBattles:'No battles joined yet.', goBattles:'Go to Battles →',
+    unitsCombo:function(u,c){ return u + ' units · ' + c + ' combos'; }, ended:'Ended', inProgress:'In Progress',
+
+    mockTitle:'⏱️ Mock Simulation', statRegistered:'Combos Registered',
+    noMockEntries:'No entries registered yet.', goMock:'Go to Mock Simulation →',
+
+    mocktestTitle:'🧪 Lottery Mock Test & Experiment', statSessions:'Sessions', statGraded:'Graded',
+    noMocktest:'No tests taken yet.', goMocktest:'Go to Mock Test →',
+
+    shopTitle:'🛍️ Point Shop Purchases', statPurchaseCount:'Purchases', statPointsUsed:'Points Spent',
+    noPurchases:'No purchases yet.', goShop:'Go to Shop →', pages:'pages', games:'games', product:'Product',
+
+    globalTitle:'🌍 3 International Lotteries', statTotalReg:'Total Entries', statTotalPrizeVirtual:'Total Prize (virtual)',
+    noGlobalEntries:'No entries registered yet.', goGlobal:'Go to Global Lotteries →',
+    pending:'Pending', gradeSuffix:function(g){ return g===1?'st':g===2?'nd':g===3?'rd':'th'; }, gameNames:{ POWERBALL:'Powerball', MEGAMILLIONS:'Mega Millions', EUROMILLIONS:'EuroMillions' },
+
+    pointsTitle:'🪙 Points Overview', statBalance:'Total Balance', statDeposit:'Deposit Points', statActivity:'Activity Points',
+    recentTxTitle:'Recent Point Transactions', noTx:'No transactions yet.', goLounge:'Go to Member Lounge →',
+  }
+};
+function t(key){ return T[LANG][key]; }
+
+function applyStaticLang(){
+  document.getElementById('langKrBtn').classList.toggle('active', LANG==='kr');
+  document.getElementById('langEnBtn').classList.toggle('active', LANG==='en');
+  document.getElementById('loungeLabel').textContent = t('loungeLabel');
+  document.getElementById('brandSubTxt').textContent = t('brandSub');
+  document.getElementById('pageTitleTxt').textContent = t('pageTitle');
+  document.getElementById('pageSubTxt').textContent = t('pageSub');
+  document.getElementById('loadingTxt').textContent = t('loading');
+}
+function setLang(lang){
+  LANG = lang;
+  localStorage.setItem('mll_lang', lang);
+  applyStaticLang();
+  init(); // 카드 내용도 전부 다시 그림(데이터는 캐시돼있어 재요청 비용은 적음)
+}
+applyStaticLang();
+
+// =====================================================
+// 공용 인증 헤더/쿼리 헬퍼
+// =====================================================
 async function mllAuthHeaders(){
   var state = MLL.getAuthState();
   var h = {};
@@ -127,18 +239,24 @@ function mllAuthQuery(extra){
   }
   return parts.length ? ('?' + parts.join('&')) : '';
 }
+var SOON_ITEMS = []; // 8개 카테고리 전부 연결 완료 — 남은 준비중 항목 없음
 
+// =====================================================
+// 초기화
+// =====================================================
 async function init(){
   var state = MLL.getAuthState();
   var body = document.getElementById('body');
 
   if (!state.type) {
     body.innerHTML = '<div class="card"><div class="login-notice">' +
-      '<p>로그인하시면 이 사이트에서의 모든 활동 내역을 한눈에 보실 수 있어요.</p>' +
-      '<a href="hub_lounge.html">로그인하러 가기 →</a>' +
+      '<p>' + t('loginNoticeP') + '</p>' +
+      '<a href="hub_lounge.html">' + t('loginLink') + '</a>' +
     '</div></div>';
     return;
   }
+
+  body.innerHTML = '<div class="empty-state">' + t('loading') + '</div>';
 
   await Promise.all([MLL.refreshEntries(), MLL.refreshResults()]);
   var entries = MLL.loadEntries();
@@ -156,6 +274,7 @@ async function init(){
   renderSoon();
 }
 
+// ── 📋 등록한 번호조합 요약 ──
 function renderSummary(entries){
   var total = entries.length;
   var real = entries.filter(function(e){ return e.isReal; }).length;
@@ -163,63 +282,69 @@ function renderSummary(entries){
   var drawn = entries.filter(function(e){ return e.status !== '추첨전'; });
   var wins = drawn.filter(function(e){ return e.grade && e.grade > 0; });
   var totalPrize = wins.reduce(function(s,e){ return s + (e.prizeMoney||0); }, 0);
+  var wonUnit = LANG==='en' ? '' : '원';
 
-  var html = '<div class="card"><h2>📋 등록한 번호조합 요약</h2>' +
+  var html = '<div class="card"><h2>' + t('summaryTitle') + '</h2>' +
     '<div class="stat-grid">' +
-      '<div class="stat-box"><div class="num">' + total.toLocaleString() + '</div><div class="lbl">전체 등록 조합</div></div>' +
-      '<div class="stat-box"><div class="num">' + real.toLocaleString() + '</div><div class="lbl">실구매</div></div>' +
-      '<div class="stat-box"><div class="num">' + virtual.toLocaleString() + '</div><div class="lbl">가상</div></div>' +
-      '<div class="stat-box"><div class="num">' + wins.length.toLocaleString() + '</div><div class="lbl">당첨 횟수</div></div>' +
-      '<div class="stat-box"><div class="num">' + totalPrize.toLocaleString() + '원</div><div class="lbl">누적 당첨금</div></div>' +
+      '<div class="stat-box"><div class="num">' + total.toLocaleString() + '</div><div class="lbl">' + t('statTotal') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + real.toLocaleString() + '</div><div class="lbl">' + t('statReal') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + virtual.toLocaleString() + '</div><div class="lbl">' + t('statVirtual') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + wins.length.toLocaleString() + '</div><div class="lbl">' + t('statWinCount') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + (LANG==='en'?'₩':'') + totalPrize.toLocaleString() + wonUnit + '</div><div class="lbl">' + t('statTotalPrize') + '</div></div>' +
     '</div></div>';
   document.getElementById('body').innerHTML = html;
 }
 
+// ── 🏆 당첨 이력 ──
 function renderWins(entries){
   var drawn = entries.filter(function(e){ return e.status !== '추첨전' && e.grade && e.grade > 0; });
   drawn.sort(function(a,b){ return b.round - a.round; });
+  var wonUnit = LANG==='en' ? '' : '원';
+  var wonPrefix = LANG==='en' ? '₩' : '';
 
   var rows = drawn.length
     ? drawn.map(function(e){
         var nums = e.nums.slice().sort(function(a,b){return a-b;});
         var ballsHtml = MLL.renderBalls(nums, [], true);
+        var gradeLabel = t('gradeLabels')[e.grade];
         return '<div class="win-row">' +
           '<div class="wr-left">' +
-            '<span class="win-round">제' + e.round + '회</span>' +
+            '<span class="win-round">' + t('round')(e.round) + '</span>' +
             ballsHtml +
-            '<span class="win-grade" style="color:' + MLL.GRADE_COLOR[e.grade] + ';background:' + MLL.GRADE_COLOR[e.grade] + '22;">' + MLL.GRADE_LABEL[e.grade] + '</span>' +
+            '<span class="win-grade" style="color:' + MLL.GRADE_COLOR[e.grade] + ';background:' + MLL.GRADE_COLOR[e.grade] + '22;">' + gradeLabel + '</span>' +
           '</div>' +
-          '<span class="win-prize">' + (e.prizeMoney||0).toLocaleString() + '원</span>' +
+          '<span class="win-prize">' + wonPrefix + (e.prizeMoney||0).toLocaleString() + wonUnit + '</span>' +
         '</div>';
       }).join('')
-    : '<div class="empty-state">아직 당첨 이력이 없습니다.</div>';
+    : '<div class="empty-state">' + t('noWins') + '</div>';
 
-  document.getElementById('body').innerHTML += '<div class="card"><h2>🏆 당첨 이력</h2>' + rows + '</div>';
+  document.getElementById('body').innerHTML += '<div class="card"><h2>' + t('winsTitle') + '</h2>' + rows + '</div>';
 }
 
+// ── 🕓 최근 등록한 번호조합 ──
 function renderRecent(entries){
   var sorted = MLL.sortEntries(entries).slice(0, 10);
   var rows = sorted.length
     ? sorted.map(function(e){
         var nums = e.nums.slice().sort(function(a,b){return a-b;});
         var ballsHtml = MLL.renderBalls(nums, [], true);
-        var statusTxt = e.status==='추첨전' ? '<span style="color:var(--red);font-weight:700;">추첨전</span>' : '<span style="color:var(--text-faint);">추첨후</span>';
+        var statusTxt = e.status==='추첨전' ? '<span style="color:var(--red);font-weight:700;">' + t('preDraw') + '</span>' : '<span style="color:var(--text-faint);">' + t('postDraw') + '</span>';
         return '<div class="recent-row">' +
-          '<span class="recent-round">제' + e.round + '회</span>' +
+          '<span class="recent-round">' + t('round')(e.round) + '</span>' +
           ballsHtml +
           '<span>' + statusTxt + '</span>' +
         '</div>';
       }).join('')
-    : '<div class="empty-state">등록한 번호조합이 없습니다.</div>';
+    : '<div class="empty-state">' + t('noEntries') + '</div>';
 
-  document.getElementById('body').innerHTML += '<div class="card"><h2>🕓 최근 등록한 번호조합 (10개)</h2>' + rows +
-    '<div style="text-align:center;margin-top:12px;"><a href="lotto_input_page_v4.html" style="font-size:12px;color:var(--gold);font-weight:700;">전체 보기 →</a></div>' +
+  document.getElementById('body').innerHTML += '<div class="card"><h2>' + t('recentTitle') + '</h2>' + rows +
+    '<div style="text-align:center;margin-top:12px;"><a href="lotto_input_page_v4.html" style="font-size:12px;color:var(--gold);font-weight:700;">' + t('viewAll') + '</a></div>' +
   '</div>';
 }
 
 // ── 🐎 서울경마장 (대상경마·상시경마) ──
 async function renderSeoulRace(){
-  var html = '<div class="card"><h2>🐎 서울경마장 (대상경마·상시경마)</h2>';
+  var html = '<div class="card"><h2>' + t('seoulTitle') + '</h2>';
   try {
     var resp = await fetch(MLL.API_BASE + '/api/seoul-race/my-bets' + mllAuthQuery(), { headers: await mllAuthHeaders() });
     var data = await resp.json();
@@ -229,28 +354,29 @@ async function renderSeoulRace(){
     var wonCount = settled.filter(function(b){ return b.payout > 0; }).length;
 
     html += '<div class="stat-grid">' +
-      '<div class="stat-box"><div class="num">' + items.length.toLocaleString() + '</div><div class="lbl">전체 베팅 횟수</div></div>' +
-      '<div class="stat-box"><div class="num">' + wonCount.toLocaleString() + '</div><div class="lbl">배당 받은 횟수</div></div>' +
-      '<div class="stat-box"><div class="num">' + totalPayout.toLocaleString() + 'P</div><div class="lbl">누적 배당</div></div>' +
+      '<div class="stat-box"><div class="num">' + items.length.toLocaleString() + '</div><div class="lbl">' + t('statBetCount') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + wonCount.toLocaleString() + '</div><div class="lbl">' + t('statPayoutCount') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + totalPayout.toLocaleString() + 'P</div><div class="lbl">' + t('statTotalPayout') + '</div></div>' +
     '</div>';
 
     if (items.length) {
       var recent = items.slice(0, 5);
+      var locale = LANG==='en' ? 'en-US' : 'ko-KR';
       html += recent.map(function(b){
         var statusHtml = b.status === 'settled'
-          ? (b.payout > 0 ? '<span style="color:var(--green);font-weight:700;">+' + b.payout.toLocaleString() + 'P</span>' : '<span style="color:var(--text-faint);">낙첨</span>')
-          : '<span style="color:var(--gold);">정산대기</span>';
-        return '<div class="recent-row"><span>#' + b.horse_no + '번 · ' + (b.units||0) + '구좌</span>' +
-          '<span style="color:var(--text-faint);font-size:10.5px;">' + new Date(b.placed_at).toLocaleDateString('ko-KR') + '</span>' +
+          ? (b.payout > 0 ? '<span style="color:var(--green);font-weight:700;">+' + b.payout.toLocaleString() + 'P</span>' : '<span style="color:var(--text-faint);">' + t('lose') + '</span>')
+          : '<span style="color:var(--gold);">' + t('settled') + '</span>';
+        return '<div class="recent-row"><span>' + t('horseUnits')(b.horse_no, b.units||0) + '</span>' +
+          '<span style="color:var(--text-faint);font-size:10.5px;">' + new Date(b.placed_at).toLocaleDateString(locale) + '</span>' +
           '<span>' + statusHtml + '</span></div>';
       }).join('');
     } else {
-      html += '<div class="empty-state">아직 베팅 내역이 없습니다.</div>';
+      html += '<div class="empty-state">' + t('noBets') + '</div>';
     }
-    html += '<div style="text-align:center;margin-top:12px;"><a href="hub_seoul_race.html" style="font-size:12px;color:var(--gold);font-weight:700;">경마장 가기 →</a></div>';
+    html += '<div style="text-align:center;margin-top:12px;"><a href="hub_seoul_race.html" style="font-size:12px;color:var(--gold);font-weight:700;">' + t('goRace') + '</a></div>';
   } catch(e) {
     console.error('[my_page] seoul-race error', e);
-    html += '<div class="empty-state">불러오지 못했습니다.</div>';
+    html += '<div class="empty-state">' + t('fetchError') + '</div>';
   }
   html += '</div>';
   document.getElementById('body').innerHTML += html;
@@ -258,7 +384,7 @@ async function renderSeoulRace(){
 
 // ── ⚔️ 무제한 대결(Battles) ──
 async function renderBattles(){
-  var html = '<div class="card"><h2>⚔️ 무제한 대결(Battles)</h2>';
+  var html = '<div class="card"><h2>' + t('battlesTitle') + '</h2>';
   try {
     var state = MLL.getAuthState();
     var headers = await mllAuthHeaders();
@@ -274,26 +400,26 @@ async function renderBattles(){
     }).length;
 
     html += '<div class="stat-grid">' +
-      '<div class="stat-box"><div class="num">' + rooms.length.toLocaleString() + '</div><div class="lbl">참가한 회차</div></div>' +
-      '<div class="stat-box"><div class="num">' + wonCount.toLocaleString() + '</div><div class="lbl">우승 횟수</div></div>' +
+      '<div class="stat-box"><div class="num">' + rooms.length.toLocaleString() + '</div><div class="lbl">' + t('statJoinedRounds') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + wonCount.toLocaleString() + '</div><div class="lbl">' + t('statWinRounds') + '</div></div>' +
     '</div>';
 
     if (rooms.length) {
       var recent = rooms.slice(0, 5);
       html += recent.map(function(r){
         var me = r.participants.find(function(p){ return p.isMe; });
-        var statusTxt = r.status==='completed' ? '<span style="color:var(--text-faint);">종료</span>' : '<span style="color:var(--gold);">진행중</span>';
-        return '<div class="recent-row"><span>제' + r.round + '회</span>' +
-          '<span style="color:var(--text-faint);font-size:10.5px;">' + (me ? (me.unitsBought||0) + '단위 · ' + (me.comboCount||0) + '개' : '') + '</span>' +
+        var statusTxt = r.status==='completed' ? '<span style="color:var(--text-faint);">' + t('ended') + '</span>' : '<span style="color:var(--gold);">' + t('inProgress') + '</span>';
+        return '<div class="recent-row"><span>' + t('round')(r.round) + '</span>' +
+          '<span style="color:var(--text-faint);font-size:10.5px;">' + (me ? t('unitsCombo')(me.unitsBought||0, me.comboCount||0) : '') + '</span>' +
           '<span>' + statusTxt + '</span></div>';
       }).join('');
     } else {
-      html += '<div class="empty-state">아직 참가한 대결이 없습니다.</div>';
+      html += '<div class="empty-state">' + t('noBattles') + '</div>';
     }
-    html += '<div style="text-align:center;margin-top:12px;"><a href="hub_battles.html" style="font-size:12px;color:var(--gold);font-weight:700;">무제한 대결 가기 →</a></div>';
+    html += '<div style="text-align:center;margin-top:12px;"><a href="hub_battles.html" style="font-size:12px;color:var(--gold);font-weight:700;">' + t('goBattles') + '</a></div>';
   } catch(e) {
     console.error('[my_page] battles error', e);
-    html += '<div class="empty-state">불러오지 못했습니다.</div>';
+    html += '<div class="empty-state">' + t('fetchError') + '</div>';
   }
   html += '</div>';
   document.getElementById('body').innerHTML += html;
@@ -301,25 +427,27 @@ async function renderBattles(){
 
 // ── ⏱️ 모의 실전 시뮬레이션 ──
 async function renderMockSim(){
-  var html = '<div class="card"><h2>⏱️ 모의 실전 시뮬레이션</h2>';
+  var html = '<div class="card"><h2>' + t('mockTitle') + '</h2>';
   try {
     var resp = await fetch(MLL.API_BASE + '/api/mock/entries' + mllAuthQuery(), { headers: await mllAuthHeaders() });
     var data = await resp.json();
     var items = data.items || [];
     var wins = items.filter(function(e){ return e.grade && e.grade > 0; });
     var totalPrize = wins.reduce(function(s,e){ return s + (e.prize_money||0); }, 0);
+    var wonUnit = LANG==='en' ? '' : '원';
+    var wonPrefix = LANG==='en' ? '₩' : '';
 
     html += '<div class="stat-grid">' +
-      '<div class="stat-box"><div class="num">' + items.length.toLocaleString() + '</div><div class="lbl">등록한 조합</div></div>' +
-      '<div class="stat-box"><div class="num">' + wins.length.toLocaleString() + '</div><div class="lbl">당첨 횟수</div></div>' +
-      '<div class="stat-box"><div class="num">' + totalPrize.toLocaleString() + '원</div><div class="lbl">누적 당첨금</div></div>' +
+      '<div class="stat-box"><div class="num">' + items.length.toLocaleString() + '</div><div class="lbl">' + t('statRegistered') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + wins.length.toLocaleString() + '</div><div class="lbl">' + t('statWinCount') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + wonPrefix + totalPrize.toLocaleString() + wonUnit + '</div><div class="lbl">' + t('statTotalPrize') + '</div></div>' +
     '</div>';
 
-    if (!items.length) html += '<div class="empty-state">아직 등록한 조합이 없습니다.</div>';
-    html += '<div style="text-align:center;margin-top:12px;"><a href="mock_simulation.html" style="font-size:12px;color:var(--gold);font-weight:700;">모의 실전 시뮬레이션 가기 →</a></div>';
+    if (!items.length) html += '<div class="empty-state">' + t('noMockEntries') + '</div>';
+    html += '<div style="text-align:center;margin-top:12px;"><a href="mock_simulation.html" style="font-size:12px;color:var(--gold);font-weight:700;">' + t('goMock') + '</a></div>';
   } catch(e) {
     console.error('[my_page] mock error', e);
-    html += '<div class="empty-state">불러오지 못했습니다.</div>';
+    html += '<div class="empty-state">' + t('fetchError') + '</div>';
   }
   html += '</div>';
   document.getElementById('body').innerHTML += html;
@@ -327,7 +455,7 @@ async function renderMockSim(){
 
 // ── 🧪 로또 모의테스트 및 실험 (4개 게임 합산) ──
 async function renderMocktest(){
-  var html = '<div class="card"><h2>🧪 로또 모의테스트 및 실험</h2>';
+  var html = '<div class="card"><h2>' + t('mocktestTitle') + '</h2>';
   try {
     var games = ['KR','POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
     var headers = await mllAuthHeaders();
@@ -341,15 +469,15 @@ async function renderMocktest(){
     var graded = allItems.filter(function(e){ return e.status === 'graded'; });
 
     html += '<div class="stat-grid">' +
-      '<div class="stat-box"><div class="num">' + allItems.length.toLocaleString() + '</div><div class="lbl">응시 세션 수</div></div>' +
-      '<div class="stat-box"><div class="num">' + graded.length.toLocaleString() + '</div><div class="lbl">채점 완료</div></div>' +
+      '<div class="stat-box"><div class="num">' + allItems.length.toLocaleString() + '</div><div class="lbl">' + t('statSessions') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + graded.length.toLocaleString() + '</div><div class="lbl">' + t('statGraded') + '</div></div>' +
     '</div>';
 
-    if (!allItems.length) html += '<div class="empty-state">아직 응시한 테스트가 없습니다.</div>';
-    html += '<div style="text-align:center;margin-top:12px;"><a href="mocktest_hub.html" style="font-size:12px;color:var(--gold);font-weight:700;">로또 모의테스트 가기 →</a></div>';
+    if (!allItems.length) html += '<div class="empty-state">' + t('noMocktest') + '</div>';
+    html += '<div style="text-align:center;margin-top:12px;"><a href="mocktest_hub.html" style="font-size:12px;color:var(--gold);font-weight:700;">' + t('goMocktest') + '</a></div>';
   } catch(e) {
     console.error('[my_page] mocktest error', e);
-    html += '<div class="empty-state">불러오지 못했습니다.</div>';
+    html += '<div class="empty-state">' + t('fetchError') + '</div>';
   }
   html += '</div>';
   document.getElementById('body').innerHTML += html;
@@ -357,7 +485,7 @@ async function renderMocktest(){
 
 // ── 🛍️ 품샵 구매내역 ──
 async function renderShop(){
-  var html = '<div class="card"><h2>🛍️ 품샵 구매내역</h2>';
+  var html = '<div class="card"><h2>' + t('shopTitle') + '</h2>';
   try {
     var resp = await fetch(MLL.API_BASE + '/api/shop/my-orders' + mllAuthQuery(), { headers: await mllAuthHeaders() });
     var data = await resp.json();
@@ -365,72 +493,80 @@ async function renderShop(){
     var totalSpent = items.reduce(function(s,o){ return s + (o.points_charged||0); }, 0);
 
     html += '<div class="stat-grid">' +
-      '<div class="stat-box"><div class="num">' + items.length.toLocaleString() + '</div><div class="lbl">구매 건수</div></div>' +
-      '<div class="stat-box"><div class="num">' + totalSpent.toLocaleString() + 'P</div><div class="lbl">누적 사용 포인트</div></div>' +
+      '<div class="stat-box"><div class="num">' + items.length.toLocaleString() + '</div><div class="lbl">' + t('statPurchaseCount') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + totalSpent.toLocaleString() + 'P</div><div class="lbl">' + t('statPointsUsed') + '</div></div>' +
     '</div>';
 
     if (items.length) {
       var recent = items.slice(0, 5);
+      var locale = LANG==='en' ? 'en-US' : 'ko-KR';
       html += recent.map(function(o){
-        var qtyStr = o.page_count ? (o.page_count + '페이지') : ((o.combo_count||0) + '게임');
-        return '<div class="recent-row"><span>' + (o.product_id||'상품') + ' · ' + qtyStr + '</span>' +
-          '<span style="color:var(--text-faint);font-size:10.5px;">' + new Date(o.created_at).toLocaleDateString('ko-KR') + '</span>' +
+        var qtyStr = o.page_count ? (o.page_count + t('pages')) : ((o.combo_count||0) + t('games'));
+        return '<div class="recent-row"><span>' + (o.product_id || t('product')) + ' · ' + qtyStr + '</span>' +
+          '<span style="color:var(--text-faint);font-size:10.5px;">' + new Date(o.created_at).toLocaleDateString(locale) + '</span>' +
           '<span>-' + (o.points_charged||0).toLocaleString() + 'P</span></div>';
       }).join('');
     } else {
-      html += '<div class="empty-state">아직 구매내역이 없습니다.</div>';
+      html += '<div class="empty-state">' + t('noPurchases') + '</div>';
     }
-    html += '<div style="text-align:center;margin-top:12px;"><a href="hub_shop.html" style="font-size:12px;color:var(--gold);font-weight:700;">품샵 가기 →</a></div>';
+    html += '<div style="text-align:center;margin-top:12px;"><a href="hub_shop.html" style="font-size:12px;color:var(--gold);font-weight:700;">' + t('goShop') + '</a></div>';
   } catch(e) {
     console.error('[my_page] shop error', e);
-    html += '<div class="empty-state">불러오지 못했습니다.</div>';
+    html += '<div class="empty-state">' + t('fetchError') + '</div>';
   }
   html += '</div>';
   document.getElementById('body').innerHTML += html;
 }
 
 // ── 🌍 해외 발행 복권 3종 (Powerball / Mega Millions / EuroMillions) ──
-var GL_NAMES = { POWERBALL:'파워볼', MEGAMILLIONS:'메가밀리언스', EUROMILLIONS:'유로밀리언스' };
 async function renderGlobalLotto(){
-  var html = '<div class="card"><h2>🌍 해외 발행 복권 3종</h2>';
+  var html = '<div class="card"><h2>' + t('globalTitle') + '</h2>';
   try {
     var resp = await fetch(MLL.API_BASE + '/api/global/tickets' + mllAuthQuery(), { headers: await mllAuthHeaders() });
     var data = await resp.json();
     var items = data.items || [];
     var wins = items.filter(function(e){ return e.prize_tier && e.prize_tier > 0; });
     var totalPrize = wins.reduce(function(s,e){ return s + Number(e.prize_amount||0); }, 0);
+    var names = t('gameNames');
 
-    // 게임별 등록 건수 분포
     var byGame = {};
     items.forEach(function(e){ byGame[e.game_code] = (byGame[e.game_code]||0) + 1; });
-    var gameDist = Object.keys(GL_NAMES).map(function(code){
-      return GL_NAMES[code] + ' ' + (byGame[code]||0) + '건';
+    var unitWord = LANG==='en' ? '' : '건';
+    var gameDist = Object.keys(names).map(function(code){
+      return names[code] + ' ' + (byGame[code]||0) + unitWord;
     }).join(' · ');
 
     html += '<div class="stat-grid">' +
-      '<div class="stat-box"><div class="num">' + items.length.toLocaleString() + '</div><div class="lbl">전체 등록 건수</div></div>' +
-      '<div class="stat-box"><div class="num">' + wins.length.toLocaleString() + '</div><div class="lbl">당첨 횟수</div></div>' +
-      '<div class="stat-box"><div class="num">' + totalPrize.toLocaleString() + '</div><div class="lbl">누적 당첨금(가상)</div></div>' +
+      '<div class="stat-box"><div class="num">' + items.length.toLocaleString() + '</div><div class="lbl">' + t('statTotalReg') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + wins.length.toLocaleString() + '</div><div class="lbl">' + t('statWinCount') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + totalPrize.toLocaleString() + '</div><div class="lbl">' + t('statTotalPrizeVirtual') + '</div></div>' +
     '</div>';
     if (items.length) html += '<div style="font-size:11.5px;color:var(--text-faint);margin-bottom:10px;">' + gameDist + '</div>';
 
     if (items.length) {
       var recent = items.slice(0, 5);
       html += recent.map(function(e){
-        var gname = GL_NAMES[e.game_code] || e.game_code;
-        var gradeHtml = (e.prize_tier === null || e.prize_tier === undefined) ? '<span style="color:var(--gold);">대기</span>'
-          : (e.prize_tier > 0 ? '<span style="color:var(--green);font-weight:700;">' + e.prize_tier + '등</span>' : '<span style="color:var(--text-faint);">낙첨</span>');
+        var gname = names[e.game_code] || e.game_code;
+        var gradeHtml;
+        if (e.prize_tier === null || e.prize_tier === undefined) {
+          gradeHtml = '<span style="color:var(--gold);">' + t('pending') + '</span>';
+        } else if (e.prize_tier > 0) {
+          var suffix = LANG==='en' ? t('gradeSuffix')(e.prize_tier) : t('gradeSuffix');
+          gradeHtml = '<span style="color:var(--green);font-weight:700;">' + e.prize_tier + suffix + '</span>';
+        } else {
+          gradeHtml = '<span style="color:var(--text-faint);">' + t('lose') + '</span>';
+        }
         return '<div class="recent-row"><span>' + gname + ' · ' + (e.draw_date||'-') + '</span>' +
           '<span style="color:var(--text-faint);font-size:10.5px;">' + (e.main_numbers||[]).join(',') + '</span>' +
           '<span>' + gradeHtml + '</span></div>';
       }).join('');
     } else {
-      html += '<div class="empty-state">아직 등록한 조합이 없습니다.</div>';
+      html += '<div class="empty-state">' + t('noGlobalEntries') + '</div>';
     }
-    html += '<div style="text-align:center;margin-top:12px;"><a href="global_lotto.html" style="font-size:12px;color:var(--gold);font-weight:700;">해외 복권 가기 →</a></div>';
+    html += '<div style="text-align:center;margin-top:12px;"><a href="global_lotto.html" style="font-size:12px;color:var(--gold);font-weight:700;">' + t('goGlobal') + '</a></div>';
   } catch(e) {
     console.error('[my_page] global-lotto error', e);
-    html += '<div class="empty-state">불러오지 못했습니다.</div>';
+    html += '<div class="empty-state">' + t('fetchError') + '</div>';
   }
   html += '</div>';
   document.getElementById('body').innerHTML += html;
@@ -438,7 +574,7 @@ async function renderGlobalLotto(){
 
 // ── 🪙 포인트 충전·사용 내역 ──
 async function renderPointsHistory(){
-  var html = '<div class="card"><h2>🪙 포인트 현황</h2>';
+  var html = '<div class="card"><h2>' + t('pointsTitle') + '</h2>';
   try {
     var headers = await mllAuthHeaders();
     var qs = mllAuthQuery();
@@ -447,20 +583,21 @@ async function renderPointsHistory(){
     var total = lotsData.total || 0, deposit = lotsData.deposit || 0, activity = lotsData.activity || 0;
 
     html += '<div class="stat-grid">' +
-      '<div class="stat-box"><div class="num">' + total.toLocaleString() + 'P</div><div class="lbl">총 잔액</div></div>' +
-      '<div class="stat-box"><div class="num">' + deposit.toLocaleString() + 'P</div><div class="lbl">입금포인트</div></div>' +
-      '<div class="stat-box"><div class="num">' + activity.toLocaleString() + 'P</div><div class="lbl">활동포인트</div></div>' +
+      '<div class="stat-box"><div class="num">' + total.toLocaleString() + 'P</div><div class="lbl">' + t('statBalance') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + deposit.toLocaleString() + 'P</div><div class="lbl">' + t('statDeposit') + '</div></div>' +
+      '<div class="stat-box"><div class="num">' + activity.toLocaleString() + 'P</div><div class="lbl">' + t('statActivity') + '</div></div>' +
     '</div>';
 
     var histResp = await fetch(MLL.API_BASE + '/api/points/history' + qs, { headers: headers });
     var histData = await histResp.json();
     var items = histData.items || [];
+    var locale = LANG==='en' ? 'en-US' : 'ko-KR';
 
-    html += '<div style="font-size:12.5px;font-weight:700;margin:14px 0 8px;color:var(--text-dim);">최근 포인트 입출금 내역</div>';
+    html += '<div style="font-size:12.5px;font-weight:700;margin:14px 0 8px;color:var(--text-dim);">' + t('recentTxTitle') + '</div>';
     if (items.length) {
       var recent = items.slice(0, 8);
       html += recent.map(function(h){
-        var when = new Date(h.at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        var when = new Date(h.at).toLocaleString(locale, { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
         var isCredit = h.kind === 'credit';
         var amountHtml = '<span style="color:' + (isCredit ? 'var(--green)' : 'var(--text-dim)') + ';font-weight:700;">' + (isCredit?'+':'-') + h.amount.toLocaleString() + 'P</span>';
         return '<div class="recent-row"><span>' + h.label + '</span>' +
@@ -468,20 +605,20 @@ async function renderPointsHistory(){
           '<span>' + amountHtml + '</span></div>';
       }).join('');
     } else {
-      html += '<div class="empty-state">입출금 내역이 없습니다.</div>';
+      html += '<div class="empty-state">' + t('noTx') + '</div>';
     }
-    html += '<div style="text-align:center;margin-top:12px;"><a href="hub_lounge.html" style="font-size:12px;color:var(--gold);font-weight:700;">회원 라운지 가기 →</a></div>';
+    html += '<div style="text-align:center;margin-top:12px;"><a href="hub_lounge.html" style="font-size:12px;color:var(--gold);font-weight:700;">' + t('goLounge') + '</a></div>';
   } catch(e) {
     console.error('[my_page] points error', e);
-    html += '<div class="empty-state">불러오지 못했습니다.</div>';
+    html += '<div class="empty-state">' + t('fetchError') + '</div>';
   }
   html += '</div>';
   document.getElementById('body').innerHTML += html;
 }
 
 function renderSoon(){
-  if (!SOON_ITEMS.length) return; // 전부 연결 완료되면 이 카드 자체를 안 그림
-  var html = '<div class="card"><h2>🚧 그 외 활동 내역 <span class="soon-badge">순차 추가 예정</span></h2><div class="soon-list">' +
+  if (!SOON_ITEMS.length) return;
+  var html = '<div class="card"><h2>🚧 <span class="soon-badge"></span></h2><div class="soon-list">' +
     SOON_ITEMS.map(function(item){
       return '<div class="soon-card"><div class="ic">' + item.ic + '</div>' + item.label + '</div>';
     }).join('') +
