@@ -496,9 +496,9 @@ MLL.renderRow = function(entry, sessionTag, opts) {
       entry.prizeMoney.toLocaleString()+'원</span>';
   }
 
-  // 세션 하이라이트
+  // 세션 하이라이트 (2026-08-14: 배경색 더 진하게)
   var rowStyle = isSession
-    ? 'border-left:3px solid #1a7ad4;background:#f0f8ff;'
+    ? 'border-left:4px solid #1a7ad4;background:#cfe4fb;'
     : (actualStatus==='추첨전' ? 'background:#fff8e1;' : '');
 
   var rcColor = actualStatus==='추첨전' ? '#e03131' : '#555';
