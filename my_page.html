@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Page - My Lotto Lab</title>
 <script src="https://my-lotto-lab-api.onrender.com/pay/common.js?v=20260814a"></script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -202,13 +203,17 @@ var T = {
 function t(key){ return T[LANG][key]; }
 
 function applyStaticLang(){
-  document.getElementById('langKrBtn').classList.toggle('active', LANG==='kr');
-  document.getElementById('langEnBtn').classList.toggle('active', LANG==='en');
-  document.getElementById('loungeLabel').textContent = t('loungeLabel');
-  document.getElementById('brandSubTxt').textContent = t('brandSub');
-  document.getElementById('pageTitleTxt').textContent = t('pageTitle');
-  document.getElementById('pageSubTxt').textContent = t('pageSub');
-  document.getElementById('loadingTxt').textContent = t('loading');
+  var krBtn = document.getElementById('langKrBtn'); if (krBtn) krBtn.classList.toggle('active', LANG==='kr');
+  var enBtn = document.getElementById('langEnBtn'); if (enBtn) enBtn.classList.toggle('active', LANG==='en');
+  var loungeEl = document.getElementById('loungeLabel'); if (loungeEl) loungeEl.textContent = t('loungeLabel');
+  var brandSubEl = document.getElementById('brandSubTxt'); if (brandSubEl) brandSubEl.textContent = t('brandSub');
+  var titleEl = document.getElementById('pageTitleTxt'); if (titleEl) titleEl.textContent = t('pageTitle');
+  var subEl = document.getElementById('pageSubTxt'); if (subEl) subEl.textContent = t('pageSub');
+  // ⚠ #loadingTxt는 #body 안쪽(최초 로딩 문구)에 있어서, 카드가 한 번이라도 그려지고 나면
+  // DOM에서 사라진다(body.innerHTML이 카드 내용으로 통째로 교체되므로). 그래서 언어 전환
+  // 시(=이미 카드가 그려진 뒤) 이 줄이 null을 만나 예외를 던지고, 그 아래 나머지 카드
+  // 재렌더링 로직 전체가 조용히 멈춰버리는 게 "일부만 번역되던" 버그의 진짜 원인이었다.
+  var loadingEl = document.getElementById('loadingTxt'); if (loadingEl) loadingEl.textContent = t('loading');
 }
 function setLang(lang){
   LANG = lang;
