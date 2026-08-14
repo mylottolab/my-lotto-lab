@@ -214,7 +214,7 @@ function setLang(lang){
   LANG = lang;
   localStorage.setItem('mll_lang', lang);
   applyStaticLang();
-  init(); // 카드 내용도 전부 다시 그림(데이터는 캐시돼있어 재요청 비용은 적음)
+  init().catch(function(e){ console.error('[my_page] init() 재실행 오류:', e); }); // 카드 내용도 전부 다시 그림(데이터는 캐시돼있어 재요청 비용은 적음)
 }
 applyStaticLang();
 
@@ -263,7 +263,10 @@ async function init(){
 
   body.innerHTML = '<div class="empty-state">' + t('loading') + '</div>';
 
-  await Promise.all([MLL.refreshEntries(), MLL.refreshResults()]);
+  if (!CACHE.entriesLoaded) {
+    await Promise.all([MLL.refreshEntries(), MLL.refreshResults()]);
+    CACHE.entriesLoaded = true;
+  }
   var entries = MLL.loadEntries();
 
   renderSummary(entries);
