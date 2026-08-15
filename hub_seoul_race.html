@@ -701,12 +701,15 @@ function renderRoundCard(mode){
   var pillEl = document.getElementById('rcStatusPill_' + mode);
   var round = STATE[mode].round;
 
-  // ⚠ 대상경마 마감구간(토요일 20:00~24:00 KST) — 서버가 아직 이전 회차 데이터를
-  // 그대로 주고 있어도, 이 구간엔 항상 "마감" 상태로 강제 표시하고 베팅을 막는다.
+  // ⚠ 대상경마 마감구간(토요일 20:00~24:00 KST) — 20:00에 베팅이 마감되는 즉시
+  // 서버는 이미 "다음 주 회차"(자정부터 발매될 회차)를 round.cycle_no로 내려준다.
+  // 2026-08-15 발견된 버그: 예전 코드는 round.cycle_no를 "방금 마감된 회차"로 착각해
+  // 여기서 한 번 더 +1을 해버려 실제보다 두 회차 앞서 표시됐음 (1237 마감인데 1238 마감으로 보임).
+  // 올바른 계산: round.cycle_no = 자정부터 열리는 다음 회차, 그 -1이 방금 마감된 회차.
   STATE[mode].closedWindow = (mode === 'standard' && isStandardClosedWindow());
   if (STATE[mode].closedWindow) {
-    var closingNo = round ? round.cycle_no : null;
-    var nextNo = closingNo != null ? (closingNo + 1) : null;
+    var nextNo = round ? round.cycle_no : null;
+    var closingNo = nextNo != null ? (nextNo - 1) : null;
     cycleEl.textContent = (closingNo != null && nextNo != null)
       ? (LANG==='en'
           ? ('Round #' + closingNo + ' closed — Round #' + nextNo + ' opens at midnight (00:00 KST)')
@@ -769,8 +772,8 @@ function startCountdown(mode){
 
 async function placeBet(mode, horseNo){
   if (mode === 'standard' && isStandardClosedWindow()) {
-    var closingNo = STATE[mode].round ? STATE[mode].round.cycle_no : null;
-    var nextNo = closingNo != null ? (closingNo + 1) : null;
+    // renderRoundCard와 동일한 수정: round.cycle_no는 이미 "자정부터 열리는 다음 회차"이므로 +1 하지 않음
+    var nextNo = STATE[mode].round ? STATE[mode].round.cycle_no : null;
     alert(nextNo != null
       ? ((LANG==='en') ? ('Round #' + nextNo + ' opens at midnight (00:00 KST).') : (nextNo + '회차 발매는 24:00부터입니다.'))
       : ((LANG==='en') ? 'Betting is closed right now.' : '지금은 베팅이 마감된 시간입니다.'));
