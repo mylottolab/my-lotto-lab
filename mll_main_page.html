@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab</title>
+<script src="common.js?v=20260709a"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0d18;
+  --surface:#11152a;
+  --surface-2:#161b35;
+  --border:#252b48;
+  --border-soft:#1b2038;
+  --text:#eef0f6;
+  --text-dim:#8b91ab;
+  --text-faint:#5a6080;
+  --gold:#e0b341;
+  --gold-dim:#8a6f2f;
+  --indigo:#5b6ee8;
+  --indigo-dim:#2a3270;
+  --card-shadow:0 1px 2px rgba(0,0,0,.2);
+  --card-shadow-hover:0 8px 20px rgba(0,0,0,.32);
+  --bg-top:#0d1120;
+}
+body.light-mode{
+  --bg:#dbe0ee;
+  --surface:#ffffff;
+  --surface-2:#eef1f9;
+  --border:#c2c8dd;
+  --border-soft:#d2d7e8;
+  --text:#161b30;
+  --text-dim:#4c5372;
+  --text-faint:#7a80a0;
+  --gold:#a8781f;
+  --gold-dim:#8a6f2f;
+  --indigo:#4453c9;
+  --indigo-dim:#c7cdf5;
+  --card-shadow:0 1px 2px rgba(30,36,66,.06);
+  --card-shadow-hover:0 10px 24px rgba(30,36,66,.12);
+  --bg-top:#e7eaf5;
+}
+body{
+  background:var(--bg);
+  background-image:linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 340px);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;
+  font-size:14px;
+  letter-spacing:-0.01em;
+  min-height:100vh;
+}
+.font-num{font-variant-numeric:tabular-nums;}
+.theme-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:14px;flex-shrink:0;}
+.theme-toggle:hover{border-color:var(--gold);}
+
+/* ── PaperLotto 자매사이트 광고배너 2종 (2026-08 신설) ── */
+.pl-ads{max-width:1180px;margin:20px auto 0;padding:0 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:760px){.pl-ads{grid-template-columns:1fr;}}
+.pl-ad{position:relative;border-radius:16px;padding:26px 26px;cursor:pointer;overflow:hidden;min-height:150px;display:flex;flex-direction:column;justify-content:center;
+  background:radial-gradient(circle at 85% 15%, rgba(224,179,65,.16), transparent 55%),
+             linear-gradient(135deg, #12162b 0%, #191d3a 100%);
+  border:1px solid #2b3155;transition:transform .2s, border-color .2s;}
+.pl-ad:hover{transform:translateY(-3px);border-color:#e0b341;}
+.pl-ad-eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;color:#e0b341;text-transform:uppercase;margin-bottom:8px;}
+.pl-ad-title{font-size:17px;font-weight:700;color:#f4f5f9;letter-spacing:-0.01em;line-height:1.35;}
+.pl-ad-title .hl{color:#e0b341;}
+.pl-ad-desc{font-size:11.5px;color:#9aa0c0;margin-top:8px;line-height:1.6;max-width:320px;}
+.pl-ad-arrow{position:absolute;right:20px;bottom:18px;color:#9aa0c0;font-size:16px;}
+.pl-ad.pl-track{background:radial-gradient(circle at 85% 15%, rgba(224,179,65,.20), transparent 55%),
+             linear-gradient(135deg, #0f1730 0%, #1a1206 100%);
+  border:1px solid #4a3a15;}
+.pl-ad.pl-track:hover{border-color:#e0b341;}
+
+/* ── 헤더 ── */
+.topbar{border-bottom:1px solid var(--border-soft);}
+.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:11px;cursor:pointer;}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #f3d785, var(--gold) 60%, var(--gold-dim));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-mark svg{width:17px;height:17px;stroke:#1a1404;stroke-width:1.8;fill:none;}
+.brand-text .t1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
+.brand-text .t2{font-size:10px;color:var(--text-faint);margin-top:1px;}
+.topbar-right{display:flex;align-items:center;gap:14px;}
+.lounge-mini-btn{display:flex;align-items:center;gap:6px;color:var(--text-dim);font-size:11.5px;cursor:pointer;border:1px solid var(--border);padding:6px 12px;border-radius:7px;background:none;transition:border-color .15s,color .15s;}
+.lounge-mini-btn:hover{border-color:#34a8c4;color:var(--text);}
+.lounge-mini-btn .soon-tag{font-size:8.5px;color:var(--text-faint);border:1px solid var(--border);padding:1px 6px;border-radius:20px;}
+.lotto-switch{display:flex;align-items:center;gap:6px;color:var(--text-dim);font-size:12px;cursor:pointer;border:1px solid var(--border);padding:6px 12px;border-radius:7px;background:none;transition:border-color .15s,color .15s;}
+.lotto-switch:hover{border-color:var(--gold-dim);color:var(--text);}
+.lotto-wrap{position:relative;}
+.lotto-menu{display:none;position:absolute;right:0;top:42px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-width:200px;z-index:50;}
+@media (max-width:680px){
+  /* ⚠ 2026-07-14: 예전엔 이 메뉴가 버튼 기준 오른쪽 정렬(position:absolute;right:0)이라,
+     버튼이 화면 왼쪽에 있으면 메뉴가 화면 밖(왼쪽)으로 잘려나가 항목이 안 보이는
+     문제가 있었다. position:fixed로 뷰포트 기준 좌우 여백을 고정해서 항상 화면 안에 들어오게 한다. */
+  .lotto-menu{
+    position:fixed;
+    left:12px;
+    right:12px;
+    top:64px;
+    min-width:0;
+    width:auto;
+    max-height:70vh;
+    overflow-y:auto;
+  }
+}
+.lotto-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;font-size:12.5px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border-soft);}
+.lotto-item > span:first-child{display:flex;align-items:center;gap:8px;}
+.lotto-item:last-child{border-bottom:none;}
+.lotto-item:hover{background:var(--surface-2);}
+.lotto-item .flag{margin-right:8px;}
+.lotto-item .soon{font-size:9px;color:var(--text-faint);border:1px solid var(--border);padding:2px 7px;border-radius:20px;}
+.lotto-item.disabled{cursor:default;color:var(--text-faint);}
+.lotto-item.disabled:hover{background:none;}
+.lotto-item.active{color:var(--gold);}
+
+.flag-ic{display:inline-block;width:18px;height:13px;border-radius:2px;background-size:cover;background-position:center;vertical-align:middle;box-shadow:0 0 0 1px rgba(255,255,255,.08);flex-shrink:0;}
+.flag-kr{background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Crect width='30' height='20' fill='%23fff'/%3E%3Cg transform='translate(15,10)'%3E%3Ccircle r='4.2' fill='%23c60c30'/%3E%3Cpath d='M0,-4.2 A4.2,4.2 0 0 1 0,4.2 A2.1,2.1 0 0 1 0,0 A2.1,2.1 0 0 0 0,-4.2 Z' fill='%23003478'/%3E%3C/g%3E%3Cg stroke='%23000' stroke-width='0.55'%3E%3Cg transform='translate(4.2,4)'%3E%3Cline x1='-1.6' y1='-2.6' x2='1.6' y2='2.6'/%3E%3Cline x1='-2.3' y1='-1.6' x2='2.3' y2='1.6'/%3E%3Cline x1='-2.7' y1='-0.4' x2='2.7' y2='0.4'/%3E%3C/g%3E%3Cg transform='translate(25.8,4) scale(-1,1)'%3E%3Cline x1='-1.6' y1='-2.6' x2='1.6' y2='2.6'/%3E%3Cline x1='-2.3' y1='-1.6' x2='2.3' y2='1.6'/%3E%3Cline x1='-2.7' y1='-0.4' x2='2.7' y2='0.4'/%3E%3C/g%3E%3Cg transform='translate(4.2,16) scale(1,-1)'%3E%3Cline x1='-1.6' y1='-2.6' x2='1.6' y2='2.6'/%3E%3Cline x1='-2.3' y1='-1.6' x2='2.3' y2='1.6'/%3E%3Cline x1='-2.7' y1='-0.4' x2='2.7' y2='0.4'/%3E%3C/g%3E%3Cg transform='translate(25.8,16) scale(-1,-1)'%3E%3Cline x1='-1.6' y1='-2.6' x2='1.6' y2='2.6'/%3E%3Cline x1='-2.3' y1='-1.6' x2='2.3' y2='1.6'/%3E%3Cline x1='-2.7' y1='-0.4' x2='2.7' y2='0.4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");}
+.flag-us{background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Crect width='30' height='20' fill='%23b22234'/%3E%3Cg fill='%23fff'%3E%3Crect y='1.54' width='30' height='1.54'/%3E%3Crect y='4.62' width='30' height='1.54'/%3E%3Crect y='7.69' width='30' height='1.54'/%3E%3Crect y='10.77' width='30' height='1.54'/%3E%3Crect y='13.85' width='30' height='1.54'/%3E%3Crect y='16.92' width='30' height='1.54'/%3E%3C/g%3E%3Crect width='13' height='10.77' fill='%233c3b6e'/%3E%3C/svg%3E");}
+.flag-eu{background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Crect width='30' height='20' fill='%23003399'/%3E%3Cg fill='%23ffcc00'%3E%3Ccircle cx='15' cy='4.3' r='0.85'/%3E%3Ccircle cx='15' cy='15.7' r='0.85'/%3E%3Ccircle cx='9.8' cy='5.8' r='0.85'/%3E%3Ccircle cx='20.2' cy='5.8' r='0.85'/%3E%3Ccircle cx='9.8' cy='14.2' r='0.85'/%3E%3Ccircle cx='20.2' cy='14.2' r='0.85'/%3E%3Ccircle cx='7' cy='10' r='0.85'/%3E%3Ccircle cx='23' cy='10' r='0.85'/%3E%3Ccircle cx='8.3' cy='7.6' r='0.85'/%3E%3Ccircle cx='21.7' cy='7.6' r='0.85'/%3E%3Ccircle cx='8.3' cy='12.4' r='0.85'/%3E%3Ccircle cx='21.7' cy='12.4' r='0.85'/%3E%3C/g%3E%3C/svg%3E");}
+
+/* ── 히어로 / 라이브 스트립 ── */
+.hero{max-width:1180px;margin:0 auto;padding:34px 24px 0;}
+.hero-eyebrow{font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px;}
+.hero-title{font-size:27px;font-weight:600;letter-spacing:-0.025em;line-height:1.3;max-width:560px;}
+.hero-title b{color:var(--gold);font-weight:600;}
+
+.ticker{margin-top:26px;background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:18px 24px 16px;}
+.ticker-row1{display:flex;align-items:center;gap:26px;flex-wrap:wrap;}
+.ticker-round{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.ticker-round .label{font-size:10px;color:var(--text-faint);}
+.ticker-round .val{font-size:18px;font-weight:600;}
+.ticker-balls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.tball{width:27px;height:27px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.ticker-checkcta{margin-left:auto;font-size:12px;font-weight:600;color:#1a1404;background:var(--gold);cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0;padding:9px 16px;border-radius:9px;transition:background .15s;}
+.ticker-checkcta:hover{background:#eec25f;}
+.ticker-row2{display:flex;gap:28px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft);}
+.ticker-stat{display:flex;flex-direction:column;gap:3px;}
+.ticker-stat .label{font-size:10px;color:var(--text-faint);}
+.ticker-stat .val{font-size:14px;font-weight:600;}
+.ticker-stat .val.gold{color:var(--gold);}
+.ticker-stat-shop{flex:1;min-width:200px;}
+.ticker-stat-shop .val{font-size:11.5px;font-weight:400;color:var(--text-dim);line-height:1.5;}
+
+/* ── 로또 선택 드롭다운 ── */
+
+/* ── 카테고리 그리드 ── */
+.hub{max-width:1180px;margin:0 auto;padding:30px 24px 50px;}
+.hub-label{font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.12em;margin-bottom:14px;}
+.hub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+@media (max-width:880px){
+  .hub-grid{grid-template-columns:1fr 1fr;}
+}
+@media (max-width:560px){
+  .hub-grid{grid-template-columns:1fr;}
+}
+
+.hcard{
+  position:relative;
+  background:var(--surface);
+  border:1px solid var(--border-soft);
+  border-radius:16px;
+  padding:22px 22px 20px;
+  cursor:pointer;
+  overflow:hidden;
+  transition:border-color .18s,transform .18s,background .18s;
+  min-height:152px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.hcard:hover{border-color:var(--card-accent,var(--gold-dim));transform:translateY(-2px);background:var(--surface-2);}
+.hcard:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+.hcard .glow{position:absolute;top:-40%;right:-20%;width:200px;height:200px;border-radius:50%;background:var(--card-accent,var(--gold));opacity:0;filter:blur(40px);transition:opacity .25s;pointer-events:none;}
+.hcard:hover .glow{opacity:.10;}
+
+.hcard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.hcard-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--card-accent-bg,rgba(224,179,65,.12));flex-shrink:0;}
+.hcard-icon svg{width:19px;height:19px;stroke:var(--card-accent,var(--gold));stroke-width:1.6;fill:none;}
+.hcard-tag{font-size:9.5px;font-weight:600;letter-spacing:.04em;padding:3px 8px;border-radius:20px;white-space:nowrap;}
+.hcard-tag.live{background:rgba(91,110,232,.16);color:#9aa8f5;}
+.hcard-tag.soon{background:rgba(139,145,171,.14);color:var(--text-dim);}
+
+.hcard-name{font-size:16px;font-weight:600;letter-spacing:-0.01em;margin-top:14px;}
+.hcard-name-sub{font-size:12px;font-weight:500;color:var(--text-dim);margin-top:2px;}
+.hcard-desc{font-size:11.5px;color:var(--text-dim);margin-top:4px;line-height:1.5;}
+.hcard-time{font-size:10.5px;color:var(--card-accent,var(--gold));margin-top:7px;font-weight:600;}
+.hcard-fresh-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#1a1404;font-size:10.5px;font-weight:800;letter-spacing:-.01em;margin-bottom:9px;box-shadow:0 2px 8px rgba(224,179,65,.3);}
+.hcard-fresh-badge::before{content:'✓';font-weight:900;}
+
+.hcard-stat{margin-top:14px;display:flex;align-items:baseline;gap:6px;}
+.hcard-stat .num{font-size:20px;font-weight:600;color:var(--card-accent,var(--gold));}
+.hcard-stat .unit{font-size:11px;color:var(--text-faint);}
+.hcard-stat-next{font-size:11.5px;font-weight:600;color:var(--accent);white-space:nowrap;margin-left:auto;}
+.hcard-countdown{font-size:11px;color:var(--text-dim);margin-top:5px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;}
+.hcard-countdown .cd-time{color:var(--card-accent,var(--gold));}
+.hcard-countdown .cd-dot{width:6px;height:6px;border-radius:50%;background:var(--card-accent,var(--gold));animation:cdPulse 1s infinite;}
+@keyframes cdPulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+.hcard-stat .num.rolling{animation:numRoll .5s ease-out;}
+.flip-fade{transition:opacity .3s ease;}
+@keyframes numRoll{
+  0%{transform:translateY(6px) scale(.9);opacity:.3;}
+  60%{transform:translateY(-2px) scale(1.08);opacity:1;}
+  100%{transform:translateY(0) scale(1);opacity:1;}
+}
+
+.hcard-arrow{position:absolute;bottom:18px;right:20px;width:26px;height:26px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-dim);transition:border-color .18s,color .18s,transform .18s;}
+
+/* ── 장르 구분선: 한국 로또 영역과 해외 복권 영역 사이 ── */
+.genre-divider{display:flex;align-items:center;gap:16px;margin:36px 0 22px;}
+.gd-line{flex:1;height:1px;background:linear-gradient(90deg, transparent, var(--border-soft) 20%, var(--border-soft) 80%, transparent);}
+.gd-label{font-size:11.5px;color:var(--text-faint);white-space:nowrap;letter-spacing:.04em;}
+
+/* ── 글로브 카드: 의도적으로 한국로또 카드들과 다른 톤(짙은 우주색 그라디언트 + 궤도 모티프) ── */
+.globe-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;
+  background:radial-gradient(circle at 85% 20%, rgba(91,110,232,.22), transparent 55%),
+             radial-gradient(circle at 15% 90%, rgba(240,180,0,.13), transparent 50%),
+             linear-gradient(135deg, #0d1130 0%, #161235 100%);
+  border:1px solid #2a2f5c;transition:transform .2s, border-color .2s;}
+.globe-card:hover{transform:translateY(-3px);border-color:#4a52a8;}
+.globe-card:focus-visible{outline:2px solid #5b6ee8;outline-offset:2px;}
+.globe-glow{position:absolute;top:-60%;right:-10%;width:280px;height:280px;border-radius:50%;background:#5b6ee8;opacity:.10;filter:blur(60px);pointer-events:none;}
+.globe-orbit{position:absolute;right:18px;top:50%;width:130px;height:130px;margin-top:-65px;border:1px solid rgba(255,255,255,.07);border-radius:50%;pointer-events:none;}
+.globe-orbit::before{content:'';position:absolute;inset:18px;border:1px solid rgba(255,255,255,.05);border-radius:50%;}
+.globe-content{position:relative;display:flex;align-items:center;gap:20px;z-index:1;}
+.globe-icon{font-size:34px;flex-shrink:0;filter:drop-shadow(0 0 14px rgba(91,110,232,.5));}
+.globe-text{flex:1;min-width:0;}
+.globe-tag{font-size:10px;font-weight:700;letter-spacing:.08em;color:#9aa8f5;margin-bottom:6px;}
+.globe-title{font-size:19px;font-weight:700;color:#fff;}
+.globe-desc{font-size:12px;color:#aab0d6;margin-top:6px;line-height:1.6;max-width:640px;}
+.globe-games{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.gg-pill{font-size:10.5px;font-weight:700;padding:4px 11px;border-radius:20px;background:rgba(255,255,255,.08);color:var(--c);border:1px solid currentColor;}
+.globe-arrow{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0;transition:transform .2s;}
+.globe-card:hover .globe-arrow{transform:translateX(4px);}
+.stadium-card:hover .globe-arrow{transform:translateX(4px);}
+.lab-card:hover .globe-arrow{transform:translateX(4px);}
+
+/* ── 모의테스트 배너: 보라색 실험/시험관 모티프로 나머지 두 카드와 의도적으로 다른 톤 ── */
+.lab-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;margin-top:16px;
+  background:radial-gradient(circle at 85% 20%, rgba(138,111,232,.22), transparent 55%),
+             radial-gradient(circle at 15% 90%, rgba(232,115,47,.13), transparent 50%),
+             linear-gradient(135deg, #150d2e 0%, #1f1435 100%);
+  border:1px solid #3a2f6c;transition:transform .2s, border-color .2s;}
+.lab-card:hover{transform:translateY(-3px);border-color:#8a6fe8;}
+.lab-card:focus-visible{outline:2px solid #8a6fe8;outline-offset:2px;}
+.lab-glow{position:absolute;top:-60%;right:-10%;width:280px;height:280px;border-radius:50%;background:#8a6fe8;opacity:.10;filter:blur(60px);pointer-events:none;}
+.lab-bubbles{position:absolute;right:20px;top:50%;width:130px;height:130px;margin-top:-65px;pointer-events:none;}
+.lab-bubbles::before{content:'';position:absolute;left:8px;top:14px;width:24px;height:24px;border:1px solid rgba(255,255,255,.08);border-radius:50%;}
+.lab-bubbles::after{content:'';position:absolute;right:6px;bottom:8px;width:46px;height:46px;border:1px solid rgba(255,255,255,.06);border-radius:50%;}
+.lab-tag{color:#c3b2ff !important;}
+@media (max-width:680px){
+  .lab-bubbles{display:none;}
+}
+
+/* ── "정답 모음: 역대 당첨번호 파일" 미리보기 박스 — lab-card 안, 화살표 앞에 배치 ── */
+.wfile-preview{background:rgba(224,179,65,.07);border:1px solid rgba(224,179,65,.35);border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;flex-shrink:0;width:230px;transition:border-color .2s, transform .15s;}
+.wfile-preview:hover{border-color:#e0b341;transform:translateY(-2px);}
+.wfile-preview .wp-icon{font-size:18px;flex-shrink:0;}
+.wfile-preview .wp-title{font-size:12.5px;font-weight:700;color:#e0b341;line-height:1.4;}
+.wfile-preview .wp-desc{font-size:10px;color:#8b91ab;margin-top:6px;line-height:1.5;}
+@media (max-width:680px){
+  .wfile-preview{width:100%;margin-top:14px;}
+}
+
+/* ── 토토·프로토 배너: 잔디 그라디언트 + 라인 모티프로 globe-card와 의도적으로 다른 톤 ── */
+.stadium-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;margin-top:16px;
+  background:radial-gradient(circle at 88% 15%, rgba(63,179,127,.22), transparent 55%),
+             radial-gradient(circle at 10% 95%, rgba(232,162,58,.13), transparent 50%),
+             linear-gradient(135deg, #0c1f17 0%, #122a1c 100%);
+  border:1px solid #224a32;transition:transform .2s, border-color .2s;}
+.stadium-card:hover{transform:translateY(-3px);border-color:#3fb37f;}
+.stadium-card:focus-visible{outline:2px solid #3fb37f;outline-offset:2px;}
+.stadium-glow{position:absolute;top:-60%;right:-10%;width:280px;height:280px;border-radius:50%;background:#3fb37f;opacity:.10;filter:blur(60px);pointer-events:none;}
+.stadium-lines{position:absolute;right:14px;top:50%;width:140px;height:90px;margin-top:-45px;border:1px solid rgba(255,255,255,.08);border-radius:6px;pointer-events:none;}
+.stadium-lines::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.08);}
+.stadium-lines::after{content:'';position:absolute;left:50%;top:50%;width:34px;height:34px;margin-left:-17px;margin-top:-17px;border:1px solid rgba(255,255,255,.08);border-radius:50%;}
+.stadium-tag{color:#7fdba6 !important;}
+@media (max-width:680px){
+  .stadium-lines{display:none;}
+}
+
+/* ── Seoul Jackpot Racetrack 배너: 골드 트랙 그라디언트 + 타원 트랙 모티프 (2026-08 신설, 토토·프로토 자리 대체) ── */
+.racetrack-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;margin-top:16px;
+  background:radial-gradient(circle at 88% 15%, rgba(224,179,65,.24), transparent 55%),
+             radial-gradient(circle at 10% 95%, rgba(184,92,32,.15), transparent 50%),
+             linear-gradient(135deg, #211705 0%, #2c1f08 100%);
+  border:1px solid #5a4318;transition:transform .2s, border-color .2s;}
+.racetrack-card:hover{transform:translateY(-3px);border-color:#e0b341;}
+.racetrack-card:focus-visible{outline:2px solid #e0b341;outline-offset:2px;}
+.racetrack-glow{position:absolute;top:-60%;right:-10%;width:280px;height:280px;border-radius:50%;background:#e0b341;opacity:.10;filter:blur(60px);pointer-events:none;}
+.racetrack-oval{position:absolute;right:10px;top:50%;width:150px;height:88px;margin-top:-44px;border:1px solid rgba(255,255,255,.10);border-radius:50%;pointer-events:none;}
+.racetrack-oval::before{content:'';position:absolute;left:18px;top:18px;right:18px;bottom:18px;border:1px solid rgba(255,255,255,.08);border-radius:50%;}
+.racetrack-tag{color:#f3d785 !important;}
+@media (max-width:680px){
+  .racetrack-oval{display:none;}
+}
+
+/* ── 전략 대결 배너: 그리드 카드에서 큰 배너로 승격 (2026-08-13) — 레드 클래시 모티프 ── */
+.battle-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;
+  background:radial-gradient(circle at 88% 15%, rgba(224,92,92,.24), transparent 55%),
+             radial-gradient(circle at 10% 95%, rgba(232,115,47,.13), transparent 50%),
+             linear-gradient(135deg, #2a0f0f 0%, #341313 100%);
+  border:1px solid #5c2424;transition:transform .2s, border-color .2s;}
+.battle-card:hover{transform:translateY(-3px);border-color:#e05c5c;}
+.battle-card:focus-visible{outline:2px solid #e05c5c;outline-offset:2px;}
+.battle-card:hover .globe-arrow{transform:translateX(4px);}
+.battle-glow{position:absolute;top:-60%;right:-10%;width:280px;height:280px;border-radius:50%;background:#e05c5c;opacity:.10;filter:blur(60px);pointer-events:none;}
+.battle-clash{position:absolute;right:24px;top:50%;width:130px;height:130px;margin-top:-65px;pointer-events:none;}
+.battle-clash::before,.battle-clash::after{content:'';position:absolute;left:50%;top:50%;width:110px;height:1px;background:rgba(255,255,255,.10);}
+.battle-clash::before{transform:translate(-50%,-50%) rotate(45deg);}
+.battle-clash::after{transform:translate(-50%,-50%) rotate(-45deg);}
+.battle-clash .bc-dot{position:absolute;width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(255,255,255,.18);background:rgba(224,92,92,.14);}
+.battle-clash .bc-dot1{top:8px;left:8px;}
+.battle-clash .bc-dot2{bottom:8px;right:8px;}
+.battle-tag{color:#f5a3a3 !important;}
+.battle-stat{margin-top:12px;font-size:12.5px;font-weight:700;color:#f5a3a3;}
+@media (max-width:680px){
+  .battle-clash{display:none;}
+}
+@media (max-width:680px){
+  .globe-content{flex-direction:column;align-items:flex-start;}
+  .globe-arrow{display:none;}
+}
+.hcard:hover .hcard-arrow{border-color:var(--card-accent,var(--gold-dim));color:var(--card-accent,var(--gold));transform:translateX(2px);}
+
+/* 카테고리별 액센트 */
+.c-data{--card-accent:#5b6ee8;--card-accent-bg:rgba(91,110,232,.14);}
+.c-strategy{--card-accent:#e0b341;--card-accent-bg:rgba(224,179,65,.14);}
+.c-results{--card-accent:#3fb37f;--card-accent-bg:rgba(63,179,127,.14);}
+.c-shop{--card-accent:#d4537e;--card-accent-bg:rgba(212,83,126,.14);}
+.c-race{--card-accent:#e8732f;--card-accent-bg:rgba(232,115,47,.13);}
+.c-battles{--card-accent:#e05c5c;--card-accent-bg:rgba(224,92,92,.14);}
+.c-lounge{--card-accent:#34a8c4;--card-accent-bg:rgba(52,168,196,.14);}
+.c-mock{--card-accent:#3fb37f;--card-accent-bg:rgba(63,179,127,.14);}
+
+/* ── 푸터 ── */
+.footnote{max-width:1180px;margin:0 auto;padding:0 24px 40px;font-size:10.5px;color:var(--text-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+
+.biz-info{max-width:1180px;margin:0 auto;padding:14px 24px 40px;font-size:10px;line-height:1.9;color:var(--text-faint);border-top:1px solid var(--border-soft);}
+.biz-terms-link{cursor:pointer;text-decoration:underline;color:var(--text-dim);}
+.biz-terms-link:hover{color:var(--gold);}
+@media (max-width:680px){
+  .biz-info{font-size:9.5px;padding:12px 14px 32px;line-height:2;}
+}
+/* =====================================================================
+   📱 모바일 반응형 (max-width:680px) — PC 화면(위 CSS)은 전혀 건드리지 않음.
+   여기 아래 규칙들은 좁은 화면에서만 적용된다.
+   ===================================================================== */
+@media (max-width:680px){
+  .topbar-inner{padding:0 14px;height:54px;}
+  .brand{gap:8px;}
+  .brand-mark{width:28px;height:28px;}
+  .brand-mark svg{width:14px;height:14px;}
+  .brand-text .t1{font-size:13px;}
+  .brand-text .t2{display:none;}
+  .topbar-right{gap:8px;}
+  .lounge-mini-btn span:not(.soon-tag){display:none;}
+  .lounge-mini-btn{padding:6px 8px;}
+  .lounge-mini-btn .soon-tag{display:none;}
+  #langKrBtn,#langEnBtn{padding:6px 9px !important;font-size:11px !important;}
+
+  .hero{padding:22px 14px 0;}
+  .hero-title{font-size:19px;max-width:100%;}
+  .hero-eyebrow{font-size:10px;margin-bottom:7px;}
+
+  .ticker{margin-top:16px;padding:14px 14px 12px;border-radius:12px;}
+  .ticker-row1{gap:12px;}
+  .ticker-round .val{font-size:15px;}
+  .tball{width:23px;height:23px;font-size:9.5px;}
+  .ticker-checkcta{margin-left:0;width:100%;justify-content:center;order:99;}
+  .ticker-row2{gap:16px;}
+  .ticker-stat .val{font-size:12.5px;}
+
+  .hub{padding:22px 14px 40px;}
+  .hcard{padding:16px 16px 14px;min-height:auto;}
+  .hcard-icon{width:32px;height:32px;}
+  .hcard-icon svg{width:16px;height:16px;}
+  .hcard-name{font-size:14px;margin-top:11px;}
+  .hcard-name-sub{font-size:10.5px;}
+  .hcard-desc{font-size:11px;}
+  .hcard-stat .num{font-size:17px;}
+
+  .genre-divider{margin:24px 0 16px;gap:10px;}
+  .gd-label{font-size:11px;white-space:nowrap;}
+
+  .globe-card,.lab-card,.stadium-card{padding:18px 16px;}
+  .globe-content{gap:12px;}
+  .globe-icon{font-size:24px;}
+  .globe-games{gap:6px;margin-top:9px;}
+  .gg-pill{font-size:9.5px;padding:4px 9px;}
+}
+@media (max-width:380px){
+  .lounge-mini-btn{display:none;}
+  .hero-title{font-size:17px;}
+  .tball{width:20px;height:20px;font-size:9px;}
+}
+
+/* =====================================================
+   2026-08-30 신설: 새 당첨번호 팝업 (책갈피처럼 겹쳐 쌓임)
+   · 한국 로또는 자체 API, 나머지 3종은 PaperLotto의 draw_results에서 읽습니다.
+     (app.js가 이미 쓰고 있는 것과 같은 경로입니다)
+   · 한 번 닫은 회차는 다시 뜨지 않고, 옮겨둔 자리는 기억합니다.
+   ===================================================== */
+#drawPopupWrap{ position:fixed; right:18px; bottom:18px; z-index:900; width:312px; max-width:calc(100vw - 36px); display:none; }
+#drawPopupWrap.show{ display:block; }
+.dp-stack{ position:relative; }
+.dp-card{
+  position:absolute; left:0; right:0; bottom:0;
+  background:var(--surface-2,#161b35); color:var(--text,#eef0f6);
+  border:1px solid var(--border,#252b48); border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.55);
+  padding:14px 15px 13px;
+  transition:transform .18s ease, opacity .18s ease;
+}
+.dp-card[data-depth="1"]{ transform:translateY(-6px) scale(.978); }
+.dp-card[data-depth="2"]{ transform:translateY(-12px) scale(.956); }
+.dp-card[data-depth="3"]{ transform:translateY(-18px) scale(.934); }
+.dp-card.dp-gone{ transform:translateX(20px) scale(.95); opacity:0; }
+/* ⚠ 맨 앞 카드가 아니면 ✕를 숨깁니다. 안 그러면 뒤 카드가 잘못 닫힙니다. */
+.dp-card:not([data-depth="0"]) .dp-x{ visibility:hidden; pointer-events:none; }
+.dp-card.dp-free{ position:fixed; transform:none; transition:none; box-shadow:0 14px 40px rgba(0,0,0,.65); }
+.dp-card.dp-free .dp-x{ visibility:visible; pointer-events:auto; }
+.dp-card.dp-grab{ cursor:grab; }
+.dp-card.dp-hold{ cursor:grabbing; }
+.dp-card.dp-lift{ transform:scale(1.04) !important; }
+
+.dp-head{ display:flex; align-items:center; gap:7px; margin-bottom:3px; }
+.dp-game{ flex:1; min-width:0; font-size:13px; font-weight:700; color:var(--gold,#e0b341); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dp-x{ background:none; border:none; font-size:16px; line-height:1; color:var(--text-faint,#5a6080); cursor:pointer; padding:2px 3px; flex-shrink:0; }
+.dp-x:hover{ color:var(--text,#eef0f6); }
+.dp-meta{ font-size:11px; color:var(--text-dim,#8b91ab); margin-bottom:10px; }
+.dp-nums{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px; }
+.dp-n{ width:27px; height:27px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; background:var(--gold,#e0b341); color:#1a1305; }
+.dp-n.bonus{ background:transparent; border:1.5px solid var(--text-faint,#5a6080); color:var(--text-dim,#8b91ab); }
+.dp-plus{ align-self:center; font-size:12px; color:var(--text-faint,#5a6080); font-weight:700; }
+.dp-go{ display:block; text-align:center; background:var(--gold,#e0b341); color:#1a1305;
+  border-radius:8px; padding:9px; font-size:12.5px; font-weight:700; text-decoration:none; }
+.dp-more{ position:absolute; left:0; right:0; top:-16px; text-align:center; font-size:10.5px; color:var(--text-faint,#5a6080); }
+
+#dpUndo{
+  position:fixed; right:18px; bottom:18px; z-index:960; display:none;
+  background:var(--surface,#11152a); color:var(--text,#eef0f6);
+  border:1px solid var(--border,#252b48); border-radius:11px;
+  padding:11px 13px; box-shadow:0 10px 30px rgba(0,0,0,.55);
+  font-size:12px; align-items:center; gap:11px; max-width:calc(100vw - 36px);
+}
+#dpUndo.show{ display:flex; }
+#dpUndo .u-txt{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#dpUndo button{ background:none; border:none; color:var(--gold,#e0b341); font-size:12px; font-weight:700;
+  cursor:pointer; padding:2px 4px; flex-shrink:0; text-decoration:underline; }
+@media (max-width:420px){
+  #drawPopupWrap{ right:10px; left:10px; bottom:10px; width:auto; }
+  #dpUndo{ right:10px; left:10px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand" onclick="location.href='main_page.html'">
+      <div class="brand-mark"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l3 3-3 3M15 9l-3 3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="brand-text">
+        <div class="t1">My Lotto Lab</div>
+        <div class="t2" data-i18n-kr="가상 로또 등록 · 당첨 분석 · 통계 플랫폼" data-i18n-en="Virtual Lotto Entry · Win Analysis · Stats Platform">가상 로또 등록 · 당첨 분석 · 통계 플랫폼</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="야간/주간 모드 전환">🌙</button>
+      <div class="lang-toggle" style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button id="langKrBtn" onclick="setLang('kr')" style="background:var(--gold);color:#1a1305;border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">KR</button>
+        <button id="langEnBtn" onclick="setLang('en')" style="background:var(--surface);color:var(--text-dim);border:none;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">EN</button>
+      </div>
+      <button class="lounge-mini-btn" onclick="location.href='my_page.html'">
+        🗂️ <span data-i18n-kr="My Page" data-i18n-en="My Page">My Page</span>
+      </button>
+      <button class="lounge-mini-btn" onclick="location.href='hub_lounge.html'">
+        👤 <span data-i18n-kr="로그인·Lounge" data-i18n-en="Login·Lounge">로그인·Lounge</span>
+      </button>
+      <div class="lotto-wrap">
+        <button class="lotto-switch" id="lottoBtn" onclick="toggleLottoMenu()">
+          <span class="flag-ic flag-kr"></span> <span id="lottoBtnLabel" data-i18n-kr="한국 로또" data-i18n-en="Korea Lotto">한국 로또</span> ▾
+        </button>
+        <div class="lotto-menu" id="lottoMenu">
+          <div class="lotto-item active" onclick="toggleLottoMenu()"><span><span class="flag-ic flag-kr"></span> <span data-i18n-kr="한국 로또" data-i18n-en="Korea Lotto">한국 로또</span></span><span class="soon" style="color:var(--gold);border-color:var(--gold-dim);" data-i18n-kr="이용중" data-i18n-en="ACTIVE">이용중</span></div>
+          <div class="lotto-item" onclick="location.href='global_lotto.html?game=POWERBALL'"><span><span class="flag-ic flag-us"></span> <span data-i18n-kr="파워볼" data-i18n-en="Powerball">파워볼</span></span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
+          <div class="lotto-item" onclick="location.href='global_lotto.html?game=MEGAMILLIONS'"><span><span class="flag-ic flag-us"></span> <span data-i18n-kr="메가밀리언스" data-i18n-en="Mega Millions">메가밀리언스</span></span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
+          <div class="lotto-item" onclick="location.href='global_lotto.html?game=EUROMILLIONS'"><span><span class="flag-ic flag-eu"></span> <span data-i18n-kr="유로밀리언스" data-i18n-en="EuroMillions">유로밀리언스</span></span><span class="soon" style="color:#9aa8f5;border-color:#4a52a8;">GLOBAL</span></div>
+          <div class="lotto-item" onclick="location.href='mocktest_hub.html'"><span><span class="flag-ic" style="background:none;font-size:13px;display:flex;align-items:center;justify-content:center;">🧪</span> <span data-i18n-kr="모의테스트 및 실험" data-i18n-en="Mock Test & Experiment">모의테스트 및 실험</span></span><span class="soon" style="color:var(--gold);border-color:var(--gold-dim);">MOCK TEST</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="hero">
+  <div class="hero-eyebrow">Observatory</div>
+  <div class="hero-title" data-i18n-html="true" data-i18n-kr="과학적인 나의 로또탐구,<br><b>My Lotto Lab</b>에 오신 것을 환영합니다" data-i18n-en="Welcome to <b>My Lotto Lab</b>,<br>your scientific lotto exploration">과학적인 나의 로또탐구,<br><b>My Lotto Lab</b>에 오신 것을 환영합니다</div>
+
+  <div class="ticker" id="ticker">
+    <div class="ticker-row1">
+      <div class="ticker-round">
+        <div class="label" data-i18n-kr="최근 추첨" data-i18n-en="Latest Draw">최근 추첨</div>
+        <div class="val font-num" id="tkRound">-</div>
+      </div>
+      <div class="ticker-balls" id="tkBalls"></div>
+      <div class="ticker-checkcta" onclick="window.open('mocktest_checker.html','mllChecker','width=460,height=800,resizable=yes,scrollbars=yes')">
+        <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="1.8" fill="none"><path d="M4 8.5V7a2 2 0 0 1 2-2h1.2l.9-1.5h3.8L12.8 5H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1.5" stroke-linejoin="round"/><circle cx="12" cy="11" r="3.2"/></svg>
+        <span data-i18n-kr="당첨확인 →" data-i18n-en="Check Results →">당첨확인 →</span>
+      </div>
+    </div>
+    <div class="ticker-row2">
+      <div class="ticker-stat">
+        <div class="label" data-i18n-kr="1등 당첨금" data-i18n-en="1st Prize Amount">1등 당첨금</div>
+        <div class="val font-num gold" id="tkPrize">-</div>
+      </div>
+      <div class="ticker-stat">
+        <div class="label" data-i18n-kr="1등 당첨게임" data-i18n-en="1st Prize Winners">1등 당첨게임</div>
+        <div class="val font-num" id="tkWinners">-</div>
+      </div>
+      <div class="ticker-stat">
+        <div class="label" data-i18n-kr="자동·반자동·수동" data-i18n-en="Auto·Semi·Manual">자동·반자동·수동</div>
+        <div class="val font-num" id="tkTypes">-</div>
+      </div>
+      <div class="ticker-stat ticker-stat-shop">
+        <div class="label" data-i18n-kr="1등 당첨점" data-i18n-en="1st Prize Shops">1등 당첨점</div>
+        <div class="val" id="tkShops">-</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="hub">
+  <div class="hub-label" data-i18n-kr="전체 카테고리" data-i18n-en="All Categories">전체 카테고리</div>
+  <div class="hub-grid">
+
+    <div class="hcard c-data" onclick="location.href='hub_data.html'" tabindex="0" role="button">
+      <div class="glow"></div>
+      <div class="hcard-top">
+        <div class="hcard-icon"><svg viewBox="0 0 24 24"><path d="M4 19.5V6a2 2 0 0 1 2-2h8.5L19 8.5V19.5a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19.5z" stroke-linejoin="round"/><path d="M14 4v4.5h5" stroke-linejoin="round"/><path d="M8 13h8M8 16.5h5" stroke-linecap="round"/></svg></div>
+        <span class="hcard-tag live" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
+      </div>
+      <div>
+        <div class="hcard-name" data-i18n-kr="Data 등록과 관리" data-i18n-en="Data Entry &amp; Management">Data 등록과 관리</div>
+        <div class="hcard-name-sub" data-i18n-kr="(부담없는 대량등록과 실험)" data-i18n-en="(Free, worry-free bulk entry &amp; experiments)">(부담없는 대량등록과 실험)</div>
+        <div class="hcard-desc" data-i18n-kr="직접 선택 · 카메라/QR · 엑셀 대량 등록 · AI 음성·문자 입력까지, 내 번호를 기록하는 4가지 방법과 기타 등록되거나 생성된 모든 Data의 관리" data-i18n-en="Manual pick · Camera/QR · Bulk Excel upload · AI voice/text input — 4 ways to record your numbers, plus management of all registered or generated data">직접 선택 · 카메라/QR · 엑셀 대량 등록 · AI 음성·문자 입력까지, 내 번호를 기록하는 4가지 방법과 기타 등록되거나 생성된 모든 Data의 관리</div>
+      </div>
+      <div class="hcard-stat"><span class="num font-num" id="statEntries">0</span><span class="unit" data-i18n-kr="개 등록된 번호조합" data-i18n-en=" entries registered">개 등록된 번호조합</span></div>
+      <div class="hcard-arrow">→</div>
+    </div>
+
+    <div class="hcard c-strategy" onclick="location.href='hub_strategy.html'" tabindex="0" role="button">
+      <div class="glow"></div>
+      <div class="hcard-top">
+        <div class="hcard-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.3"/><circle cx="12" cy="12" r="0.9" fill="var(--card-accent,var(--gold))" stroke="none"/></svg></div>
+        <span class="hcard-tag live" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
+      </div>
+      <div>
+        <div class="hcard-name" data-i18n-kr="전략 등록" data-i18n-en="Strategy Builder">전략 등록</div>
+        <div class="hcard-desc" data-i18n-kr="조건을 세우고, 번호를 생성하고, 결과를 비교한다" data-i18n-en="Set conditions, generate numbers, compare results">조건을 세우고, 번호를 생성하고, 결과를 비교한다</div>
+      </div>
+      <div class="hcard-stat"><span class="num font-num" id="statStrategies">0</span><span class="unit" data-i18n-kr="개 수립된 전략" data-i18n-en=" strategies built">개 수립된 전략</span></div>
+      <div class="hcard-arrow">→</div>
+    </div>
+
+    <div class="hcard c-results" onclick="location.href='hub_results.html'" tabindex="0" role="button">
+      <div class="glow"></div>
+      <div class="hcard-top">
+        <div class="hcard-icon"><svg viewBox="0 0 24 24"><path d="M5 19V11M11 19V5M17 19v-7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="hcard-tag live" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
+      </div>
+      <div>
+        <div class="hcard-name" data-i18n-kr="결과·통계" data-i18n-en="Results & Stats">결과·통계</div>
+        <div class="hcard-desc" data-i18n-kr="내 당첨 현황과 1회부터의 모든 회차 패턴 분석" data-i18n-en="My winning status and pattern analysis across every round since round 1">내 당첨 현황과 1회부터의 모든 회차 패턴 분석</div>
+      </div>
+      <div class="hcard-stat"><span class="num font-num" id="statRounds">0</span><span class="unit" data-i18n-kr="회차 누적 데이터" data-i18n-en=" rounds of data">회차 누적 데이터</span></div>
+      <div class="hcard-arrow">→</div>
+    </div>
+
+    <div class="hcard c-shop" onclick="location.href='hub_shop.html'" tabindex="0" role="button">
+      <div class="glow"></div>
+      <div class="hcard-top">
+        <div class="hcard-icon"><svg viewBox="0 0 24 24"><path d="M4 8l1.5-4h13L20 8" stroke-linejoin="round"/><path d="M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8z" stroke-linejoin="round"/><path d="M9 12a3 3 0 0 0 6 0" stroke-linecap="round"/></svg></div>
+        <span class="hcard-tag live" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
+      </div>
+      <div>
+        <div class="hcard-fresh-badge" data-i18n-kr="최근 추첨분까지 반영하여 산출" data-i18n-en="Calculated using the most recent draw">최근 추첨분까지 반영하여 산출</div>
+        <div class="hcard-name" data-i18n-kr="품샵" data-i18n-en="Point Shop">품샵</div>
+        <div class="hcard-desc" data-i18n-kr="포인트로 즉시 구매하는 로또 마킹용지 PDF — 원하는 개수만큼 골라 바로 다운로드" data-i18n-en="Instantly buy lotto marking-sheet PDFs with points — pick your quantity and download right away">포인트로 즉시 구매하는 로또 마킹용지 PDF — 원하는 개수만큼 골라 바로 다운로드</div>
+        <div class="hcard-time" data-i18n-kr="🖨️ 서로다른조합 · 반복마킹 · 역대당첨재현 · 극단조합 · 빈용지" data-i18n-en="🖨️ Unique combos · Repeat-marked · Past-winner replay · Extreme combos · Blank sheet">🖨️ 서로다른조합 · 반복마킹 · 역대당첨재현 · 극단조합 · 빈용지</div>
+      </div>
+      <div class="hcard-stat"><span class="num font-num" id="statShopProducts">5</span><span class="unit" data-i18n-kr="종 상품 판매중" data-i18n-en=" products available">종 상품 판매중</span></div>
+      <div class="hcard-arrow">→</div>
+    </div>
+
+    <div class="hcard c-race" onclick="location.href='hub_race.html'" tabindex="0" role="button">
+      <div class="glow"></div>
+      <div class="hcard-top">
+        <div class="hcard-icon"><svg viewBox="0 0 24 24"><path d="M4 19l5-14h6l5 14" stroke-linejoin="round" stroke-linecap="round"/><path d="M7.2 11h9.6M6 15h12"/><circle cx="9" cy="5" r="1.1" fill="var(--card-accent,var(--gold))" stroke="none"/></svg></div>
+        <span class="hcard-tag live" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
+      </div>
+      <div>
+        <div class="hcard-name" data-i18n-kr="100 전략 레이스" data-i18n-en="100 Strategy Race">100 전략 레이스</div>
+        <div class="hcard-desc" data-i18n-kr="1회부터 누적된 전략별 성적과 추천" data-i18n-en="Per-strategy results and recommendations, accumulated since round 1">1회부터 누적된 전략별 성적과 추천</div>
+      </div>
+      <div class="hcard-stat" style="padding-right:30px;"><span class="num font-num" id="statRaceRound">0</span><span class="unit" id="statRaceUnit">회차 시뮬레이션 완료</span><span class="hcard-stat-next" id="statRaceNext"></span></div>
+      <div class="hcard-arrow">→</div>
+    </div>
+
+    <div class="hcard c-mock" onclick="location.href='mock_simulation.html'" tabindex="0" role="button">
+      <div class="glow"></div>
+      <div class="hcard-top">
+        <div class="hcard-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="hcard-tag live" data-i18n-kr="이용 가능" data-i18n-en="Available">이용 가능</span>
+      </div>
+      <div>
+        <div class="hcard-name" data-i18n-kr="모의 실전 시뮬레이션" data-i18n-en="Mock Simulation">모의 실전 시뮬레이션</div>
+        <div class="hcard-desc" data-i18n-kr="이번주 추첨 전, 실제처럼 번호를 등록하고 가상의 구입비·당첨금으로 수익률을 체험해보세요" data-i18n-en="Before this week's draw, register numbers just like the real thing and experience returns with virtual purchase costs and prizes">이번주 추첨 전, 실제처럼 번호를 등록하고 가상의 구입비·당첨금으로 수익률을 체험해보세요</div>
+        <div class="hcard-time" data-i18n-kr="⏰ 등록시간 매주 일요일 06:00 ~ 토요일 20:00" data-i18n-en="⏰ Register: Every Sunday 06:00 ~ Saturday 20:00">⏰ 등록시간 매주 일요일 06:00 ~ 토요일 20:00</div>
+        <div class="hcard-countdown" id="mockCountdown"><span class="cd-dot"></span><span><span data-i18n-kr="접수마감까지" data-i18n-en="Closes in">접수마감까지</span> <span class="cd-time" id="mockCountdownTime">--:--:--</span></span></div>
+      </div>
+      <div class="hcard-stat">
+        <span class="num font-num" id="statMockRound">0</span><span class="unit" id="statMockUnit" data-i18n-kr="회차 모의등록 진행중" data-i18n-en="-round mock entry open">회차 모의등록 진행중</span>
+        <span class="hcard-stat-next" id="statMockCount"></span>
+      </div>
+      <div class="hcard-arrow">→</div>
+    </div>
+
+  </div>
+
+  <div class="genre-divider">
+    <span class="gd-line"></span>
+    <span class="gd-label" data-i18n-kr="⚔️ 전략 대결로 건너가기" data-i18n-en="⚔️ Cross over to Strategy Battles">⚔️ 전략 대결로 건너가기</span>
+    <span class="gd-line"></span>
+  </div>
+
+  <div class="battle-card" onclick="location.href='hub_battles.html'" tabindex="0" role="button">
+    <div class="battle-glow"></div>
+    <div class="battle-clash"><span class="bc-dot bc-dot1"></span><span class="bc-dot bc-dot2"></span></div>
+    <div class="globe-content">
+      <div class="globe-icon">⚔️</div>
+      <div class="globe-text">
+        <div class="globe-tag battle-tag" data-i18n-kr="무제한 참가 · FFA" data-i18n-en="Unlimited Entry · FFA">무제한 참가 · FFA</div>
+        <div class="globe-title" data-i18n-kr="전략 대결" data-i18n-en="Strategy Battles">전략 대결</div>
+        <div class="globe-desc" data-i18n-kr="무제한 대결 — 인원 제한 없이 누구나 참가, 조합 개수만큼 베팅. 추첨 후 당첨금 합계 1위가 낙첨자 베팅총액의 80%를 가져갑니다." data-i18n-en="Free-for-all battles — join with no headcount limit, bet by how many combos you submit. After the draw, whoever has the highest total prize wins 80% of the losers' total bets.">무제한 대결 — 인원 제한 없이 누구나 참가, 조합 개수만큼 베팅. 추첨 후 당첨금 합계 1위가 낙첨자 베팅총액의 80%를 가져갑니다.</div>
+        <div class="battle-stat"><span class="num font-num" id="statBattleCount">0</span><span data-i18n-kr=" 개 활성 대결방" data-i18n-en=" active battle rooms"> 개 활성 대결방</span></div>
+      </div>
+      <div class="globe-arrow">→</div>
+    </div>
+  </div>
+
+  <div class="genre-divider">
+    <span class="gd-line"></span>
+    <span class="gd-label" data-i18n-kr="🌍 다른 세계로 건너가기" data-i18n-en="🌍 Cross over to another world">🌍 다른 세계로 건너가기</span>
+    <span class="gd-line"></span>
+  </div>
+
+  <div class="globe-card" onclick="location.href='global_lotto.html'" tabindex="0" role="button">
+    <div class="globe-glow"></div>
+    <div class="globe-orbit"></div>
+    <div class="globe-content">
+      <div class="globe-icon">🌍</div>
+      <div class="globe-text">
+        <div class="globe-tag">NEW · GLOBAL</div>
+        <div class="globe-title" data-i18n-kr="해외 발행 복권 3종" data-i18n-en="3 International Lotteries">해외 발행 복권 3종</div>
+        <div class="globe-desc" data-i18n-kr="Powerball · Mega Millions · EuroMillions — 한국 로또와는 완전히 다른 매트릭스와 등급체계를 가진 세계의 복권들을, 같은 포인트로 가상 등록해보고 진짜 당첨확률을 체감해보세요." data-i18n-en="Powerball · Mega Millions · EuroMillions — lotteries with completely different matrices and prize tiers from Korea Lotto. Register virtually with the same points and feel the real odds.">Powerball · Mega Millions · EuroMillions — 한국 로또와는 완전히 다른 매트릭스와 등급체계를 가진 세계의 복권들을, 같은 포인트로 가상 등록해보고 진짜 당첨확률을 체감해보세요.</div>
+        <div class="globe-games">
+          <span class="gg-pill" style="--c:#e0383d;" onclick="event.stopPropagation();location.href='global_lotto.html?game=POWERBALL'">Powerball</span>
+          <span class="gg-pill" style="--c:#1a6fd4;" onclick="event.stopPropagation();location.href='global_lotto.html?game=MEGAMILLIONS'">Mega Millions</span>
+          <span class="gg-pill" style="--c:#f0b400;" onclick="event.stopPropagation();location.href='global_lotto.html?game=EUROMILLIONS'">EuroMillions</span>
+        </div>
+      </div>
+      <div class="globe-arrow">→</div>
+    </div>
+  </div>
+
+  <div class="genre-divider">
+    <span class="gd-line"></span>
+    <span class="gd-label" data-i18n-kr="🧪 모의테스트 실험실로 건너가기" data-i18n-en="🧪 Cross over to the Mock Test Lab">🧪 모의테스트 실험실로 건너가기</span>
+    <span class="gd-line"></span>
+  </div>
+
+  <div class="lab-card" onclick="location.href='mocktest_hub.html'" tabindex="0" role="button">
+    <div class="lab-glow"></div>
+    <div class="lab-bubbles"></div>
+    <div class="globe-content">
+      <div class="globe-icon">🧪</div>
+      <div class="globe-text">
+        <div class="globe-tag lab-tag">NEW · MOCK TEST</div>
+        <div class="globe-title" data-i18n-kr="로또 모의테스트 및 실험" data-i18n-en="Lottery Mock Exam & Test">로또 모의테스트 및 실험</div>
+        <div class="globe-desc" data-i18n-kr="한국로또·파워볼·메가밀리언스·유로밀리언스 4종을 실전처럼 예행연습. 다음 추첨을 기다리는 실전테스트, 과거 아무 회차나 즉시 채점하는 모의테스트까지." data-i18n-en="Practice all 4 lotteries like the real thing — real-round tests waiting for the next draw, and instant mock tests against any past round.">한국로또·파워볼·메가밀리언스·유로밀리언스 4종을 실전처럼 예행연습. 다음 추첨을 기다리는 실전테스트, 과거 아무 회차나 즉시 채점하는 모의테스트까지.</div>
+        <div class="globe-games">
+          <span class="gg-pill" style="--c:#8a6fe8;" onclick="event.stopPropagation();location.href='mocktest_hub.html?tab=REAL'" data-i18n-kr="실전테스트" data-i18n-en="Real Test">실전테스트</span>
+          <span class="gg-pill" style="--c:#e0b341;" onclick="event.stopPropagation();location.href='mocktest_hub.html?tab=MOCK'" data-i18n-kr="모의테스트" data-i18n-en="Mock Test">모의테스트</span>
+        </div>
+      </div>
+      <div class="wfile-preview" onclick="event.stopPropagation();location.href='mocktest_hub.html?openFiles=1'" tabindex="0" role="button">
+        <span class="wp-icon">📄</span>
+        <div>
+          <div class="wp-title" data-i18n-kr="정답 모음: 역대 당첨번호 파일" data-i18n-en="Answer Key: Winning Number Archives">정답 모음: 역대 당첨번호 파일</div>
+          <div class="wp-desc" data-i18n-kr="한국로또·파워볼·메가밀리언스·유로밀리언스 4종 역대 당첨번호 CSV" data-i18n-en="CSV archives for Korea Lotto, Powerball, Mega Millions, EuroMillions">한국로또·파워볼·메가밀리언스·유로밀리언스 4종 역대 당첨번호 CSV</div>
+        </div>
+      </div>
+      <div class="globe-arrow">→</div>
+    </div>
+  </div>
+
+  <div class="genre-divider">
+    <span class="gd-line"></span>
+    <span class="gd-label" data-i18n-kr="🐎 Seoul Jackpot Racetrack으로 건너가기" data-i18n-en="🐎 Cross over to Seoul Jackpot Racetrack">🐎 Seoul Jackpot Racetrack으로 건너가기</span>
+    <span class="gd-line"></span>
+  </div>
+
+  <div class="racetrack-card" onclick="location.href='hub_seoul_race.html'" tabindex="0" role="button">
+    <div class="racetrack-glow"></div>
+    <div class="racetrack-oval"></div>
+    <div class="globe-content">
+      <div class="globe-icon">🐎</div>
+      <div class="globe-text">
+        <div class="globe-tag racetrack-tag">NEW · RACETRACK</div>
+        <div class="globe-title" data-i18n-kr="Seoul Jackpot Racetrack" data-i18n-en="Seoul Jackpot Racetrack">Seoul Jackpot Racetrack</div>
+        <div class="globe-desc" data-i18n-kr="100마리의 전략이 한국로또 결과를 두고 겨루는 페이퍼 경마. 매주 토요일 실제 추첨을 기다리는 대상경마와, 20분마다 배팅·정산이 무한 반복되는 상시경마 두 가지로 즐기세요." data-i18n-en="A paper horse race where 100 strategies compete against the Korean Lotto draw. Enjoy the weekly Grand Prix race tied to Saturday's real draw, or the Standing Race that runs betting-and-settlement cycles every 20 minutes, around the clock.">100마리의 전략이 한국로또 결과를 두고 겨루는 페이퍼 경마. 매주 토요일 실제 추첨을 기다리는 대상경마와, 20분마다 배팅·정산이 무한 반복되는 상시경마 두 가지로 즐기세요.</div>
+        <div class="globe-games">
+          <span class="gg-pill" style="--c:#e0b341;" onclick="event.stopPropagation();location.href='hub_seoul_race.html?tab=standard'" data-i18n-kr="대상경마(주간)" data-i18n-en="Grand Prix (Weekly)">대상경마(주간)</span>
+          <span class="gg-pill" style="--c:#e8732f;" onclick="event.stopPropagation();location.href='hub_seoul_race.html?tab=always'" data-i18n-kr="상시경마(24시간)" data-i18n-en="Standing Race (24/7)">상시경마(24시간)</span>
+        </div>
+      </div>
+      <div class="globe-arrow">→</div>
+    </div>
+  </div>
+</div>
+
+<div class="pl-ads">
+  <div class="pl-ad" onclick="location.href='https://paperlotto.com/'" tabindex="0" role="button">
+    <div class="pl-ad-eyebrow">NO PURCHASE · NO PRIZE · PURE SIMULATION</div>
+    <div class="pl-ad-title" data-i18n-kr="세계 12개 복권을, <span class=&quot;hl&quot;>실제 돈 없이</span> 종이 위에서" data-i18n-en="12 lotteries worldwide, <span class=&quot;hl&quot;>with no real money</span>, on paper" data-i18n-html="true">세계 12개 복권을, <span class="hl">실제 돈 없이</span> 종이 위에서</div>
+    <div class="pl-ad-desc" data-i18n-kr="한국·미국·일본·캐나다·호주·유럽 — 전략 번호를 가상으로 등록하고 실제 추첨 결과와 비교해보세요. PaperLotto에서 확인하기" data-i18n-en="Korea · US · Japan · Canada · Australia · Europe — register your strategy numbers virtually and compare them against real draw results. Visit PaperLotto">한국·미국·일본·캐나다·호주·유럽 — 전략 번호를 가상으로 등록하고 실제 추첨 결과와 비교해보세요. PaperLotto에서 확인하기</div>
+    <div class="pl-ad-arrow">→</div>
+  </div>
+
+  <div class="pl-ad pl-track" onclick="location.href='https://paperlotto.com/paperlotto_racetrack_mockup.html'" tabindex="0" role="button">
+    <div class="pl-ad-eyebrow">🐎 WORLD JACKPOT RACETRACK</div>
+    <div class="pl-ad-title" data-i18n-kr="<span class=&quot;hl&quot;>100마리의 전략</span>, 매 회차 새로운 경주" data-i18n-en="<span class=&quot;hl&quot;>100 strategies.</span> A brand new race every round." data-i18n-html="true"><span class="hl">100마리의 전략</span>, 매 회차 새로운 경주</div>
+    <div class="pl-ad-desc" data-i18n-kr="12개국 복권 결과를 두고 100가지 전략이 겨루는 페이퍼 경마. 포인트로 베팅하고, 정산은 100% 자동. PaperLotto 경마장 구경하기" data-i18n-en="A paper horse race where 100 strategies compete against 12 countries' lottery results. Bet with points — settlement is 100% automatic. Visit PaperLotto's racetrack">12개국 복권 결과를 두고 100가지 전략이 겨루는 페이퍼 경마. 포인트로 베팅하고, 정산은 100% 자동. PaperLotto 경마장 구경하기</div>
+    <div class="pl-ad-arrow">→</div>
+  </div>
+</div>
+
+<div class="footnote">
+  <span data-i18n-kr="My Lotto Lab — 번호는 회원이 정합니다. 우리는 기록하고 분석합니다." data-i18n-en="My Lotto Lab — You choose the numbers. We record and analyze.">My Lotto Lab — 번호는 회원이 정합니다. 우리는 기록하고 분석합니다.</span>
+  <span id="footYear"></span>
+</div>
+
+<div class="biz-info">
+  <span data-i18n-kr="위브앱솔루션" data-i18n-en="WeApp Solution">위브앱솔루션</span> ·
+  <span data-i18n-kr="대표 이미화" data-i18n-en="CEO Lee Mi-hwa">대표 이미화</span> ·
+  <span data-i18n-kr="사업자등록번호 206-08-71754" data-i18n-en="Biz. Reg. No. 206-08-71754">사업자등록번호 206-08-71754</span> ·
+  <span data-i18n-kr="경기도 수원시 권선구 수성로47 10동 501호" data-i18n-en="10-501, Suseong-ro 47, Gwonseon-gu, Suwon-si, Gyeonggi-do, Korea">경기도 수원시 권선구 수성로47 10동 501호</span> ·
+  <span>010-9237-9042</span> ·
+  <span data-i18n-kr="통신판매업신고 2022-수원권선-1701" data-i18n-en="Mail-order Biz. No. 2022-수원권선-1701">통신판매업신고 2022-수원권선-1701</span> ·
+  <span class="biz-terms-link" onclick="openTerms()" data-i18n-kr="거래약관" data-i18n-en="Terms of Service">거래약관</span> ·
+  <span class="biz-terms-link" onclick="openPrivacy()" data-i18n-kr="개인정보처리방침" data-i18n-en="Privacy Policy">개인정보처리방침</span>
+</div>
+
+<script>
+function openTerms(){
+  window.open('terms.html', 'mllTerms', 'width=720,height=820,scrollbars=yes,resizable=yes');
+}
+function openPrivacy(){
+  window.open('privacy-policy.html', 'mllPrivacy', 'width=720,height=820,scrollbars=yes,resizable=yes');
+}
+</script>
+
+<script>
+var THEME = localStorage.getItem('mll_theme');
+if (!THEME) { THEME = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark'; }
+function applyTheme(){
+  document.body.classList.toggle('light-mode', THEME === 'light');
+  var btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = THEME === 'light' ? '☀️' : '🌙';
+}
+function toggleTheme(){ THEME = (THEME === 'light') ? 'dark' : 'light'; localStorage.setItem('mll_theme', THEME); applyTheme(); }
+applyTheme();
+
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+var STR = {
+  race_done_suffix: { kr: '회차 시뮬레이션 완료', en: ' rounds simulated' },
+  race_ready: { kr: '100필', en: '100 Horses' },
+  race_ready_suffix: { kr: '시뮬레이션 준비됨', en: 'ready to simulate' },
+  race_next_suffix: { kr: '회차 대비', en: ' upcoming' },
+  mock_closed: { kr: '마감됨', en: 'Closed' },
+  mock_total_label: { kr: '총등록', en: 'Total' },
+  mock_my_label: { kr: '내 등록', en: 'Mine' },
+  no_data: { kr: '데이터 없음', en: 'No data' },
+  no_info: { kr: '정보 없음', en: 'No info' },
+  won_suffix: { kr: '원', en: ' KRW' },
+  game_suffix: { kr: '게임', en: ' games' },
+  game_suffix_unit: { kr: '건', en: '' },
+  round_prefix: { kr: '제', en: 'Round ' },
+  round_suffix: { kr: '회', en: '' },
+};
+function T(key){ var row = STR[key]; if (!row) return key; return row[LANG] || row.kr; }
+
+function applyLang(){
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){
+    var text = (LANG === 'en') ? el.dataset.i18nEn : el.dataset.i18nKr;
+    if (text === undefined) return;
+    if (el.dataset.i18nHtml === 'true') el.innerHTML = text;
+    else el.textContent = text;
+  });
+  document.getElementById('langKrBtn').style.background = LANG==='kr' ? 'var(--gold)' : 'var(--surface)';
+  document.getElementById('langKrBtn').style.color = LANG==='kr' ? '#1a1305' : 'var(--text-dim)';
+  document.getElementById('langEnBtn').style.background = LANG==='en' ? 'var(--gold)' : 'var(--surface)';
+  document.getElementById('langEnBtn').style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)';
+}
+function setLang(lang){
+  // 2026-08-30: 팝업도 함께 다시 그립니다(추첨일·게임명이 언어를 따릅니다).
+  setTimeout(function(){ if (typeof renderDrawPopups === 'function') renderDrawPopups(); }, 0);
+  LANG = lang;
+  localStorage.setItem('mll_lang', lang);
+  applyLang();
+  if (typeof refreshDynamicStats === 'function') refreshDynamicStats();
+}
+document.addEventListener('DOMContentLoaded', applyLang);
+document.addEventListener('DOMContentLoaded', function(){ if (window.MLL && MLL.renderAnnouncements) MLL.renderAnnouncements('main_page'); });
+
+function loadJSON(key, fallback){
+  try{ return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
+  catch(e){ return fallback; }
+}
+function BC(n){ return n<=10?'#e0b341':n<=20?'#5b6ee8':n<=30?'#d4537e':n<=40?'#8b91ab':'#3fb37f'; }
+function TC(n){ return n<=10?'#1a1404':'#fff'; }
+
+function toggleLottoMenu(){
+  var m = document.getElementById('lottoMenu');
+  if(m) m.style.display = (m.style.display==='block') ? 'none' : 'block';
+}
+document.addEventListener('click', function(e){
+  var btn = document.getElementById('lottoBtn');
+  var menu = document.getElementById('lottoMenu');
+  if(menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) menu.style.display='none';
+});
+
+function formatWinnerShops(raw){
+  raw = (raw||'').trim();
+  if(!raw) return '';
+  var REGION = '(?:서울|부산|인천|대구|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)';
+  var marked = raw.replace(new RegExp('(?<!^)\\(' + REGION + '\\)', 'g'), function(m){ return '\n'+m; });
+  var lines = marked.split('\n').map(function(s){
+    return s.replace(/\s+/g,' ').trim().replace(/^,+|,+$/g,'').trim();
+  }).filter(Boolean);
+  return lines.join(' · ');
+}
+
+// 한국로또 계산 기준 — jobs/lottoAutoFetch.js의 computeExpectedLatestRound()와 완전히 동일한
+// 공식을 그대로 써서, "이미 추첨이 끝난 가장 최근 회차"를 DB 상태와 무관하게 날짜 계산만으로
+// 항상 정확히 구한다 (관리자가 결과입력을 늦게 해도 이 표시는 안 꼬이도록).
+var MOCK_ROUND1_TS = new Date('2002-12-07T20:00:00+09:00').getTime();
+var MOCK_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+function computeExpectedLatestRoundClient(){
+  var now = Date.now();
+  var weeksSinceRound1 = Math.floor((now - MOCK_ROUND1_TS) / MOCK_WEEK_MS);
+  return weeksSinceRound1 + 1;
+}
+// 모의등록 창구는 매주 일요일 06:00 ~ 토요일 20:00만 열려있고, 토요일 20:00 ~ 일요일
+// 06:00은 "추첨완료 · 다음 회차 등록 대기" 공백시간이다.
+function getMockPhase(){
+  var nowKo = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+  var d = nowKo.getDay(); // 0=일 ~ 6=토
+  var h = nowKo.getHours();
+  var isBlackout = (d === 6 && h >= 20) || (d === 0 && h < 6);
+  var latestDrawnRound = computeExpectedLatestRoundClient();
+  return { isBlackout: isBlackout, latestDrawnRound: latestDrawnRound, openRound: latestDrawnRound + 1 };
+}
+
+function refreshMockStat(){
+  var mockRoundEl = document.getElementById('statMockRound');
+  var statMockCountEl = document.getElementById('statMockCount');
+  var mockUnitEl = document.getElementById('statMockUnit');
+  var mockCountdownEl = document.getElementById('mockCountdown');
+  if (!mockRoundEl) return;
+
+  var phase = getMockPhase();
+
+  // ── 공백시간(토 20:00~일 06:00): 등록 자체가 안 열려있으므로 "추첨완료" 안내로 대체 ──
+  if (phase.isBlackout) {
+    mockRoundEl.textContent = phase.latestDrawnRound.toLocaleString();
+    if (mockUnitEl) {
+      mockUnitEl.removeAttribute('data-i18n-kr'); mockUnitEl.removeAttribute('data-i18n-en');
+      mockUnitEl.textContent = (LANG==='en')
+        ? (' round drawn · ' + phase.openRound + ' round opens Sun 06:00')
+        : ('회차 추첨완료 · ' + phase.openRound + '회차 일요일 06:00부터 등록 가능');
+    }
+    if (statMockCountEl) statMockCountEl.innerHTML = '';
+    if (mockCountdownEl) mockCountdownEl.style.display = 'none';
+    return;
+  }
+
+  if (mockCountdownEl) mockCountdownEl.style.display = '';
+  if (mockUnitEl && !mockUnitEl.hasAttribute('data-i18n-kr')) {
+    mockUnitEl.setAttribute('data-i18n-kr', '회차 모의등록 진행중');
+    mockUnitEl.setAttribute('data-i18n-en', '-round mock entry open');
+    mockUnitEl.textContent = (LANG==='en') ? '-round mock entry open' : '회차 모의등록 진행중';
+  }
+
+  var saleRound = phase.openRound;
+  mockRoundEl.textContent = saleRound.toLocaleString();
+  if (!statMockCountEl || typeof MLL === 'undefined' || !MLL.API_BASE) return;
+
+  fetch(MLL.API_BASE + '/api/mock/round-entries?round=' + saleRound)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var totalMockCount = data.count || 0;
+      if (totalMockCount <= 0) { statMockCountEl.innerHTML = ''; return; }
+
+      var prevTotal = window._mockPrevTotal;
+      window._mockPrevTotal = totalMockCount;
+      window._mockTotalCount = totalMockCount;
+
+      if (!document.getElementById('statMockCountNum')) {
+        statMockCountEl.innerHTML = '<span class="flip-fade" id="statMockCountLabel" style="color:#8be6b4;">'+T('mock_total_label')+'</span> <span class="num font-num flip-fade" id="statMockCountNum" style="font-size:13px;color:#5CF2A0;font-weight:700;">0</span><span style="color:#8be6b4;">'+T('game_suffix_unit')+'</span>';
+        // 최초 진입 시 0에서 카운트업
+        var numEl = document.getElementById('statMockCountNum');
+        var startTs = performance.now();
+        var DURATION = 700;
+        (function animateCount(){
+          var t = Math.min(1, (performance.now()-startTs)/DURATION);
+          var eased = 1 - Math.pow(1-t, 3);
+          numEl.textContent = Math.round(eased * totalMockCount).toLocaleString();
+          if (t < 1) requestAnimationFrame(animateCount);
+          else numEl.textContent = totalMockCount.toLocaleString();
+        })();
+      } else if (prevTotal !== undefined && prevTotal !== totalMockCount && window._mockShowingTotal !== false) {
+        // 값이 바뀐 경우 텍스트만 조용히 갱신 (원형 튐 효과 없이)
+        var numEl2 = document.getElementById('statMockCountNum');
+        if (numEl2) numEl2.textContent = totalMockCount.toLocaleString();
+      }
+
+      // 로그인한 사용자면 "내 등록" 수도 같이 조회해서 총등록↔내등록 반전표시에 사용
+      // (토큰이 만료된 상태로 401이 한 번 나면, 재로그인 전까지는 조용히 재시도를 멈춤 — 불필요한 반복요청 방지)
+      if (window._mockAuthInvalid) return;
+      var authState = MLL.getAuthState ? MLL.getAuthState() : null;
+      if (!authState || !authState.type) return;
+
+      (async function(){
+        var headers = {}, qs = '';
+        if (authState.type === 'member') {
+          var freshToken = await (MLL.ensureFreshToken ? MLL.ensureFreshToken() : Promise.resolve(authState.token));
+          if (!freshToken || freshToken === 'guest') { window._mockAuthInvalid = true; return; }
+          headers['Authorization'] = 'Bearer ' + freshToken;
+        } else {
+          qs = '?nickname='+encodeURIComponent(authState.nickname)+'&email='+encodeURIComponent(authState.email);
+        }
+
+        fetch(MLL.API_BASE + '/api/mock/entries' + qs, { headers: headers })
+          .then(function(r){
+            if (r.status === 401) { window._mockAuthInvalid = true; return { items: [] }; }
+            return r.ok ? r.json() : { items: [] };
+          })
+          .then(function(d){
+            window._mockMyCount = (d.items || []).filter(function(e){ return Number(e.round) === Number(saleRound); }).length;
+
+            if (!window._mockFlipStarted) {
+              window._mockFlipStarted = true;
+              var showingTotal = true;
+              setInterval(function(){
+                var le = document.getElementById('statMockCountLabel');
+                var ne = document.getElementById('statMockCountNum');
+                if (!le || !ne) return;
+                le.style.opacity = '0';
+                ne.style.opacity = '0';
+                setTimeout(function(){
+                  showingTotal = !showingTotal;
+                  window._mockShowingTotal = showingTotal;
+                  le.textContent = showingTotal ? T('mock_total_label') : T('mock_my_label');
+                  ne.textContent = (showingTotal ? window._mockTotalCount : (window._mockMyCount||0)).toLocaleString();
+                  le.style.opacity = '1';
+                  ne.style.opacity = '1';
+                }, 300);
+              }, 2600);
+            }
+          })
+          .catch(function(){ /* 내 등록수 조회 실패는 조용히 무시 (전체수는 이미 표시됨) */ });
+      })();
+    })
+    .catch(function(e){ console.error('[main_page] mock count 조회 오류:', e); });
+}
+
+// ⚠ 2026-07-12: 로그인 여부와 무관하게 항상 같은 숫자(그냥 이 브라우저 캐시)가 보이던 문제.
+// 이제 비로그인 방문자는 "사이트 전체 등록 합계"(공개 홍보용 통계), 로그인한 사람은
+// "본인이 실제로 등록한 개수"만 보이도록 분리한다. MLL(auth_gate.js)이 이 스크립트보다
+// 늦게 로드될 수 있어서, 로그인 판별은 MLL에 기대지 않고 localStorage를 직접 읽는다.
+function mainGetAuthState(){
+  var token = localStorage.getItem('mll_token') || sessionStorage.getItem('mll_token');
+  if (token) return { type: 'member', token: token };
+  var gNick = localStorage.getItem('mll_guest_nickname');
+  var gEmail = localStorage.getItem('mll_guest_email');
+  if (gNick && gEmail) return { type: 'guest', nickname: gNick, email: gEmail };
+  return { type: null };
+}
+function refreshEntriesCount(){
+  var el = document.getElementById('statEntries');
+  if (!el) return;
+  var state = mainGetAuthState();
+
+  if (!state.type) {
+    fetch('https://my-lotto-lab-api.onrender.com/api/lotto/entries/total-count')
+      .then(function(r){ return r.json(); })
+      .then(function(data){ el.textContent = (data.count || 0).toLocaleString(); })
+      .catch(function(e){ console.error('[main_page] 전체 등록수 조회 오류:', e); });
+    return;
+  }
+
+  var qs = '';
+  var tokenPromise = Promise.resolve(null);
+  if (state.type === 'member') {
+    tokenPromise = (window.MLL && MLL.ensureFreshToken) ? MLL.ensureFreshToken() : Promise.resolve(state.token);
+  } else {
+    qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  }
+
+  tokenPromise.then(function(token){
+    var headers = {};
+    if (state.type === 'member') {
+      if (!token || token === 'guest') { el.textContent = '0'; return; }
+      headers['Authorization'] = 'Bearer ' + token;
+    }
+    return fetch('https://my-lotto-lab-api.onrender.com/api/lotto/entries' + qs, { headers: headers })
+      .then(function(r){ return r.ok ? r.json() : { items: [] }; })
+      .then(function(data){ el.textContent = (data.items || []).length.toLocaleString(); });
+  }).catch(function(e){ console.error('[main_page] 내 등록수 조회 오류:', e); });
+}
+
+function refreshStrategiesCount(){
+  var el = document.getElementById('statStrategies');
+  if (!el) return;
+  var state = mainGetAuthState();
+
+  if (!state.type) {
+    fetch('https://my-lotto-lab-api.onrender.com/api/strategy/results/total-count')
+      .then(function(r){ return r.json(); })
+      .then(function(data){ el.textContent = (data.count || 0).toLocaleString(); })
+      .catch(function(e){ console.error('[main_page] 전체 전략수 조회 오류:', e); });
+    return;
+  }
+
+  var qs = '';
+  var tokenPromise = Promise.resolve(null);
+  if (state.type === 'member') {
+    tokenPromise = (window.MLL && MLL.ensureFreshToken) ? MLL.ensureFreshToken() : Promise.resolve(state.token);
+  } else {
+    qs = '?nickname=' + encodeURIComponent(state.nickname) + '&email=' + encodeURIComponent(state.email);
+  }
+
+  tokenPromise.then(function(token){
+    var headers = {};
+    if (state.type === 'member') {
+      if (!token || token === 'guest') { el.textContent = '0'; return; }
+      headers['Authorization'] = 'Bearer ' + token;
+    }
+    return fetch('https://my-lotto-lab-api.onrender.com/api/strategy/results' + qs, { headers: headers })
+      .then(function(r){ return r.ok ? r.json() : { items: [] }; })
+      .then(function(data){ el.textContent = (data.items || []).length.toLocaleString(); });
+  }).catch(function(e){ console.error('[main_page] 내 전략수 조회 오류:', e); });
+}
+
+function renderRaceStat(meta, nextInfo){
+  // meta 또는 nextInfo가 undefined면 그 부분은 그대로 두고 건드리지 않는다 (부분 갱신용 —
+  // /api/race/meta와 /api/race/next-numbers/latest를 순차로 따로 호출하기 때문)
+  var raceEl = document.getElementById('statRaceRound');
+  var raceUnitEl = document.getElementById('statRaceUnit');
+  if (meta !== undefined && raceEl && raceUnitEl) {
+    if (meta && meta.lastSimulatedRound) {
+      raceEl.textContent = meta.lastSimulatedRound.toLocaleString();
+      raceUnitEl.textContent = T('race_done_suffix');
+    } else {
+      raceEl.textContent = T('race_ready');
+      raceUnitEl.textContent = T('race_ready_suffix');
+    }
+  }
+  var raceNextEl = document.getElementById('statRaceNext');
+  if (nextInfo !== undefined && raceNextEl) {
+    raceNextEl.textContent = (nextInfo && nextInfo.round) ? nextInfo.round.toLocaleString()+T('race_next_suffix') : '';
+  }
+}
+
+function refreshDynamicStats(){
+  var results = loadJSON('mll_results', {});
+
+  refreshEntriesCount();
+  refreshStrategiesCount();
+
+  renderRaceStat(loadJSON('mll_race_meta', null), loadJSON('mll_race_next_numbers', null));
+
+  // ⚠ 2026-07-12: "최근 추첨"과 동일한 이유로, 로컬캐시(mll_race_meta/mll_race_next_numbers)에만
+  // 의존하면 캐시가 없거나 오래된 브라우저에서 회차가 뒤처져 보이는 문제가 있었다. 서버에서
+  // 직접 최신값을 가져와 항상 덮어쓴다.
+  fetch('https://my-lotto-lab-api.onrender.com/api/race/meta')
+    .then(function(r){ return r.json(); })
+    .then(function(meta){
+      try { localStorage.setItem('mll_race_meta', JSON.stringify(meta)); } catch(e){}
+      renderRaceStat(meta, undefined);
+      return fetch('https://my-lotto-lab-api.onrender.com/api/race/next-numbers/latest');
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(nextInfo){
+      try { localStorage.setItem('mll_race_next_numbers', JSON.stringify(nextInfo)); } catch(e){}
+      renderRaceStat(undefined, nextInfo);
+    })
+    .catch(function(e){ console.error('[main_page] 100전략레이스 정보 조회 오류:', e); });
+
+  // ── 모의실전시뮬레이션: 실제 서버 데이터 (2026-07-09부터 서버DB 전환) ──
+  // 회차/전체등록수는 8초마다 다시 불러와서, 새로 등록되는 대로 숫자가 계속 갱신됩니다(광고 효과).
+  refreshMockStat();
+  if (!window._mockStatInterval) {
+    window._mockStatInterval = setInterval(refreshMockStat, 8000);
+  }
+
+  // ── 모의등록 접수마감까지 남은시간: 1초마다 갱신 ──
+  var mockCdEl = document.getElementById('mockCountdownTime');
+  if (mockCdEl && !window._mockCountdownStarted) {
+    window._mockCountdownStarted = true;
+    function getMockDeadlineKST(){
+      var nowKo2 = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+      var d = nowKo2.getDay();
+      if (d===6 && nowKo2.getHours()<20) {
+        // 토요일 20시 이전 -> 오늘 20:00이 마감
+        return new Date(nowKo2.getFullYear(), nowKo2.getMonth(), nowKo2.getDate(), 20,0,0,0);
+      }
+      // 그 외(토요일 20시 이후 ~ 다음주 토요일까지) -> 다음 토요일 20:00
+      var daysUntilSat = (6 - d + 7) % 7;
+      if (daysUntilSat === 0) daysUntilSat = 7; // 이미 토요일 마감 이후라면 다음주 토요일
+      return new Date(nowKo2.getFullYear(), nowKo2.getMonth(), nowKo2.getDate()+daysUntilSat, 20,0,0,0);
+    }
+    function tickMockCountdown(){
+      var cdEl = document.getElementById('mockCountdownTime');
+      if (!cdEl) return;
+      var nowKo3 = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+      var target = getMockDeadlineKST();
+      var diffMs = target.getTime() - nowKo3.getTime();
+      if (diffMs <= 0) { cdEl.textContent = T('mock_closed'); return; }
+      var totalSec = Math.floor(diffMs/1000);
+      var hh = Math.floor(totalSec/3600);
+      var mm = Math.floor((totalSec%3600)/60);
+      var ss = totalSec%60;
+      function pad(n){ return String(n).padStart(2,'0'); }
+      cdEl.textContent = pad(hh)+':'+pad(mm)+':'+pad(ss);
+    }
+    tickMockCountdown();
+    setInterval(tickMockCountdown, 1000);
+  }
+
+  renderRoundsAndResults(results);
+
+  // ⚠ 2026-07-12: mll_results 로컬캐시가 비어있으면(특히 첫 방문 게스트/시크릿창) 서버에서
+  // 직접 최신 결과를 가져와 채운다. 원래 이 데이터는 누구에게나 공개되어야 하는 정보라
+  // 로그인/방문이력과 무관하게 항상 보여야 하는데, 캐시에만 의존하면 첫 방문자에게는
+  // "데이터 없음"으로 보이는 문제가 있었다.
+  // ⚠ auth_gate.js(=window.MLL 정의)가 이 파일 맨 아래에서 로드되기 때문에, 이 시점엔
+  // 아직 window.MLL이 없을 수 있다 — MLL.API_BASE에 의존하지 않고 주소를 직접 쓴다.
+  // ⚠ 2026-07-12: "캐시가 비어있을 때만" 서버에서 가져오면, 예전 회차가 이미 캐시에 남아있는
+  // 브라우저(=오늘 하루 여러 번 방문한 일반창)에서는 새 회차가 나와도 영영 안 갱신되는 문제가
+  // 있었다. 그래서 캐시 유무와 상관없이 매번 서버 최신값으로 덮어쓰도록 바꾼다 — 화면은 일단
+  // 캐시(있으면)로 즉시 보여주고, 서버 응답이 오면 최신값으로 다시 그린다.
+  fetch('https://my-lotto-lab-api.onrender.com/api/lotto/results')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var freshResults = data.results || {};
+      if (!Object.keys(freshResults).length) return;
+      try { localStorage.setItem('mll_results', JSON.stringify(freshResults)); } catch(e){}
+      renderRoundsAndResults(freshResults);
+      // 2026-08-30: 새 당첨번호 팝업에도 같은 값을 넘깁니다(서버를 다시 안 부릅니다).
+      if (typeof dpSetKorean === 'function') { dpSetKorean(freshResults); renderDrawPopups(); }
+    })
+    .catch(function(e){ console.error('[main_page] 서버 결과 조회 실패:', e); });
+
+  // ⚠ 2026-08-12: 이 요소를 읽던 예전 코드는 hub_battles.html이 채워주지 않는
+  // localStorage 캐시(mll_battle_rooms)에 의존하고 있어서 항상 0으로만 보이는
+  // 문제가 있었다. 이 페이지의 다른 통계(100전략레이스, 모의시뮬레이션 등)와
+  // 동일하게 서버에서 직접 최신값을 가져오도록 교체 — 대결부활(2026-08-12) 반영.
+  var battleCountEl = document.getElementById('statBattleCount');
+  if (battleCountEl) {
+    var activeStatuses = ['waiting', 'pending_numbers', 'active', 'stage_running'];
+    Promise.all(['1v1', 'team', 'ffa'].map(function(type){
+      return fetch('https://my-lotto-lab-api.onrender.com/api/battles/rooms?type=' + type)
+        .then(function(r){ return r.json(); })
+        .then(function(data){ return data.items || []; })
+        .catch(function(){ return []; });
+    })).then(function(results){
+      var allRooms = results[0].concat(results[1], results[2]);
+      var activeCount = allRooms.filter(function(r){ return activeStatuses.indexOf(r.status) >= 0; }).length;
+      battleCountEl.textContent = activeCount.toLocaleString();
+    }).catch(function(e){
+      console.error('[main_page] 대결 활성방 수 조회 오류:', e);
+      battleCountEl.textContent = '0';
+    });
+  }
+}
+
+function renderRoundsAndResults(results){
+  var rounds = Object.keys(results).map(Number).filter(function(n){return n>0;});
+  var statRoundsEl = document.getElementById('statRounds');
+  if (statRoundsEl) statRoundsEl.textContent = rounds.length.toLocaleString();
+  if(rounds.length){
+    rounds.sort(function(a,b){return b-a;});
+    var round = rounds[0];
+    var r = results[round] || results[String(round)];
+    document.getElementById('tkRound').textContent = T('round_prefix')+round+T('round_suffix');
+    document.getElementById('tkPrize').textContent = r.prize1 ? r.prize1.toLocaleString()+T('won_suffix') : '-';
+    document.getElementById('tkWinners').textContent = (r.winners1!=null) ? r.winners1.toLocaleString()+T('game_suffix') : '-';
+
+    var a=r.autoWin, s=r.semiWin, m=r.manualWin;
+    document.getElementById('tkTypes').textContent =
+      (a!=null||s!=null||m!=null) ? (a||0)+' · '+(s||0)+' · '+(m||0)+(LANG==='en'?' entries':' 건') : '-';
+
+    var shopText = formatWinnerShops(r.winnerShops);
+    document.getElementById('tkShops').textContent = shopText || T('no_info');
+
+    var balls = (r.nums||[]).map(function(n){
+      return '<span class="tball" style="background:'+BC(n)+';color:'+TC(n)+';">'+n+'</span>';
+    }).join('');
+    if(r.bonus){
+      balls += '<span style="color:var(--text-faint);font-size:12px;">+</span>' +
+        '<span class="tball" style="background:transparent;border:1.5px solid var(--text-faint);color:var(--text-dim);">'+r.bonus+'</span>';
+    }
+    document.getElementById('tkBalls').innerHTML = balls;
+  } else {
+    document.getElementById('tkRound').textContent = T('no_data');
+    document.getElementById('tkPrize').textContent = '-';
+    document.getElementById('tkWinners').textContent = '-';
+    document.getElementById('tkTypes').textContent = '-';
+    document.getElementById('tkShops').textContent = '-';
+  }
+
+  document.getElementById('footYear').textContent = new Date().getFullYear() + ' My Lotto Lab';
+}
+refreshDynamicStats();
+</script>
+
+<!-- 2026-08-30 신설: 새 당첨번호 팝업 -->
+<div id="drawPopupWrap"><div class="dp-stack" id="dpStack"></div></div>
+<div id="dpUndo"><span class="u-txt" id="dpUndoTxt"></span><button type="button" id="dpUndoBtn">되돌리기</button></div>
+
+<script>
+// =====================================================
+// 새 당첨번호 팝업 (2026-08-30 신설)
+//
+// 자료는 두 곳에서 옵니다.
+//   한국 로또  /api/lotto/results            (이 화면이 이미 읽고 있음 — 다시 안 부릅니다)
+//   3종       PaperLotto의 draw_results     (app.js가 쓰는 것과 같은 경로)
+//
+// 규칙
+//  · 한 번 닫은 회차는 다시 뜨지 않습니다.
+//  · 다음 회차가 올라오면 그것이 새 카드로 뜹니다.
+//  · 여러 건이면 책갈피처럼 겹쳐 쌓고, 위에서부터 닫습니다.
+//  · 카드를 집어 원하는 자리에 둘 수 있고, 그 자리를 기억합니다.
+// =====================================================
+var DP_RECENT_DAYS = 7;     // 며칠 이내 추첨분까지 띄울지
+var DP_MAX_CARDS   = 4;     // 이 화면은 4종뿐이라 다 보여줍니다
+var DP_SEEN_KEY    = 'mll_draw_seen';
+var DP_POS_KEY     = 'mll_draw_pos';
+var DP_HOLD_MS     = 400;   // 휴대폰: 길게 누르기 판정
+var DP_MOVE_TOL    = 10;    // 이만큼 움직이면 스크롤로 봅니다
+var DP_UNDO_MS     = 7000;
+
+// ⚠ app.js에 있는 것과 같은 값입니다(공개 키).
+var DP_PL_URL = 'https://wzrqaozlbfyejsbvnrxk.supabase.co';
+var DP_PL_KEY = 'sb_publishable_3KrYMzwrVlbYr-e9d8UiLA_KgvSs8tC';
+
+var DP_GAMES = [
+  { code:'KR',            nameKr:'한국 로또 6/45', nameEn:'Korea Lotto 6/45', link:'hub_results.html' },
+  { code:'POWERBALL',     nameKr:'미국 파워볼',     nameEn:'US Powerball',     link:'global_lotto.html?game=POWERBALL',     plId:'us_powerball' },
+  { code:'MEGAMILLIONS',  nameKr:'메가밀리언스',    nameEn:'Mega Millions',    link:'global_lotto.html?game=MEGAMILLIONS',  plId:'us_megamillions' },
+  { code:'EUROMILLIONS',  nameKr:'유로밀리언스',    nameEn:'EuroMillions',     link:'global_lotto.html?game=EUROMILLIONS',  plId:'eu_euromillions' }
+];
+
+var DP_STR = {
+  check:{ kr:'내 번호 당첨확인 →', en:'Check my numbers →' },
+  undo: { kr:'되돌리기', en:'Undo' },
+  closed:{ kr:'{name} 닫음', en:'Closed {name}' },
+  more: { kr:'+{n}건 더', en:'+{n} more' }
+};
+function dpT(k){ var r = DP_STR[k]; return r ? (r[LANG] || r.kr) : k; }
+
+var dpDraws = {};            // code → {round_no, draw_date, main_numbers, bonus_numbers}
+var dpFreed = new Map();     // key → {x,y}
+
+function dpSeen(){
+  try { var v = JSON.parse(localStorage.getItem(DP_SEEN_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+  catch(e){ return []; }
+}
+function dpMarkSeen(key){
+  try {
+    var list = dpSeen();
+    if (list.indexOf(key) < 0) list.push(key);
+    localStorage.setItem(DP_SEEN_KEY, JSON.stringify(list.slice(-300)));
+  } catch(e){}
+}
+function dpUnmarkSeen(key){
+  try {
+    localStorage.setItem(DP_SEEN_KEY, JSON.stringify(dpSeen().filter(function(k){ return k !== key; })));
+  } catch(e){}
+}
+function dpLoadPos(){
+  try {
+    var o = JSON.parse(localStorage.getItem(DP_POS_KEY) || '{}');
+    if (o && typeof o === 'object') Object.keys(o).forEach(function(k){
+      var v = o[k];
+      if (v && isFinite(v.x) && isFinite(v.y)) dpFreed.set(k, { x:v.x, y:v.y });
+    });
+  } catch(e){}
+}
+function dpSavePos(){
+  try { var o = {}; dpFreed.forEach(function(v,k){ o[k] = v; });
+    localStorage.setItem(DP_POS_KEY, JSON.stringify(o)); } catch(e){}
+}
+function dpClampPos(pos, w, h){
+  return {
+    x: Math.min(Math.max(pos.x, 4), Math.max(4, window.innerWidth - w - 4)),
+    y: Math.min(Math.max(pos.y, 4), Math.max(4, window.innerHeight - h - 4))
+  };
+}
+
+// ⚠ 한국 로또는 결과에 추첨일이 없습니다. 회차로 계산합니다.
+//   1회차 2002-12-07(토), 이후 매주 토요일. 1239회차 = 2026-08-29로 확인했습니다.
+function dpKrDrawDate(round){
+  var base = Date.UTC(2002, 11, 7);
+  var d = new Date(base + (Number(round) - 1) * 7 * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
+// 추첨일을 언어에 맞게
+function dpDateLabel(dateStr){
+  if (!dateStr) return '';
+  var d = new Date(dateStr + 'T00:00:00+09:00');
+  if (isNaN(d)) return dateStr;
+  try {
+    return new Intl.DateTimeFormat(LANG === 'en' ? 'en-US' : 'ko-KR', {
+      timeZone:'Asia/Seoul', year:'numeric',
+      month: LANG === 'en' ? 'short' : 'long', day:'numeric', weekday:'short'
+    }).format(d);
+  } catch(e){ return dateStr; }
+}
+
+// ── 띄울 회차 고르기 ──
+function dpPick(){
+  var seen = dpSeen(), now = Date.now(), out = [];
+  DP_GAMES.forEach(function(g){
+    var d = dpDraws[g.code];
+    if (!d || !d.round_no) return;
+    var key = g.code + ':' + d.round_no;
+    if (seen.indexOf(key) >= 0) return;
+    var ts = 0;
+    if (d.draw_date) {
+      ts = new Date(d.draw_date + 'T00:00:00+09:00').getTime();
+      if (isFinite(ts) && (now - ts) > DP_RECENT_DAYS * 86400000) return;   // 오래된 것은 제외
+    }
+    out.push({ g:g, d:d, key:key, ts:ts });
+  });
+  out.sort(function(a,b){ return b.ts - a.ts; });
+  return out;
+}
+
+function dpBalls(d){
+  // ⚠ 게임마다 저장 순서가 다릅니다. 보여줄 때만 오름차순으로 맞춥니다.
+  var asc = function(a){ return Array.isArray(a) ? a.slice().sort(function(x,y){ return Number(x)-Number(y); }) : []; };
+  var wrap = document.createElement('div');
+  wrap.className = 'dp-nums';
+  asc(d.main_numbers).forEach(function(n){
+    var b = document.createElement('div'); b.className = 'dp-n'; b.textContent = n; wrap.appendChild(b);
+  });
+  var bonus = asc(d.bonus_numbers);
+  if (bonus.length) {
+    var plus = document.createElement('span'); plus.className = 'dp-plus'; plus.textContent = '+'; wrap.appendChild(plus);
+    bonus.forEach(function(n){
+      var b = document.createElement('div'); b.className = 'dp-n bonus'; b.textContent = n; wrap.appendChild(b);
+    });
+  }
+  return wrap;
+}
+
+// ── 집어서 옮기기 ──
+// ⚠ 휴대폰에서는 길게 눌러야 집힙니다. 바로 끌리게 하면 화면 스크롤을 못 합니다.
+function dpMakeDraggable(card, key){
+  var holdTimer = null, holding = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
+
+  function detach(){
+    if (card.classList.contains('dp-free')) return;
+    var r = card.getBoundingClientRect();
+    card.classList.add('dp-free');
+    card.style.left = r.left + 'px'; card.style.top = r.top + 'px';
+    card.style.right = 'auto'; card.style.bottom = 'auto';
+    card.style.width = r.width + 'px'; card.style.zIndex = '950';
+  }
+  function begin(px, py){
+    holding = true; detach();
+    var r = card.getBoundingClientRect();
+    baseX = r.left; baseY = r.top; startX = px; startY = py;
+    card.classList.add('dp-hold'); card.classList.remove('dp-lift');
+  }
+  function moveTo(px, py){
+    var p = dpClampPos({ x: baseX + (px - startX), y: baseY + (py - startY) }, card.offsetWidth, card.offsetHeight);
+    card.style.left = p.x + 'px'; card.style.top = p.y + 'px';
+  }
+  function end(){
+    if (holding) {
+      var r = card.getBoundingClientRect();
+      dpFreed.set(key, { x:r.left, y:r.top });
+      dpSavePos();
+    }
+    holding = false;
+    card.classList.remove('dp-hold','dp-lift');
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  }
+
+  card.classList.add('dp-grab');
+  card.addEventListener('mousedown', function(e){
+    if (e.target.closest('.dp-x, .dp-go')) return;
+    e.preventDefault(); begin(e.clientX, e.clientY);
+  });
+  window.addEventListener('mousemove', function(e){ if (holding) moveTo(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', end);
+
+  card.addEventListener('touchstart', function(e){
+    if (e.target.closest('.dp-x, .dp-go')) return;
+    var t = e.touches[0]; startX = t.clientX; startY = t.clientY;
+    holdTimer = setTimeout(function(){
+      card.classList.add('dp-lift');
+      try { if (navigator.vibrate) navigator.vibrate(15); } catch(_e){}
+      begin(startX, startY);
+    }, DP_HOLD_MS);
+  }, { passive:true });
+
+  card.addEventListener('touchmove', function(e){
+    var t = e.touches[0];
+    if (!holding) {
+      if (Math.abs(t.clientX - startX) > DP_MOVE_TOL || Math.abs(t.clientY - startY) > DP_MOVE_TOL) {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+      }
+      return;
+    }
+    e.preventDefault();
+    moveTo(t.clientX, t.clientY);
+  }, { passive:false });
+
+  card.addEventListener('touchend', end);
+  card.addEventListener('touchcancel', end);
+}
+
+// ── 되돌리기 ──
+var dpUndoTimer = null;
+function dpShowUndo(key, name){
+  var bar = document.getElementById('dpUndo');
+  var txt = document.getElementById('dpUndoTxt');
+  var btn = document.getElementById('dpUndoBtn');
+  if (!bar || !txt || !btn) return;
+  txt.textContent = dpT('closed').replace('{name}', name);
+  btn.textContent = dpT('undo');
+  bar.classList.add('show');
+  if (dpUndoTimer) clearTimeout(dpUndoTimer);
+  dpUndoTimer = setTimeout(function(){ bar.classList.remove('show'); }, DP_UNDO_MS);
+  btn.onclick = function(){
+    dpUnmarkSeen(key);
+    bar.classList.remove('show');
+    if (dpUndoTimer) { clearTimeout(dpUndoTimer); dpUndoTimer = null; }
+    renderDrawPopups();
+  };
+}
+
+// ── 그리기 ──
+function renderDrawPopups(){
+  var wrap = document.getElementById('drawPopupWrap');
+  var stack = document.getElementById('dpStack');
+  if (!wrap || !stack) return;
+
+  var items = dpPick();
+  stack.textContent = '';
+  if (!items.length) { wrap.classList.remove('show'); return; }
+  wrap.classList.add('show');
+
+  // 이미 꺼내둔 카드는 더미에서 뺍니다.
+  var freed = items.filter(function(it){ return dpFreed.has(it.key); });
+  var stacked = items.filter(function(it){ return !dpFreed.has(it.key); });
+  var shown = stacked.slice(0, DP_MAX_CARDS);
+
+  // ⚠ 뒤쪽 카드를 먼저 그려야 앞 카드가 위에 옵니다.
+  var toDraw = shown.slice().reverse().concat(freed);
+  toDraw.forEach(function(it, drawIdx){
+    var isFree = dpFreed.has(it.key);
+    var depth = isFree ? 0 : (shown.length - 1 - drawIdx);
+    var card = document.createElement('div');
+    card.className = 'dp-card';
+    card.setAttribute('data-depth', String(depth));
+    card.style.zIndex = String(100 - depth);
+
+    var head = document.createElement('div'); head.className = 'dp-head';
+    var name = document.createElement('div'); name.className = 'dp-game';
+    name.textContent = (LANG === 'en') ? it.g.nameEn : it.g.nameKr;
+    head.appendChild(name);
+
+    var x = document.createElement('button');
+    x.type = 'button'; x.className = 'dp-x'; x.textContent = '\u2715';
+    x.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      dpMarkSeen(it.key);
+      dpFreed.delete(it.key);
+      dpSavePos();
+      card.classList.add('dp-gone');
+      dpShowUndo(it.key, (LANG === 'en') ? it.g.nameEn : it.g.nameKr);
+      setTimeout(renderDrawPopups, 180);
+    });
+    head.appendChild(x);
+    card.appendChild(head);
+
+    var meta = document.createElement('div');
+    meta.className = 'dp-meta';
+    meta.textContent = dpDateLabel(it.d.draw_date);
+    card.appendChild(meta);
+
+    card.appendChild(dpBalls(it.d));
+
+    var go = document.createElement('a');
+    go.className = 'dp-go'; go.href = it.g.link; go.textContent = dpT('check');
+    card.appendChild(go);
+
+    dpMakeDraggable(card, it.key);
+
+    if (isFree) {
+      card.classList.add('dp-free');
+      card.style.right = 'auto'; card.style.bottom = 'auto'; card.style.zIndex = '940';
+      // ⚠ 저장된 자리가 지금 화면 밖일 수 있어(PC↔폰), 크기를 잰 뒤 끌어당깁니다.
+      (function(c, k){
+        requestAnimationFrame(function(){
+          var pos = dpClampPos(dpFreed.get(k) || { x:0, y:0 }, c.offsetWidth, c.offsetHeight);
+          c.style.left = pos.x + 'px'; c.style.top = pos.y + 'px';
+          dpFreed.set(k, pos);
+        });
+      })(card, it.key);
+    }
+
+    stack.appendChild(card);
+  });
+
+  // 카드가 absolute라 부모 높이가 0이 됩니다. 쌓인 만큼 자리를 잡아줍니다.
+  var first = stack.querySelector('.dp-card[data-depth="0"]:not(.dp-free)');
+  stack.style.height = (first ? first.offsetHeight : 150) + Math.max(0, shown.length - 1) * 6 + 'px';
+
+  if (stacked.length > shown.length) {
+    var more = document.createElement('div');
+    more.className = 'dp-more';
+    more.textContent = dpT('more').replace('{n}', stacked.length - shown.length);
+    stack.appendChild(more);
+  }
+}
+
+// ── 자료 모으기 ──
+// 한국 로또: 이 화면이 이미 받아온 결과를 그대로 씁니다(서버를 다시 안 부릅니다).
+function dpSetKorean(results){
+  try {
+    var rounds = Object.keys(results || {}).map(Number).filter(function(n){ return n > 0; });
+    if (!rounds.length) return;
+    rounds.sort(function(a,b){ return b - a; });
+    var round = rounds[0];
+    var r = results[round] || results[String(round)];
+    if (!r || !r.nums) return;
+    dpDraws.KR = {
+      round_no: round,
+      draw_date: dpKrDrawDate(round),
+      main_numbers: r.nums,
+      bonus_numbers: r.bonus ? [r.bonus] : []
+    };
+  } catch(e){}
+}
+
+// 3종: PaperLotto의 draw_results (app.js와 같은 경로)
+function dpLoadGlobals(){
+  var codes = DP_GAMES.filter(function(g){ return g.plId; });
+  return Promise.all(codes.map(function(g){
+    var url = DP_PL_URL + '/rest/v1/draw_results'
+      + '?select=round_no,draw_date,main_numbers,bonus_numbers'
+      + '&game_id=eq.' + g.plId + '&order=round_no.desc&limit=1';
+    return fetch(url, { headers: { apikey: DP_PL_KEY, Authorization: 'Bearer ' + DP_PL_KEY } })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(rows){ if (rows && rows[0]) dpDraws[g.code] = rows[0]; })
+      .catch(function(){});
+  }));
+}
+
+dpLoadPos();
+dpLoadGlobals().then(renderDrawPopups);
+</script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
+</body>
+</html>
