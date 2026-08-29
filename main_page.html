@@ -1272,13 +1272,16 @@ var DP_UNDO_MS     = 7000;
 var DP_PL_URL = 'https://wzrqaozlbfyejsbvnrxk.supabase.co';
 var DP_PL_KEY = 'sb_publishable_3KrYMzwrVlbYr-e9d8UiLA_KgvSs8tC';
 
+var DP_CHECKER = 'mocktest_checker.html';   // 네 종목 공통 당첨확인 화면
+
 var DP_GAMES = [
-  // ⚠ 한국 로또 당첨확인은 화면 위쪽 "당첨확인" 단추와 같은 방식(새 창)으로 엽니다.
+  // ⚠ 당첨확인은 네 종목 모두 mocktest_checker.html 한 곳에서 합니다.
+  //   화면 위쪽 "당첨확인" 단추와 같은 방식(새 창)으로 엽니다.
   //   카드를 띄워둔 채 확인 창을 따로 보는 편이 자연스럽습니다.
-  { code:'KR',            nameKr:'한국 로또 6/45', nameEn:'Korea Lotto 6/45', link:'mocktest_checker.html', popup:true },
-  { code:'POWERBALL',     nameKr:'미국 파워볼',     nameEn:'US Powerball',     link:'global_lotto.html?game=POWERBALL',     plId:'us_powerball' },
-  { code:'MEGAMILLIONS',  nameKr:'메가밀리언스',    nameEn:'Mega Millions',    link:'global_lotto.html?game=MEGAMILLIONS',  plId:'us_megamillions' },
-  { code:'EUROMILLIONS',  nameKr:'유로밀리언스',    nameEn:'EuroMillions',     link:'global_lotto.html?game=EUROMILLIONS',  plId:'eu_euromillions' }
+  { code:'KR',            nameKr:'한국 로또 6/45', nameEn:'Korea Lotto 6/45' },
+  { code:'POWERBALL',     nameKr:'미국 파워볼',     nameEn:'US Powerball',   plId:'us_powerball' },
+  { code:'MEGAMILLIONS',  nameKr:'메가밀리언스',    nameEn:'Mega Millions',  plId:'us_megamillions' },
+  { code:'EUROMILLIONS',  nameKr:'유로밀리언스',    nameEn:'EuroMillions',   plId:'eu_euromillions' }
 ];
 
 var DP_STR = {
@@ -1527,14 +1530,13 @@ function renderDrawPopups(){
     card.appendChild(dpBalls(it.d));
 
     var go = document.createElement('a');
-    go.className = 'dp-go'; go.href = it.g.link; go.textContent = dpT('check');
-    if (it.g.popup) {
-      // href는 그대로 둡니다(새 탭으로 열기·주소 복사가 됩니다).
-      go.addEventListener('click', function(ev){
-        ev.preventDefault();
-        window.open(it.g.link, 'mllChecker', 'width=460,height=800,resizable=yes,scrollbars=yes');
-      });
-    }
+    go.className = 'dp-go';
+    go.href = DP_CHECKER;               // href를 두면 새 탭으로 열기·주소 복사가 됩니다
+    go.textContent = dpT('check');
+    go.addEventListener('click', function(ev){
+      ev.preventDefault();
+      window.open(DP_CHECKER, 'mllChecker', 'width=460,height=800,resizable=yes,scrollbars=yes');
+    });
     card.appendChild(go);
 
     dpMakeDraggable(card, it.key);
