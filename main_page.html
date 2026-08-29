@@ -400,14 +400,19 @@ body{
      (app.js가 이미 쓰고 있는 것과 같은 경로입니다)
    · 한 번 닫은 회차는 다시 뜨지 않고, 옮겨둔 자리는 기억합니다.
    ===================================================== */
-#drawPopupWrap{ position:fixed; right:18px; bottom:18px; z-index:900; width:312px; max-width:calc(100vw - 36px); display:none; }
+/* ⚠ 오른쪽 아래에 "로그인/회원가입" 단추가 떠 있어 카드가 가려집니다.
+   그 위로 올립니다. */
+#drawPopupWrap{ position:fixed; right:18px; bottom:96px; z-index:900; width:312px; max-width:calc(100vw - 36px); display:none; }
 #drawPopupWrap.show{ display:block; }
 .dp-stack{ position:relative; }
 .dp-card{
   position:absolute; left:0; right:0; bottom:0;
-  background:var(--surface-2,#161b35); color:var(--text,#eef0f6);
-  border:1px solid var(--border,#252b48); border-radius:14px;
-  box-shadow:0 10px 30px rgba(0,0,0,.55);
+  /* ⚠ 주간·야간 모두에서 눈에 띄어야 합니다.
+     화면 변수(--surface-2)를 쓰면 낮 모드에서 배경과 거의 같아져 구분이 안 됩니다.
+     그래서 고정색(짙은 남색 + 금색 테두리)을 씁니다. */
+  background:#141A33; color:#EEF0F6;
+  border:1.5px solid #E0B341; border-radius:14px;
+  box-shadow:0 12px 34px rgba(0,0,0,.42);
   padding:14px 15px 13px;
   transition:transform .18s ease, opacity .18s ease;
 }
@@ -424,24 +429,24 @@ body{
 .dp-card.dp-lift{ transform:scale(1.04) !important; }
 
 .dp-head{ display:flex; align-items:center; gap:7px; margin-bottom:3px; }
-.dp-game{ flex:1; min-width:0; font-size:13px; font-weight:700; color:var(--gold,#e0b341); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.dp-x{ background:none; border:none; font-size:16px; line-height:1; color:var(--text-faint,#5a6080); cursor:pointer; padding:2px 3px; flex-shrink:0; }
-.dp-x:hover{ color:var(--text,#eef0f6); }
-.dp-meta{ font-size:11px; color:var(--text-dim,#8b91ab); margin-bottom:10px; }
+.dp-game{ flex:1; min-width:0; font-size:13px; font-weight:700; color:#E0B341; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dp-x{ background:none; border:none; font-size:16px; line-height:1; color:#8B91AB; cursor:pointer; padding:2px 3px; flex-shrink:0; }
+.dp-x:hover{ color:#EEF0F6; }
+.dp-meta{ font-size:11px; color:#A8AEC6; margin-bottom:10px; }
 .dp-nums{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px; }
 .dp-n{ width:27px; height:27px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-  font-size:12px; font-weight:700; background:var(--gold,#e0b341); color:#1a1305; }
-.dp-n.bonus{ background:transparent; border:1.5px solid var(--text-faint,#5a6080); color:var(--text-dim,#8b91ab); }
-.dp-plus{ align-self:center; font-size:12px; color:var(--text-faint,#5a6080); font-weight:700; }
-.dp-go{ display:block; text-align:center; background:var(--gold,#e0b341); color:#1a1305;
+  font-size:12px; font-weight:700; background:#E0B341; color:#1A1305; }
+.dp-n.bonus{ background:transparent; border:1.5px solid #6E7597; color:#A8AEC6; }
+.dp-plus{ align-self:center; font-size:12px; color:#8B91AB; font-weight:700; }
+.dp-go{ display:block; text-align:center; background:#E0B341; color:#1A1305;
   border-radius:8px; padding:9px; font-size:12.5px; font-weight:700; text-decoration:none; }
-.dp-more{ position:absolute; left:0; right:0; top:-16px; text-align:center; font-size:10.5px; color:var(--text-faint,#5a6080); }
+.dp-more{ position:absolute; left:0; right:0; top:-16px; text-align:center; font-size:10.5px; color:#8B91AB; }
 
 #dpUndo{
-  position:fixed; right:18px; bottom:18px; z-index:960; display:none;
-  background:var(--surface,#11152a); color:var(--text,#eef0f6);
-  border:1px solid var(--border,#252b48); border-radius:11px;
-  padding:11px 13px; box-shadow:0 10px 30px rgba(0,0,0,.55);
+  position:fixed; right:18px; bottom:96px; z-index:960; display:none;
+  background:#141A33; color:#EEF0F6;
+  border:1.5px solid #E0B341; border-radius:11px;
+  padding:11px 13px; box-shadow:0 10px 30px rgba(0,0,0,.45);
   font-size:12px; align-items:center; gap:11px; max-width:calc(100vw - 36px);
 }
 #dpUndo.show{ display:flex; }
@@ -449,8 +454,8 @@ body{
 #dpUndo button{ background:none; border:none; color:var(--gold,#e0b341); font-size:12px; font-weight:700;
   cursor:pointer; padding:2px 4px; flex-shrink:0; text-decoration:underline; }
 @media (max-width:420px){
-  #drawPopupWrap{ right:10px; left:10px; bottom:10px; width:auto; }
-  #dpUndo{ right:10px; left:10px; }
+  #drawPopupWrap{ right:10px; left:10px; bottom:88px; width:auto; }
+  #dpUndo{ right:10px; left:10px; bottom:88px; }
 }
 </style>
 </head>
@@ -1268,7 +1273,9 @@ var DP_PL_URL = 'https://wzrqaozlbfyejsbvnrxk.supabase.co';
 var DP_PL_KEY = 'sb_publishable_3KrYMzwrVlbYr-e9d8UiLA_KgvSs8tC';
 
 var DP_GAMES = [
-  { code:'KR',            nameKr:'한국 로또 6/45', nameEn:'Korea Lotto 6/45', link:'hub_results.html' },
+  // ⚠ 한국 로또 당첨확인은 화면 위쪽 "당첨확인" 단추와 같은 방식(새 창)으로 엽니다.
+  //   카드를 띄워둔 채 확인 창을 따로 보는 편이 자연스럽습니다.
+  { code:'KR',            nameKr:'한국 로또 6/45', nameEn:'Korea Lotto 6/45', link:'mocktest_checker.html', popup:true },
   { code:'POWERBALL',     nameKr:'미국 파워볼',     nameEn:'US Powerball',     link:'global_lotto.html?game=POWERBALL',     plId:'us_powerball' },
   { code:'MEGAMILLIONS',  nameKr:'메가밀리언스',    nameEn:'Mega Millions',    link:'global_lotto.html?game=MEGAMILLIONS',  plId:'us_megamillions' },
   { code:'EUROMILLIONS',  nameKr:'유로밀리언스',    nameEn:'EuroMillions',     link:'global_lotto.html?game=EUROMILLIONS',  plId:'eu_euromillions' }
@@ -1521,6 +1528,13 @@ function renderDrawPopups(){
 
     var go = document.createElement('a');
     go.className = 'dp-go'; go.href = it.g.link; go.textContent = dpT('check');
+    if (it.g.popup) {
+      // href는 그대로 둡니다(새 탭으로 열기·주소 복사가 됩니다).
+      go.addEventListener('click', function(ev){
+        ev.preventDefault();
+        window.open(it.g.link, 'mllChecker', 'width=460,height=800,resizable=yes,scrollbars=yes');
+      });
+    }
     card.appendChild(go);
 
     dpMakeDraggable(card, it.key);
