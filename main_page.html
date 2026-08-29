@@ -1531,11 +1531,15 @@ function renderDrawPopups(){
 
     var go = document.createElement('a');
     go.className = 'dp-go';
-    go.href = DP_CHECKER;               // href를 두면 새 탭으로 열기·주소 복사가 됩니다
+    // ⚠ 어느 종목인지 함께 넘깁니다. 안 넘기면 확인 화면이 늘 한국로또로 열려
+    //   파워볼을 보려면 한 번 더 눌러야 합니다.
+    // ⚠ 언어도 함께 넘깁니다(새 창이라 메인 화면의 설정을 물려받게).
+    var checkUrl = DP_CHECKER + '?game=' + encodeURIComponent(it.g.code) + '&lang=' + encodeURIComponent(LANG);
+    go.href = checkUrl;                 // href를 두면 새 탭으로 열기·주소 복사가 됩니다
     go.textContent = dpT('check');
     go.addEventListener('click', function(ev){
       ev.preventDefault();
-      window.open(DP_CHECKER, 'mllChecker', 'width=460,height=800,resizable=yes,scrollbars=yes');
+      window.open(checkUrl, 'mllChecker', 'width=460,height=800,resizable=yes,scrollbars=yes');
     });
     card.appendChild(go);
 
