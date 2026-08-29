@@ -393,6 +393,65 @@ body{
   .hero-title{font-size:17px;}
   .tball{width:20px;height:20px;font-size:9px;}
 }
+
+/* =====================================================
+   2026-08-30 신설: 새 당첨번호 팝업 (책갈피처럼 겹쳐 쌓임)
+   · 한국 로또는 자체 API, 나머지 3종은 PaperLotto의 draw_results에서 읽습니다.
+     (app.js가 이미 쓰고 있는 것과 같은 경로입니다)
+   · 한 번 닫은 회차는 다시 뜨지 않고, 옮겨둔 자리는 기억합니다.
+   ===================================================== */
+#drawPopupWrap{ position:fixed; right:18px; bottom:18px; z-index:900; width:312px; max-width:calc(100vw - 36px); display:none; }
+#drawPopupWrap.show{ display:block; }
+.dp-stack{ position:relative; }
+.dp-card{
+  position:absolute; left:0; right:0; bottom:0;
+  background:var(--surface-2,#161b35); color:var(--text,#eef0f6);
+  border:1px solid var(--border,#252b48); border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.55);
+  padding:14px 15px 13px;
+  transition:transform .18s ease, opacity .18s ease;
+}
+.dp-card[data-depth="1"]{ transform:translateY(-6px) scale(.978); }
+.dp-card[data-depth="2"]{ transform:translateY(-12px) scale(.956); }
+.dp-card[data-depth="3"]{ transform:translateY(-18px) scale(.934); }
+.dp-card.dp-gone{ transform:translateX(20px) scale(.95); opacity:0; }
+/* ⚠ 맨 앞 카드가 아니면 ✕를 숨깁니다. 안 그러면 뒤 카드가 잘못 닫힙니다. */
+.dp-card:not([data-depth="0"]) .dp-x{ visibility:hidden; pointer-events:none; }
+.dp-card.dp-free{ position:fixed; transform:none; transition:none; box-shadow:0 14px 40px rgba(0,0,0,.65); }
+.dp-card.dp-free .dp-x{ visibility:visible; pointer-events:auto; }
+.dp-card.dp-grab{ cursor:grab; }
+.dp-card.dp-hold{ cursor:grabbing; }
+.dp-card.dp-lift{ transform:scale(1.04) !important; }
+
+.dp-head{ display:flex; align-items:center; gap:7px; margin-bottom:3px; }
+.dp-game{ flex:1; min-width:0; font-size:13px; font-weight:700; color:var(--gold,#e0b341); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dp-x{ background:none; border:none; font-size:16px; line-height:1; color:var(--text-faint,#5a6080); cursor:pointer; padding:2px 3px; flex-shrink:0; }
+.dp-x:hover{ color:var(--text,#eef0f6); }
+.dp-meta{ font-size:11px; color:var(--text-dim,#8b91ab); margin-bottom:10px; }
+.dp-nums{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px; }
+.dp-n{ width:27px; height:27px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; background:var(--gold,#e0b341); color:#1a1305; }
+.dp-n.bonus{ background:transparent; border:1.5px solid var(--text-faint,#5a6080); color:var(--text-dim,#8b91ab); }
+.dp-plus{ align-self:center; font-size:12px; color:var(--text-faint,#5a6080); font-weight:700; }
+.dp-go{ display:block; text-align:center; background:var(--gold,#e0b341); color:#1a1305;
+  border-radius:8px; padding:9px; font-size:12.5px; font-weight:700; text-decoration:none; }
+.dp-more{ position:absolute; left:0; right:0; top:-16px; text-align:center; font-size:10.5px; color:var(--text-faint,#5a6080); }
+
+#dpUndo{
+  position:fixed; right:18px; bottom:18px; z-index:960; display:none;
+  background:var(--surface,#11152a); color:var(--text,#eef0f6);
+  border:1px solid var(--border,#252b48); border-radius:11px;
+  padding:11px 13px; box-shadow:0 10px 30px rgba(0,0,0,.55);
+  font-size:12px; align-items:center; gap:11px; max-width:calc(100vw - 36px);
+}
+#dpUndo.show{ display:flex; }
+#dpUndo .u-txt{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#dpUndo button{ background:none; border:none; color:var(--gold,#e0b341); font-size:12px; font-weight:700;
+  cursor:pointer; padding:2px 4px; flex-shrink:0; text-decoration:underline; }
+@media (max-width:420px){
+  #drawPopupWrap{ right:10px; left:10px; bottom:10px; width:auto; }
+  #dpUndo{ right:10px; left:10px; }
+}
 </style>
 </head>
 <body>
@@ -755,6 +814,8 @@ function applyLang(){
   document.getElementById('langEnBtn').style.color = LANG==='en' ? '#1a1305' : 'var(--text-dim)';
 }
 function setLang(lang){
+  // 2026-08-30: 팝업도 함께 다시 그립니다(추첨일·게임명이 언어를 따릅니다).
+  setTimeout(function(){ if (typeof renderDrawPopups === 'function') renderDrawPopups(); }, 0);
   LANG = lang;
   localStorage.setItem('mll_lang', lang);
   applyLang();
@@ -1108,6 +1169,8 @@ function refreshDynamicStats(){
       if (!Object.keys(freshResults).length) return;
       try { localStorage.setItem('mll_results', JSON.stringify(freshResults)); } catch(e){}
       renderRoundsAndResults(freshResults);
+      // 2026-08-30: 새 당첨번호 팝업에도 같은 값을 넘깁니다(서버를 다시 안 부릅니다).
+      if (typeof dpSetKorean === 'function') { dpSetKorean(freshResults); renderDrawPopups(); }
     })
     .catch(function(e){ console.error('[main_page] 서버 결과 조회 실패:', e); });
 
@@ -1174,6 +1237,358 @@ function renderRoundsAndResults(results){
 refreshDynamicStats();
 </script>
 
+<!-- 2026-08-30 신설: 새 당첨번호 팝업 -->
+<div id="drawPopupWrap"><div class="dp-stack" id="dpStack"></div></div>
+<div id="dpUndo"><span class="u-txt" id="dpUndoTxt"></span><button type="button" id="dpUndoBtn">되돌리기</button></div>
+
+<script>
+// =====================================================
+// 새 당첨번호 팝업 (2026-08-30 신설)
+//
+// 자료는 두 곳에서 옵니다.
+//   한국 로또  /api/lotto/results            (이 화면이 이미 읽고 있음 — 다시 안 부릅니다)
+//   3종       PaperLotto의 draw_results     (app.js가 쓰는 것과 같은 경로)
+//
+// 규칙
+//  · 한 번 닫은 회차는 다시 뜨지 않습니다.
+//  · 다음 회차가 올라오면 그것이 새 카드로 뜹니다.
+//  · 여러 건이면 책갈피처럼 겹쳐 쌓고, 위에서부터 닫습니다.
+//  · 카드를 집어 원하는 자리에 둘 수 있고, 그 자리를 기억합니다.
+// =====================================================
+var DP_RECENT_DAYS = 7;     // 며칠 이내 추첨분까지 띄울지
+var DP_MAX_CARDS   = 4;     // 이 화면은 4종뿐이라 다 보여줍니다
+var DP_SEEN_KEY    = 'mll_draw_seen';
+var DP_POS_KEY     = 'mll_draw_pos';
+var DP_HOLD_MS     = 400;   // 휴대폰: 길게 누르기 판정
+var DP_MOVE_TOL    = 10;    // 이만큼 움직이면 스크롤로 봅니다
+var DP_UNDO_MS     = 7000;
+
+// ⚠ app.js에 있는 것과 같은 값입니다(공개 키).
+var DP_PL_URL = 'https://wzrqaozlbfyejsbvnrxk.supabase.co';
+var DP_PL_KEY = 'sb_publishable_3KrYMzwrVlbYr-e9d8UiLA_KgvSs8tC';
+
+var DP_GAMES = [
+  { code:'KR',            nameKr:'한국 로또 6/45', nameEn:'Korea Lotto 6/45', link:'hub_results.html' },
+  { code:'POWERBALL',     nameKr:'미국 파워볼',     nameEn:'US Powerball',     link:'global_lotto.html?game=POWERBALL',     plId:'us_powerball' },
+  { code:'MEGAMILLIONS',  nameKr:'메가밀리언스',    nameEn:'Mega Millions',    link:'global_lotto.html?game=MEGAMILLIONS',  plId:'us_megamillions' },
+  { code:'EUROMILLIONS',  nameKr:'유로밀리언스',    nameEn:'EuroMillions',     link:'global_lotto.html?game=EUROMILLIONS',  plId:'eu_euromillions' }
+];
+
+var DP_STR = {
+  check:{ kr:'내 번호 당첨확인 →', en:'Check my numbers →' },
+  undo: { kr:'되돌리기', en:'Undo' },
+  closed:{ kr:'{name} 닫음', en:'Closed {name}' },
+  more: { kr:'+{n}건 더', en:'+{n} more' }
+};
+function dpT(k){ var r = DP_STR[k]; return r ? (r[LANG] || r.kr) : k; }
+
+var dpDraws = {};            // code → {round_no, draw_date, main_numbers, bonus_numbers}
+var dpFreed = new Map();     // key → {x,y}
+
+function dpSeen(){
+  try { var v = JSON.parse(localStorage.getItem(DP_SEEN_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+  catch(e){ return []; }
+}
+function dpMarkSeen(key){
+  try {
+    var list = dpSeen();
+    if (list.indexOf(key) < 0) list.push(key);
+    localStorage.setItem(DP_SEEN_KEY, JSON.stringify(list.slice(-300)));
+  } catch(e){}
+}
+function dpUnmarkSeen(key){
+  try {
+    localStorage.setItem(DP_SEEN_KEY, JSON.stringify(dpSeen().filter(function(k){ return k !== key; })));
+  } catch(e){}
+}
+function dpLoadPos(){
+  try {
+    var o = JSON.parse(localStorage.getItem(DP_POS_KEY) || '{}');
+    if (o && typeof o === 'object') Object.keys(o).forEach(function(k){
+      var v = o[k];
+      if (v && isFinite(v.x) && isFinite(v.y)) dpFreed.set(k, { x:v.x, y:v.y });
+    });
+  } catch(e){}
+}
+function dpSavePos(){
+  try { var o = {}; dpFreed.forEach(function(v,k){ o[k] = v; });
+    localStorage.setItem(DP_POS_KEY, JSON.stringify(o)); } catch(e){}
+}
+function dpClampPos(pos, w, h){
+  return {
+    x: Math.min(Math.max(pos.x, 4), Math.max(4, window.innerWidth - w - 4)),
+    y: Math.min(Math.max(pos.y, 4), Math.max(4, window.innerHeight - h - 4))
+  };
+}
+
+// ⚠ 한국 로또는 결과에 추첨일이 없습니다. 회차로 계산합니다.
+//   1회차 2002-12-07(토), 이후 매주 토요일. 1239회차 = 2026-08-29로 확인했습니다.
+function dpKrDrawDate(round){
+  var base = Date.UTC(2002, 11, 7);
+  var d = new Date(base + (Number(round) - 1) * 7 * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
+// 추첨일을 언어에 맞게
+function dpDateLabel(dateStr){
+  if (!dateStr) return '';
+  var d = new Date(dateStr + 'T00:00:00+09:00');
+  if (isNaN(d)) return dateStr;
+  try {
+    return new Intl.DateTimeFormat(LANG === 'en' ? 'en-US' : 'ko-KR', {
+      timeZone:'Asia/Seoul', year:'numeric',
+      month: LANG === 'en' ? 'short' : 'long', day:'numeric', weekday:'short'
+    }).format(d);
+  } catch(e){ return dateStr; }
+}
+
+// ── 띄울 회차 고르기 ──
+function dpPick(){
+  var seen = dpSeen(), now = Date.now(), out = [];
+  DP_GAMES.forEach(function(g){
+    var d = dpDraws[g.code];
+    if (!d || !d.round_no) return;
+    var key = g.code + ':' + d.round_no;
+    if (seen.indexOf(key) >= 0) return;
+    var ts = 0;
+    if (d.draw_date) {
+      ts = new Date(d.draw_date + 'T00:00:00+09:00').getTime();
+      if (isFinite(ts) && (now - ts) > DP_RECENT_DAYS * 86400000) return;   // 오래된 것은 제외
+    }
+    out.push({ g:g, d:d, key:key, ts:ts });
+  });
+  out.sort(function(a,b){ return b.ts - a.ts; });
+  return out;
+}
+
+function dpBalls(d){
+  // ⚠ 게임마다 저장 순서가 다릅니다. 보여줄 때만 오름차순으로 맞춥니다.
+  var asc = function(a){ return Array.isArray(a) ? a.slice().sort(function(x,y){ return Number(x)-Number(y); }) : []; };
+  var wrap = document.createElement('div');
+  wrap.className = 'dp-nums';
+  asc(d.main_numbers).forEach(function(n){
+    var b = document.createElement('div'); b.className = 'dp-n'; b.textContent = n; wrap.appendChild(b);
+  });
+  var bonus = asc(d.bonus_numbers);
+  if (bonus.length) {
+    var plus = document.createElement('span'); plus.className = 'dp-plus'; plus.textContent = '+'; wrap.appendChild(plus);
+    bonus.forEach(function(n){
+      var b = document.createElement('div'); b.className = 'dp-n bonus'; b.textContent = n; wrap.appendChild(b);
+    });
+  }
+  return wrap;
+}
+
+// ── 집어서 옮기기 ──
+// ⚠ 휴대폰에서는 길게 눌러야 집힙니다. 바로 끌리게 하면 화면 스크롤을 못 합니다.
+function dpMakeDraggable(card, key){
+  var holdTimer = null, holding = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
+
+  function detach(){
+    if (card.classList.contains('dp-free')) return;
+    var r = card.getBoundingClientRect();
+    card.classList.add('dp-free');
+    card.style.left = r.left + 'px'; card.style.top = r.top + 'px';
+    card.style.right = 'auto'; card.style.bottom = 'auto';
+    card.style.width = r.width + 'px'; card.style.zIndex = '950';
+  }
+  function begin(px, py){
+    holding = true; detach();
+    var r = card.getBoundingClientRect();
+    baseX = r.left; baseY = r.top; startX = px; startY = py;
+    card.classList.add('dp-hold'); card.classList.remove('dp-lift');
+  }
+  function moveTo(px, py){
+    var p = dpClampPos({ x: baseX + (px - startX), y: baseY + (py - startY) }, card.offsetWidth, card.offsetHeight);
+    card.style.left = p.x + 'px'; card.style.top = p.y + 'px';
+  }
+  function end(){
+    if (holding) {
+      var r = card.getBoundingClientRect();
+      dpFreed.set(key, { x:r.left, y:r.top });
+      dpSavePos();
+    }
+    holding = false;
+    card.classList.remove('dp-hold','dp-lift');
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  }
+
+  card.classList.add('dp-grab');
+  card.addEventListener('mousedown', function(e){
+    if (e.target.closest('.dp-x, .dp-go')) return;
+    e.preventDefault(); begin(e.clientX, e.clientY);
+  });
+  window.addEventListener('mousemove', function(e){ if (holding) moveTo(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', end);
+
+  card.addEventListener('touchstart', function(e){
+    if (e.target.closest('.dp-x, .dp-go')) return;
+    var t = e.touches[0]; startX = t.clientX; startY = t.clientY;
+    holdTimer = setTimeout(function(){
+      card.classList.add('dp-lift');
+      try { if (navigator.vibrate) navigator.vibrate(15); } catch(_e){}
+      begin(startX, startY);
+    }, DP_HOLD_MS);
+  }, { passive:true });
+
+  card.addEventListener('touchmove', function(e){
+    var t = e.touches[0];
+    if (!holding) {
+      if (Math.abs(t.clientX - startX) > DP_MOVE_TOL || Math.abs(t.clientY - startY) > DP_MOVE_TOL) {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+      }
+      return;
+    }
+    e.preventDefault();
+    moveTo(t.clientX, t.clientY);
+  }, { passive:false });
+
+  card.addEventListener('touchend', end);
+  card.addEventListener('touchcancel', end);
+}
+
+// ── 되돌리기 ──
+var dpUndoTimer = null;
+function dpShowUndo(key, name){
+  var bar = document.getElementById('dpUndo');
+  var txt = document.getElementById('dpUndoTxt');
+  var btn = document.getElementById('dpUndoBtn');
+  if (!bar || !txt || !btn) return;
+  txt.textContent = dpT('closed').replace('{name}', name);
+  btn.textContent = dpT('undo');
+  bar.classList.add('show');
+  if (dpUndoTimer) clearTimeout(dpUndoTimer);
+  dpUndoTimer = setTimeout(function(){ bar.classList.remove('show'); }, DP_UNDO_MS);
+  btn.onclick = function(){
+    dpUnmarkSeen(key);
+    bar.classList.remove('show');
+    if (dpUndoTimer) { clearTimeout(dpUndoTimer); dpUndoTimer = null; }
+    renderDrawPopups();
+  };
+}
+
+// ── 그리기 ──
+function renderDrawPopups(){
+  var wrap = document.getElementById('drawPopupWrap');
+  var stack = document.getElementById('dpStack');
+  if (!wrap || !stack) return;
+
+  var items = dpPick();
+  stack.textContent = '';
+  if (!items.length) { wrap.classList.remove('show'); return; }
+  wrap.classList.add('show');
+
+  // 이미 꺼내둔 카드는 더미에서 뺍니다.
+  var freed = items.filter(function(it){ return dpFreed.has(it.key); });
+  var stacked = items.filter(function(it){ return !dpFreed.has(it.key); });
+  var shown = stacked.slice(0, DP_MAX_CARDS);
+
+  // ⚠ 뒤쪽 카드를 먼저 그려야 앞 카드가 위에 옵니다.
+  var toDraw = shown.slice().reverse().concat(freed);
+  toDraw.forEach(function(it, drawIdx){
+    var isFree = dpFreed.has(it.key);
+    var depth = isFree ? 0 : (shown.length - 1 - drawIdx);
+    var card = document.createElement('div');
+    card.className = 'dp-card';
+    card.setAttribute('data-depth', String(depth));
+    card.style.zIndex = String(100 - depth);
+
+    var head = document.createElement('div'); head.className = 'dp-head';
+    var name = document.createElement('div'); name.className = 'dp-game';
+    name.textContent = (LANG === 'en') ? it.g.nameEn : it.g.nameKr;
+    head.appendChild(name);
+
+    var x = document.createElement('button');
+    x.type = 'button'; x.className = 'dp-x'; x.textContent = '\u2715';
+    x.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      dpMarkSeen(it.key);
+      dpFreed.delete(it.key);
+      dpSavePos();
+      card.classList.add('dp-gone');
+      dpShowUndo(it.key, (LANG === 'en') ? it.g.nameEn : it.g.nameKr);
+      setTimeout(renderDrawPopups, 180);
+    });
+    head.appendChild(x);
+    card.appendChild(head);
+
+    var meta = document.createElement('div');
+    meta.className = 'dp-meta';
+    meta.textContent = dpDateLabel(it.d.draw_date);
+    card.appendChild(meta);
+
+    card.appendChild(dpBalls(it.d));
+
+    var go = document.createElement('a');
+    go.className = 'dp-go'; go.href = it.g.link; go.textContent = dpT('check');
+    card.appendChild(go);
+
+    dpMakeDraggable(card, it.key);
+
+    if (isFree) {
+      card.classList.add('dp-free');
+      card.style.right = 'auto'; card.style.bottom = 'auto'; card.style.zIndex = '940';
+      // ⚠ 저장된 자리가 지금 화면 밖일 수 있어(PC↔폰), 크기를 잰 뒤 끌어당깁니다.
+      (function(c, k){
+        requestAnimationFrame(function(){
+          var pos = dpClampPos(dpFreed.get(k) || { x:0, y:0 }, c.offsetWidth, c.offsetHeight);
+          c.style.left = pos.x + 'px'; c.style.top = pos.y + 'px';
+          dpFreed.set(k, pos);
+        });
+      })(card, it.key);
+    }
+
+    stack.appendChild(card);
+  });
+
+  // 카드가 absolute라 부모 높이가 0이 됩니다. 쌓인 만큼 자리를 잡아줍니다.
+  var first = stack.querySelector('.dp-card[data-depth="0"]:not(.dp-free)');
+  stack.style.height = (first ? first.offsetHeight : 150) + Math.max(0, shown.length - 1) * 6 + 'px';
+
+  if (stacked.length > shown.length) {
+    var more = document.createElement('div');
+    more.className = 'dp-more';
+    more.textContent = dpT('more').replace('{n}', stacked.length - shown.length);
+    stack.appendChild(more);
+  }
+}
+
+// ── 자료 모으기 ──
+// 한국 로또: 이 화면이 이미 받아온 결과를 그대로 씁니다(서버를 다시 안 부릅니다).
+function dpSetKorean(results){
+  try {
+    var rounds = Object.keys(results || {}).map(Number).filter(function(n){ return n > 0; });
+    if (!rounds.length) return;
+    rounds.sort(function(a,b){ return b - a; });
+    var round = rounds[0];
+    var r = results[round] || results[String(round)];
+    if (!r || !r.nums) return;
+    dpDraws.KR = {
+      round_no: round,
+      draw_date: dpKrDrawDate(round),
+      main_numbers: r.nums,
+      bonus_numbers: r.bonus ? [r.bonus] : []
+    };
+  } catch(e){}
+}
+
+// 3종: PaperLotto의 draw_results (app.js와 같은 경로)
+function dpLoadGlobals(){
+  var codes = DP_GAMES.filter(function(g){ return g.plId; });
+  return Promise.all(codes.map(function(g){
+    var url = DP_PL_URL + '/rest/v1/draw_results'
+      + '?select=round_no,draw_date,main_numbers,bonus_numbers'
+      + '&game_id=eq.' + g.plId + '&order=round_no.desc&limit=1';
+    return fetch(url, { headers: { apikey: DP_PL_KEY, Authorization: 'Bearer ' + DP_PL_KEY } })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(rows){ if (rows && rows[0]) dpDraws[g.code] = rows[0]; })
+      .catch(function(){});
+  }));
+}
+
+dpLoadPos();
+dpLoadGlobals().then(renderDrawPopups);
+</script>
 <script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 </body>
 </html>
