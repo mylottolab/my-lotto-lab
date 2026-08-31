@@ -207,6 +207,74 @@ document.addEventListener('click',function(e){
       <div id="autoFetchMsg" style="margin-top:10px;"></div>
     </div>
 
+    <!-- ── 🔴 2026-08-31 신설: 직접 입력 ──
+         스크래핑이 막혀 엑셀로 넣고 계셨는데, 한 회차만 넣을 때는 엑셀을 만드는 것이
+         더 번거롭습니다. 화면에서 바로 넣을 수 있게 했습니다.
+         엑셀 업로드는 과거 데이터를 대량으로 올릴 때를 위해 그대로 둡니다.
+         ⚠ 서버로 보내는 형식은 엑셀과 완전히 같습니다(POST /api/lotto/results). -->
+    <div class="section">
+      <div class="section-title"><span>✍️</span> 당첨결과 직접 입력</div>
+      <div class="msg msg-info">
+        📌 한 회차만 넣으실 때 쓰세요. 필수는 <b>회차·번호 6개·보너스</b>뿐이고, 나머지는 비워두셔도 됩니다.<br>
+        저장하면 모든 사용자의 번호조합이 다음 조회부터 자동으로 재채점됩니다.
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:4px;">회차 *</div>
+          <input id="mRound" type="text" inputmode="numeric" placeholder="1240"
+                 style="width:90px;background:#0f0f1a;border:1px solid #2a2a40;border-radius:6px;color:#eee;padding:9px 10px;font-size:14px;font-family:inherit;text-align:center;">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:4px;">당첨번호 6개 *</div>
+          <div id="mNums" style="display:flex;gap:5px;"></div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:4px;">보너스 *</div>
+          <input class="mBall mBonus" type="text" inputmode="numeric" maxlength="2" data-bonus="1"
+                 style="width:44px;height:40px;background:#0f0f1a;border:1.5px dashed #6a6a90;border-radius:50%;color:#eee;font-size:14px;font-weight:700;text-align:center;font-family:inherit;">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px;">
+        <div><div style="font-size:10px;color:#888;margin-bottom:4px;">1등 당첨게임수</div>
+          <input id="mW1" type="text" inputmode="numeric" class="mNum"></div>
+        <div><div style="font-size:10px;color:#888;margin-bottom:4px;">1등 1게임당 금액</div>
+          <input id="mP1" type="text" inputmode="numeric" class="mNum"></div>
+        <div><div style="font-size:10px;color:#888;margin-bottom:4px;">2등 당첨게임수</div>
+          <input id="mW2" type="text" inputmode="numeric" class="mNum"></div>
+        <div><div style="font-size:10px;color:#888;margin-bottom:4px;">2등 1게임당 금액</div>
+          <input id="mP2" type="text" inputmode="numeric" class="mNum"></div>
+        <div><div style="font-size:10px;color:#888;margin-bottom:4px;">3등 당첨게임수</div>
+          <input id="mW3" type="text" inputmode="numeric" class="mNum"></div>
+        <div><div style="font-size:10px;color:#888;margin-bottom:4px;">3등 1게임당 금액</div>
+          <input id="mP3" type="text" inputmode="numeric" class="mNum"></div>
+        <div><div style="font-size:10px;color:#888;margin-bottom:4px;">자동 1등</div>
+          <input id="mAuto" type="text" inputmode="numeric" class="mNum"></div>
+        <div><div style="font-size:10px;color:#888;margin-bottom:4px;">반자동 1등</div>
+          <input id="mSemi" type="text" inputmode="numeric" class="mNum"></div>
+        <div><div style="font-size:10px;color:#888;margin-bottom:4px;">수동 1등</div>
+          <input id="mManual" type="text" inputmode="numeric" class="mNum"></div>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <div style="font-size:10px;color:#888;margin-bottom:4px;">1등 당첨점 (여러 곳이면 줄바꿈으로)</div>
+        <textarea id="mShops" rows="3" placeholder="서울특별시(2): 홍대 페가복권판매점 ..."
+          style="width:100%;background:#0f0f1a;border:1px solid #2a2a40;border-radius:6px;color:#eee;padding:9px 10px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:10px;color:#888;margin-bottom:4px;">특이사항</div>
+        <input id="mNote" type="text"
+          style="width:100%;background:#0f0f1a;border:1px solid #2a2a40;border-radius:6px;color:#eee;padding:9px 10px;font-size:12px;font-family:inherit;">
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn" onclick="manualPreview()">👁 미리보기</button>
+        <button class="btn" onclick="manualClear()" style="background:#444;">⊗ 지우기</button>
+      </div>
+      <div id="manualMsg" style="margin-top:10px;"></div>
+    </div>
+
     <div class="section">
       <div class="section-title"><span>🏆</span> 당첨결과 엑셀 업로드</div>
       <div class="msg msg-info">
@@ -543,6 +611,141 @@ function renderPreview() {
   if (rounds.length > 30) html += '<tr><td colspan="13" style="color:#888;text-align:center;">... 외 '+(rounds.length-30)+'개 회차</td></tr>';
   document.getElementById('previewBody').innerHTML = html;
   document.getElementById('previewSection').style.display = 'block';
+}
+
+
+// =====================================================
+// 🔴 2026-08-31 신설: 당첨결과 직접 입력
+//   스크래핑이 막혀 엑셀로 넣고 계셨는데, 한 회차만 넣을 때는 엑셀을 만드는 편이
+//   더 번거롭습니다. 화면에서 바로 넣을 수 있게 했습니다.
+//   ⚠ 만들어내는 자료 모양은 엑셀 업로드와 완전히 같습니다.
+//     그래서 미리보기·적용(applyResults)을 그대로 재사용합니다 —
+//     저장 경로가 하나뿐이라 두 방식이 어긋날 일이 없습니다.
+// =====================================================
+
+// 번호 6칸 만들기
+(function(){
+  var box = document.getElementById('mNums');
+  if (!box) return;
+  var html = '';
+  for (var i = 0; i < 6; i++) {
+    html += '<input class="mBall" type="text" inputmode="numeric" maxlength="2" ' +
+            'style="width:44px;height:40px;background:#0f0f1a;border:1.5px solid #2a2a40;border-radius:50%;' +
+            'color:#eee;font-size:14px;font-weight:700;text-align:center;font-family:inherit;">';
+  }
+  box.innerHTML = html;
+})();
+
+// 숫자만 · 두 자리를 채우면 다음 칸으로
+// ⚠ 1~45라 한 자리와 두 자리가 섞입니다. 한 자리는 공백이나 Enter로 넘어갑니다.
+document.addEventListener('input', function(e){
+  var el = e.target;
+  if (el.classList && el.classList.contains('mBall')) {
+    var v = el.value.replace(/[^0-9]/g, '').slice(0, 2);
+    if (v !== el.value) el.value = v;
+    var n = parseInt(v);
+    el.style.borderColor = (v && (isNaN(n) || n < 1 || n > 45)) ? '#e03131'
+                         : (el.dataset.bonus ? '#6a6a90' : '#2a2a40');
+    if (v.length === 2) {
+      var all = Array.prototype.slice.call(document.querySelectorAll('.mBall'));
+      var i = all.indexOf(el);
+      if (i >= 0 && i + 1 < all.length) all[i + 1].focus();
+    }
+  }
+  if (el.classList && (el.classList.contains('mNum') || el.id === 'mRound')) {
+    el.value = el.value.replace(/[^0-9]/g, '');
+  }
+});
+
+document.addEventListener('keydown', function(e){
+  var el = e.target;
+  if (!el.classList || !el.classList.contains('mBall')) return;
+  var all = Array.prototype.slice.call(document.querySelectorAll('.mBall'));
+  var i = all.indexOf(el);
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (i + 1 < all.length) all[i + 1].focus(); }
+  if (e.key === 'Backspace' && el.value === '') { e.preventDefault(); if (i > 0) all[i - 1].focus(); }
+});
+
+// 한 칸에 여러 숫자를 붙여넣으면 뒤 칸으로 나눠 담습니다
+// (동행복권 화면에서 "11 13 22 32 33 36 8"을 통째로 복사해 오실 수 있습니다)
+document.addEventListener('paste', function(e){
+  var el = e.target;
+  if (!el.classList || !el.classList.contains('mBall')) return;
+  var text = (e.clipboardData || window.clipboardData).getData('text');
+  var nums = String(text).split(/[^0-9]+/).filter(Boolean);
+  if (nums.length <= 1) return;
+  e.preventDefault();
+  var all = Array.prototype.slice.call(document.querySelectorAll('.mBall'));
+  var i = all.indexOf(el);
+  nums.forEach(function(n){
+    if (i < 0 || i >= all.length) return;
+    all[i].value = String(n).slice(0, 2);
+    i++;
+  });
+});
+
+function manualClear(){
+  document.getElementById('mRound').value = '';
+  document.querySelectorAll('.mBall').forEach(function(el){ el.value = ''; el.style.borderColor = el.dataset.bonus ? '#6a6a90' : '#2a2a40'; });
+  ['mW1','mP1','mW2','mP2','mW3','mP3','mAuto','mSemi','mManual','mNote'].forEach(function(id){ document.getElementById(id).value = ''; });
+  document.getElementById('mShops').value = '';
+  document.getElementById('manualMsg').innerHTML = '';
+}
+
+function manualPreview(){
+  var round = parseInt(document.getElementById('mRound').value);
+  if (!round || round < 1 || round > 9999) {
+    showMsg('manualMsg','error','회차를 올바르게 넣어주세요.');
+    return;
+  }
+
+  var balls = Array.prototype.slice.call(document.querySelectorAll('.mBall'));
+  var nums = [], bonus = 0, bad = false;
+  balls.forEach(function(el){
+    var n = parseInt(el.value);
+    if (isNaN(n) || n < 1 || n > 45) { bad = true; return; }
+    if (el.dataset.bonus) bonus = n; else nums.push(n);
+  });
+
+  if (bad || nums.length !== 6 || !bonus) {
+    showMsg('manualMsg','error','당첨번호 6개와 보너스를 1~45 사이로 모두 넣어주세요.');
+    return;
+  }
+  // 🔴 같은 숫자가 두 번 들어가면 실제로 있을 수 없는 조합입니다.
+  //   손으로 넣다 보면 흔한 실수라 반드시 막습니다.
+  var all = nums.concat([bonus]);
+  if (new Set(all).size !== all.length) {
+    showMsg('manualMsg','error','같은 숫자가 두 번 들어갔습니다. 보너스 번호도 본번호와 달라야 합니다.');
+    return;
+  }
+
+  function numOf(id){ var v = document.getElementById(id).value.replace(/[^0-9]/g,''); return v === '' ? null : parseInt(v); }
+  function intOf(id){ var v = numOf(id); return v === null ? 0 : v; }
+
+  var row = {
+    nums:        nums.sort(function(a,b){ return a-b; }),
+    bonus:       bonus,
+    winners1:    intOf('mW1'),
+    prize1:      intOf('mP1'),
+    autoWin:     numOf('mAuto'),
+    semiWin:     numOf('mSemi'),
+    manualWin:   numOf('mManual'),
+    winnerShops: document.getElementById('mShops').value.trim(),
+    winners2:    intOf('mW2'),
+    prize2:      intOf('mP2'),
+    winners3:    intOf('mW3'),
+    prize3:      intOf('mP3'),
+    note:        document.getElementById('mNote').value.trim()
+  };
+
+  // 엑셀 업로드와 같은 통에 담습니다. 미리보기·적용을 그대로 씁니다.
+  parsedResults = {};
+  parsedResults[round] = row;
+
+  showMsg('manualMsg','success','✅ ' + round + '회차를 읽었습니다. 아래 미리보기에서 확인하고 적용하세요.');
+  renderPreview();
+  var sec = document.getElementById('previewSection');
+  if (sec) sec.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 // ── 당첨결과 적용 (서버 저장: POST /api/lotto/results) ──
