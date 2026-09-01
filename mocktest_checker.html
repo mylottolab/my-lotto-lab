@@ -387,19 +387,16 @@ function watchCtaHtml(){
     '<div class="watch-cta-b">' + mt('watchCtaBtn') + '</div>' +
   '</div>';
 }
-// ⚠ 이 화면은 메인에서 새 창(window.open)으로 열립니다.
+// ⚠ 이 화면은 메인에서 새 창(460px)으로 열립니다.
 //   그 좁은 창 안에서 등록까지 하게 두면 답답합니다.
-//   부모 창이 있으면 그쪽으로 보내고 이 창은 닫습니다.
+//   등록은 조금 넓은 창을 따로 띄우고, 이 창은 그대로 둡니다.
+//   ⚠ 부모 창(메인)을 등록 화면으로 보내면 보고 있던 것이 사라집니다. 그러지 않습니다.
+//   ⚠ 차단되면 이 창에서 엽니다. 아무 일도 안 일어나는 것이 제일 나쁩니다.
 function goWatchRegister(){
-  try {
-    if (window.opener && !window.opener.closed) {
-      window.opener.location.href = 'watch_register.html';
-      window.opener.focus();
-      window.close();
-      return;
-    }
-  } catch (e) { /* 다른 도메인이면 건드릴 수 없습니다. 그냥 이 창에서 엽니다. */ }
-  location.href = 'watch_register.html';
+  var win = window.open('watch_register.html', 'mllWatch',
+    'width=500,height=860,resizable=yes,scrollbars=yes');
+  if (!win) { location.href = 'watch_register.html'; return; }
+  win.focus();
 }
 
 // =====================================================
