@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 당첨알림 설정</title>
+<!--
+  =====================================================
+  My Lotto Lab — 당첨결과 알림 · 설정 (watch_settings.html)
+  2026-09-02 신설
+
+  🔴 주소 확인(verify) 절차가 아직 서버에 없습니다.
+     routes/watch.js의 resolveEmail()은 email_verified가 true일 때만
+     바꾸신 주소를 씁니다. 그 값을 true로 만드는 길이 없으므로,
+     지금은 무엇을 넣으셔도 실제 발송은 가입 주소로 나갑니다.
+     ⚠ 그 사실을 화면에 그대로 적었습니다. 저장은 되는데 아무 일도
+       안 일어나는 칸을 말없이 두면 손님이 알림을 놓칩니다.
+     확인 절차를 만들면 이 안내만 지우면 됩니다.
+
+  ⚠ 낙첨 통보를 끄면 그 등록은 발송이 'skipped'로 남고 포인트를
+    돌려드리지 않습니다. 손님이 스스로 끈 것이고, 결과 화면에서는
+    언제든 볼 수 있기 때문입니다. 그 점을 안내에 적었습니다.
+  =====================================================
+-->
+<style>
+:root{
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f;
+  --green:#3fb37f; --red:#d4537e; --blue:#5b9bd5;
+  --game-accent:#8a6fe8;
+}
+*{box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;margin:0;}
+.font-num{font-variant-numeric:tabular-nums;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;}
+
+.topbar{border-bottom:1px solid var(--border-soft);}
+.topbar-inner{max-width:640px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;gap:11px;}
+.brand-mark{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #c3b2ff, var(--game-accent) 60%, #4a3a99);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;}
+.brand-name{font-size:14px;font-weight:700;}
+.brand-sub{font-size:10px;color:var(--text-faint);}
+
+.wrap{max-width:640px;margin:0 auto;padding:24px;}
+h1{font-size:19px;font-weight:700;margin:0 0 6px;}
+.desc{font-size:12.5px;color:var(--text-dim);margin-bottom:20px;line-height:1.6;}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:20px;margin-bottom:16px;}
+.card-title{font-size:13px;font-weight:700;color:var(--text-dim);margin-bottom:14px;}
+.btn{border-radius:9px;padding:11px 18px;font-size:13.5px;font-weight:700;border:1px solid var(--border);background:var(--surface-2);color:var(--text);}
+.btn-accent{background:var(--game-accent);color:#fff;border:none;}
+.btn:hover{filter:brightness(1.12);}
+.btn:disabled{opacity:.45;cursor:default;filter:none;}
+.empty-state{text-align:center;padding:24px 16px;color:var(--text-faint);font-size:12.5px;line-height:1.7;}
+.inp{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 12px;font-size:13px;outline:none;width:100%;}
+.inp:focus{border-color:var(--game-accent);}
+
+/* ── 켬/끔 줄 ── */
+.sw-row{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid var(--border-soft);}
+.sw-row:last-child{border-bottom:none;}
+.sw-text{flex:1;min-width:0;}
+.sw-label{font-size:13px;font-weight:700;margin-bottom:3px;}
+.sw-hint{font-size:11px;color:var(--text-faint);line-height:1.6;}
+.sw{width:44px;height:25px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);
+  position:relative;flex-shrink:0;padding:0;transition:background .15s;margin-top:2px;}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;
+  background:var(--text-faint);transition:transform .15s,background .15s;}
+.sw.on{background:rgba(138,111,232,.25);border-color:var(--game-accent);}
+.sw.on::after{transform:translateX(19px);background:var(--game-accent);}
+
+/* ── 받는 주소 ── */
+.addr-now{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:10px;
+  padding:12px 14px;font-size:13px;margin-bottom:12px;word-break:break-all;}
+.addr-now .lbl{font-size:10.5px;color:var(--text-faint);display:block;margin-bottom:4px;font-weight:700;}
+
+/* ── 내 등록 ── */
+.entry-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border-soft);flex-wrap:wrap;}
+.entry-row:last-child{border-bottom:none;}
+.entry-main{flex:1;min-width:150px;}
+.entry-title{font-size:13px;font-weight:700;margin-bottom:3px;}
+.entry-sub{font-size:11px;color:var(--text-faint);}
+.tag{font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;flex-shrink:0;}
+.tag.wait{background:var(--surface-2);color:var(--text-faint);}
+.tag.jackpot{background:rgba(224,179,65,.16);color:var(--gold);}
+.tag.small{background:rgba(63,179,127,.14);color:var(--green);}
+.tag.none{background:var(--surface-2);color:var(--text-dim);}
+.tag.refunded{background:rgba(212,83,126,.12);color:var(--red);}
+
+.notice{background:rgba(91,155,213,.08);border:1px solid rgba(91,155,213,.3);border-radius:11px;padding:13px 15px;font-size:11.5px;color:var(--text-dim);line-height:1.75;margin-bottom:16px;}
+.notice b{color:var(--text);}
+.notice-warn{background:rgba(224,179,65,.08);border-color:rgba(224,179,65,.35);}
+.notice-warn b{color:var(--gold);}
+.msg{font-size:12.5px;padding:11px 14px;border-radius:10px;margin-bottom:14px;line-height:1.6;display:none;}
+.msg.err{background:rgba(212,83,126,.1);border:1px solid var(--red);color:#f2a3bd;display:block;}
+.msg.ok{background:rgba(63,179,127,.1);border:1px solid var(--green);color:#8fe0bd;display:block;}
+
+@media (max-width:420px){
+  .wrap{padding:14px;}
+  .topbar-inner{padding:0 14px;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner" onclick="location.href='main_page.html'" style="cursor:pointer;">
+    <div class="brand-mark">🔔</div>
+    <div>
+      <div class="brand-name">My Lotto Lab</div>
+      <div class="brand-sub">당첨결과 알림 · 설정</div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <h1>🔔 알림 설정</h1>
+  <div class="desc">결과를 어디로, 어떤 경우에 보내드릴지 정하실 수 있습니다.</div>
+
+  <div class="msg" id="msg"></div>
+  <div id="gate"></div>
+
+  <div id="main" style="display:none;">
+
+    <div class="card">
+      <div class="card-title">받는 주소</div>
+      <div class="addr-now" id="addrNow"><span class="lbl">지금 보내드리는 주소</span><span id="addrText">—</span></div>
+
+      <div class="notice notice-warn" id="verifyNotice" style="display:none;">
+        <b>⚠ 주소 확인 절차를 아직 준비 중입니다</b><br>
+        다른 주소를 적어두실 수는 있지만, 확인 절차가 준비될 때까지는
+        <b>가입하신 주소</b>로 보내드립니다. 오타가 난 주소로 보내면
+        돈은 받고 알림은 못 드리게 되기 때문입니다.
+      </div>
+
+      <label style="font-size:11.5px;color:var(--text-faint);display:block;margin-bottom:6px;font-weight:700;">
+        다른 주소로 받기 (선택)</label>
+      <input class="inp" type="email" id="emailInput" placeholder="비워두시면 가입 주소로 보내드립니다"
+             autocomplete="email" spellcheck="false">
+    </div>
+
+    <div class="card">
+      <div class="card-title">무엇을 받을지</div>
+      <div class="sw-row">
+        <div class="sw-text">
+          <div class="sw-label">이메일 알림</div>
+          <div class="sw-hint">끄시면 결과가 나와도 메일을 보내지 않습니다. 결과는 이 화면에서 언제든 보실 수 있습니다.</div>
+        </div>
+        <button class="sw" id="swEmail" onclick="toggle('email_enabled')"></button>
+      </div>
+      <div class="sw-row">
+        <div class="sw-text">
+          <div class="sw-label">당첨되지 않았을 때도 받기</div>
+          <div class="sw-hint">이 서비스는 "확인해드렸다"를 알려드리는 것이라 기본은 켜져 있습니다.
+            끄시면 당첨된 경우에만 보내드립니다.</div>
+        </div>
+        <button class="sw" id="swLose" onclick="toggle('notify_on_lose')"></button>
+      </div>
+      <div class="sw-row">
+        <div class="sw-text">
+          <div class="sw-label">메일 언어</div>
+          <div class="sw-hint">받으실 메일의 언어입니다.</div>
+        </div>
+        <button class="btn" style="padding:7px 14px;font-size:12px;" id="langBtn" onclick="toggleLang()">한국어</button>
+      </div>
+    </div>
+
+    <div class="notice">
+      <b>알아두세요</b><br>
+      · 낙첨 통보를 끄셔도 <b>포인트는 돌려드리지 않습니다.</b> 대조는 이미 해드렸고 결과 화면에서 언제든 보실 수 있습니다.<br>
+      · 보내드리지 못한 경우에는 포인트를 돌려드립니다.<br>
+      · 웹푸시와 앱 알림은 준비 중입니다.
+    </div>
+
+    <button class="btn btn-accent" style="width:100%;margin-bottom:24px;" id="saveBtn" onclick="save()">설정 저장</button>
+
+    <div class="card">
+      <div class="card-title">내 알림 등록</div>
+      <div id="entryList"><div class="empty-state">불러오는 중…</div></div>
+    </div>
+
+    <a class="btn btn-accent" style="width:100%;display:block;text-align:center;" href="watch_register.html">새로 등록하기</a>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+var GAME_NAMES = {
+  KR:'한국 로또 6/45', POWERBALL:'미국 파워볼',
+  MEGAMILLIONS:'메가밀리언스', EUROMILLIONS:'유로밀리언스'
+};
+var USE_ROUND = { KR:true, POWERBALL:false, MEGAMILLIONS:false, EUROMILLIONS:false };
+
+var state = { auth:null, prefs:null };
+
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function showMsg(text, kind){
+  var el = document.getElementById('msg');
+  el.className = 'msg ' + (kind || 'err');
+  el.innerHTML = text;
+}
+function clearMsg(){ document.getElementById('msg').className = 'msg'; }
+
+function drawLabel(gameCode, round, drawDate){
+  var name = GAME_NAMES[gameCode] || gameCode;
+  if (USE_ROUND[gameCode] && round) return name + ' ' + round + '회차';
+  if (drawDate) {
+    var d = new Date(String(drawDate).slice(0,10) + 'T00:00:00Z');
+    if (!isNaN(d.getTime())) {
+      return name + ' ' + d.toLocaleDateString('ko-KR',
+        { timeZone:'UTC', year:'numeric', month:'long', day:'numeric' });
+    }
+  }
+  return name;
+}
+
+// ─── 인증 도구 ────────────────────────────────────────────────────────────
+// ⚠ common.js와 같은 규칙입니다. 회원은 Authorization 헤더, 비회원은 질의값.
+function authHeaders(){
+  var h = { 'Content-Type':'application/json' };
+  if (state.auth.type === 'member') h['Authorization'] = 'Bearer ' + state.auth.token;
+  return h;
+}
+function authSuffix(){
+  if (state.auth.type === 'member') return '';
+  return '?nickname=' + encodeURIComponent(state.auth.nickname) +
+         '&email=' + encodeURIComponent(state.auth.email);
+}
+
+// ─── 켬/끔 ────────────────────────────────────────────────────────────────
+function toggle(key){
+  state.prefs[key] = !state.prefs[key];
+  renderSwitches();
+}
+function toggleLang(){
+  state.prefs.lang = (state.prefs.lang === 'en') ? 'ko' : 'en';
+  renderSwitches();
+}
+function renderSwitches(){
+  document.getElementById('swEmail').className = 'sw' + (state.prefs.email_enabled ? ' on' : '');
+  document.getElementById('swLose').className = 'sw' + (state.prefs.notify_on_lose ? ' on' : '');
+  document.getElementById('langBtn').textContent = (state.prefs.lang === 'en') ? 'English' : '한국어';
+}
+
+// ─── 저장 ─────────────────────────────────────────────────────────────────
+async function save(){
+  var btn = document.getElementById('saveBtn');
+  clearMsg();
+  var email = document.getElementById('emailInput').value.trim();
+
+  // ⚠ 형식만 봅니다. 실제로 받을 수 있는 주소인지는 확인 메일이 있어야 알 수 있습니다.
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showMsg('이메일 주소 형식이 올바르지 않습니다.'); return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '저장하는 중…';
+  try {
+    var res = await fetch(MLL.API_BASE + '/api/watch/prefs' + authSuffix(), {
+      method:'POST', headers: authHeaders(),
+      body: JSON.stringify({
+        // ⚠ 'email'이 아니라 'notify_email'입니다.
+        //   서버가 비회원을 찾을 때 body.email을 보기 때문에, 같은 이름을 쓰면
+        //   주소를 바꾸는 순간 그 값으로 본인을 찾으려 해서 401이 납니다.
+        notify_email: email,
+        email_enabled: state.prefs.email_enabled,
+        notify_on_lose: state.prefs.notify_on_lose,
+        lang: state.prefs.lang
+      })
+    });
+    var data = await res.json();
+    if (res.status === 401) { showMsg('로그인이 풀렸습니다. 다시 로그인해주세요.'); btn.disabled = false; btn.textContent = '설정 저장'; return; }
+    if (!res.ok) { showMsg(esc(data.error || '저장 중 문제가 생겼습니다.')); btn.disabled = false; btn.textContent = '설정 저장'; return; }
+
+    state.prefs = data.prefs;
+    renderAddr();
+    renderSwitches();
+    showMsg('설정을 저장했습니다.', 'ok');
+  } catch (e) {
+    console.error('[watch] 설정 저장 오류', e);
+    showMsg('저장 중 문제가 생겼습니다. 잠시 후 다시 시도해주세요.');
+  }
+  btn.disabled = false;
+  btn.textContent = '설정 저장';
+}
+
+// ─── 받는 주소 표시 ───────────────────────────────────────────────────────
+// 🔴 서버 resolveEmail()과 같은 판단을 그대로 보여줍니다.
+//   확인된 주소가 있으면 그것, 없으면 가입 주소.
+//   화면이 서버와 다르게 말하면 손님이 알림을 놓칩니다.
+function renderAddr(){
+  var p = state.prefs;
+  var joinEmail = (state.auth.type === 'guest') ? state.auth.email : null;
+  var txt, note = '';
+
+  if (p.email && p.email_verified) {
+    txt = esc(p.email);
+  } else if (p.email) {
+    txt = joinEmail ? esc(joinEmail) : '가입하신 주소';
+    note = '<span style="color:var(--gold);font-size:11px;"> (적어두신 ' + esc(p.email) +
+           ' 은(는) 확인 절차가 준비되면 쓰입니다)</span>';
+    document.getElementById('verifyNotice').style.display = 'block';
+  } else {
+    txt = joinEmail ? esc(joinEmail) : '가입하신 주소';
+  }
+  document.getElementById('addrText').innerHTML = txt + note;
+  document.getElementById('emailInput').value = p.email || '';
+}
+
+// ─── 내 등록 목록 ─────────────────────────────────────────────────────────
+async function loadEntries(){
+  var box = document.getElementById('entryList');
+  try {
+    var res = await fetch(MLL.API_BASE + '/api/watch/entries' + authSuffix(), { headers: authHeaders() });
+    if (!res.ok) { box.innerHTML = '<div class="empty-state">등록 목록을 불러오지 못했습니다.</div>'; return; }
+    var data = await res.json();
+    var items = data.items || [];
+    if (!items.length) {
+      box.innerHTML = '<div class="empty-state">아직 등록하신 알림이 없습니다.</div>';
+      return;
+    }
+    box.innerHTML = items.map(function(e){
+      var tag, cls;
+      if (e.status === 'refunded') { tag = '포인트 반환'; cls = 'refunded'; }
+      else if (!e.result) { tag = '추첨 대기'; cls = 'wait'; }
+      else if (e.result.tier_class === 'jackpot') { tag = e.result.best_grade + '등 당첨'; cls = 'jackpot'; }
+      else if (e.result.tier_class === 'small') { tag = e.result.best_grade + '등 당첨'; cls = 'small'; }
+      else { tag = '낙첨'; cls = 'none'; }
+
+      return '<div class="entry-row" onclick="location.href=\'watch_result.html?entry=' + e.id + '\'" style="cursor:pointer;">' +
+        '<div class="entry-main">' +
+          '<div class="entry-title">' + esc(drawLabel(e.gameCode, e.round, e.drawDate)) + '</div>' +
+          '<div class="entry-sub">' + e.lineCount + '줄 · ' + (e.pointsCharged || 0) + 'P · ' +
+            new Date(e.createdAt).toLocaleDateString('ko-KR') + '</div>' +
+        '</div>' +
+        '<span class="tag ' + cls + '">' + tag + '</span>' +
+      '</div>';
+    }).join('');
+  } catch (e) {
+    console.error('[watch] 등록 목록 오류', e);
+    box.innerHTML = '<div class="empty-state">등록 목록을 불러오지 못했습니다.</div>';
+  }
+}
+
+// ─── 시작 ─────────────────────────────────────────────────────────────────
+async function init(){
+  var auth = MLL.getAuthState();
+  if (!auth.type) {
+    document.getElementById('gate').innerHTML = '<div class="card"><div class="empty-state">' +
+      '설정을 보시려면 로그인이 필요합니다.<br><br>' +
+      '<a class="btn btn-accent" style="display:inline-block;" href="main_page.html">로그인하러 가기</a>' +
+      '</div></div>';
+    return;
+  }
+  state.auth = auth;
+
+  try {
+    var res = await fetch(MLL.API_BASE + '/api/watch/prefs' + authSuffix(), { headers: authHeaders() });
+    if (res.status === 401) {
+      document.getElementById('gate').innerHTML = '<div class="card"><div class="empty-state">' +
+        '로그인이 풀렸습니다. 다시 로그인해주세요.<br><br>' +
+        '<a class="btn btn-accent" style="display:inline-block;" href="main_page.html">로그인하러 가기</a>' +
+        '</div></div>';
+      return;
+    }
+    // ⚠ 설정한 적이 없으면 서버가 기본값을 내려줍니다. 화면이 분기하지 않습니다.
+    state.prefs = res.ok ? await res.json() : null;
+  } catch (e) {
+    console.error('[watch] 설정 조회 오류', e);
+  }
+
+  if (!state.prefs) {
+    document.getElementById('gate').innerHTML = '<div class="card"><div class="empty-state">' +
+      '설정을 불러오지 못했습니다. 잠시 후 다시 열어주세요.</div></div>';
+    return;
+  }
+
+  document.getElementById('main').style.display = 'block';
+  renderAddr();
+  renderSwitches();
+  loadEntries();
+}
+
+init();
+</script>
+</body>
+</html>
