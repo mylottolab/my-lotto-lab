@@ -351,3 +351,10 @@ const mocktestAdminRouter = require('./routes/mocktest_admin');
 app.use('/api/admin/mocktest', mocktestAdminRouter);
 const filesRouter = require('./routes/files');
 app.use('/api/files', filesRouter);
+
+// ─── 당첨결과 알림 서비스 (2026-09-01 신규) ────────────────────────────────
+// 등록 100P → 추첨 후 자동 채점 → 이메일 통보 (낙첨도 보냄)
+// ⚠ 채점은 저장 경로 쪽에 이미 붙어 있습니다(lottoAutoFetch · mocktest_admin ·
+//   global_admin). 이 라우터는 등록·조회·설정과 발송을 맡습니다.
+const watchRouter = require('./routes/watch');
+app.use('/api/watch', watchRouter);
