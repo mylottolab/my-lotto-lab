@@ -328,3 +328,6 @@ router.post('/check', async (req, res) => {
 
 module.exports = router;
 module.exports.computeNextDrawDate = computeNextDrawDate;
+// 2026-09-01: routes/watch.js(당첨결과 알림)가 번호 검증에 씁니다.
+// ⚠ 규격 복사본을 만들지 않기 위해서입니다. 게임 규칙이 바뀌면 여기 한 곳만 고칩니다.
+module.exports.validateCombo = validateCombo;
