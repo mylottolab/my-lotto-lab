@@ -98,6 +98,12 @@ h1{font-size:19px;font-weight:700;margin:0 0 6px;}
 
 .notice{background:rgba(91,155,213,.08);border:1px solid rgba(91,155,213,.3);border-radius:11px;padding:13px 15px;font-size:11.5px;color:var(--text-dim);line-height:1.75;margin-bottom:16px;}
 .notice b{color:var(--text);}
+/* 2026-09-02: 값에 관한 안내는 눈에 띄어야 합니다. 나중에 "몰랐다"가 나오면 안 됩니다. */
+.notice-charge{background:rgba(224,179,65,.08);border-color:rgba(224,179,65,.35);}
+.notice-charge b{color:var(--gold);}
+/* 담은 줄이 있는 종목 탭에 개수를 붙입니다. 다른 탭에 가 있어도 잊지 않게. */
+.tab-count{margin-left:auto;background:var(--game-accent);color:#fff;border-radius:20px;
+  font-size:10.5px;padding:1px 7px;font-variant-numeric:tabular-nums;flex-shrink:0;}
 .msg{font-size:12.5px;padding:11px 14px;border-radius:10px;margin-bottom:14px;line-height:1.6;display:none;}
 .msg.err{background:rgba(212,83,126,.1);border:1px solid var(--red);color:#f2a3bd;display:block;}
 .msg.ok{background:rgba(63,179,127,.1);border:1px solid var(--green);color:#8fe0bd;display:block;}
@@ -125,7 +131,8 @@ h1{font-size:19px;font-weight:700;margin:0 0 6px;}
   <div class="pay-badge" id="costBadge">포인트 차감 서비스</div>
   <h1>🔔 당첨알림 등록</h1>
   <div class="desc">번호를 맡겨두시면 추첨이 끝나는 대로 대조해서 이메일로 알려드립니다.
-    당첨되지 않았을 때도 보내드려요 — 직접 확인하러 가지 않으셔도 됩니다.</div>
+    당첨되지 않았을 때도 보내드려요 — 직접 확인하러 가지 않으셔도 됩니다.<br>
+    <b style="color:var(--text-dim);">여러 종목을 함께 담으실 수 있습니다.</b> 탭을 옮겨도 담은 번호는 그대로 있습니다.</div>
 
   <div class="msg" id="msg"></div>
   <div id="gate"></div>
@@ -159,6 +166,12 @@ h1{font-size:19px;font-weight:700;margin:0 0 6px;}
 
     <div class="pay-box" id="payBox"></div>
 
+    <div class="notice notice-charge">
+      <b>⚠ 포인트 차감 방식</b><br>
+      본 서비스 포인트차감은 발송횟수에 따라 1회당 100포인트씩 차감됩니다.
+      따라서 발송일시가 다른 복권종류별로 함께 등록시 알림횟수에 따라 과금됨을 이해해 주시기 바랍니다.
+    </div>
+
     <div class="notice">
       <b>알아두세요</b><br>
       · 등록은 <b>한 회차</b>에만 적용됩니다. 다음 회차는 다시 등록하셔야 합니다.<br>
@@ -189,12 +202,30 @@ var COST_KEYS = {
 var MAX_LINES = 50;
 
 var state = {
-  game: 'KR', main: [], bonus: [], lines: [],
-  costs: {}, balance: null, auth: null,
+  game: 'KR', main: [], bonus: [],
+  // 🔴 2026-09-02: 종목별로 따로 담습니다.
+  //   미국 복권을 사시는 분은 파워볼과 메가밀리언스를 함께 사는 경우가 흔한데,
+  //   추첨일이 서로 다릅니다(파워볼 수·토 / 메가밀리언스 화·금).
+  //   그래서 한 등록으로 묶을 수 없고, 등록은 종목마다 따로 만들어집니다.
+  //   화면에서만 한 번에 담게 하고, [등록하기]가 종목 수만큼 서버를 부릅니다.
+  linesByGame: { KR: [], POWERBALL: [], MEGAMILLIONS: [], EUROMILLIONS: [] },
+  costs: {}, balance: null, auth: null, done: {},
   // 🔴 화면을 연 순간 한 번 만들고 끝까지 씁니다.
   //   단추를 두 번 눌러도 서버가 같은 표로 보고 두 번 차감하지 않습니다.
+  //   ⚠ 종목마다 다른 값이어야 합니다. 같은 값을 쓰면 두 번째 종목이
+  //     "이미 등록되어 있습니다"로 막힙니다.
   requestId: 'w-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8)
 };
+
+// 지금 고르는 중인 종목의 담은 줄
+function curLines(){ return state.linesByGame[state.game]; }
+// 담은 줄이 하나라도 있는 종목들
+function filledGames(){
+  return GAME_ORDER.filter(function(c){ return state.linesByGame[c].length > 0; });
+}
+function totalLines(){
+  return GAME_ORDER.reduce(function(s, c){ return s + state.linesByGame[c].length; }, 0);
+}
 
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
@@ -210,16 +241,25 @@ function clearMsg(){ document.getElementById('msg').className = 'msg'; }
 function renderTabs(){
   document.getElementById('gameTabs').innerHTML = GAME_ORDER.map(function(code){
     var g = GAMES[code];
+    var n = state.linesByGame[code].length;
+    // 담은 줄이 있는 종목은 개수를 함께 보여줍니다. 다른 탭으로 옮겨도 잊지 않게.
     return '<div class="game-tab' + (state.game===code?' active':'') + '" onclick="selectGame(\'' + code + '\')">' +
-      '<span class="flag-ic flag-' + g.flag + '"></span>' + g.nameKr + '</div>';
+      '<span class="flag-ic flag-' + g.flag + '"></span>' + g.nameKr +
+      (n ? '<span class="tab-count">' + n + '</span>' : '') + '</div>';
   }).join('');
 }
 function selectGame(code){
-  // ⚠ 종목을 바꾸면 담은 줄도 비웁니다. 한 등록은 한 종목·한 회차입니다.
-  if (state.lines.length && code !== state.game) {
-    if (!confirm('종목을 바꾸면 담아두신 번호가 지워집니다. 바꾸시겠어요?')) { renderTabs(); return; }
+  if (code === state.game) return;
+  // 🔴 담은 줄은 종목마다 따로 남습니다. 지우지 않습니다.
+  // ⚠ 다만 아직 담지 않고 고르는 중인 번호는 옮겨갈 데가 없습니다.
+  //   조용히 사라지면 손님이 "왜 지워졌지" 합니다. 반드시 여쭙습니다.
+  var g = GAMES[state.game];
+  if (state.main.length || state.bonus.length) {
+    if (!confirm('아직 담지 않은 번호가 있습니다.\n종목을 바꾸면 고르던 번호는 사라집니다.\n\n바꾸시겠어요?')) {
+      renderTabs(); return;
+    }
   }
-  state.game = code; state.main = []; state.bonus = []; state.lines = [];
+  state.game = code; state.main = []; state.bonus = [];
   clearMsg();
   renderTabs(); renderGrid(); renderLines(); renderPay(); loadTarget();
 }
@@ -313,30 +353,33 @@ function addLine(){
   if (g.bonusCount && state.bonus.length !== g.bonusCount) {
     showMsg('보너스번호 ' + g.bonusCount + '개를 골라주세요.'); return;
   }
-  if (state.lines.length >= MAX_LINES) {
-    showMsg('한 번에 최대 ' + MAX_LINES + '줄까지 등록하실 수 있습니다.'); return;
+  // ⚠ 50줄 제한은 종목마다 따로입니다. 서버도 한 등록당 50줄로 봅니다.
+  if (curLines().length >= MAX_LINES) {
+    showMsg(g.nameKr + '은(는) 한 번에 최대 ' + MAX_LINES + '줄까지 등록하실 수 있습니다.'); return;
   }
   // ⚠ 같은 조합을 여러 줄 담는 것을 막지 않습니다. 실제로 같은 번호를 여러 장 사십니다.
-  state.lines.push({
+  curLines().push({
     main: state.main.slice().sort(function(a,b){ return a-b; }),
     bonus: state.bonus.slice().sort(function(a,b){ return a-b; })
   });
   state.main = []; state.bonus = [];
-  renderGrid(); renderLines(); renderPay();
+  renderTabs(); renderGrid(); renderLines(); renderPay();
 }
 function delLine(i){
-  state.lines.splice(i, 1);
-  renderLines(); renderPay();
+  curLines().splice(i, 1);
+  renderTabs(); renderLines(); renderPay();
 }
 function renderLines(){
   var box = document.getElementById('lineList');
-  document.getElementById('lineHint').textContent = state.lines.length + '줄';
-  if (!state.lines.length) {
-    box.innerHTML = '<div class="empty-state">아직 담은 번호가 없습니다.<br>' +
-      '위에서 번호를 고르고 [이 번호 담기]를 눌러주세요.</div>';
+  var lines = curLines();
+  document.getElementById('lineHint').textContent =
+    lines.length + '줄' + (totalLines() > lines.length ? ' (전체 ' + totalLines() + '줄)' : '');
+  if (!lines.length) {
+    box.innerHTML = '<div class="empty-state">' + GAMES[state.game].nameKr +
+      '에 담은 번호가 없습니다.<br>위에서 번호를 고르고 [이 번호 담기]를 눌러주세요.</div>';
     return;
   }
-  box.innerHTML = state.lines.map(function(c, i){
+  box.innerHTML = lines.map(function(c, i){
     var b = c.main.map(function(n){
       return '<span class="bl" style="background:' + MLL.BC(n) + ';color:' + MLL.TC(n) + ';">' + n + '</span>';
     }).join('');
@@ -355,54 +398,72 @@ function renderLines(){
 // ─── 결제 요약 ────────────────────────────────────────────────────────────
 // ⚠ 단가는 절대 화면에 박지 않습니다. 관리자가 admin_points.html에서 바꾼 값이
 //   즉시 반영되어야 합니다. 서버도 같은 표를 봅니다.
+//
+// 🔴 값은 "알림 한 번"에 매겨집니다.
+//   종목이 다르면 추첨일이 달라 알림도 따로 나가므로, 종목 수만큼 차감됩니다.
+//   화면에 그렇게 보이도록 종목별로 한 줄씩 늘어놓습니다.
 function renderPay(){
   var box = document.getElementById('payBox');
-  var cost = state.costs[COST_KEYS[state.game]];
-  var bal = state.balance;
+  var games = filledGames();
+  var btn = document.getElementById('submitBtn');
 
-  if (cost == null) {
-    box.innerHTML = '<div class="empty-state" style="padding:10px;">가격 정보를 불러오지 못했습니다.<br>' +
-      '잠시 후 다시 열어주세요.</div>';
+  if (!games.length) {
+    box.innerHTML = '<div class="empty-state" style="padding:10px;">번호를 담으시면 차감 포인트를 보여드립니다.</div>';
+    btn.disabled = true;
+    btn.textContent = '번호를 담아주세요';
     return;
   }
 
-  // ⚠ 등록 한 건에 대한 값입니다. 줄 수로 곱하지 않습니다.
-  //   최대 50줄까지 한 건으로 봅니다(설계 확정).
-  var html = '<div class="pay-line"><span>' + GAMES[state.game].nameKr + ' 알림 등록</span>' +
-    '<b>' + cost + 'P</b></div>' +
-    '<div class="pay-line" style="font-size:11.5px;color:var(--text-faint);">' +
-    '<span>담은 번호 ' + state.lines.length + '줄 (최대 ' + MAX_LINES + '줄까지 같은 값)</span><span></span></div>';
+  var html = '', total = 0, missing = false;
+  games.forEach(function(code){
+    var cost = state.costs[COST_KEYS[code]];
+    if (cost == null) { missing = true; return; }
+    total += Number(cost);
+    var n = state.linesByGame[code].length;
+    html += '<div class="pay-line"><span>' + GAMES[code].nameKr +
+      ' <span style="color:var(--text-faint);font-size:11.5px;">' + n + '줄</span></span>' +
+      '<b>' + cost + 'P</b></div>';
+  });
 
+  if (missing) {
+    box.innerHTML = '<div class="empty-state" style="padding:10px;">가격 정보를 불러오지 못했습니다.<br>' +
+      '잠시 후 다시 열어주세요.</div>';
+    btn.disabled = true;
+    return;
+  }
+
+  var bal = state.balance;
   if (bal != null) {
     html += '<div class="pay-line"><span style="color:var(--text-dim);">보유 포인트</span>' +
       '<b>' + bal.total + 'P</b></div>';
-    if (bal.total < cost) {
-      html += '<div class="pay-line short"><span>부족</span><b>' + (cost - bal.total) + 'P</b></div>';
+    if (bal.total < total) {
+      html += '<div class="pay-line short"><span>부족</span><b>' + (total - bal.total) + 'P</b></div>';
     }
   }
-  html += '<div class="pay-line total"><span>차감</span><b>' + cost + 'P</b></div>';
+  html += '<div class="pay-line total"><span>차감 ' +
+    (games.length > 1 ? '<span style="font-size:11.5px;color:var(--text-faint);font-weight:400;">알림 ' +
+      games.length + '회</span>' : '') + '</span><b>' + total + 'P</b></div>';
   box.innerHTML = html;
 
-  var btn = document.getElementById('submitBtn');
-  var short = (bal != null && bal.total < cost);
-  btn.disabled = !state.lines.length || short;
-  btn.textContent = short ? '포인트가 부족합니다' :
-    (state.lines.length ? '등록하기 (' + cost + 'P)' : '번호를 담아주세요');
+  var short = (bal != null && bal.total < total);
+  btn.disabled = short;
+  btn.textContent = short ? '포인트가 부족합니다' : '등록하기 (' + total + 'P)';
 }
 
 // ─── 등록 ─────────────────────────────────────────────────────────────────
-async function submit(){
-  var btn = document.getElementById('submitBtn');
-  clearMsg();
-  if (!state.lines.length) { showMsg('담은 번호가 없습니다.'); return; }
-
-  btn.disabled = true;
-  btn.textContent = '등록하는 중…';
-
+// 🔴 종목마다 따로 등록됩니다. 추첨일이 다르면 알림도 따로 나가기 때문입니다.
+//   화면에서만 한 번에 담게 하고, 여기서 종목 수만큼 서버를 부릅니다.
+//
+// ⚠ 중간에 하나가 실패해도 앞서 성공한 것을 되돌리지 않습니다.
+//   되돌리면 이미 받은 등록을 취소하는 셈이라 더 위험합니다.
+//   대신 실패한 종목만 남겨두고 다시 누르실 수 있게 합니다.
+//   ⚠ request_id는 종목마다 다릅니다. 다시 눌러도 성공한 종목은
+//     "이미 등록되어 있습니다"로 넘어가고 두 번 차감되지 않습니다.
+async function registerOne(code){
   var body = {
-    game_code: state.game,
-    lines: state.lines,
-    request_id: state.requestId,       // 🔴 두 번 눌러도 한 번만 차감됩니다
+    game_code: code,
+    lines: state.linesByGame[code],
+    request_id: state.requestId + '-' + code,
     timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone || null),
     lang: (localStorage.getItem('mll_lang') === 'en') ? 'en' : 'ko'
   };
@@ -410,38 +471,69 @@ async function submit(){
   if (state.auth.type === 'member') headers['Authorization'] = 'Bearer ' + state.auth.token;
   else { body.nickname = state.auth.nickname; body.email = state.auth.email; }
 
-  try {
-    var res = await fetch(MLL.API_BASE + '/api/watch/register', {
-      method: 'POST', headers: headers, body: JSON.stringify(body)
-    });
-    var data = await res.json();
+  var res = await fetch(MLL.API_BASE + '/api/watch/register', {
+    method: 'POST', headers: headers, body: JSON.stringify(body)
+  });
+  var data = await res.json();
+  return { ok: res.ok, status: res.status, data: data };
+}
 
-    if (res.status === 402) {
-      showMsg('포인트가 <b>' + data.shortfall + 'P</b> 부족합니다. ' +
-        '<a href="' + MLL.crossOriginUrl(MLL.API_BASE + '/pay/category_select.html') +
-        '" style="text-decoration:underline;">충전하러 가기</a>');
-      btn.disabled = false; renderPay(); return;
-    }
-    if (res.status === 401) {
-      showMsg('로그인이 풀렸습니다. 다시 로그인해주세요.');
-      btn.disabled = false; renderPay(); return;
-    }
-    if (!res.ok) {
-      showMsg(esc(data.error || '등록 중 문제가 생겼습니다.'));
-      btn.disabled = false; renderPay(); return;
-    }
+async function submit(){
+  var btn = document.getElementById('submitBtn');
+  clearMsg();
+  var games = filledGames();
+  if (!games.length) { showMsg('담은 번호가 없습니다.'); return; }
 
-    // ⚠ duplicated는 오류가 아닙니다. 단추를 두 번 누르셨을 때 오는 정상 응답입니다.
-    var id = data.entry && data.entry.id;
-    showMsg((data.duplicated ? '이미 등록되어 있습니다.' : '등록이 완료되었습니다!') +
-      ' 추첨이 끝나면 이메일로 알려드릴게요.<br>' +
-      '<a href="watch_result.html?entry=' + id + '" style="text-decoration:underline;">등록 내용 보기</a>', 'ok');
+  btn.disabled = true;
+
+  var okList = [], failList = [];
+  for (var i = 0; i < games.length; i++) {
+    var code = games[i];
+    if (state.done[code]) { okList.push({ code: code, id: state.done[code] }); continue; }
+    btn.textContent = '등록하는 중… (' + (i+1) + '/' + games.length + ')';
+    try {
+      var r = await registerOne(code);
+      if (r.ok) {
+        var id = r.data.entry && r.data.entry.id;
+        state.done[code] = id;
+        okList.push({ code: code, id: id });
+      } else if (r.status === 402) {
+        failList.push({ code: code, msg: '포인트 부족 (' + r.data.shortfall + 'P)' });
+      } else if (r.status === 401) {
+        failList.push({ code: code, msg: '로그인이 풀렸습니다' });
+      } else {
+        failList.push({ code: code, msg: (r.data && r.data.error) || '등록 실패' });
+      }
+    } catch (e) {
+      console.error('[watch] 등록 오류', code, e);
+      failList.push({ code: code, msg: '연결 문제' });
+    }
+  }
+
+  var html = '';
+  if (okList.length) {
+    html += '<b>' + okList.map(function(o){ return GAMES[o.code].nameKr; }).join(' · ') +
+      '</b> 등록이 완료되었습니다! 추첨이 끝나면 이메일로 알려드릴게요.<br>' +
+      okList.map(function(o){
+        return '<a href="watch_result.html?entry=' + o.id + '" style="text-decoration:underline;">' +
+          GAMES[o.code].nameKr + ' 등록 내용 보기</a>';
+      }).join(' · ');
+  }
+  if (failList.length) {
+    html += (okList.length ? '<br><br>' : '') +
+      failList.map(function(f){ return '<b>' + GAMES[f.code].nameKr + '</b> — ' + esc(f.msg); }).join('<br>') +
+      '<br>위 종목은 등록되지 않았습니다. 다시 [등록하기]를 눌러주세요. ' +
+      '이미 등록된 종목은 두 번 차감되지 않습니다.';
+  }
+  showMsg(html, failList.length ? 'err' : 'ok');
+
+  if (failList.length) {
+    // 실패한 것만 남기고 다시 누르실 수 있게 합니다.
+    btn.disabled = false;
+    renderPay();
+  } else {
     btn.textContent = '등록 완료';
     document.getElementById('main').querySelectorAll('button').forEach(function(b){ b.disabled = true; });
-  } catch (e) {
-    console.error('[watch] 등록 오류', e);
-    showMsg('등록 중 문제가 생겼습니다. 잠시 후 다시 시도해주세요.');
-    btn.disabled = false; renderPay();
   }
 }
 
@@ -478,8 +570,10 @@ async function init(){
     if (r2.ok) state.balance = await r2.json();
   } catch (e) { console.warn('[watch] 잔액 조회 실패', e); }
 
+  // ⚠ 값은 "알림 한 번"에 매겨집니다. 한 회차가 아니라 한 발송입니다.
+  //   종목이 둘이면 두 번 나가고 두 번 차감됩니다.
   var c = state.costs[COST_KEYS.KR];
-  if (c != null) document.getElementById('costBadge').textContent = '한 회차 등록 ' + c + 'P · 최대 50줄';
+  if (c != null) document.getElementById('costBadge').textContent = '알림 1회당 ' + c + 'P · 종목당 최대 50줄';
 
   document.getElementById('main').style.display = 'block';
   renderTabs(); renderGrid(); renderLines(); renderPay(); loadTarget();
