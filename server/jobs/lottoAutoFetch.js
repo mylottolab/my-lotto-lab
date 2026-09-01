@@ -20,6 +20,7 @@ const { gradeRound: gradeMockRound } = require('./mockAutoGrade');
 const { gradeRound: gradeBattleRound } = require('./battlesAutoGrade');
 const { gradeRound: gradeTournamentRound } = require('./tournamentAutoGrade');
 const { gradeRound: gradeMocktestRound } = require('./mocktestAutoGrade');
+const { gradeRound: gradeWatchRound } = require('./watchAutoGrade'); // 2026-09-01 당첨결과 알림
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -255,6 +256,17 @@ async function runPostSaveChain(round) {
   } catch (e) {
     console.error('[lottoAutoFetch] 모의테스트 자동채점 오류:', e.message);
     results.mocktest = { error: e.message };
+  }
+
+  // 2026-09-01 신설: 당첨결과 알림 서비스 (돈을 받고 알려드리기로 한 건)
+  // ⚠ 여기서는 채점만 하고 발송목록에 쌓기까지 합니다. 실제 발송은
+  //   POST /api/watch/send 를 따로 불러야 나갑니다(통수가 많아 나눴습니다).
+  try {
+    results.watch = await gradeWatchRound(round);
+    console.log('[lottoAutoFetch] 당첨알림 자동채점 결과:', results.watch);
+  } catch (e) {
+    console.error('[lottoAutoFetch] 당첨알림 자동채점 오류:', e.message);
+    results.watch = { error: e.message };
   }
 
   return results;
