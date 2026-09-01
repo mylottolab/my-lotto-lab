@@ -303,6 +303,13 @@ app.listen(PORT, () => {
 // ─── 한국로또 당첨결과 자동수집 스케줄러 (매주 토요일 20:45~23:00 KST) ─────────────
 require('./jobs/lottoAutoFetch').startScheduler();
 
+// ─── 당첨알림 자동 발송 스케줄러 (2분마다 · 채점 후 5분 지난 것만) ─────────────
+// 🔴 이것이 없으면 채점은 되는데 메일이 안 나갑니다.
+//   5분 유예는 watch_deliveries.send_after 가 지킵니다 —
+//   그 사이에 관리자가 당첨번호 오타를 고치면 발송 시각이 다시 밀립니다.
+//   ⚠ 이메일은 회수가 불가능합니다. 그 5분이 마지막 안전장치입니다.
+require('./jobs/watchAutoSend').startScheduler();
+
 // ─── 해외복권 관리자 수동입력 (비상 안전장치) ─────────────────────────────
 const globalAdminRouter = require('./routes/global_admin');
 app.use('/api/admin/global', globalAdminRouter);
