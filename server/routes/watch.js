@@ -324,10 +324,19 @@ router.get('/prefs', async (req, res) => {
       .eq('user_id', userId).maybeSingle();
 
     // 설정한 적이 없으면 기본값을 내려줍니다 (화면이 분기를 안 하도록)
-    return res.json(data || {
+    const prefs = data || {
       email: null, email_verified: false, email_enabled: true,
       push_enabled: false, fcm_enabled: false, notify_on_lose: true, lang: 'ko',
-    });
+    };
+
+    // 🔴 2026-09-02 추가: "지금 실제로 어디로 보내는가"를 함께 내려줍니다.
+    //   화면은 회원의 가입 주소를 모릅니다(토큰만 갖고 있습니다).
+    //   화면이 짐작해서 "가입하신 주소"라고만 쓰면, 손님은 알림이 어디로
+    //   오는지 끝내 확인하지 못합니다. 판단은 서버가 하고 화면은 받아 적습니다.
+    //   ⚠ resolveEmail()과 같은 규칙이어야 합니다. 둘이 갈리면 화면이 거짓말을 합니다.
+    const effectiveEmail = await resolveEmail(userId);
+
+    return res.json(Object.assign({}, prefs, { effective_email: effectiveEmail }));
   } catch (err) {
     console.error('[watch] prefs 조회 오류:', err);
     return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
@@ -375,7 +384,13 @@ router.post('/prefs', async (req, res) => {
       console.error('[watch] prefs 저장 오류:', error);
       return res.status(500).json({ error: '저장 중 오류가 발생했습니다.' });
     }
-    return res.json({ message: '저장되었습니다.', prefs: data });
+    // ⚠ 저장 직후에도 "지금 어디로 보내는가"를 다시 계산해서 돌려줍니다.
+    //   화면이 예전 값을 그대로 두면 손님이 바뀐 줄 알고 넘어갑니다.
+    const effectiveEmail = await resolveEmail(userId);
+    return res.json({
+      message: '저장되었습니다.',
+      prefs: Object.assign({}, data, { effective_email: effectiveEmail }),
+    });
   } catch (err) {
     console.error('[watch] prefs 저장 오류:', err);
     return res.status(500).json({ error: '저장 중 오류가 발생했습니다.' });
@@ -528,26 +543,29 @@ async function refund(entry) {
 }
 
 // POST /api/watch/send   (관리자)
-router.post('/send', requireAdmin, async (req, res) => {
-  try {
-    const limit = Math.min(Number(req.body.limit) || BATCH_SIZE, 100);
+// 🔴 발송 본체를 함수로 뺐습니다.
+//   관리자가 손으로 부를 때(POST /send)와 스케줄러가 부를 때가 같은 코드를
+//   써야 합니다. 두 벌이 되면 한쪽만 고쳐져 언젠가 어긋납니다.
+async function sendQueued(limit) {
+  limit = Math.min(Number(limit) || BATCH_SIZE, 100);
 
-    const { data: jobs, error: jobErr } = await supabase
-      .from('watch_deliveries')
-      .select('id, entry_id, user_id, tier_class, lang, attempts')
-      .eq('channel', 'email')
-      .in('status', ['queued', 'failed'])
-      .lt('attempts', MAX_ATTEMPTS)
-      .order('created_at', { ascending: true })
-      .limit(limit);
+  // 🔴 send_after가 지난 것만 가져옵니다.
+  //   채점 직후 5분은 관리자가 당첨번호 오타를 잡을 시간입니다.
+  //   그 안에 결과를 고치면 다시 채점되면서 이 시각도 다시 밀립니다.
+  const { data: jobs, error: jobErr } = await supabase
+    .from('watch_deliveries')
+    .select('id, entry_id, user_id, tier_class, lang, attempts')
+    .eq('channel', 'email')
+    .in('status', ['queued', 'failed'])
+    .lt('attempts', MAX_ATTEMPTS)
+    .lte('send_after', new Date().toISOString())
+    .order('send_after', { ascending: true })
+    .limit(limit);
 
-    if (jobErr) {
-      console.error('[watch] 발송목록 조회 오류:', jobErr);
-      return res.status(500).json({ error: 'DB 오류' });
-    }
-    if (!jobs || !jobs.length) {
-      return res.json({ success: true, sent: 0, failed: 0, refunded: 0, remaining: 0, note: '보낼 것이 없습니다.' });
-    }
+  if (jobErr) throw new Error('발송목록 조회 오류: ' + jobErr.message);
+  if (!jobs || !jobs.length) {
+    return { success: true, sent: 0, failed: 0, refunded: 0, remaining: 0, note: '보낼 것이 없습니다.' };
+  }
 
     let sent = 0, failed = 0, refunded = 0;
 
@@ -602,12 +620,21 @@ router.post('/send', requireAdmin, async (req, res) => {
       }
     }
 
-    const { count } = await supabase
-      .from('watch_deliveries').select('id', { count: 'exact', head: true })
-      .eq('channel', 'email').in('status', ['queued', 'failed']).lt('attempts', MAX_ATTEMPTS);
+  // ⚠ 남은 건수는 "지금 보낼 수 있는 것"만 셉니다.
+  //   5분을 기다리는 중인 줄까지 세면 스케줄러가 계속 다시 부릅니다.
+  const { count } = await supabase
+    .from('watch_deliveries').select('id', { count: 'exact', head: true })
+    .eq('channel', 'email').in('status', ['queued', 'failed'])
+    .lt('attempts', MAX_ATTEMPTS).lte('send_after', new Date().toISOString());
 
-    console.log(`[watch] 발송 ${sent}건, 실패 ${failed}건, 반환 ${refunded}건, 남음 ${count || 0}건`);
-    return res.json({ success: true, sent, failed, refunded, remaining: count || 0 });
+  console.log(`[watch] 발송 ${sent}건, 실패 ${failed}건, 반환 ${refunded}건, 남음 ${count || 0}건`);
+  return { success: true, sent, failed, refunded, remaining: count || 0 };
+}
+
+// POST /api/watch/send   (관리자가 손으로 부를 때)
+router.post('/send', requireAdmin, async (req, res) => {
+  try {
+    return res.json(await sendQueued(req.body.limit));
   } catch (err) {
     console.error('[watch] send 오류:', err);
     return res.status(500).json({ error: '발송 중 오류가 발생했습니다.' });
@@ -644,3 +671,6 @@ router.get('/queue', requireAdmin, async (req, res) => {
 });
 
 module.exports = router;
+// 2026-09-02: jobs/watchAutoSend.js(스케줄러)가 씁니다.
+// ⚠ 관리자 단추와 같은 코드를 씁니다. 두 벌이 되면 언젠가 어긋납니다.
+module.exports.sendQueued = sendQueued;
