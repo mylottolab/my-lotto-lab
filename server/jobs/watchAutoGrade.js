@@ -69,8 +69,15 @@ function classify(gameCode, results) {
 //   나눈 이유: 낙첨자에게도 보내므로 통수가 많아, 한 번에 다 보내면
 //   실행시간 한계를 넘습니다.
 //
+// 🔴 2026-09-02: 채점 후 5분이 지나야 보낼 수 있게 표시합니다.
+//   당첨번호를 손으로 넣다가 오타가 나는 일이 실제로 있고, 이메일은
+//   회수가 불가능합니다. 잘못된 번호로 "축하합니다"를 보내면 끝입니다.
+//   그 5분 안에 관리자가 결과를 고치면, 다시 채점되면서 이 값도 다시 밀립니다.
+//
 // ⚠ unique (entry_id, channel) 덕분에 여러 번 불려도 한 줄만 쌓입니다.
 //   당첨결과를 두 경로로 저장하시는 경우(예: 관리자 입력 + 자동수집)의 안전장치입니다.
+const SEND_DELAY_MS = 5 * 60 * 1000;
+
 async function queueDelivery(entry, cls) {
   const { data: pref } = await supabase
     .from('watch_notify_prefs')
@@ -94,6 +101,8 @@ async function queueDelivery(entry, cls) {
     note = '낙첨 통보 꺼짐';
   }
 
+  const sendAfter = new Date(Date.now() + SEND_DELAY_MS).toISOString();
+
   const { error } = await supabase.from('watch_deliveries').upsert({
     entry_id: entry.id,
     user_id: entry.user_id,
@@ -102,9 +111,22 @@ async function queueDelivery(entry, cls) {
     lang: (pref && pref.lang) || entry.lang || 'ko',
     status,
     last_error: note,
+    send_after: sendAfter,
   }, { onConflict: 'entry_id,channel', ignoreDuplicates: true });
 
   if (error) console.error('[watchAutoGrade] 발송목록 저장 오류:', error.message);
+
+  // 🔴 이미 쌓여 있던 줄은 위 upsert가 건드리지 않습니다(ignoreDuplicates).
+  //   그런데 관리자가 당첨번호를 고쳐 다시 채점하는 경우가 바로 이 5분의 목적입니다.
+  //   아직 안 보낸 줄이라면 등급과 발송 시각을 다시 맞추고 5분을 새로 줍니다.
+  //   ⚠ 이미 보낸(sent) 줄은 손대지 않습니다. 나간 메일은 되돌릴 수 없으니
+  //     그 사실을 기록에서 지우면 안 됩니다.
+  const { error: reErr } = await supabase.from('watch_deliveries')
+    .update({ tier_class: cls.tierClass, status, last_error: note, send_after: sendAfter })
+    .eq('entry_id', entry.id).eq('channel', 'email')
+    .in('status', ['queued', 'skipped']);
+
+  if (reErr) console.error('[watchAutoGrade] 발송목록 갱신 오류:', reErr.message);
 }
 
 // ─── 등록 건들을 채점 ────────────────────────────────────────────────────────
