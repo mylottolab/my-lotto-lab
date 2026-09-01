@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lotto Lab - 당첨알림 결과</title>
+<!--
+  =====================================================
+  My Lotto Lab — 당첨결과 알림 · 결과 확인 (watch_result.html)
+  2026-09-01 신설
+
+  🔴 이 화면은 이메일의 [줄별로 확인하기] 단추가 도착하는 곳입니다.
+     routes/watch.js 가 만드는 링크와 파일 이름이 맞아야 합니다:
+       ${SITE_BASE}/watch_result.html?entry=123
+     이름을 바꾸시면 watch.js의 buildEmail() 안 link 한 줄도 함께 고치세요.
+
+  ⚠ 손님이 알림을 못 받았거나 지웠어도 여기서 다시 볼 수 있어야 합니다.
+    그것이 "확인해드렸다"를 파는 이 서비스의 마지막 안전망입니다.
+
+  ⚠ 로그인 상태는 common.js의 MLL.getAuthState()를 그대로 씁니다.
+    회원은 Authorization 헤더, 비회원은 nickname+email 질의값입니다.
+    서버(watch.js)의 resolveUserId가 두 가지를 다 받습니다.
+  =====================================================
+-->
+<style>
+:root{
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35;
+  --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080;
+  --gold:#e0b341; --gold-dim:#8a6f2f;
+  --green:#3fb37f; --red:#d4537e; --blue:#5b9bd5;
+  --game-accent:#8a6fe8;
+}
+*{box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,sans-serif;font-size:14px;letter-spacing:-0.01em;min-height:100vh;margin:0;}
+.font-num{font-variant-numeric:tabular-nums;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;}
+
+.topbar{border-bottom:1px solid var(--border-soft);}
+.topbar-inner{max-width:640px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;gap:11px;}
+.brand-mark{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 32% 28%, #c3b2ff, var(--game-accent) 60%, #4a3a99);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;}
+.brand-name{font-size:14px;font-weight:700;}
+.brand-sub{font-size:10px;color:var(--text-faint);}
+
+.wrap{max-width:640px;margin:0 auto;padding:24px;}
+h1{font-size:19px;font-weight:700;margin:0 0 6px;}
+.desc{font-size:12.5px;color:var(--text-dim);margin-bottom:20px;line-height:1.6;}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:20px;margin-bottom:16px;}
+.btn{border-radius:9px;padding:11px 18px;font-size:13.5px;font-weight:700;border:1px solid var(--border);background:var(--surface-2);color:var(--text);}
+.btn-accent{background:var(--game-accent);color:#fff;border:none;}
+.btn:hover{filter:brightness(1.12);}
+.empty-state{text-align:center;padding:24px 16px;color:var(--text-faint);font-size:12.5px;line-height:1.7;}
+
+/* ── 머리 요약 ── */
+.verdict{border-radius:14px;padding:22px 20px;margin-bottom:16px;text-align:center;}
+.verdict.jackpot{background:rgba(224,179,65,.10);border:1px solid var(--gold);}
+.verdict.small{background:rgba(63,179,127,.08);border:1px solid var(--green);}
+.verdict.none{background:var(--surface-2);border:1px solid var(--border-soft);}
+.verdict.pending{background:var(--surface-2);border:1px dashed var(--border);}
+.verdict-head{font-size:20px;font-weight:800;margin-bottom:6px;}
+.verdict.jackpot .verdict-head{color:var(--gold);}
+.verdict.small .verdict-head{color:var(--green);}
+.verdict.none .verdict-head,.verdict.pending .verdict-head{color:var(--text-dim);}
+.verdict-sub{font-size:12.5px;color:var(--text-dim);line-height:1.6;}
+
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;color:var(--text-faint);margin-bottom:16px;padding:0 2px;}
+.meta-row b{color:var(--text-dim);font-weight:700;}
+
+/* ── 당첨번호 ── */
+.draw-box{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:11px;padding:14px;margin-bottom:16px;}
+.draw-label{font-size:11px;color:var(--text-faint);margin-bottom:8px;font-weight:700;}
+.balls{display:flex;flex-wrap:wrap;align-items:center;gap:3px;}
+
+/* ── 줄별 ── */
+.line-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border-soft);flex-wrap:wrap;}
+.line-row:last-child{border-bottom:none;}
+.line-no{font-size:11px;color:var(--text-faint);width:26px;flex-shrink:0;}
+.line-balls{flex:1;min-width:150px;}
+.line-grade{font-size:12px;font-weight:800;flex-shrink:0;padding:3px 9px;border-radius:20px;}
+.line-grade.win{background:rgba(63,179,127,.14);color:var(--green);}
+.line-grade.top{background:rgba(224,179,65,.16);color:var(--gold);}
+.line-grade.lose{background:var(--surface-2);color:var(--text-faint);}
+
+/* ⚠ 맞은 번호를 굵게 표시합니다. 손님이 제일 먼저 눈으로 세어보는 부분입니다. */
+.bl{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;flex-shrink:0;margin:1px;font-variant-numeric:tabular-nums;}
+.bl.miss{background:var(--surface-2);color:var(--text-faint);border:1px solid var(--border-soft);}
+.bl.hit{box-shadow:0 0 0 2px var(--green);}
+.bl.hitb{box-shadow:0 0 0 2px var(--gold);}
+
+.note{font-size:11.5px;color:var(--text-faint);line-height:1.7;margin-top:4px;}
+@media (max-width:420px){
+  .wrap{padding:14px;}
+  .topbar-inner{padding:0 14px;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner" onclick="location.href='main_page.html'" style="cursor:pointer;">
+    <div class="brand-mark">🔔</div>
+    <div>
+      <div class="brand-name">My Lotto Lab</div>
+      <div class="brand-sub">당첨결과 알림 · 결과 확인</div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <h1>🔔 당첨알림 결과</h1>
+  <div class="desc">등록하신 번호를 추첨결과와 하나씩 대조해드렸습니다.</div>
+  <div id="body"><div class="empty-state">불러오는 중…</div></div>
+</div>
+
+<script src="common.js"></script>
+<script>
+// ─── 종목 이름 ────────────────────────────────────────────────────────────
+// ⚠ 회차를 쓰는 종목과 추첨일로 부르는 종목이 갈립니다.
+//   해외 손님은 회차 번호를 아예 모릅니다. watch.js의 drawLabel과 같은 기준입니다.
+var GAME_META = {
+  KR:           { name: '한국 로또 6/45', useRound: true  },
+  POWERBALL:    { name: '미국 파워볼',     useRound: false },
+  MEGAMILLIONS: { name: '메가밀리언스',    useRound: false },
+  EUROMILLIONS: { name: '유로밀리언스',    useRound: false }
+};
+
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+function drawLabel(gameCode, round, drawDate){
+  var meta = GAME_META[gameCode] || { name: gameCode, useRound: false };
+  if (meta.useRound && round) return meta.name + ' ' + round + '회차';
+  if (drawDate) {
+    var d = new Date(String(drawDate).slice(0,10) + 'T00:00:00Z');
+    if (!isNaN(d.getTime())) {
+      return meta.name + ' ' + d.toLocaleDateString('ko-KR',
+        { timeZone:'UTC', year:'numeric', month:'long', day:'numeric' });
+    }
+  }
+  return meta.name;
+}
+
+// ─── 공 하나 ──────────────────────────────────────────────────────────────
+// hit: 당첨번호와 맞은 것 / bonusHit: 보너스와 맞은 것
+function ball(n, hit, bonusHit){
+  var cls = 'bl ' + (hit ? 'hit' : bonusHit ? 'hitb' : 'miss');
+  var style = '';
+  if (hit || bonusHit) {
+    // MLL.BC/TC는 한국로또 번호대 색입니다. 해외 번호(최대 70)도 같은 규칙으로 칠합니다.
+    style = 'background:' + MLL.BC(n) + ';color:' + MLL.TC(n) + ';';
+  }
+  return '<span class="' + cls + '" style="' + style + '">' + n + '</span>';
+}
+
+// ─── 한 줄 그리기 ─────────────────────────────────────────────────────────
+// per_line은 mocktestEngine의 반환값 그대로입니다.
+//   KR    { idx, main, grade, prize }
+//   해외   { idx, main, bonus, tier, mainMatch, bonusMatch }
+function renderLine(gameCode, r, i, draw){
+  var isKR = gameCode === 'KR';
+  var win = isKR ? r.grade : r.tier;
+
+  var mainSet = {}, bonusSet = {};
+  if (isKR) {
+    (draw.nums || []).forEach(function(n){ mainSet[n] = 1; });
+    if (draw.bonus != null) bonusSet[draw.bonus] = 1;
+  } else {
+    (draw.main_numbers || []).forEach(function(n){ mainSet[n] = 1; });
+    (draw.bonus_numbers || []).forEach(function(n){ bonusSet[n] = 1; });
+  }
+
+  var html = (r.main || []).map(function(n){ return ball(n, !!mainSet[n], false); }).join('');
+  if (!isKR && r.bonus && r.bonus.length) {
+    html += '<span style="color:var(--text-faint);margin:0 4px;">+</span>';
+    html += r.bonus.map(function(n){ return ball(n, false, !!bonusSet[n]); }).join('');
+  }
+
+  // ⚠ 등수 폭이 종목마다 다릅니다(KR 1~5, 파워볼 1~9, 유로밀리언스 1~13).
+  //   "몇 등이면 큰 당첨"을 숫자로 못 박지 않고, 서버가 정한 tier_class를 따릅니다.
+  var badge;
+  if (!win) badge = '<span class="line-grade lose">낙첨</span>';
+  else badge = '<span class="line-grade ' + (win <= 3 ? 'top' : 'win') + '">' + win + '등</span>';
+
+  return '<div class="line-row">' +
+    '<div class="line-no font-num">' + (i + 1) + '</div>' +
+    '<div class="line-balls balls">' + html + '</div>' +
+    badge +
+  '</div>';
+}
+
+// ─── 머리 요약 ────────────────────────────────────────────────────────────
+function renderVerdict(entry, result){
+  var label = drawLabel(entry.game_code, entry.round, entry.draw_date);
+
+  if (!result) {
+    // 추첨 전이거나 아직 채점되지 않은 상태입니다.
+    return '<div class="verdict pending">' +
+      '<div class="verdict-head">추첨을 기다리는 중</div>' +
+      '<div class="verdict-sub">' + esc(label) + '<br>' +
+      '결과가 나오면 등록하신 번호를 대조해서 알려드릴게요.</div></div>';
+  }
+
+  var t = result.tier_class;
+  var head = t === 'jackpot' ? '🎉 축하합니다!' : t === 'small' ? '당첨되셨습니다' : '결과를 확인해드렸습니다';
+  var sub;
+  if (t === 'none') {
+    sub = esc(label) + '<br>등록하신 ' + entry.line_count + '줄을 모두 확인해드렸습니다. 이번엔 아쉽네요.';
+  } else {
+    sub = esc(label) + '<br><b style="color:var(--text);">' + result.best_grade + '등</b> · ' +
+      entry.line_count + '줄 중 ' + result.win_count + '줄이 맞았습니다.';
+  }
+  return '<div class="verdict ' + t + '"><div class="verdict-head">' + head + '</div>' +
+    '<div class="verdict-sub">' + sub + '</div></div>';
+}
+
+// ─── 그리기 ───────────────────────────────────────────────────────────────
+function render(entry, result, draw){
+  var html = renderVerdict(entry, result);
+
+  html += '<div class="meta-row">' +
+    '<div><b>등록일</b> ' + new Date(entry.created_at).toLocaleDateString('ko-KR') + '</div>' +
+    '<div><b>줄 수</b> ' + entry.line_count + '줄</div>' +
+    '<div><b>사용 포인트</b> ' + (entry.points_charged || 0) + 'P</div>' +
+  '</div>';
+
+  if (draw) {
+    var dhtml, isKR = entry.game_code === 'KR';
+    if (isKR) {
+      dhtml = MLL.renderBalls(draw.nums || [], []) +
+        '<span style="color:var(--text-faint);margin:0 5px;">+</span>' +
+        MLL.renderBalls([draw.bonus], [draw.bonus]);
+    } else {
+      dhtml = MLL.renderBalls(draw.main_numbers || [], []);
+      if (draw.bonus_numbers && draw.bonus_numbers.length) {
+        dhtml += '<span style="color:var(--text-faint);margin:0 5px;">+</span>' +
+          MLL.renderBalls(draw.bonus_numbers, draw.bonus_numbers);
+      }
+    }
+    html += '<div class="draw-box"><div class="draw-label">당첨번호</div>' +
+      '<div class="balls">' + dhtml + '</div></div>';
+  }
+
+  if (result && result.per_line && result.per_line.length && draw) {
+    html += '<div class="card"><div class="draw-label" style="margin-bottom:10px;">등록하신 번호 ' +
+      entry.line_count + '줄</div>';
+    html += result.per_line.map(function(r, i){
+      return renderLine(entry.game_code, r, i, draw);
+    }).join('');
+    html += '<div class="note">동그라미가 칠해진 번호가 맞은 번호입니다. ' +
+      '당첨금은 회차마다 다르고 발표가 늦어질 수 있어 여기에는 적지 않습니다.</div></div>';
+  } else if (!result) {
+    // 추첨 전에도 등록하신 번호는 보여드립니다.
+    html += '<div class="card"><div class="draw-label" style="margin-bottom:10px;">등록하신 번호 ' +
+      entry.line_count + '줄</div>';
+    html += (entry.lines || []).map(function(c, i){
+      var b = (c.main || []).map(function(n){ return ball(n, false, false); }).join('');
+      if (c.bonus && c.bonus.length) {
+        b += '<span style="color:var(--text-faint);margin:0 4px;">+</span>' +
+          c.bonus.map(function(n){ return ball(n, false, false); }).join('');
+      }
+      return '<div class="line-row"><div class="line-no font-num">' + (i+1) + '</div>' +
+        '<div class="line-balls balls">' + b + '</div></div>';
+    }).join('');
+    html += '</div>';
+  }
+
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+    '<a class="btn" style="flex:1;text-align:center;min-width:130px;" href="watch_settings.html">알림 설정</a>' +
+    '<a class="btn btn-accent" style="flex:1;text-align:center;min-width:130px;" href="watch_register.html">새로 등록하기</a>' +
+  '</div>';
+
+  document.getElementById('body').innerHTML = html;
+}
+
+// ─── 불러오기 ─────────────────────────────────────────────────────────────
+async function load(){
+  var box = document.getElementById('body');
+  var entryId = new URLSearchParams(location.search).get('entry');
+
+  if (!entryId) {
+    box.innerHTML = '<div class="card"><div class="empty-state">' +
+      '어느 등록의 결과인지 알 수 없습니다.<br>' +
+      '이메일의 [줄별로 확인하기] 단추로 다시 들어와주세요.' +
+      '</div></div>';
+    return;
+  }
+
+  // ⚠ 로그인 규칙은 common.js와 같습니다.
+  //   회원은 Authorization 헤더, 비회원은 nickname+email 질의값.
+  var state = MLL.getAuthState();
+  if (!state.type) {
+    box.innerHTML = '<div class="card"><div class="empty-state">' +
+      '결과를 보시려면 로그인이 필요합니다.<br>' +
+      '다른 분이 남의 번호를 볼 수 없게 하기 위해서입니다.<br><br>' +
+      '<a class="btn btn-accent" style="display:inline-block;" href="main_page.html">로그인하러 가기</a>' +
+      '</div></div>';
+    return;
+  }
+
+  var url = MLL.API_BASE + '/api/watch/entries/' + encodeURIComponent(entryId);
+  var headers = { 'Content-Type': 'application/json' };
+  if (state.type === 'member') headers['Authorization'] = 'Bearer ' + state.token;
+  else url += '?nickname=' + encodeURIComponent(state.nickname) +
+              '&email=' + encodeURIComponent(state.email);
+
+  try {
+    var res = await fetch(url, { headers: headers });
+    var data = await res.json();
+
+    if (res.status === 401) {
+      // ⚠ 토큰은 한 시간쯤 지나면 만료됩니다. 그때 "없는 등록"으로 보이면 안 됩니다.
+      box.innerHTML = '<div class="card"><div class="empty-state">' +
+        '로그인이 풀렸습니다. 다시 로그인해주세요.<br><br>' +
+        '<a class="btn btn-accent" style="display:inline-block;" href="main_page.html">로그인하러 가기</a>' +
+        '</div></div>';
+      return;
+    }
+    if (!res.ok) {
+      box.innerHTML = '<div class="card"><div class="empty-state">' +
+        esc(data.error || '결과를 불러오지 못했습니다.') + '</div></div>';
+      return;
+    }
+
+    var entry = data.entry, result = data.result;
+
+    // 당첨번호는 별도로 가져옵니다.
+    // ⚠ 채점이 끝났는데 당첨번호를 못 가져오면 줄별 표시가 비어버립니다.
+    //   그래서 실패해도 머리 요약(등수)은 그대로 보이게 갈라뒀습니다.
+    var draw = null;
+    try {
+      if (entry.game_code === 'KR') {
+        // ⚠ 이 API는 배열이 아니라 회차를 열쇠로 하는 객체를 돌려줍니다.
+        //   { results: { "1239": { nums, bonus, ... } } }
+        //   ?round= 를 붙이면 그 회차만 옵니다. 5,000개를 다 받지 않게 반드시 붙입니다.
+        var r1 = await fetch(MLL.API_BASE + '/api/lotto/results?round=' + Number(entry.round));
+        var all = r1.ok ? await r1.json() : null;
+        draw = (all && all.results && all.results[entry.round]) || null;
+      } else {
+        var r2 = await fetch(MLL.API_BASE + '/api/global/latest-draw/' + entry.game_code);
+        var g = r2.ok ? await r2.json() : null;
+        if (g && String(g.draw_date).slice(0,10) === String(entry.draw_date).slice(0,10)) draw = g;
+      }
+    } catch (e) {
+      console.warn('[watch] 당첨번호 조회 실패 (결과 요약은 그대로 보여드립니다)', e);
+    }
+
+    render(entry, result, draw);
+  } catch (e) {
+    console.error('[watch] 결과 조회 오류', e);
+    box.innerHTML = '<div class="card"><div class="empty-state">' +
+      '결과를 불러오는 중 문제가 생겼습니다.<br>잠시 후 다시 열어주세요.</div></div>';
+  }
+}
+
+load();
+</script>
+</body>
+</html>
