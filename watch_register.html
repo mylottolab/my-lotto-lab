@@ -98,6 +98,9 @@ h1{font-size:19px;font-weight:700;margin:0 0 6px;}
 
 .notice{background:rgba(91,155,213,.08);border:1px solid rgba(91,155,213,.3);border-radius:11px;padding:13px 15px;font-size:11.5px;color:var(--text-dim);line-height:1.75;margin-bottom:16px;}
 .notice b{color:var(--text);}
+/* 2026-09-02: 안내문 안의 바로가기 — 글씨에 묻히지 않게 밑줄과 색을 줍니다 */
+.notice-link{color:var(--game-accent);font-weight:700;text-decoration:underline;}
+.notice-link:hover{filter:brightness(1.25);}
 /* 2026-09-02: 값에 관한 안내는 눈에 띄어야 합니다. 나중에 "몰랐다"가 나오면 안 됩니다. */
 .notice-charge{background:rgba(224,179,65,.08);border-color:rgba(224,179,65,.35);}
 .notice-charge b{color:var(--gold);}
@@ -175,7 +178,9 @@ h1{font-size:19px;font-weight:700;margin:0 0 6px;}
     <div class="notice">
       <b>알아두세요</b><br>
       · 등록은 <b>한 회차</b>에만 적용됩니다. 다음 회차는 다시 등록하셔야 합니다.<br>
-      · 결과가 나오면 <b>가입하신 이메일</b>로 보내드립니다. 다른 주소로 받으시려면 알림 설정에서 바꾸세요.<br>
+      · 결과가 나오면 <b>가입하신 이메일</b>로 보내드립니다.
+        다른 주소로 받으시려면 <a href="watch_settings.html" class="notice-link">알림 설정</a>에서
+        바꾸고 시험 알림으로 확인해주세요.<br>
       · 보내드리지 못한 경우 <b>포인트를 돌려드립니다.</b><br>
       · 당첨금은 회차마다 다르고 발표가 늦어질 수 있어 메일에는 적지 않습니다.
     </div>
