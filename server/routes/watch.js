@@ -320,12 +320,12 @@ router.get('/prefs', async (req, res) => {
 
     const { data } = await supabase
       .from('watch_notify_prefs')
-      .select('email, email_verified, email_enabled, push_enabled, fcm_enabled, notify_on_lose, lang')
+      .select('email, email_verified, verify_target_email, verify_sent_at, verify_send_count, verify_count_date, email_enabled, push_enabled, fcm_enabled, notify_on_lose, lang')
       .eq('user_id', userId).maybeSingle();
 
     // 설정한 적이 없으면 기본값을 내려줍니다 (화면이 분기를 안 하도록)
     const prefs = data || {
-      email: null, email_verified: false, email_enabled: true,
+      email: null, email_verified: false, verify_target_email: null, email_enabled: true,
       push_enabled: false, fcm_enabled: false, notify_on_lose: true, lang: 'ko',
     };
 
@@ -336,7 +336,23 @@ router.get('/prefs', async (req, res) => {
     //   ⚠ resolveEmail()과 같은 규칙이어야 합니다. 둘이 갈리면 화면이 거짓말을 합니다.
     const effectiveEmail = await resolveEmail(userId);
 
-    return res.json(Object.assign({}, prefs, { effective_email: effectiveEmail }));
+    // 🔴 시험 알림 상태도 함께 내려줍니다. 화면이 계산하면 서버와 어긋납니다.
+    //   canVerify  시험을 보낸 주소와 지금 주소가 같아야 [받았습니다]를 누를 수 있습니다
+    //   testUsedToday / testWaitSeconds  제한에 걸렸는지 미리 알려드립니다
+    const now = Date.now();
+    const today = new Date().toISOString().slice(0, 10);
+    const lastSent = prefs.verify_sent_at ? Date.parse(prefs.verify_sent_at) : 0;
+    const usedToday = (prefs.verify_count_date === today) ? (prefs.verify_send_count || 0) : 0;
+
+    return res.json(Object.assign({}, prefs, {
+      account_email: await accountEmail(userId),
+      effective_email: effectiveEmail,
+      can_verify: !!(prefs.verify_target_email && prefs.email &&
+                     prefs.verify_target_email === prefs.email && !prefs.email_verified),
+      test_used_today: usedToday,
+      test_max_per_day: MAX_TEST_PER_DAY,
+      test_wait_seconds: Math.max(0, Math.ceil((lastSent + MIN_GAP_SECONDS * 1000 - now) / 1000)),
+    }));
   } catch (err) {
     console.error('[watch] prefs 조회 오류:', err);
     return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
@@ -361,14 +377,30 @@ router.post('/prefs', async (req, res) => {
     //   여기서 body.email을 "받을 주소"로도 쓰면, 비회원이 주소를 바꾸는 순간
     //   그 값으로 본인을 찾으려 해서 401이 납니다.
     //   한 칸이 두 가지 뜻을 가지면 반드시 이런 일이 생깁니다.
+    //
+    // 🔴 확인은 "시험 알림"으로 합니다 (PaperLotto watch-prefs와 같은 방식).
+    //   주소는 email에 바로 담되 email_verified를 false로 되돌립니다.
+    //   확인 전까지는 watch-send의 resolveEmail()이 가입 주소를 씁니다.
+    //   ⚠ 주소가 바뀌면 verify_target_email도 함께 비웁니다.
+    //     안 비우면 a@로 시험을 받고 b@로 바꿔 확인할 수 있습니다.
     if (req.body.notify_email !== undefined) {
-      const next = (req.body.notify_email || '').trim() || null;
-      patch.email = next;
-      // 🔴 주소가 바뀌면 확인 상태를 반드시 되돌립니다.
-      //   안 그러면 오타 난 주소가 "확인됨"으로 남아 알림이 허공으로 갑니다.
-      if (!cur || cur.email !== next) {
+      const raw = (req.body.notify_email || '').trim();
+
+      if (raw === '') {
+        patch.email = null;
         patch.email_verified = false;
         patch.verify_token = null;
+        patch.verify_target_email = null;
+      } else {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(raw)) {
+          return res.status(400).json({ error: '이메일 주소 형식이 올바르지 않습니다.' });
+        }
+        if (!cur || cur.email !== raw) {
+          patch.email_verified = false;
+          patch.verify_token = null;
+          patch.verify_target_email = null;
+        }
+        patch.email = raw;
       }
     }
     if (req.body.email_enabled !== undefined) patch.email_enabled = !!req.body.email_enabled;
@@ -638,6 +670,185 @@ router.post('/send', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[watch] send 오류:', err);
     return res.status(500).json({ error: '발송 중 오류가 발생했습니다.' });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 주소 확인 — 시험 알림 방식
+//
+// 🔴 PaperLotto watch-prefs와 같은 방식입니다.
+//   두 사이트가 다른 방식으로 돌면 나중에 한쪽을 고칠 때 다른 쪽을 잊습니다.
+//
+// 🔴 확인 메일을 따로 보내지 않고 시험 알림으로 갈음합니다.
+//   손님이 하는 일은 같은데, 링크를 처리할 화면이 필요 없고
+//   "확인 메일은 왔는데 정작 알림은 스팸으로 가는" 경우까지 걸러냅니다.
+//
+// 🔴 확인 전에는 가입 주소로 계속 보냅니다.
+//   주소를 바꾸다 만 손님이 그 사이 추첨을 놓치면 안 됩니다.
+//   (실제 발송처를 고르는 곳은 위의 resolveEmail 입니다)
+//
+// 🔴 제한 — 하루 3번, 1분에 한 번.
+//   없으면 남의 주소를 넣고 반복해 눌러 스팸 발송기로 쓸 수 있습니다.
+// ═════════════════════════════════════════════════════════════════════════════
+const MAX_TEST_PER_DAY = 3;
+const MIN_GAP_SECONDS = 60;
+const VERIFY_VALID_HOURS = 24;   // 시험 알림을 보낸 뒤 이 시간 안에만 확인 가능
+
+// ⚠ 실제 당첨 알림과 헷갈리지 않게 "시험"임을 분명히 적습니다.
+function buildTestEmail(lang) {
+  const link = `${SITE_BASE}/watch_settings.html`;
+  const T = {
+    ko: {
+      subject: '[시험] My Lotto Lab 알림이 잘 도착했습니다',
+      h: '알림이 잘 도착했습니다',
+      p: '이 메일을 받으셨다면 당첨결과 알림도 같은 주소로 도착합니다.<br>설정 화면으로 돌아가 <b>“받았습니다”</b>를 눌러주세요.',
+      cta: '설정 화면으로',
+      foot: '이 메일은 손님께서 직접 요청하신 시험 알림입니다. 실제 추첨 결과와는 관계가 없습니다.',
+    },
+    en: {
+      subject: '[Test] Your My Lotto Lab notifications are working',
+      h: 'Your notifications are working',
+      p: 'If you received this, your result notifications will arrive at this address too.<br>Please go back and press <b>“I got it”</b>.',
+      cta: 'Back to settings',
+      foot: 'This is a test message you requested. It has nothing to do with an actual draw.',
+    },
+  }[lang];
+
+  return {
+    subject: T.subject,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:8px;">
+        <h2 style="margin:0 0 12px;">✅ ${T.h}</h2>
+        <p style="font-size:15px;line-height:1.7;margin:0 0 20px;">${T.p}</p>
+        <p style="margin:0 0 20px;">
+          <a href="${link}" style="display:inline-block;background:#1a7ad4;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700;">${T.cta}</a>
+        </p>
+        <p style="color:#aaa;font-size:11px;line-height:1.6;margin:0;">${T.foot}</p>
+      </div>
+    `,
+  };
+}
+
+// 가입 주소 (profiles)
+async function accountEmail(userId) {
+  const { data } = await supabase
+    .from('profiles').select('email').eq('id', userId).maybeSingle();
+  return (data && data.email) || null;
+}
+
+// POST /api/watch/prefs/test   — 시험 알림 보내기
+router.post('/prefs/test', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req);
+    if (!userId) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
+
+    const { data: pref } = await supabase
+      .from('watch_notify_prefs')
+      .select('email, lang, verify_sent_at, verify_send_count, verify_count_date')
+      .eq('user_id', userId).maybeSingle();
+
+    const to = (pref && pref.email) || await accountEmail(userId);
+    if (!to) return res.status(400).json({ error: '보낼 주소를 찾지 못했습니다.' });
+
+    const now = Date.now();
+    const today = new Date().toISOString().slice(0, 10);
+
+    // 1분에 한 번
+    const lastSent = pref && pref.verify_sent_at ? Date.parse(pref.verify_sent_at) : 0;
+    if (now - lastSent < MIN_GAP_SECONDS * 1000) {
+      return res.status(429).json({
+        error: '조금 전에 보내드렸습니다. 잠시 후 다시 시도해주세요.',
+        waitSeconds: Math.ceil((lastSent + MIN_GAP_SECONDS * 1000 - now) / 1000),
+      });
+    }
+
+    // 하루 3번
+    // ⚠ 날짜가 바뀌면 셈을 되돌립니다. 시각 하나로 계산하면 자정에 어긋납니다.
+    const usedToday = (pref && pref.verify_count_date === today) ? (pref.verify_send_count || 0) : 0;
+    if (usedToday >= MAX_TEST_PER_DAY) {
+      return res.status(429).json({
+        error: `시험 알림은 하루 ${MAX_TEST_PER_DAY}번까지 보내실 수 있습니다.`,
+      });
+    }
+
+    const lang = normLang((pref && pref.lang) || req.body.lang);
+    const { subject, html } = buildTestEmail(lang);
+    const r = await sendViaResend(to, subject, html);
+
+    // 🔴 보낸 기록은 성공·실패와 무관하게 남깁니다.
+    //   실패해도 횟수를 세지 않으면, 오타 난 주소를 넣고 반복해 눌러
+    //   발송을 계속 시도하게 만들 수 있습니다.
+    const { error: updErr } = await supabase.from('watch_notify_prefs').upsert({
+      user_id: userId,
+      verify_sent_at: new Date(now).toISOString(),
+      verify_send_count: usedToday + 1,
+      verify_count_date: today,
+      verify_token: require('crypto').randomUUID(),
+      verify_target_email: to,
+      updated_at: new Date(now).toISOString(),
+    }, { onConflict: 'user_id' });
+    if (updErr) console.error('[watch] 시험발송 기록 오류:', updErr.message);
+
+    if (!r.ok) {
+      // ⚠ "보냈습니다"라고 해놓고 안 오면 손님이 메일함만 하염없이 봅니다.
+      //   오타 난 주소는 대개 여기서 걸립니다.
+      console.error('[watch] 시험 알림 발송 실패:', to, r.error);
+      return res.status(502).json({ error: '시험 알림을 보내지 못했습니다. 주소를 다시 확인해주세요.' });
+    }
+
+    return res.json({
+      message: '시험 알림을 보냈습니다.',
+      sentTo: to,
+      remainingToday: MAX_TEST_PER_DAY - (usedToday + 1),
+    });
+  } catch (err) {
+    console.error('[watch] prefs/test 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
+// POST /api/watch/prefs/verify   — "받았습니다"
+router.post('/prefs/verify', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req);
+    if (!userId) return res.status(401).json({ error: '인증 정보가 필요합니다.' });
+
+    const { data: pref } = await supabase
+      .from('watch_notify_prefs')
+      .select('email, verify_target_email, verify_sent_at')
+      .eq('user_id', userId).maybeSingle();
+
+    if (!pref || !pref.email) {
+      return res.status(400).json({ error: '먼저 받을 주소를 저장해주세요.' });
+    }
+
+    // 🔴 시험을 보낸 그 주소여야 합니다.
+    //   이걸 안 보면 a@로 시험을 받고 b@로 바꿔치기할 수 있습니다.
+    if (pref.verify_target_email !== pref.email) {
+      return res.status(400).json({ error: '먼저 이 주소로 시험 알림을 받아주세요.' });
+    }
+
+    const sentAt = pref.verify_sent_at ? Date.parse(pref.verify_sent_at) : 0;
+    if (!sentAt || Date.now() - sentAt > VERIFY_VALID_HOURS * 3600 * 1000) {
+      return res.status(400).json({
+        error: `시험 알림을 보낸 지 ${VERIFY_VALID_HOURS}시간이 지났습니다. 다시 받아주세요.`,
+      });
+    }
+
+    const { error } = await supabase.from('watch_notify_prefs')
+      .update({ email_verified: true, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('[watch] 확인 처리 오류:', error);
+      return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+    }
+
+    console.log(`[watch] 주소 확인 완료 — ${pref.email}`);
+    return res.json({ message: '확인되었습니다.', effectiveEmail: pref.email });
+  } catch (err) {
+    console.error('[watch] prefs/verify 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
   }
 });
 
