@@ -347,8 +347,13 @@ router.post('/prefs', async (req, res) => {
 
     const patch = { user_id: userId, updated_at: new Date().toISOString() };
 
-    if (req.body.email !== undefined) {
-      const next = (req.body.email || '').trim() || null;
+    // 🔴 2026-09-02 수정: 항목 이름을 notify_email로 바꿨습니다.
+    //   resolveUserId()가 비회원을 찾을 때 req.body.email을 봅니다.
+    //   여기서 body.email을 "받을 주소"로도 쓰면, 비회원이 주소를 바꾸는 순간
+    //   그 값으로 본인을 찾으려 해서 401이 납니다.
+    //   한 칸이 두 가지 뜻을 가지면 반드시 이런 일이 생깁니다.
+    if (req.body.notify_email !== undefined) {
+      const next = (req.body.notify_email || '').trim() || null;
       patch.email = next;
       // 🔴 주소가 바뀌면 확인 상태를 반드시 되돌립니다.
       //   안 그러면 오타 난 주소가 "확인됨"으로 남아 알림이 허공으로 갑니다.
