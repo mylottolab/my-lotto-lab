@@ -594,11 +594,34 @@
         entryDomain: getEntryDomain()
       });
       var url = API + '/api/track/visit';
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
-      } else {
-        fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(function () {});
-      }
+
+      // 🔴 2026-09-02 수정: navigator.sendBeacon 을 걷어냈습니다.
+      //
+      //   sendBeacon 은 언제나 쿠키를 함께 보냅니다(credentials = include).
+      //   그런데 서버는 cors({ origin: '*' }) 로 "아무나 오세요"라고 밝힙니다.
+      //   브라우저는 이 둘을 함께 허용하지 않습니다 —
+      //   신분증(쿠키)을 내미는 요청에는 주소를 콕 집으라고 요구합니다.
+      //   그래서 방문 기록이 통째로 막혀 있었습니다:
+      //     "Access-Control-Allow-Origin header must not be the wildcard '*'
+      //      when the request's credentials mode is 'include'"
+      //
+      //   ⚠ 아래 fetch 대비책은 sendBeacon 이 없을 때만 돌았습니다.
+      //     요즘 브라우저에는 sendBeacon 이 다 있어서, 늘 막히는 쪽만 실행됐습니다.
+      //
+      //   방문 기록에는 쿠키가 필요 없습니다. visitorId 를 직접 만들어 싣고 있습니다.
+      //   필요 없는 신분증을 내밀다 막힌 것이라, 안 내밀면 그만입니다.
+      //
+      //   ⚠ sendBeacon 의 장점은 "페이지를 떠날 때도 보내진다"인데,
+      //     이 함수는 페이지가 열릴 때 부르므로 그 장점이 필요 없습니다.
+      //     keepalive:true 로 같은 보장을 얻습니다.
+      //   ⚠ credentials 를 적지 않으면 기본값이 'same-origin' 이라
+      //     다른 도메인인 서버에는 쿠키가 가지 않습니다. 이것이 요점입니다.
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true,
+      }).catch(function () { /* 트래킹 실패는 조용히 무시 */ });
     } catch (e) { /* 트래킹 실패는 조용히 무시 */ }
   }
 
