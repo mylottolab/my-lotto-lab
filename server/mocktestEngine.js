@@ -25,7 +25,11 @@ const GLOBAL_GAME_RULES = {
     ],
   },
   MEGAMILLIONS: {
-    nameKr: '메가밀리언스', mainCount: 5, mainMax: 70, bonusCount: 1, bonusMax: 25,
+    // 🔴 2026-09-02 수정: bonusMax 25 → 24
+    //   2025년 4월 8일 개편으로 메가볼이 25개에서 24개로 줄었습니다.
+    //   그동안 손님이 25를 골라도 받아줬는데, 그 번호는 영원히 나오지 않습니다.
+    //   1등 확률도 1/302,575,350 → 1/290,472,336 으로 바뀌었습니다.
+    nameKr: '메가밀리언스', mainCount: 5, mainMax: 70, bonusCount: 1, bonusMax: 24,
     grades: [
       { tier: 1, main: 5, bonus: 1 },
       { tier: 2, main: 5, bonus: 0 },
