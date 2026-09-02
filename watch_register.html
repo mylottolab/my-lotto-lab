@@ -210,7 +210,8 @@ h1{font-size:19px;font-weight:700;margin:0 0 6px;}
 var GAMES = {
   KR:           { nameKr:'한국로또',     flag:'kr', mainCount:6, mainMax:45, bonusCount:0, bonusMax:0  },
   POWERBALL:    { nameKr:'파워볼',       flag:'us', mainCount:5, mainMax:69, bonusCount:1, bonusMax:26 },
-  MEGAMILLIONS: { nameKr:'메가밀리언스', flag:'us', mainCount:5, mainMax:70, bonusCount:1, bonusMax:25 },
+  // 🔴 2026-09-02 수정: bonusMax 25 → 24 (2025년 4월 개편으로 메가볼이 24개로 줄었습니다)
+  MEGAMILLIONS: { nameKr:'메가밀리언스', flag:'us', mainCount:5, mainMax:70, bonusCount:1, bonusMax:24 },
   EUROMILLIONS: { nameKr:'유로밀리언스', flag:'eu', mainCount:5, mainMax:50, bonusCount:2, bonusMax:12 }
 };
 var GAME_ORDER = ['KR','POWERBALL','MEGAMILLIONS','EUROMILLIONS'];
