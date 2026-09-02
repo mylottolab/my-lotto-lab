@@ -98,6 +98,11 @@ h1{font-size:19px;font-weight:700;margin:0 0 6px;}
 
 .notice{background:rgba(91,155,213,.08);border:1px solid rgba(91,155,213,.3);border-radius:11px;padding:13px 15px;font-size:11.5px;color:var(--text-dim);line-height:1.75;margin-bottom:16px;}
 .notice b{color:var(--text);}
+/* 2026-09-02: 스팸함 안내 — 놓치면 돈 내고 알림을 못 받습니다.
+   ⚠ 새 도메인은 평판이 쌓이기 전까지 스팸으로 분류됩니다. 코드로 못 고칩니다.
+     손님이 [스팸 아님]을 눌러주는 것이 평판을 쌓는 가장 빠른 길입니다. */
+.notice-spam{background:rgba(63,179,127,.07);border-color:rgba(63,179,127,.35);}
+.notice-spam b{color:var(--green);}
 /* 2026-09-02: 안내문 안의 바로가기 — 글씨에 묻히지 않게 밑줄과 색을 줍니다 */
 .notice-link{color:var(--game-accent);font-weight:700;text-decoration:underline;}
 .notice-link:hover{filter:brightness(1.25);}
@@ -173,6 +178,15 @@ h1{font-size:19px;font-weight:700;margin:0 0 6px;}
       <b>⚠ 포인트 차감 방식</b><br>
       본 서비스 포인트차감은 발송횟수에 따라 1회당 100포인트씩 차감됩니다.
       따라서 발송일시가 다른 복권종류별로 함께 등록시 알림횟수에 따라 과금됨을 이해해 주시기 바랍니다.
+    </div>
+
+    <div class="notice notice-spam">
+      <b>📬 첫 알림은 스팸함으로 갈 수 있습니다</b><br>
+      보내는 주소가 아직 새 것이라 메일 서비스가 낯설어합니다.
+      받은편지함에 없으면 <b>스팸함</b>을 확인하시고 <b>[스팸 아님]</b>을 눌러주세요.
+      그러면 다음부터 제대로 도착합니다.<br>
+      <a href="watch_settings.html" class="notice-link">알림 설정</a>에서
+      <b>시험 알림</b>을 먼저 받아보시면 미리 확인하실 수 있습니다.
     </div>
 
     <div class="notice">

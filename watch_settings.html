@@ -96,6 +96,10 @@ h1{font-size:19px;font-weight:700;margin:0 0 6px;}
 .notice b{color:var(--text);}
 .notice-warn{background:rgba(224,179,65,.08);border-color:rgba(224,179,65,.35);}
 .notice-warn b{color:var(--gold);}
+/* 2026-09-02: 스팸함 안내 — 놓치면 돈 내고 알림을 못 받습니다.
+   ⚠ 새 도메인은 평판이 쌓이기 전까지 스팸으로 분류됩니다. 코드로 못 고칩니다. */
+.notice-spam{background:rgba(63,179,127,.07);border-color:rgba(63,179,127,.35);}
+.notice-spam b{color:var(--green);}
 .msg{font-size:12.5px;padding:11px 14px;border-radius:10px;margin-bottom:14px;line-height:1.6;display:none;}
 .msg.err{background:rgba(212,83,126,.1);border:1px solid var(--red);color:#f2a3bd;display:block;}
 .msg.ok{background:rgba(63,179,127,.1);border:1px solid var(--green);color:#8fe0bd;display:block;}
@@ -178,6 +182,15 @@ h1{font-size:19px;font-weight:700;margin:0 0 6px;}
           <button type="button" id="langEn" onclick="setLang('en')">English</button>
         </div>
       </div>
+    </div>
+
+    <div class="notice notice-spam">
+      <b>📬 첫 알림은 스팸함으로 갈 수 있습니다</b><br>
+      보내는 주소가 아직 새 것이라 메일 서비스가 낯설어합니다.
+      <b>시험 알림</b>을 먼저 받아보시고, 스팸함에 있으면 <b>[스팸 아님]</b>을 눌러주세요.
+      그러면 다음부터 제대로 도착합니다.<br>
+      <span style="color:var(--text-faint);">시험 알림이 스팸함으로 갔다면 당첨 알림도 같은 곳으로 갑니다.
+      미리 알아두시는 편이 좋습니다.</span>
     </div>
 
     <div class="notice">
@@ -372,8 +385,9 @@ async function sendTest(){
       showMsg(esc(data.error || '시험 알림을 보내지 못했습니다.'));
     } else {
       showMsg('<b>' + esc(data.sentTo) + '</b> 으로 시험 알림을 보냈습니다.<br>' +
-        '메일이 도착하면 <b>[받았습니다]</b>를 눌러주세요. ' +
-        '⚠ 스팸함도 확인해보세요 — 거기 있으면 당첨 알림도 스팸으로 갑니다.', 'ok');
+        '⚠ <b>받은편지함에 없으면 스팸함을 확인하세요.</b> 거기 있으면 [스팸 아님]을 눌러주세요 — ' +
+        '그러지 않으면 당첨 알림도 스팸함으로 갑니다.<br>' +
+        '메일을 찾으셨으면 <b>[받았습니다]</b>를 눌러주세요.', 'ok');
     }
   } catch (e) {
     console.error('[watch] 시험 알림 오류', e);
