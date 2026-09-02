@@ -703,6 +703,7 @@ function buildTestEmail(lang) {
       h: '알림이 잘 도착했습니다',
       p: '이 메일을 받으셨다면 당첨결과 알림도 같은 주소로 도착합니다.<br>설정 화면으로 돌아가 <b>“받았습니다”</b>를 눌러주세요.',
       cta: '설정 화면으로',
+      spam: '📬 이 메일이 <b>스팸함</b>에 있었다면 <b>[스팸 아님]</b>을 눌러주세요. 그러지 않으면 당첨 알림도 스팸함으로 갑니다.',
       foot: '이 메일은 손님께서 직접 요청하신 시험 알림입니다. 실제 추첨 결과와는 관계가 없습니다.',
     },
     en: {
@@ -710,6 +711,7 @@ function buildTestEmail(lang) {
       h: 'Your notifications are working',
       p: 'If you received this, your result notifications will arrive at this address too.<br>Please go back and press <b>“I got it”</b>.',
       cta: 'Back to settings',
+      spam: '📬 If you found this in your <b>spam folder</b>, please mark it as <b>“Not spam”</b>. Otherwise your result alerts will land there too.',
       foot: 'This is a test message you requested. It has nothing to do with an actual draw.',
     },
   }[lang];
@@ -723,6 +725,7 @@ function buildTestEmail(lang) {
         <p style="margin:0 0 20px;">
           <a href="${link}" style="display:inline-block;background:#1a7ad4;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700;">${T.cta}</a>
         </p>
+        <p style="background:#f2f8f4;border:1px solid #cfe6d9;border-radius:8px;padding:11px 13px;font-size:12.5px;line-height:1.65;color:#2c5a44;margin:0 0 14px;">${T.spam}</p>
         <p style="color:#aaa;font-size:11px;line-height:1.6;margin:0;">${T.foot}</p>
       </div>
     `,
