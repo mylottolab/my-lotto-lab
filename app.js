@@ -41,6 +41,9 @@ APP.STR = {
   live_as_of: { kr: '기준', en: 'as of' },
   live_local: { kr: '현지시각', en: 'Local Time' },
   live_kst: { kr: '한국시각', en: 'Korea Time (KST)' },
+  live_reg_close: { kr: '가상등록 마감 (추첨 {n}분 전)', en: 'Virtual entry closes ({n} min before draw)' },
+  live_reg_local: { kr: '현지', en: 'Local' },
+  live_reg_kst: { kr: '한국', en: 'KST' },
   live_reopen: { kr: '추첨 후 판매재개', en: 'Sales Resume After Draw' },
   live_approx: { kr: '근사값', en: 'approx.' },
   krw_equiv: { kr: '한화 상당', en: 'KRW equiv.' },
@@ -119,6 +122,13 @@ APP._pointsCache = { balance: 0 };
 APP._entriesCache = [];
 APP._jackpotCache = {}; // { POWERBALL: {...}, MEGAMILLIONS: {...}, EUROMILLIONS: {...} }
 APP._scheduleCache = {}; // { POWERBALL: {draw_date, registration_deadline_utc, ...}, ... }
+
+// ⚠ 2026-09-03: 서버가 주는 registration_deadline_utc 는 "가상등록 마감시각"이지 추첨시각이 아니다.
+//   실제 추첨은 그보다 15분 뒤(파워볼 22:59 ET / 메가밀리언스 23:00 ET / 유로밀리언스 21:00 CET).
+//   예전에는 이 마감시각을 그대로 "다음 추첨까지"로 띄워서 세 종목 모두 15분 일찍 표시됐다.
+//   → 화면에는 추첨시각을 띄우고, 마감시각은 그 아래에 따로 안내한다.
+//   서버 값과 이름은 그대로 두었다. 여기서만 15분을 더한다.
+APP.REG_CLOSE_BEFORE_DRAW_MIN = 15;
 APP._jackpotAnim = {}; // { POWERBALL: { value, ratePerMs }, ... }
 APP._JACKPOT_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // refreshJackpot 호출 주기와 반드시 일치시킬 것
 
@@ -329,8 +339,10 @@ APP.getSchedule = function(gameCode){
 APP.gameLiveStats = function(gameCode){
   var schedule = APP.getSchedule(gameCode);
   var deadlineMs = schedule ? new Date(schedule.registration_deadline_utc).getTime() : null;
+  // 추첨시각 = 가상등록 마감시각 + 15분 (위 REG_CLOSE_BEFORE_DRAW_MIN 주석 참고)
+  var drawMs = (deadlineMs === null) ? null : deadlineMs + APP.REG_CLOSE_BEFORE_DRAW_MIN * 60 * 1000;
   var jackpot = APP.getJackpot(gameCode);
-  return { deadlineMs: deadlineMs, jackpot: jackpot, schedule: schedule };
+  return { deadlineMs: deadlineMs, drawMs: drawMs, jackpot: jackpot, schedule: schedule };
 };
 
 APP.formatCountdown = function(ms){
@@ -372,7 +384,7 @@ APP.renderGameTabs = function(){
     return '<div class="game-tab' + (active ? ' active' : '') + '" style="--tab-accent:' + g.accent + ';" onclick="APP.selectGame(\'' + g.code + '\')">' +
       '<div class="gname"><span class="dot"></span>' + name + '<button class="help-btn" onclick="event.stopPropagation();APP.openHelp(\'' + g.code + '\')" title="?">?</button></div>' +
       '<div class="gsub">' + g.mainPickCount + '/' + g.mainPoolSize + ' + ' + g.subPickCount + '/' + g.subPoolSize + ' · ' + drawLabel + '</div>' +
-      '<div class="gtab-live"><span class="gtl-dot"></span><span class="font-num gtab-jackpot" data-live-jackpot="' + g.code + '">' + jpLabel + '</span> · <span class="font-num" data-live-cd="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</span></div>' +
+      '<div class="gtab-live"><span class="gtl-dot"></span><span class="font-num gtab-jackpot" data-live-jackpot="' + g.code + '">' + jpLabel + '</span> · <span class="font-num" data-live-cd="' + g.code + '">' + APP.formatCountdown(live.drawMs - Date.now()) + '</span></div>' +
       lastDrawHtml +
     '</div>';
   }).join('');
@@ -397,7 +409,10 @@ APP.renderInfoCard = function(){
     '<div class="info-item"><div class="k">' + APP.t('info_odds') + '</div><div class="v">' + g.jackpotOdds + '</div></div>' +
     '<div class="info-item"><div class="k">' + APP.t('info_next') + '</div><div class="v accent">' + nextDrawDisplay + '</div></div>';
 
-  var deadlineBi = live.deadlineMs ? GLOBAL.formatDeadlineBilingual(live.deadlineMs, g.cutoffTz, lang) : { local:'-', kst:'-' };
+  // 큰 시각 두 줄 = 추첨시각, 그 아래 작은 줄 = 가상등록 마감시각(추첨 15분 전)
+  var drawBi = live.drawMs ? GLOBAL.formatDeadlineBilingual(live.drawMs, g.cutoffTz, lang) : { local:'-', kst:'-' };
+  var regBi  = live.deadlineMs ? GLOBAL.formatDeadlineBilingual(live.deadlineMs, g.cutoffTz, lang) : { local:'-', kst:'-' };
+  var regCloseLabel = APP.t('live_reg_close').replace('{n}', APP.REG_CLOSE_BEFORE_DRAW_MIN);
   var animVal = APP._getAnimatedJackpotValue(g.code);
   var jpAmountLabel = animVal ? (APP.currencySymbol(g.code) + Math.round(animVal).toLocaleString()) : '-';
   var cashLine = jp.cash_value ? ('<div class="ls-sub">' + APP.t('live_cash_value') + ': ' + APP.currencySymbol(g.code) + Number(jp.cash_value).toLocaleString() + '</div>') : '';
@@ -412,9 +427,13 @@ APP.renderInfoCard = function(){
     '</div>' +
     '<div class="live-stat">' +
       '<div class="ls-label">' + APP.t('live_deadline') + '</div>' +
-      '<div class="ls-val cd font-num" data-live-cd-big="' + g.code + '">' + APP.formatCountdown(live.deadlineMs - Date.now()) + '</div>' +
-      '<div class="ls-sub">' + APP.t('live_local') + ': ' + deadlineBi.local + '</div>' +
-      '<div class="ls-sub">' + APP.t('live_kst') + ': ' + deadlineBi.kst + '</div>' +
+      '<div class="ls-val cd font-num" data-live-cd-big="' + g.code + '">' + APP.formatCountdown(live.drawMs - Date.now()) + '</div>' +
+      '<div class="ls-sub">' + APP.t('live_local') + ': ' + drawBi.local + '</div>' +
+      '<div class="ls-sub">' + APP.t('live_kst') + ': ' + drawBi.kst + '</div>' +
+      '<div class="ls-regclose">' +
+        '<div class="lrc-label">' + regCloseLabel + '</div>' +
+        '<div class="lrc-time font-num">' + APP.t('live_reg_local') + ' ' + regBi.local + ' · ' + APP.t('live_reg_kst') + ' ' + regBi.kst + '</div>' +
+      '</div>' +
     '</div>';
 };
 
@@ -425,7 +444,7 @@ APP.startLiveTicker = function(){
     APP._tickJackpotAnim();
     GLOBAL.gameList().forEach(function(g){
       var live = APP.gameLiveStats(g.code);
-      var cdStr = APP.formatCountdown(live.deadlineMs - Date.now());
+      var cdStr = APP.formatCountdown(live.drawMs - Date.now());
       document.querySelectorAll('[data-live-cd="' + g.code + '"]').forEach(function(el){ el.textContent = cdStr; });
       var bigCd = document.querySelector('[data-live-cd-big="' + g.code + '"]');
       if (bigCd) bigCd.textContent = cdStr;

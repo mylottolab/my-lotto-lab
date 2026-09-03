@@ -147,6 +147,10 @@ button{font-family:inherit;cursor:pointer;}
 .ls-unit{font-size:13px;font-weight:600;color:var(--text-dim);margin-left:6px;}
 .ls-sub{font-size:11.5px;color:var(--text-dim);margin-top:5px;}
 .ls-asof{font-size:10px;color:var(--text-faint);margin-top:8px;}
+/* 가상등록 마감 안내 (추첨시각보다 15분 이르다 — 큰 카운트다운과 헷갈리지 않도록 구분선을 둔다) */
+.ls-regclose{margin-top:11px;padding-top:9px;border-top:1px dashed var(--border-soft);}
+.ls-regclose .lrc-label{font-size:10.5px;color:var(--text-faint);margin-bottom:3px;}
+.ls-regclose .lrc-time{font-size:11.5px;color:var(--text-dim);font-variant-numeric:tabular-nums;}
 .live-stat-wide{flex:1.6;}
 .live-stat-wide .ls-val{font-size:24px;}
 .history-row{cursor:pointer;}
@@ -360,7 +364,7 @@ applyTheme();
 </script>
 <script src="common.js?v=20260629e"></script>
 <script src="engine.js?v=20260629e"></script>
-<script src="app.js?v=20260807a"></script>
+<script src="app.js?v=20260903a"></script>
 <script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
 </body>
 </html>
