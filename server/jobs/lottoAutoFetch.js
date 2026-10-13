@@ -21,6 +21,7 @@ const { gradeRound: gradeBattleRound } = require('./battlesAutoGrade');
 const { gradeRound: gradeTournamentRound } = require('./tournamentAutoGrade');
 const { gradeRound: gradeMocktestRound } = require('./mocktestAutoGrade');
 const { gradeRound: gradeWatchRound } = require('./watchAutoGrade'); // 2026-09-01 당첨결과 알림
+const { runPicks } = require('./picksAutoRun'); // 2026-10-13 다음 회차 추천번호
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -267,6 +268,17 @@ async function runPostSaveChain(round) {
   } catch (e) {
     console.error('[lottoAutoFetch] 당첨알림 자동채점 오류:', e.message);
     results.watch = { error: e.message };
+  }
+
+  // 2026-10-13 신설: 다음 회차 추천번호 — 방금 회차 채점 + 다음 회차 계산
+  // ⚠ 100전략 레이스(위 맨 처음 단계)가 다음 회차 번호를 만든 뒤라야
+  //   "레이스 상위 전략" 기준도 함께 채워지므로 반드시 맨 끝에 둡니다.
+  try {
+    results.picks = await runPicks();
+    console.log('[lottoAutoFetch] 다음 회차 추천번호 결과:', results.picks);
+  } catch (e) {
+    console.error('[lottoAutoFetch] 다음 회차 추천번호 오류:', e.message);
+    results.picks = { error: e.message };
   }
 
   return results;
