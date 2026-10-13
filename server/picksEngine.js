@@ -3,7 +3,7 @@
 //
 // 하는 일
 //   지난 당첨번호(history)를 보고, 아직 추첨하지 않은 회차(round)에 대해
-//   "여러 관점"으로 조합을 5개씩 골라 줍니다.
+//   "여러 관점"으로 조합을 10개씩 골라 줍니다(10개 기준 × 10 = 100조합).
 //
 // ⚠ 정직하게: 로또 추첨은 매번 완전히 무작위입니다. 어떤 기준도 당첨 확률을
 //   높이지 못합니다. 이 엔진은 "이런 관점으로 고르면 이런 번호가 나온다"를
@@ -20,10 +20,11 @@
 // =====================================================================
 
 const KR_LOTTO = { key: 'kr_lotto645', count: 6, max: 45 };
-const SETS_PER_CRITERION = 5;
+const SETS_PER_CRITERION = 10;
 
 // ── 기준 목록 — 화면에 이 순서대로 보입니다 ──────────────────────────────
 // free: true 인 기준은 입장권 없이 누구나 봅니다(무료 맛보기).
+// baseline: true 인 기준(완전 무작위)은 추천 화면에는 내놓지 않고, 성적표에서 비교 기준으로만 씁니다.
 const CRITERIA = [
   { key: 'balanced', free: true,
     name: { kr: '균형형', en: 'Balanced' },
@@ -47,7 +48,7 @@ const CRITERIA = [
             en: '2 numbers adjacent (±1) to the previous draw' } },
   { key: 'pairs',
     name: { kr: '함께 자주 나온 짝꿍수', en: 'Frequent pairs' },
-    desc: { kr: '최근 300회에서 같이 나온 횟수가 많은 두 번호를 한 쌍씩 넣은 조합',
+    desc: { kr: '최근 300회에서 같이 나온 횟수가 많은 두 번호 쌍(상위 10쌍)을 조합마다 하나씩 넣은 조합',
             en: 'Each set contains one of the most frequent number pairs of the last 300 draws' } },
   { key: 'zones',
     name: { kr: '구간 고르게', en: 'Spread across zones' },
@@ -65,7 +66,7 @@ const CRITERIA = [
     name: { kr: '100전략 레이스 상위 전략', en: 'Top Strategy Race picks' },
     desc: { kr: '100전략 레이스에서 지금까지 성적이 가장 좋은 전략들이 고른 다음 회차 번호',
             en: 'Next-draw numbers from the best-performing strategies in the 100 Strategy Race' } },
-  { key: 'random',
+  { key: 'random', baseline: true,
     name: { kr: '완전 무작위(비교용)', en: 'Pure random (baseline)' },
     desc: { kr: '아무 규칙 없이 고른 조합. 다른 기준과 성적을 비교해 보세요',
             en: 'No rules at all — compare the other criteria against this' } },
@@ -197,7 +198,7 @@ function generate(criterion, history, round, spec = KR_LOTTO) {
     case 'carry': {
       const rest = all.filter((x) => !last.includes(x));
       const combos = search(spec, rng, N,
-        (i) => { const k = i < 3 ? 1 : 2; return pick(last, k, rng).concat(pick(rest, spec.count - k, rng)); },
+        (i) => { const k = i < N / 2 ? 1 : 2; return pick(last, k, rng).concat(pick(rest, spec.count - k, rng)); },
         (c) => sane(c, prof));
       return { combos, info: { last } };
     }
