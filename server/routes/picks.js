@@ -88,6 +88,7 @@ router.get('/next', async (req, res) => {
     const price = await getPrice();
 
     const criteria = engine.CRITERIA
+      .filter((c) => !c.baseline)          // 완전 무작위는 성적표 비교용으로만
       .map((c) => {
         const row = (rows || []).find((r) => r.criterion === c.key);
         if (!row) return null;
@@ -102,7 +103,8 @@ router.get('/next', async (req, res) => {
       .filter(Boolean);
 
     const generatedAt = (rows || []).reduce((m, r) => (r.generated_at > m ? r.generated_at : m), '');
-    return res.json({ round, drawAt: drawDateOf(round), generatedAt, unlocked, loggedIn: !!userId, price, criteria });
+    const totalSets = criteria.reduce((a, c) => a + c.count, 0);
+    return res.json({ round, drawAt: drawDateOf(round), generatedAt, unlocked, loggedIn: !!userId, price, totalSets, criteria });
   } catch (e) {
     console.error('[picks] next 오류:', e);
     return res.status(500).json({ error: '추천번호를 불러오지 못했습니다.' });
