@@ -365,3 +365,7 @@ app.use('/api/files', filesRouter);
 //   global_admin). 이 라우터는 등록·조회·설정과 발송을 맡습니다.
 const watchRouter = require('./routes/watch');
 app.use('/api/watch', watchRouter);
+
+// ─── 다음 회차 추천번호 (2026-10-13 신규) ───────────────────────────────────
+// 추첨이 끝나면 lottoAutoFetch 의 채점 연쇄 끝에서 자동으로 다시 계산됩니다.
+app.use('/api/picks', require('./routes/picks'));
