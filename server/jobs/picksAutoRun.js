@@ -45,7 +45,7 @@ async function buildRaceTop(nextRound, latestRound) {
     a.g4 += r.grade4_count || 0; a.g5 += r.grade5_count || 0;
   });
   const top = Object.values(agg).filter((a) => a.generated > 0)
-    .sort((x, y) => (y.prize / y.generated) - (x.prize / x.generated)).slice(0, 3);
+    .sort((x, y) => (y.prize / y.generated) - (x.prize / x.generated)).slice(0, 8);
   if (!top.length) return null;
 
   const { data: nextRows } = await supabase
@@ -55,19 +55,27 @@ async function buildRaceTop(nextRound, latestRound) {
     .from('race_strategies').select('no, name, name_en').in('no', top.map((t) => t.no));
   if (!nextRows || !nextRows.length) return null;
 
-  const take = [2, 2, 1];
-  const combos = [];
-  top.forEach((t, i) => {
+  // 성적 1위 전략부터 최대 4조합씩, 모두 10조합(SETS_PER_CRITERION)이 될 때까지 채웁니다
+  const combos = [], seen = new Set(), used = [];
+  for (const t of top) {
+    if (combos.length >= engine.SETS_PER_CRITERION) break;
     const row = nextRows.find((r) => r.strategy_no === t.no);
     const list = (row && Array.isArray(row.combos) ? row.combos : []).map((c) => c.map(Number).sort((a, b) => a - b));
-    list.slice(0, take[i]).forEach((c) => { if (c.length === 6) combos.push(c); });
-  });
+    let took = 0;
+    for (const c of list) {
+      if (took >= 4 || combos.length >= engine.SETS_PER_CRITERION) break;
+      const k = c.join(',');
+      if (c.length !== 6 || seen.has(k)) continue;
+      seen.add(k); combos.push(c); took++;
+    }
+    if (took) used.push(t);
+  }
   if (!combos.length) return null;
   return {
     combos,
     info: {
       window: BACKFILL_ROUNDS,
-      strategies: top.map((t) => {
+      strategies: used.map((t) => {
         const n = (names || []).find((x) => x.no === t.no) || {};
         return { no: t.no, name: n.name || ('#' + t.no), nameEn: n.name_en || null,
                  prizePerSet: Math.round(t.prize / t.generated), g4: t.g4, g5: t.g5 };
@@ -123,6 +131,18 @@ async function runPicks(opts = {}) {
   const latest = historyDesc[0].round;
   const next = latest + 1;
   const out = { latest, next };
+
+  // 조합 수(SETS_PER_CRITERION)가 바뀐 뒤 처음 돌 때: 예전 개수로 만든 줄을 지우고 다시 만듭니다.
+  //   다음 회차는 아직 입장권을 산 사람이 없을 때만 다시 만듭니다(산 사람이 본 번호는 바꾸지 않음).
+  const { data: sample } = await supabase.from('next_picks').select('round, combos')
+    .eq('criterion', 'balanced').order('round', { ascending: false }).limit(1).maybeSingle();
+  if (sample && Array.isArray(sample.combos) && sample.combos.length !== engine.SETS_PER_CRITERION) {
+    await supabase.from('next_picks').delete().lte('round', latest);
+    const { count: buyers } = await supabase.from('next_picks_access')
+      .select('round', { count: 'exact', head: true }).eq('round', next);
+    if (!buyers) await supabase.from('next_picks').delete().eq('round', next);
+    out.resized = true;
+  }
 
   // ③ 처음 한 번: 지난 회차 소급 생성 + 채점
   const { count: pastCount } = await supabase
