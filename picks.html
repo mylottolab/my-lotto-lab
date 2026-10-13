@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>다음 회차 추천번호 · My Lotto Lab</title>
+<!-- 2026-10-13 신설: 다음 회차 추천번호
+     서버(routes/picks.js)가 추첨 직후 미리 계산해 둔 번호를 보여 줍니다.
+     기준 1개(균형형)는 누구나, 나머지는 이 회차 입장권(포인트)을 산 사람만 봅니다. -->
+<script src="common.js?v=20260709a"></script>
+<script src="https://my-lotto-lab-api.onrender.com/pay/auth_gate.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0d18; --surface:#11152a; --surface-2:#161b35; --border:#252b48; --border-soft:#1b2038;
+  --text:#eef0f6; --text-dim:#8b91ab; --text-faint:#5a6080; --gold:#e0b341; --gold-dim:#8a6f2f;
+  --indigo:#5b6ee8; --ok:#3ecf8e; --lock:#20253f;
+}
+body.light-mode{
+  --bg:#dbe0ee; --surface:#ffffff; --surface-2:#eef1f9; --border:#c2c8dd; --border-soft:#d2d7e8;
+  --text:#161b30; --text-dim:#4c5372; --text-faint:#7a80a0; --gold:#a8781f; --gold-dim:#8a6f2f;
+  --indigo:#4453c9; --lock:#e4e8f4;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pretendard','Noto Sans KR',sans-serif;line-height:1.5;min-height:100vh;}
+.num{font-variant-numeric:tabular-nums;}
+.wrap{max-width:880px;margin:0 auto;padding:16px 16px 60px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px;}
+.back{color:var(--text-dim);text-decoration:none;font-size:14px;}
+.tb-right{display:flex;gap:6px;align-items:center;}
+.tbtn{background:var(--surface);color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;}
+.tbtn.on{background:var(--gold);color:#1a1305;border-color:var(--gold);}
+
+.hero{position:relative;border-radius:18px;padding:22px 22px 18px;overflow:hidden;
+  background:linear-gradient(135deg,#1c2350 0%,#121733 60%,#0e1228 100%);border:1px solid #2d3567;color:#fff;}
+.hero .glow{position:absolute;top:-60%;right:-10%;width:280px;height:280px;border-radius:50%;background:var(--gold);opacity:.12;filter:blur(60px);pointer-events:none;}
+.hero-tag{font-size:11px;font-weight:700;letter-spacing:.08em;color:#f3cf6e;}
+.hero-title{font-size:24px;font-weight:800;margin-top:4px;}
+.hero-sub{font-size:13px;color:#b9bfe0;margin-top:6px;}
+.notice{margin-top:12px;font-size:12px;color:#c9cdea;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;line-height:1.6;}
+
+.tabs{display:flex;gap:6px;margin:18px 0 12px;}
+.tab{flex:1;text-align:center;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-weight:700;font-size:14px;cursor:pointer;}
+.tab.on{border-color:var(--gold);color:var(--text);background:var(--surface-2);}
+
+.unlock{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--gold-dim);border-radius:14px;padding:14px 16px;margin-bottom:14px;}
+.unlock b{color:var(--gold);}
+.unlock .ul-text{font-size:14px;}
+.unlock .ul-sub{font-size:12px;color:var(--text-dim);margin-top:2px;}
+.btn-gold{background:var(--gold);color:#1a1305;border:none;border-radius:10px;padding:11px 18px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;}
+.btn-gold:disabled{opacity:.6;cursor:default;}
+.unlocked-badge{font-size:13px;color:var(--ok);font-weight:700;margin-bottom:14px;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.card-name{font-size:16px;font-weight:800;}
+.chip{font-size:11px;font-weight:700;border-radius:999px;padding:3px 8px;border:1px solid var(--border);color:var(--text-dim);white-space:nowrap;}
+.chip.free{border-color:var(--ok);color:var(--ok);}
+.chip.lock{border-color:var(--gold-dim);color:var(--gold);}
+.card-desc{font-size:13px;color:var(--text-dim);margin:6px 0 12px;}
+.set{display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px dashed var(--border-soft);}
+.set:first-of-type{border-top:none;}
+.set-no{width:20px;font-size:12px;color:var(--text-faint);}
+.ball{width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.35);flex-shrink:0;}
+.b1{background:#f2b81b;} .b2{background:#3f7fe0;} .b3{background:#e24b4b;} .b4{background:#8a8f9e;} .b5{background:#3fb56b;}
+.ball.hit{outline:3px solid var(--gold);outline-offset:1px;}
+.ball.ghost{background:var(--lock);color:transparent;text-shadow:none;}
+.copy{margin-left:auto;font-size:12px;background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:8px;padding:4px 8px;cursor:pointer;}
+.info{font-size:12px;color:var(--text-dim);margin-top:10px;line-height:1.7;}
+.info .mini{display:inline-block;min-width:24px;text-align:center;border:1px solid var(--border);border-radius:6px;padding:0 4px;margin:1px 2px;color:var(--text);}
+.locked-box{position:relative;}
+.locked-box .veil{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--gold);font-weight:700;}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{padding:9px 6px;border-bottom:1px solid var(--border-soft);text-align:right;}
+th:first-child,td:first-child{text-align:left;}
+th{color:var(--text-dim);font-weight:700;font-size:12px;}
+.bar{height:6px;border-radius:3px;background:var(--indigo);display:inline-block;vertical-align:middle;margin-left:6px;}
+.theory{font-size:12px;color:var(--text-dim);margin-top:10px;line-height:1.7;}
+.round-block{border-top:1px solid var(--border);padding-top:12px;margin-top:12px;}
+.round-title{font-weight:800;font-size:14px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.rb-row{display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0;flex-wrap:wrap;}
+.rb-row .rb-name{width:150px;color:var(--text-dim);}
+.small-ball{width:24px;height:24px;font-size:11px;}
+.empty{color:var(--text-dim);text-align:center;padding:40px 0;font-size:14px;}
+.foot{font-size:11px;color:var(--text-faint);margin-top:24px;line-height:1.7;}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222842;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;display:none;z-index:50;}
+@media (max-width:480px){ .ball{width:30px;height:30px;font-size:13px;} .rb-row .rb-name{width:100%;} .hero-title{font-size:21px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="back" href="main_page.html">‹ <span data-i18n-kr="홈" data-i18n-en="Home">홈</span></a>
+    <div class="tb-right">
+      <button class="tbtn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+      <button class="tbtn" id="langKr" onclick="setLang('kr')">KR</button>
+      <button class="tbtn" id="langEn" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="glow"></div>
+    <div class="hero-tag" data-i18n-kr="NEW · 매 회차 자동 갱신" data-i18n-en="NEW · REFRESHED EVERY DRAW">NEW · 매 회차 자동 갱신</div>
+    <div class="hero-title" id="heroTitle">다음 회차 추천번호</div>
+    <div class="hero-sub" id="heroSub">불러오는 중…</div>
+    <div class="notice" data-i18n-kr="로또 추첨은 매번 완전히 무작위라서 어떤 방법으로도 당첨 확률을 높일 수 없습니다. 이 화면의 번호는 여러 관점으로 골라 본 재미·참고용 조합이며 당첨을 보장하지 않습니다. 아래 ‘기준별 성적표’에서 각 기준이 지난 회차에 실제로 몇 개를 맞혔는지 그대로 확인하실 수 있습니다." data-i18n-en="Lottery draws are completely random, so no method can raise your odds of winning. These numbers are combinations picked from different viewpoints for fun and reference only — no win is guaranteed. The ‘Scoreboard’ tab shows exactly how each criterion did in past draws.">로또 추첨은 매번 완전히 무작위라서 어떤 방법으로도 당첨 확률을 높일 수 없습니다. 이 화면의 번호는 여러 관점으로 골라 본 재미·참고용 조합이며 당첨을 보장하지 않습니다.</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on" id="tabPicks" onclick="showTab('picks')" data-i18n-kr="추천번호" data-i18n-en="Picks">추천번호</div>
+    <div class="tab" id="tabScore" onclick="showTab('score')" data-i18n-kr="기준별 성적표" data-i18n-en="Scoreboard">기준별 성적표</div>
+  </div>
+
+  <div id="panePicks">
+    <div id="unlockArea"></div>
+    <div id="cards"><div class="empty" data-i18n-kr="불러오는 중…" data-i18n-en="Loading…">불러오는 중…</div></div>
+  </div>
+  <div id="paneScore" style="display:none;">
+    <div id="score"><div class="empty" data-i18n-kr="불러오는 중…" data-i18n-en="Loading…">불러오는 중…</div></div>
+  </div>
+
+  <div class="foot" data-i18n-kr="※ 추천번호는 추첨 결과가 들어오면 서버가 자동으로 새로 계산합니다. 같은 회차 안에서는 누가 언제 보아도 같은 번호입니다. 입장권은 그 회차 추첨 전까지 몇 번이고 다시 볼 수 있으며, 다음 회차는 새 입장권이 필요합니다." data-i18n-en="※ Picks are recalculated automatically by the server when a new result arrives. Within a round everyone sees the same numbers. A pass lets you revisit as often as you like until that draw; the next round needs a new pass.">※ 추천번호는 추첨 결과가 들어오면 서버가 자동으로 새로 계산합니다.</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var LANG = localStorage.getItem('mll_lang') || 'kr';
+var THEME = localStorage.getItem('mll_theme');
+if (!THEME) THEME = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+function applyTheme(){ document.body.classList.toggle('light-mode', THEME === 'light'); document.getElementById('themeBtn').textContent = THEME === 'light' ? '☀️' : '🌙'; }
+function toggleTheme(){ THEME = THEME === 'light' ? 'dark' : 'light'; localStorage.setItem('mll_theme', THEME); applyTheme(); }
+function setLang(l){ LANG = l; localStorage.setItem('mll_lang', l); applyLang(); render(); renderScore(); }
+function applyLang(){
+  document.querySelectorAll('[data-i18n-kr]').forEach(function(el){ var t = LANG === 'en' ? el.dataset.i18nEn : el.dataset.i18nKr; if (t !== undefined) el.textContent = t; });
+  document.getElementById('langKr').classList.toggle('on', LANG === 'kr');
+  document.getElementById('langEn').classList.toggle('on', LANG === 'en');
+}
+function L(kr, en){ return LANG === 'en' ? en : kr; }
+function N(obj){ return obj ? (obj[LANG] || obj.kr) : ''; }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function ballClass(n){ return n <= 10 ? 'b1' : n <= 20 ? 'b2' : n <= 30 ? 'b3' : n <= 40 ? 'b4' : 'b5'; }
+function ball(n, extra){ return '<span class="ball ' + ballClass(n) + ' ' + (extra || '') + '">' + n + '</span>'; }
+function toast(msg){ var t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(function(){ t.style.display = 'none'; }, 2600); }
+function fmtDate(iso){
+  try { var d = new Date(iso); return d.toLocaleString(LANG === 'en' ? 'en-US' : 'ko-KR', { timeZone:'Asia/Seoul', month:'long', day:'numeric', weekday:'short', hour:'2-digit', minute:'2-digit' }); }
+  catch(e){ return iso; }
+}
+
+var DATA = null, SCORE = null;
+
+async function authOpts(){
+  var st = MLL.getAuthState();
+  if (!st.type) return { qs:'', headers:{} };
+  if (st.type === 'member') {
+    var tok = st.token;
+    try { if (MLL.ensureFreshToken) { var f = await MLL.ensureFreshToken(); if (f && f !== 'guest') tok = f; } } catch(e){}
+    return { qs:'', headers:{ Authorization:'Bearer ' + tok } };
+  }
+  return { qs:'?nickname=' + encodeURIComponent(st.nickname) + '&email=' + encodeURIComponent(st.email), headers:{} };
+}
+
+async function load(){
+  try {
+    var a = await authOpts();
+    var r = await fetch(MLL.API_BASE + '/api/picks/next' + a.qs, { headers:a.headers });
+    DATA = await r.json();
+  } catch(e){ DATA = { error: true }; }
+  render();
+}
+
+function render(){
+  var cards = document.getElementById('cards'), ua = document.getElementById('unlockArea');
+  if (!DATA) return;
+  if (DATA.error || !DATA.round) {
+    document.getElementById('heroSub').textContent = L('추천번호를 준비하고 있습니다.', 'Picks are being prepared.');
+    ua.innerHTML = '';
+    cards.innerHTML = '<div class="empty">' + esc(L('아직 추천번호가 준비되지 않았습니다. 잠시 뒤 다시 와 주세요.', 'Picks are not ready yet. Please check back soon.')) + '</div>';
+    return;
+  }
+  document.getElementById('heroTitle').textContent = L('제 ' + DATA.round + '회 추천번호', 'Round ' + DATA.round + ' Picks');
+  document.getElementById('heroSub').textContent = L('추첨 ', 'Draw ') + fmtDate(DATA.drawAt) + (DATA.generatedAt ? L(' · 계산 ', ' · computed ') + fmtDate(DATA.generatedAt) : '');
+
+  var lockedCount = DATA.criteria.filter(function(c){ return c.locked; }).length;
+  if (DATA.unlocked) {
+    ua.innerHTML = '<div class="unlocked-badge">✓ ' + esc(L('이 회차 입장권이 있습니다. 모든 기준을 보실 수 있습니다.', 'You have a pass for this round — all criteria are open.')) + '</div>';
+  } else if (lockedCount) {
+    var price = DATA.price != null ? DATA.price : '–';
+    ua.innerHTML = '<div class="unlock"><div><div class="ul-text">' +
+      L('<b>' + price + 'P</b> 입장권으로 이 회차 <b>' + lockedCount + '개 기준</b>을 모두 보기', 'See all <b>' + lockedCount + ' criteria</b> for this round with a <b>' + price + 'P</b> pass') +
+      '</div><div class="ul-sub">' + esc(L('한 번 사면 이 회차 추첨 전까지 다시 들어와도 무료입니다.', 'Buy once, revisit free until this draw.')) + '</div></div>' +
+      '<button class="btn-gold" id="unlockBtn" onclick="unlock()">' + esc(L('입장하기', 'Unlock')) + '</button></div>';
+  } else ua.innerHTML = '';
+
+  cards.innerHTML = DATA.criteria.map(function(c){
+    var head = '<div class="card-head"><div class="card-name">' + esc(N(c.name)) + '</div>' +
+      (c.free ? '<span class="chip free">' + esc(L('무료', 'FREE')) + '</span>' : (c.locked ? '<span class="chip lock">🔒 ' + esc(L('입장권', 'Pass')) + '</span>' : '<span class="chip">' + esc(L('열림', 'Open')) + '</span>')) + '</div>' +
+      '<div class="card-desc">' + esc(N(c.desc)) + '</div>';
+    var body;
+    if (c.locked) {
+      var ghost = ''; for (var i = 0; i < Math.min(2, c.count); i++) ghost += '<div class="set"><span class="set-no">' + (i + 1) + '</span>' + '<span class="ball ghost">0</span>'.repeat(6) + '</div>';
+      body = '<div class="locked-box">' + ghost + '<div class="veil">🔒 ' + esc(L(c.count + '개 조합 — 입장권으로 보기', c.count + ' sets — unlock with a pass')) + '</div></div>';
+    } else {
+      body = c.combos.map(function(set, i){
+        return '<div class="set"><span class="set-no">' + (i + 1) + '</span>' + set.map(function(n){ return ball(n); }).join('') +
+          '<button class="copy" onclick="copySet(\'' + set.join(', ') + '\')">' + esc(L('복사', 'Copy')) + '</button></div>';
+      }).join('') + infoHtml(c);
+    }
+    return '<div class="card">' + head + body + '</div>';
+  }).join('');
+}
+
+function infoHtml(c){
+  var i = c.info; if (!i) return '';
+  var mini = function(n){ return '<span class="mini num">' + n + '</span>'; };
+  switch (c.key) {
+    case 'balanced': return '<div class="info">' + esc(L('홀수 개수 ', 'Odd count ')) + i.oddCounts.join(L(' 또는 ', ' or ')) + L('개 · 합계 ', ' · sum ') + i.sumRange[0] + '~' + i.sumRange[1] + '</div>';
+    case 'hot': return '<div class="info">' + esc(L('최근 ' + i.window + '회 자주 나온 번호(나온 횟수): ', 'Most frequent in last ' + i.window + ' (times): ')) + i.hot.map(function(h){ return mini(h.n + '·' + h.count); }).join('') + '</div>';
+    case 'cold': return '<div class="info">' + esc(L('오래 안 나온 번호(안 나온 회차 수): ', 'Longest absent (draws missed): ')) + i.cold.map(function(h){ return mini(h.n + '·' + h.absent); }).join('') + '</div>';
+    case 'carry': return '<div class="info">' + esc(L('지난 회차 당첨번호: ', 'Previous draw: ')) + i.last.map(mini).join('') + '</div>';
+    case 'neighbor': return '<div class="info">' + esc(L('이웃수 후보: ', 'Neighbour candidates: ')) + i.neighbors.map(mini).join('') + '</div>';
+    case 'pairs': return '<div class="info">' + esc(L('최근 ' + i.window + '회 짝꿍수(함께 나온 횟수): ', 'Top pairs in last ' + i.window + ' (times): ')) + i.pairs.slice(0, 5).map(function(p){ return mini(p.pair.join('+') + '·' + p.count); }).join('') + '</div>';
+    case 'fresh': return '<div class="info">' + esc(L('역대 ' + i.checkedDraws + '회 당첨번호와 비교했습니다.', 'Checked against ' + i.checkedDraws + ' past draws.')) + '</div>';
+    case 'race_top': return '<div class="info">' + esc(L('최근 ' + i.window + '회 성적 상위 전략: ', 'Top strategies over last ' + i.window + ' draws: ')) + i.strategies.map(function(s){ return mini('#' + s.no + ' ' + esc((LANG === 'en' && s.nameEn) || s.name)); }).join('') + '</div>';
+    default: return '';
+  }
+}
+
+function copySet(text){
+  try { navigator.clipboard.writeText(text); toast(L('복사했습니다: ', 'Copied: ') + text); }
+  catch(e){ toast(text); }
+}
+
+async function unlock(){
+  var st = MLL.getAuthState();
+  if (!st.type) { if (MLL.requireAuth) MLL.requireAuth(function(){}); return; }
+  var btn = document.getElementById('unlockBtn'); if (btn) btn.disabled = true;
+  try {
+    var req = MLL.getAuthRequest ? await MLL.getAuthRequest({ round: DATA.round }) : null;
+    if (!req) { if (btn) btn.disabled = false; return; }
+    var r = await fetch(MLL.API_BASE + '/api/picks/unlock', { method:'POST', headers:req.headers, body:JSON.stringify(req.body) });
+    var d = await r.json();
+    if (r.status === 402) {
+      toast(d.error || L('포인트가 부족합니다.', 'Not enough points.'));
+      if (d.chargeUrl && confirm(L('포인트가 부족합니다. 충전 화면으로 갈까요?', 'Not enough points. Go to the top-up page?'))) {
+        location.href = MLL.crossOriginUrl ? MLL.crossOriginUrl(MLL.API_BASE + d.chargeUrl) : (MLL.API_BASE + d.chargeUrl);
+      }
+    } else if (r.status === 409) {
+      toast(d.error || ''); await load();
+    } else if (!r.ok) {
+      toast(d.error || L('처리 중 오류가 발생했습니다.', 'Something went wrong.'));
+    } else {
+      if (d.charged && MLL.showPointToast) MLL.showPointToast(d.charged); else toast(L('입장했습니다.', 'Unlocked.'));
+      await load();
+    }
+  } catch(e){ toast(L('연결 문제로 처리하지 못했습니다.', 'Network problem.')); }
+  if (btn) btn.disabled = false;
+}
+
+// ── 성적표 ──────────────────────────────────────────────────────────────
+var NAMES = {};
+async function loadScore(){
+  try { var r = await fetch(MLL.API_BASE + '/api/picks/scoreboard?last=52'); SCORE = await r.json(); }
+  catch(e){ SCORE = { error:true }; }
+  renderScore();
+}
+function renderScore(){
+  var box = document.getElementById('score');
+  if (!SCORE) return;
+  if (SCORE.error || !SCORE.summary || !SCORE.summary.length) {
+    box.innerHTML = '<div class="empty">' + esc(L('아직 성적표가 없습니다.', 'No scoreboard yet.')) + '</div>'; return;
+  }
+  SCORE.summary.forEach(function(s){ NAMES[s.key] = s.name; });
+  var maxAvg = Math.max.apply(null, SCORE.summary.map(function(s){ return s.avg; }).concat([1]));
+  var rows = SCORE.summary.map(function(s){
+    var g = s.grades || {};
+    return '<tr><td>' + esc(N(s.name)) + '</td><td class="num">' + s.rounds + '</td><td class="num">' + s.avg.toFixed(2) +
+      '<span class="bar" style="width:' + Math.round(50 * s.avg / maxAvg) + 'px"></span></td>' +
+      '<td class="num">' + (g['5'] || 0) + '</td><td class="num">' + (g['4'] || 0) + '</td><td class="num">' + ((g['3'] || 0) + (g['2'] || 0) + (g['1'] || 0)) + '</td><td class="num">' + s.best + '</td></tr>';
+  }).join('');
+  var html = '<div class="card"><div class="card-name" style="margin-bottom:10px;">' + esc(L('최근 ' + SCORE.last + '회 기준별 성적', 'Last ' + SCORE.last + ' draws by criterion')) + '</div>' +
+    '<table><thead><tr><th>' + esc(L('기준', 'Criterion')) + '</th><th>' + esc(L('회차', 'Draws')) + '</th><th>' + esc(L('평균 맞힘', 'Avg hits')) + '</th><th>' + esc(L('5등', '5th')) + '</th><th>' + esc(L('4등', '4th')) + '</th><th>' + esc(L('3등↑', '3rd+')) + '</th><th>' + esc(L('최고', 'Best')) + '</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<div class="theory">' + esc(L('참고: 아무 번호 6개나 골라도 평균 맞히는 개수는 6×6÷45 = 0.80개입니다. 기준마다 조합 5개로 계산했고, 지난 회차 성적은 그 회차보다 앞선 결과만 써서 거꾸로 계산한 값입니다. 회차가 적으면 운에 따라 크게 흔들립니다.',
+      'Note: picking any 6 numbers hits 6×6÷45 = 0.80 on average. Each criterion uses 5 sets; past rounds were recomputed using only results before that round. With few draws, luck dominates.')) + '</div></div>';
+
+  html += '<div class="card"><div class="card-name">' + esc(L('최근 회차별 결과', 'Recent rounds')) + '</div>' + SCORE.recent.map(function(rd){
+    var drawn = rd.drawn || [];
+    return '<div class="round-block"><div class="round-title">' + esc(L('제 ' + rd.round + '회', 'Round ' + rd.round)) + ' ' +
+      drawn.map(function(n){ return ball(n, 'small-ball'); }).join('') + (rd.bonus ? ' + ' + ball(rd.bonus, 'small-ball') : '') + '</div>' +
+      rd.picks.map(function(p){
+        var best = p.combos[p.matches.indexOf(p.best)] || p.combos[0];
+        return '<div class="rb-row"><span class="rb-name">' + esc(N(NAMES[p.key])) + '</span>' +
+          best.map(function(n){ return ball(n, 'small-ball' + (drawn.indexOf(n) >= 0 ? ' hit' : '')); }).join('') +
+          '<span class="num" style="margin-left:6px;">' + esc(L('최고 ' + p.best + '개', 'best ' + p.best)) + '</span></div>';
+      }).join('') + '</div>';
+  }).join('') + '</div>';
+  box.innerHTML = html;
+}
+
+function showTab(t){
+  document.getElementById('tabPicks').classList.toggle('on', t === 'picks');
+  document.getElementById('tabScore').classList.toggle('on', t === 'score');
+  document.getElementById('panePicks').style.display = t === 'picks' ? '' : 'none';
+  document.getElementById('paneScore').style.display = t === 'score' ? '' : 'none';
+  if (t === 'score' && !SCORE) loadScore();
+}
+
+applyTheme(); applyLang(); load();
+if (location.hash === '#score') showTab('score');
+</script>
+</body>
+</html>

@@ -239,6 +239,21 @@ body{
 .stadium-card:hover .globe-arrow{transform:translateX(4px);}
 .lab-card:hover .globe-arrow{transform:translateX(4px);}
 
+/* ── 다음 회차 추천번호 배너(2026-10-13): 금색 강조, 허브 맨 위 ── */
+.picks-card{position:relative;border-radius:18px;padding:26px 30px;cursor:pointer;overflow:hidden;margin-bottom:22px;
+  background:radial-gradient(circle at 88% 18%, rgba(240,180,0,.28), transparent 55%),
+             radial-gradient(circle at 10% 95%, rgba(232,80,60,.14), transparent 50%),
+             linear-gradient(135deg, #1e1608 0%, #2a1d0a 100%);
+  border:1px solid #6b5216;transition:transform .2s, border-color .2s;box-shadow:0 6px 28px rgba(240,180,0,.10);}
+.picks-card:hover{transform:translateY(-3px);border-color:#f0b400;}
+.picks-card:focus-visible{outline:2px solid #f0b400;outline-offset:2px;}
+.picks-card .globe-tag{color:#ffd35c;}
+.picks-card .globe-desc{color:#d8c79a;}
+.picks-card .globe-icon{filter:drop-shadow(0 0 14px rgba(240,180,0,.55));}
+.picks-balls{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;}
+.picks-balls span{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);filter:blur(1.5px);}
+.picks-pill{display:inline-block;font-size:10.5px;font-weight:700;padding:4px 11px;border-radius:20px;margin:12px 6px 0 0;background:rgba(240,180,0,.12);color:#ffd35c;border:1px solid rgba(240,180,0,.45);}
+
 /* ── 모의테스트 배너: 보라색 실험/시험관 모티프로 나머지 두 카드와 의도적으로 다른 톤 ── */
 .lab-card{position:relative;border-radius:18px;padding:28px 30px;cursor:pointer;overflow:hidden;margin-top:16px;
   background:radial-gradient(circle at 85% 20%, rgba(138,111,232,.22), transparent 55%),
@@ -389,7 +404,7 @@ body{
   .genre-divider{margin:24px 0 16px;gap:10px;}
   .gd-label{font-size:11px;white-space:nowrap;}
 
-  .globe-card,.lab-card,.stadium-card{padding:18px 16px;}
+  .globe-card,.lab-card,.stadium-card,.picks-card{padding:18px 16px;}
   .globe-content{gap:12px;}
   .globe-icon{font-size:24px;}
   .globe-games{gap:6px;margin-top:9px;}
@@ -552,6 +567,22 @@ body{
 </div>
 
 <div class="hub">
+  <div class="picks-card" onclick="location.href='picks.html'" tabindex="0" role="button">
+    <div class="globe-glow" style="background:#f0b400;"></div>
+    <div class="globe-content">
+      <div class="globe-icon">🎯</div>
+      <div class="globe-text">
+        <div class="globe-tag" data-i18n-kr="NEW · 매주 자동 갱신" data-i18n-en="NEW · UPDATED EVERY DRAW">NEW · 매주 자동 갱신</div>
+        <div class="globe-title" data-i18n-kr="다음 회차 추천번호" data-i18n-en="Next-Draw Picks">다음 회차 추천번호</div>
+        <div class="globe-desc" data-i18n-kr="추첨이 끝나면 가장 최근 회차까지 반영해 10가지 기준(핫·콜드·이월·궁합수·구간 분산·100전략 레이스 상위…)으로 새 번호를 뽑아 둡니다. 기준별 성적표도 함께 공개합니다. 재미·참고용이며 당첨을 보장하지 않습니다." data-i18n-en="After every draw we refresh picks from 10 angles (hot, cold, carry-over, pairs, zone spread, top race strategies…) using the latest results, with an open per-criterion scoreboard. For fun and reference only — no win is guaranteed.">추첨이 끝나면 가장 최근 회차까지 반영해 10가지 기준(핫·콜드·이월·궁합수·구간 분산·100전략 레이스 상위…)으로 새 번호를 뽑아 둡니다. 기준별 성적표도 함께 공개합니다. 재미·참고용이며 당첨을 보장하지 않습니다.</div>
+        <div class="picks-balls"><span>?</span><span>?</span><span>?</span><span>?</span><span>?</span><span>?</span></div>
+        <span class="picks-pill" data-i18n-kr="1개 기준 무료" data-i18n-en="1 criterion free">1개 기준 무료</span>
+        <span class="picks-pill" onclick="event.stopPropagation();location.href='picks.html#score'" data-i18n-kr="기준별 성적표 →" data-i18n-en="Scoreboard →">기준별 성적표 →</span>
+      </div>
+      <div class="globe-arrow">→</div>
+    </div>
+  </div>
+
   <div class="hub-label" data-i18n-kr="전체 카테고리" data-i18n-en="All Categories">전체 카테고리</div>
   <div class="hub-grid">
 
