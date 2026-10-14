@@ -285,6 +285,7 @@ async function init(){
   await renderGlobalLotto();
   await renderPointsHistory();
   renderSoon();
+  renderAccount();   // 🔴 2026-10-14 회원 탈퇴 (애플 · 구글 규정)
 }
 
 // ── 📋 등록한 번호조합 요약 ──
@@ -666,6 +667,58 @@ function renderSoon(){
     }).join('') +
   '</div></div>';
   document.getElementById('body').innerHTML += html;
+}
+
+/* =====================================================================
+   🔴 2026-10-14 — 계정 · 회원 탈퇴
+   애플(5.1.1(v)) · 구글 모두 "앱 안에서 탈퇴" 를 요구합니다. 서버 /api/account/delete
+   ===================================================================== */
+function myNickname(){
+  var st = MLL.getAuthState();
+  if (st.type === 'guest') return st.nickname || '';
+  try { var u = JSON.parse(localStorage.getItem('mll_user') || 'null'); if (u && u.nickname) return u.nickname; } catch(e) {}
+  return '';
+}
+function renderAccount(){
+  var en = LANG === 'en';
+  var html = '<div class="card" id="accountCard"><h2>⚙️ ' + (en ? 'Account' : '계정') + '</h2>' +
+    '<p style="font-size:12.5px;color:var(--text-dim);line-height:1.7;margin-bottom:12px;">' +
+    (en ? 'Deleting your account removes your nickname and login permanently. Remaining points cannot be restored.'
+        : '탈퇴하면 닉네임과 로그인 정보가 영구히 지워지고, 남은 포인트는 되살릴 수 없습니다.') + '</p>' +
+    '<button type="button" onclick="deleteAccount()" style="background:none;border:1px solid var(--red);color:var(--red);' +
+    'padding:9px 16px;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;">' +
+    (en ? 'Delete account' : '회원 탈퇴') + '</button></div>';
+  document.getElementById('body').innerHTML += html;
+}
+async function deleteAccount(){
+  var en = LANG === 'en';
+  var st = (typeof _mllAuthOrNullFresh === 'function') ? await _mllAuthOrNullFresh() : MLL.getAuthState();
+  if (!st || !st.type) { alert(en ? 'Please log in again.' : '다시 로그인해 주세요.'); return; }
+  if (!confirm(en ? 'Delete your account permanently?\n\nYour nickname and login will be removed and remaining points cannot be restored.'
+                  : '정말 탈퇴하시겠습니까?\n\n닉네임과 로그인 정보가 영구히 지워지고, 남은 포인트는 되살릴 수 없습니다.')) return;
+  var nick = myNickname();
+  var typed = nick;
+  if (nick) {
+    typed = prompt(en ? 'To confirm, type your nickname: ' + nick : '확인을 위해 닉네임을 그대로 입력해 주세요: ' + nick, '');
+    if (typed === null) return;
+    if (typed.trim() !== nick) { alert(en ? 'The nickname does not match.' : '닉네임이 맞지 않습니다.'); return; }
+  }
+  var body = { confirm: (typed || '').trim() };
+  if (st.type === 'guest') { body.nickname = st.nickname; body.email = st.email; }
+  var headers = { 'Content-Type': 'application/json' };
+  if (st.type === 'member') headers['Authorization'] = 'Bearer ' + st.token;
+  try {
+    var r = await fetch(MLL.API_BASE + '/api/account/delete', { method: 'POST', headers: headers, body: JSON.stringify(body) });
+    var d = await r.json().catch(function(){ return {}; });
+    if (!r.ok) { alert(d.error || (en ? 'Could not delete the account.' : '탈퇴하지 못했습니다.')); return; }
+    ['mll_token','mll_refresh_token','mll_user','mll_guest_nickname','mll_guest_email'].forEach(function(k){
+      try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch(e) {}
+    });
+    alert(en ? 'Your account has been deleted.' : '탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.');
+    location.href = 'main_page.html';
+  } catch(e) {
+    alert(en ? 'Network error. Please try again.' : '연결 오류입니다. 잠시 뒤 다시 시도해 주세요.');
+  }
 }
 
 init();
