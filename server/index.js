@@ -369,3 +369,6 @@ app.use('/api/watch', watchRouter);
 // ─── 다음 회차 추천번호 (2026-10-13 신규) ───────────────────────────────────
 // 추첨이 끝나면 lottoAutoFetch 의 채점 연쇄 끝에서 자동으로 다시 계산됩니다.
 app.use('/api/picks', require('./routes/picks'));
+// 🔴 2026-10-14 아이폰 앱 — 애플 인앱 결제(포인트) · 회원 탈퇴 · 비밀번호 찾기
+app.use('/api/payment/apple', require('./routes/payment_apple'));
+app.use('/api/account', require('./routes/account'));
