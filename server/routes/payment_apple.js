@@ -100,10 +100,40 @@ async function askApple(transactionId) {
       const body = await res.json();
       return { env, tx: jwsPayload(body.signedTransactionInfo) };
     }
-    last = res.status + ' ' + (await res.text()).slice(0, 200);
+    last = (last ? last + ' / ' : '') + env + ' ' + res.status + ' ' + (await res.text()).slice(0, 120);
+    if (res.status === 401) jwtCache = null;      // 열쇠를 고친 뒤 바로 새 출입증을 만들도록
   }
   throw new Error('애플 확인 실패: ' + last);
 }
+
+// ── 열쇠 점검 (2026-10-15) ─ 브라우저로 /api/payment/apple/selftest 를 열면
+//    비밀값은 보여 주지 않고 "어디가 틀렸는지"만 알려 줍니다.
+//    애플 답이 401 = 열쇠 3개가 서로 안 맞음,  404/400 = 열쇠는 정상(가짜 거래번호라 못 찾은 것)
+router.get('/selftest', async (req, res) => {
+  const kid = (process.env.APPLE_IAP_KEY_ID || '').replace(/[^A-Za-z0-9]/g, '');
+  const iss = (process.env.APPLE_IAP_ISSUER_ID || '').replace(/[^A-Za-z0-9-]/g, '');
+  const raw = process.env.APPLE_IAP_KEY_P8 || '';
+  const out = {
+    bundle: BUNDLE_ID,
+    key_id: kid ? kid.length + '자리, 끝 3글자 …' + kid.slice(-3) : '없음',
+    issuer_id: !iss ? '없음' : (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(iss)
+      ? '형식 정상, 끝 4글자 …' + iss.slice(-4) : '⚠ 형식이 이상합니다 (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx 모양이어야 함)'),
+    p8: raw ? raw.length + '글자' : '없음',
+  };
+  try {
+    jwtCache = null;
+    const jwt = appleJwt();
+    out.p8 += ', 열쇠 읽기 정상';
+    for (const [env, host] of [['Production', 'https://api.storekit.itunes.apple.com'],
+                               ['Sandbox', 'https://api.storekit-sandbox.itunes.apple.com']]) {
+      const r = await fetch(host + '/inApps/v1/transactions/1000000000000000', { headers: { Authorization: 'Bearer ' + jwt } });
+      out[env] = r.status === 401 ? '401 ✗ 열쇠 거부' : r.status + ' ✓ 열쇠 정상';
+    }
+  } catch (e) {
+    out.error = e.message || String(e);
+  }
+  res.json(out);
+});
 
 // ── 목록 ────────────────────────────────────────────────────────────────
 router.get('/products', (req, res) => res.json({ items: PRODUCTS }));
