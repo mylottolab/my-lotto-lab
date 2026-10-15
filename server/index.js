@@ -7,10 +7,19 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 🔴 2026-10-16 — "로그인이 만료됐습니다"가 자꾸 뜨던 원인
+//   이 서버의 공용 클라이언트로 로그인(signInWithPassword) · 갱신(refreshSession)을 하면,
+//   그 회원의 세션이 서버 안에 남아 **서버가 혼자서 그 회원의 토큰을 자동 갱신**해 버렸습니다.
+//   그러면 회원 폰에 저장된 갱신 토큰은 "이미 사용됨"이 되어, 1시간쯤 뒤 갱신에 실패 → 재로그인 요구.
+//   (또 그동안 공용 클라이언트의 DB 요청이 관리자 키 대신 그 회원 권한으로 나가는 위험도 있었습니다.)
+//   → 공용 클라이언트는 세션을 보관 · 자동 갱신하지 않게 하고, 로그인 · 갱신 · 가입은 매번 새 클라이언트로 합니다.
+const NO_SESSION = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
+  process.env.SUPABASE_SERVICE_KEY,
+  NO_SESSION
 );
+const authClient = () => createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, NO_SESSION);
 
 // ⚠️ cors()는 반드시 다른 모든 app.use(라우터) 등록보다 먼저 와야 합니다.
 // (Express 미들웨어는 등록 순서대로 실행되므로, 라우터가 먼저 등록되면
@@ -61,7 +70,7 @@ app.post('/api/auth/signup', async (req, res) => {
   // ⚠️ 2026-07-10: supabase.auth.admin.createUser()는 "관리자가 강제로 계정을 만드는" 방식이라
   // Supabase가 확인메일을 자동으로 보내주지 않습니다(그래서 가입해도 메일이 안 왔었습니다).
   // 본인이 직접 가입하는 일반 흐름에서 확인메일이 자동으로 나가려면 auth.signUp()을 써야 합니다.
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await authClient().auth.signUp({
     email,
     password,
     options: { data: { nickname, country: country || 'KR' } }
@@ -128,7 +137,7 @@ app.post('/api/auth/login', async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ error: '이메일과 비밀번호를 입력해 주세요.' });
   }
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await authClient().auth.signInWithPassword({ email, password });
   if (error) {
     return res.status(401).json({ error: '이메일 또는 비밀번호가 올바르지 않습니다.' });
   }
@@ -155,7 +164,7 @@ app.post('/api/auth/refresh', async (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken) return res.status(400).json({ error: 'refreshToken이 필요합니다.' });
 
-  const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+  const { data, error } = await authClient().auth.refreshSession({ refresh_token: refreshToken });
   if (error || !data.session) {
     return res.status(401).json({ error: '세션을 갱신할 수 없습니다. 다시 로그인해주세요.' });
   }
