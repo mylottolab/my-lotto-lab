@@ -277,8 +277,12 @@ async function init(){
   renderSummary(entries);
   renderWins(entries);
   renderRecent(entries);
-  await renderSeoulRace();
-  await renderBattles();
+  // 🔴 2026-10-16 — 아이폰 앱(알림로또)에서는 경마 · 무제한 대결 기록 칸을 그리지 않습니다(애플 5.3 — 그 기능 자체가 앱에서 숨김)
+  var IOS_APP = (window.MLL_APP === 'ios');
+  if (!IOS_APP) {
+    await renderSeoulRace();
+    await renderBattles();
+  }
   await renderMockSim();
   await renderMocktest();
   await renderShop();
