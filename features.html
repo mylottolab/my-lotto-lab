@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>알림로또 전체 기능 소개</title>
+<style>
+:root{--acc:#2b59c3;--bg:#f5f7f7;--card:#fff;--fg:#1d2a2b;--mut:#5f7473;--line:#e1e9e8;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1716;--card:#18221f;--fg:#e6efed;--mut:#9fb1ae;--line:#2a3734;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;line-height:1.55;-webkit-text-size-adjust:100%}
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;background:var(--acc);color:#fff}
+.top button{background:rgba(255,255,255,.18);border:0;color:#fff;font-size:18px;width:38px;height:38px;border-radius:10px}
+.top b{font-size:17px;flex:1}
+.wrap{max-width:760px;margin:0 auto;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 28px)}
+h1{margin:4px 0 2px;font-size:28px}
+h1 small{font-size:14px;color:var(--mut);font-weight:500;margin-left:8px}
+.lead{background:var(--card);border-left:4px solid var(--acc);border-radius:0 12px 12px 0;padding:12px 14px;margin:12px 0}
+.dl{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:14px;background:var(--acc);color:#fff;font-weight:800;font-size:16px;text-decoration:none;margin:6px 0 4px}
+.dl-n{font-size:12.5px;color:var(--mut);text-align:center;margin:0 0 14px}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}
+.toc a{font-size:13px;padding:6px 10px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--fg);text-decoration:none}
+section{background:var(--card);border-radius:14px;padding:4px 14px 6px;margin:14px 0;scroll-margin-top:70px}
+h2{font-size:17px;color:var(--acc);margin:12px 0 4px;display:flex;align-items:center;gap:8px}
+h2 small{font-size:11.5px;color:var(--mut);font-weight:600;background:var(--bg);border-radius:999px;padding:1px 8px}
+.it{padding:10px 0;border-top:1px solid var(--line)}
+.it:first-of-type{border-top:0}
+.it b{display:block;font-size:15px}
+.it p{margin:2px 0 0;font-size:14px;color:var(--mut)}
+.foot{font-size:12px;color:var(--mut);text-align:center;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="top"><button type="button" onclick="history.length>1?history.back():location.href='main_page.html'" aria-label="뒤로">‹</button><b>전체 기능 소개</b></div>
+<div class="wrap">
+<h1>알림로또<small>My Lotto Lab</small></h1>
+<p class="lead">로또 번호를 가상으로 등록해 실제 추첨과 비교하고 분석하는 웹·앱 서비스입니다. 복권은 팔지 않고, 포인트는 분석·자료·기능 이용에만 쓰입니다.</p>
+<a class="dl" href="https://wafa.kr/features/alimlotto_features.pdf" target="_blank" rel="noopener" onclick="if(window.Capacitor){location.href=this.href;return false}">⬇ PDF로 내려받기</a>
+<p class="dl-n">앱에서는 브라우저가 열리며 PDF를 보여 드려요. 그 화면에서 저장 · 공유하세요.</p>
+<nav class="toc"><a href="#s0">가입 · 계정</a><a href="#s1">메인 화면</a><a href="#s2">번호 등록 (Data 등록과 관리)</a><a href="#s3">전략 등록</a><a href="#s4">결과 · 통계</a><a href="#s5">당첨결과 알림</a><a href="#s6">시뮬레이션 · 대결 · 경마</a><a href="#s7">포인트 · 품샵</a></nav>
+<section id="s0"><h2>가입 · 계정<small>9</small></h2><div class="it"><b>회원가입</b><p>닉네임·이메일·비밀번호·국가 입력, 약관·개인정보·만 18세 이상 동의, 이메일 인증 후 완료</p></div><div class="it"><b>로그인 · 로그인 유지</b><p>이메일과 비밀번호로 로그인, 로그인 상태 유지 선택</p></div><div class="it"><b>비회원 등록 · 로그인</b><p>닉네임과 이메일만으로 등록하고 다시 로그인</p></div><div class="it"><b>비밀번호 찾기</b><p>이메일로 비밀번호 재설정</p></div><div class="it"><b>My Page</b><p>사이트에서 활동한 내역(등록 번호, 전략, 베팅, 구매)을 한 화면에 모아 보기</p></div><div class="it"><b>회원 라운지</b><p>본 사이트 이용법, 공지 및 안내사항 게시판</p></div><div class="it"><b>계정 삭제</b><p>회원 탈퇴와 데이터 삭제 요청</p></div><div class="it"><b>한국어 · English · 야간 화면</b><p>언어 전환과 주간·야간 화면 전환</p></div><div class="it"><b>아이폰 이용 안내</b><p>아이폰은 사파리에서 홈 화면에 추가해 앱처럼 쓰도록 안내</p></div></section><section id="s1"><h2>메인 화면<small>4</small></h2><div class="it"><b>최근 추첨</b><p>최근 회차 당첨번호, 1등 당첨금·당첨게임 수, 자동·반자동·수동 구분, 1등 당첨점</p></div><div class="it"><b>당첨확인 (무료)</b><p>번호를 넣어 당첨 여부 확인, 한국 로또는 복권 QR 스캔으로 바로 확인</p></div><div class="it"><b>복권 종류 전환</b><p>한국 로또 · 파워볼 · 메가밀리언스 · 유로밀리언스 · 모의테스트 사이 이동</p></div><div class="it"><b>전체 카테고리</b><p>Data 등록과 관리, 전략 등록, 결과·통계, 품샵, 100 전략 레이스, 모의 실전, 대결, 해외복권, 모의테스트, 경마장 바로가기</p></div></section><section id="s2"><h2>번호 등록 (Data 등록과 관리)<small>7</small></h2><div class="it"><b>일반 방식 편한 등록</b><p>번호판에서 직접 고르거나 AUTO 자동 생성 후 저장</p></div><div class="it"><b>실구매 로또 등록</b><p>실제로 산 복권을 카메라 QR 스캔이나 수동 입력으로 등록</p></div><div class="it"><b>엑셀 대량 등록</b><p>빈 양식(.xlsx) 받아 채운 뒤 .xlsx/.csv 업로드로 한꺼번에 등록</p></div><div class="it"><b>AI 도우미 음성·문자 등록</b><p>&quot;자동 만원어치&quot;, &quot;자동3 수동2&quot;, &quot;특정번호 포함·제외&quot; 같은 말이나 글로 번호 만들기, 마이크 입력 지원</p></div><div class="it"><b>로또구매전표 작성</b><p>등록한 번호를 골라 실물 마킹용지 PDF로 출력</p></div><div class="it"><b>엑셀로 받기</b><p>모든 입력·모의 시뮬레이션·관심번호·전략 데이터를 골라 엑셀로 내려받기</p></div><div class="it"><b>Report(PDF) 받기</b><p>고른 번호조합이나 결과·통계 화면을 보고서 PDF로 출력</p></div></section><section id="s3"><h2>전략 등록<small>6</small></h2><div class="it"><b>전략 수립</b><p>조건식을 세워 나만의 전략으로 저장·수정·삭제</p></div><div class="it"><b>전략번호 생성</b><p>전략별 번호조합 생성, 저장, 엑셀·PDF·마킹용지 출력</p></div><div class="it"><b>전략 비교평가</b><p>추첨 후 전략별 성적 비교 (전체·미추첨·추첨완료·당첨있음 보기)</p></div><div class="it"><b>상세전략</b><p>전략 하나의 조건과 성적 자세히 보기</p></div><div class="it"><b>최종전략 DATA 저장소</b><p>최애(재구매)번호 · 전략 DATA · Battle/Game 번호 · 기타 저장소, 메모·결과 보기·엑셀·PDF·전표 출력</p></div><div class="it"><b>다음 회차 추천번호</b><p>여러 기준으로 고른 참고용 조합과 기준별 성적표, 추첨 결과가 들어오면 자동 갱신 (당첨 보장 없음 안내)</p></div></section><section id="s4"><h2>결과 · 통계<small>3</small></h2><div class="it"><b>번호등록 현황 및 당첨통계</b><p>저장한 번호 목록과 회차별 당첨 현황, 나의 구매 성향</p></div><div class="it"><b>전략등록 현황 및 당첨통계</b><p>전략별 등록 현황과 당첨 통계</p></div><div class="it"><b>역대 회차별 통계</b><p>1회부터 회차별 당첨번호와 패턴 분석</p></div></section><section id="s5"><h2>당첨결과 알림<small>3</small></h2><div class="it"><b>당첨알림 등록</b><p>번호를 맡기면 추첨 후 대조해 이메일로 알림, 여러 복권 함께 등록, 발송 1회당 100포인트</p></div><div class="it"><b>알림 설정</b><p>받는 주소 바꾸기, 시험 알림 보내 확인, 낙첨 때도 받기 켜고 끄기, 메일 언어(한국어·English)</p></div><div class="it"><b>당첨알림 결과</b><p>등록한 번호를 추첨결과와 하나씩 대조한 결과 보기, 못 보낸 알림은 포인트 환불</p></div></section><section id="s6"><h2>시뮬레이션 · 대결 · 경마<small>6</small></h2><div class="it"><b>모의 실전 시뮬레이션</b><p>매주 일요일 06:00\~토요일 20:00 번호 등록, 가상 구입비·당첨금으로 수익률 체험, 내 등록현황·수익통계·전체 참여순위</p></div><div class="it"><b>전략 대결 (Battles)</b><p>인원 제한 없는 무제한 대결, 조합 수만큼 베팅, 당첨금 합계 1위가 낙첨자 베팅 총액의 80%</p></div><div class="it"><b>100 전략 레이스</b><p>100가지 전략의 1회부터 누적 성적, 회차별 결과, 기간별 통계, 다음회차 예상번호, 승격·강등 리그</p></div><div class="it"><b>Seoul Jackpot Racetrack</b><p>100마리 전략이 한국 로또 결과로 겨루는 포인트 경마, 주간 대상경마와 20분마다 도는 상시경마, 베팅현황·순위·내 베팅내역</p></div><div class="it"><b>해외복권 3종 (Global)</b><p>파워볼 · 메가밀리언스 · 유로밀리언스를 포인트로 가상 등록하고 실제 추첨과 비교</p></div><div class="it"><b>로또 모의테스트 및 실험</b><p>4종 복권 실전테스트(다음 추첨 대기)와 과거 회차 즉시 채점 모의테스트, 역대 당첨번호 CSV 제공</p></div></section><section id="s7"><h2>포인트 · 품샵<small>3</small></h2><div class="it"><b>포인트 충전</b><p>카드·계좌이체·App Store 결제로 충전, 1원 = 1P, 현금 교환·양도 불가</p></div><div class="it"><b>품샵 (Point Shop)</b><p>포인트로 마킹용지 PDF 구매·다운로드 (서로다른조합·반복마킹·역대당첨재현·극단조합·빈용지), 캐릭터 이미지 선택, 구매내역</p></div><div class="it"><b>PaperLotto 연결</b><p>세계 12개 복권 버전인 페이퍼로또로 이동</p></div></section>
+<a class="dl" href="https://wafa.kr/features/alimlotto_features.pdf" target="_blank" rel="noopener" onclick="if(window.Capacitor){location.href=this.href;return false}">⬇ PDF로 내려받기</a>
+<p class="foot">2026년 11월 21일 기준 · 화면과 기능은 앱 업데이트에 따라 바뀔 수 있습니다.<br>위브앱솔루션 · weapps.kr@gmail.com</p>
+</div>
+</body>
+</html>
