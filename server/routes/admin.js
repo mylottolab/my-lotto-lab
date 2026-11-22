@@ -546,6 +546,52 @@ router.get('/stats/deposits-daily', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── 💰 2026-11-22 위브앱 매출 센터용 — 날짜(KST) · 상품 · 결제수단별 실제 결제(입금포인트) ─────
+// GET /api/admin/weave-sales?from=YYYY-MM-DD&to=YYYY-MM-DD   (x-admin-key 필요)
+// 입금포인트 1P = 1원(카드 · 무통장 · PayPal 원화 환산 · 애플 인앱)으로 봅니다.
+// 관리자가 넣은 포인트(manual_admin) · 옛 자료 옮기기(csv_import)는 매출이 아니라 뺍니다.
+router.get('/weave-sales', requireAdmin, async (req, res) => {
+  try {
+    const re = /^\d{4}-\d{2}-\d{2}$/;
+    const from = String(req.query.from || ''), to = String(req.query.to || '');
+    if (!re.test(from) || !re.test(to) || from > to) return res.status(400).json({ error: 'from · to 날짜(YYYY-MM-DD)가 필요합니다.' });
+    // KST 날짜 → UTC 시각 범위
+    const fromIso = new Date(Date.parse(from + 'T00:00:00+09:00')).toISOString();
+    const toIso = new Date(Date.parse(to + 'T23:59:59.999+09:00')).toISOString();
+
+    const all = [];
+    for (let off = 0; off < 200000; off += 1000) {
+      const { data, error } = await supabase.from('point_ledger')
+        .select('source, amount, order_id, earned_at')
+        .eq('point_type', 'deposit')
+        .gte('earned_at', fromIso).lte('earned_at', toIso)
+        .order('earned_at', { ascending: true })
+        .range(off, off + 999);
+      if (error) { console.error('[admin] weave-sales 조회 오류:', error); return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' }); }
+      all.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+
+    const CH = { inicis: 'pg', paypal: 'pg', bank_transfer: 'bank', apple_iap: 'apple', google_play: 'google', google_iap: 'google' };
+    const agg = {};
+    all.forEach((r) => {
+      const src = String(r.source || 'other');
+      if (src === 'manual_admin' || src === 'csv_import') return;
+      const day = new Date(new Date(r.earned_at).getTime() + 9 * 3600e3).toISOString().slice(0, 10);
+      const amt = Number(r.amount) || 0;
+      const product = '포인트 충전 ' + amt.toLocaleString('ko-KR') + 'P';
+      const channel = CH[src] || 'pg';
+      const k = day + '|' + product + '|' + channel;
+      if (!agg[k]) agg[k] = { day, app: 'allim', product, channel, orders: 0, gross: 0, refunds: 0, refund: 0 };
+      agg[k].orders += 1; agg[k].gross += amt;
+    });
+    return res.json({ rows: Object.values(agg) });
+  } catch (err) {
+    console.error('[admin] weave-sales 오류:', err);
+    return res.status(500).json({ error: '처리 중 오류가 발생했습니다.' });
+  }
+});
+
 // ─── 일/주/월별 회원·비회원 가입자수 통계 ───────────────────────────────────────
 // GET /api/admin/stats/signups-daily?from=&to=&groupBy=day|week|month
 router.get('/stats/signups-daily', requireAdmin, async (req, res) => {
