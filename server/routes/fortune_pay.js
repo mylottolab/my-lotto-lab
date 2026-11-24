@@ -299,6 +299,10 @@ router.post('/restore', async (req, res) => {
     }
     return res.json({ ok: true });
   }
+  if (/^M[A-Z0-9]{7,14}$/.test(oid.toUpperCase())) {
+    try { return (await restoreApple(uid, oid.toUpperCase())) ? res.json({ ok: true }) : res.status(404).json({ error: 'notfound' }); }
+    catch (e) { console.error('[fortune] 애플 복원 오류', e.message); return res.status(404).json({ error: 'notfound' }); }
+  }
   if (!okEmail(email) || email.toLowerCase() === GP_EMAIL) return res.status(400).json({ error: 'input' });
   const { data } = await supabase.from('fortune_orders').select('oid').eq('oid', oid)
     .eq('email', email.toLowerCase()).eq('status', 'completed').maybeSingle();
@@ -365,5 +369,87 @@ router.post('/google/verify', async (req, res) => {
     res.json({ ok: true, orderId: g.orderId || null });
   } catch (e) { console.error('[fortune] 구글 확인 오류', e.message); res.status(500).json({ error: 'server' }); }
 });
+
+// ── 애플(아이폰 앱) 결제 확인 ──  2026-11-25
+//   앱(StoreKit 2) → 화면 → POST /apple/verify { uid, transactionId, productId, bkey, year }
+//   서버가 애플(App Store Server API)에 직접 거래를 물어보고, 진짜일 때만 엽니다.
+//   열쇠는 알림로또·부름과 같은 「앱 내 구입 키」(APPLE_IAP_KEY_ID · APPLE_IAP_ISSUER_ID · APPLE_IAP_KEY_P8)를 그대로 씁니다.
+const IOS_BUNDLE = process.env.FORTUNE_IOS_BUNDLE || 'com.weaveapp.kfortune';
+let aJwt = null, aAt = 0;
+const b64u = (buf) => Buffer.from(buf).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+function appleJwt() {
+  const now = Math.floor(Date.now() / 1000);
+  if (aJwt && now - aAt < 15 * 60) return aJwt;
+  const kid = (process.env.APPLE_IAP_KEY_ID || '').replace(/[^A-Za-z0-9]/g, '');
+  const iss = (process.env.APPLE_IAP_ISSUER_ID || '').replace(/[^A-Za-z0-9-]/g, '');
+  let p8 = (process.env.APPLE_IAP_KEY_P8 || '').replace(/\\n/g, '\n');
+  if (!kid || !iss || !p8) throw new Error('애플 열쇠 환경변수가 없습니다');
+  if (!/\n/.test(p8.trim())) {
+    const body = p8.replace(/-----[A-Z ]+-----/g, '').replace(/\s+/g, '');
+    p8 = '-----BEGIN PRIVATE KEY-----\n' + body.match(/.{1,64}/g).join('\n') + '\n-----END PRIVATE KEY-----\n';
+  }
+  const head = b64u(JSON.stringify({ alg: 'ES256', kid, typ: 'JWT' }));
+  const claims = b64u(JSON.stringify({ iss, iat: now, exp: now + 1200, aud: 'appstoreconnect-v1', bid: IOS_BUNDLE }));
+  const sig = crypto.sign('sha256', Buffer.from(head + '.' + claims), { key: p8, dsaEncoding: 'ieee-p1363' });
+  aJwt = head + '.' + claims + '.' + b64u(sig); aAt = now;
+  return aJwt;
+}
+const jwsBody = (j) => JSON.parse(Buffer.from((String(j || '').split('.')[1] || '').replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+async function apple(path) {
+  let last = '';
+  for (const host of ['https://api.storekit.itunes.apple.com', 'https://api.storekit-sandbox.itunes.apple.com']) {
+    const r = await fetch(host + path, { headers: { Authorization: 'Bearer ' + appleJwt() } });
+    if (r.ok) { const b = await r.json(); if (b.status === undefined || b.status === 0) return b; last += ' status' + b.status; continue; }
+    if (r.status === 401) aJwt = null;
+    last += ' ' + r.status;
+  }
+  throw new Error('애플 확인 실패' + last);
+}
+// 「누가 샀는지」(appAccountToken)는 UUID 여야 해서 기기 번호를 UUID 모양으로 바꿉니다 — 앱(AppDelegate.swift)과 같은 규칙
+function accountUuid(uid) {
+  let h = /^kf[0-9a-f]{32}$/.test(uid) ? uid.slice(2) : crypto.createHash('sha256').update(uid).digest('hex').slice(0, 32);
+  return (h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20, 32)).toLowerCase();
+}
+router.post('/apple/verify', async (req, res) => {
+  const b = req.body || {};
+  const kind = GP_PRODUCT[b.productId];
+  const txid = String(b.transactionId || '').replace(/^apple:/, '');
+  if (!kind || !okUid(b.uid) || !/^\d{1,30}$/.test(txid)) return res.status(400).json({ error: 'input' });
+  if (kind !== 'sub' && !okBkey(b.bkey)) return res.status(400).json({ error: 'bkey' });
+  if (kind === 'toj' && !(Number(b.year) >= 2020 && Number(b.year) <= 2100)) return res.status(400).json({ error: 'year' });
+  try {
+    const tx = jwsBody((await apple('/inApps/v1/transactions/' + txid)).signedTransactionInfo);
+    if (tx.bundleId !== IOS_BUNDLE || tx.productId !== b.productId) return res.status(400).json({ error: 'mismatch' });
+    if (tx.revocationDate) return res.status(400).json({ error: 'revoked' });
+    if (tx.appAccountToken && tx.appAccountToken.toLowerCase() !== accountUuid(b.uid)) return res.status(403).json({ error: 'owner' });
+    const oid = 'AP:' + tx.transactionId;
+    const { data: had } = await supabase.from('fortune_orders').select('status').eq('oid', oid).maybeSingle();
+    if (!had) {
+      const p = PRODUCTS[kind];
+      const { error } = await supabase.from('fortune_orders').insert({
+        oid, uid: b.uid, email: GP_EMAIL, product: kind, bkey: kind === 'sub' ? null : b.bkey,
+        year: kind === 'toj' ? Number(b.year) : null, method: 'apple', amount: p.krw, currency: 'KRW', lang: String(b.lang || '').slice(0, 10),
+        status: 'created', tid: String(tx.originalTransactionId || tx.transactionId) });
+      if (error) { console.error('[fortune] 애플 주문 저장 실패', error.message); return res.status(500).json({ error: 'db' }); }
+      await grant({ oid, uid: b.uid, product: kind, tid: String(tx.transactionId) });
+    }
+    res.json({ ok: true, orderId: oid });
+  } catch (e) { console.error('[fortune] 애플 확인 오류', e.message); res.status(500).json({ error: 'server' }); }
+});
+// 아이폰 구매 복원: 애플 영수증 메일의 주문 번호(M…)로 그 결제들을 찾아 이 기기에 이어 붙입니다
+async function restoreApple(uid, orderId) {
+  const b = await apple('/inApps/v1/lookup/' + encodeURIComponent(orderId));
+  const ids = (b.signedTransactions || []).map((j) => 'AP:' + jwsBody(j).transactionId);
+  if (!ids.length) return false;
+  const { data } = await supabase.from('fortune_orders').select('uid').in('oid', ids).eq('status', 'completed');
+  const olds = [...new Set((data || []).map((o) => o.uid))].filter((u) => u !== uid);
+  if (!data || !data.length) return false;
+  for (const o of olds) {
+    const { data: old } = await supabase.from('fortune_links').select('email').eq('uid', o);
+    const rows = [{ uid, email: 'uid:' + o }].concat((old || []).filter((l) => l.email !== 'uid:' + uid).map((l) => ({ uid, email: l.email })));
+    await supabase.from('fortune_links').upsert(rows, { onConflict: 'uid,email' });
+  }
+  return true;
+}
 
 module.exports = router;
