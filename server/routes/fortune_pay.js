@@ -13,7 +13,8 @@
 //   GET  /api/fortune/paypal/client-id
 //   POST /api/fortune/paypal/create            { uid, product, bkey, year, email, lang }
 //   POST /api/fortune/paypal/capture           { orderID }
-//   POST /api/fortune/restore                  { uid, email, oid } — 다른 기기에서 구매 복원
+//   POST /api/fortune/restore                  { uid, email, oid } — 다른 기기에서 구매 복원 (앱 결제는 oid=GPA.… 만)
+//   POST /api/fortune/people                   { uid, bkey } — 1년 이용권에 사람 등록(본인 포함 4명)
 //   POST /api/fortune/google/verify            { uid, productId, purchaseToken, bkey, year } — 안드로이드 앱 결제
 //
 //   사전 준비 SQL: sql/fortune_tables.sql (사용자가 SQL Editor에서 실행)
@@ -78,26 +79,67 @@ router.get('/products', (req, res) => {
 });
 
 // ── 산 것 ──
-router.get('/ent', async (req, res) => {
-  const uid = req.query.uid;
-  if (!okUid(uid)) return res.status(400).json({ error: 'uid' });
+//   이 기기(uid)의 주문 + 「구매 복원」으로 이어 붙인 것(이메일 · 예전 기기 uid:…)을 모두 모읍니다.
+const GP_EMAIL = 'google-play@koreanfortune.kr';   // 앱 결제는 이메일이 없어 이 값으로 저장 — 이메일 복원에 절대 쓰지 않음
+const SUB_PEOPLE = 4;                              // 1년 이용권으로 볼 수 있는 사람 수(본인 포함)
+async function ownedOrders(uid) {
   const { data: links } = await supabase.from('fortune_links').select('email').eq('uid', uid);
-  const emails = (links || []).map((l) => l.email);
-  const cols = 'product,bkey,year,expires_at';
-  const r1 = await supabase.from('fortune_orders').select(cols).eq('status', 'completed').eq('uid', uid);
-  if (r1.error) return res.status(500).json({ error: r1.error.message });
+  const emails = [], uids = [uid];
+  (links || []).forEach((l) => { if (l.email.indexOf('uid:') === 0) uids.push(l.email.slice(4)); else if (l.email !== GP_EMAIL) emails.push(l.email); });
+  const cols = 'oid,product,bkey,year,expires_at,created_at';
+  const r1 = await supabase.from('fortune_orders').select(cols).eq('status', 'completed').in('uid', uids);
+  if (r1.error) throw new Error(r1.error.message);
   let data = r1.data || [];
   if (emails.length) {
     const r2 = await supabase.from('fortune_orders').select(cols).eq('status', 'completed').in('email', emails);
     if (!r2.error) data = data.concat(r2.data || []);
   }
-  const ent = { sub: null, saju: [], toj: {} };
-  (data || []).forEach((o) => {
+  const seen = {}; return data.filter((o) => (seen[o.oid] ? false : (seen[o.oid] = true)));
+}
+// 이용권 자리의 주인 = 처음 산 1년 이용권 주문(연장해도 같은 4명이 이어짐)
+function subAnchor(orders) {
+  const now = new Date().toISOString();
+  const subs = orders.filter((o) => o.product === 'sub' && o.expires_at);
+  if (!subs.some((o) => o.expires_at > now)) return null;
+  subs.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+  return subs[0].oid;
+}
+async function entOf(uid) {
+  const data = await ownedOrders(uid);
+  const ent = { sub: null, saju: [], toj: {}, people: [], peopleMax: SUB_PEOPLE };
+  data.forEach((o) => {
     if (o.product === 'sub' && o.expires_at) { const d = o.expires_at.slice(0, 10); if (!ent.sub || d > ent.sub) ent.sub = d; }
     if (o.product === 'saju' && o.bkey && ent.saju.indexOf(o.bkey) < 0) ent.saju.push(o.bkey);
     if (o.product === 'toj' && o.bkey) { const a = (ent.toj[o.year] = ent.toj[o.year] || []); if (a.indexOf(o.bkey) < 0) a.push(o.bkey); }
   });
-  res.json(ent);
+  const anchor = subAnchor(data);
+  if (anchor) {
+    const { data: ppl } = await supabase.from('fortune_people').select('bkey').eq('oid', anchor).order('created_at');
+    ent.people = (ppl || []).map((x) => x.bkey);
+  }
+  return { ent, anchor };
+}
+router.get('/ent', async (req, res) => {
+  const uid = req.query.uid;
+  if (!okUid(uid)) return res.status(400).json({ error: 'uid' });
+  try { res.json((await entOf(uid)).ent); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── 1년 이용권에 사람 등록 (본인 포함 4명 · 한 번 등록하면 바꾸지 않음) ──
+router.post('/people', async (req, res) => {
+  const { uid, bkey } = req.body || {};
+  if (!okUid(uid) || !okBkey(bkey)) return res.status(400).json({ error: 'input' });
+  try {
+    const { ent, anchor } = await entOf(uid);
+    if (!anchor) return res.status(403).json({ error: 'nosub' });
+    if (ent.people.indexOf(bkey) < 0) {
+      if (ent.people.length >= SUB_PEOPLE) return res.status(409).json({ error: 'full', ent });
+      const { error } = await supabase.from('fortune_people').insert({ oid: anchor, bkey, uid });
+      if (error && !/duplicate/i.test(error.message)) return res.status(500).json({ error: 'db' });
+      ent.people.push(bkey);
+    }
+    res.json(ent);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── 이니시스: 준비 ──
@@ -226,11 +268,25 @@ router.post('/paypal/capture', async (req, res) => {
   } catch (e) { console.error('[fortune] PayPal capture 오류', e.message); res.status(500).json({ error: '결제 승인 처리 오류' }); }
 });
 
-// ── 다른 기기에서 복원: 결제 때 쓴 이메일 + 주문번호(영수증에 있음) ──
+// ── 다른 기기에서 복원 ──
+//   웹 결제: 결제 때 쓴 이메일 + 주문번호(영수증에 있음)
+//   앱 결제(구글 플레이): 구글 영수증 메일의 주문번호(GPA.…)만 — 예전 휴대폰에서 산 것을 모두 이어 붙임
 router.post('/restore', async (req, res) => {
-  const { uid, email, oid } = req.body || {};
-  if (!okUid(uid) || !okEmail(email) || !oid) return res.status(400).json({ error: 'input' });
-  const { data } = await supabase.from('fortune_orders').select('oid').eq('oid', String(oid).trim())
+  const { uid, email } = req.body || {};
+  const oid = String((req.body || {}).oid || '').trim().replace(/^GP:/i, '');
+  if (!okUid(uid) || !oid || oid.length > 80) return res.status(400).json({ error: 'input' });
+  if (/^GPA\.[0-9.-]+$/i.test(oid)) {
+    const { data } = await supabase.from('fortune_orders').select('uid').eq('oid', 'GP:' + oid.toUpperCase()).eq('status', 'completed').maybeSingle();
+    if (!data) return res.status(404).json({ error: 'notfound' });
+    if (data.uid !== uid) {
+      const { data: old } = await supabase.from('fortune_links').select('email').eq('uid', data.uid);
+      const rows = [{ uid, email: 'uid:' + data.uid }].concat((old || []).filter((l) => l.email !== 'uid:' + uid).map((l) => ({ uid, email: l.email })));
+      await supabase.from('fortune_links').upsert(rows, { onConflict: 'uid,email' });
+    }
+    return res.json({ ok: true });
+  }
+  if (!okEmail(email) || email.toLowerCase() === GP_EMAIL) return res.status(400).json({ error: 'input' });
+  const { data } = await supabase.from('fortune_orders').select('oid').eq('oid', oid)
     .eq('email', email.toLowerCase()).eq('status', 'completed').maybeSingle();
   if (!data) return res.status(404).json({ error: 'notfound' });
   await supabase.from('fortune_links').upsert({ uid, email: email.toLowerCase() }, { onConflict: 'uid,email' });
