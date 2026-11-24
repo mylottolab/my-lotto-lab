@@ -1,5 +1,5 @@
 // =====================================================================
-// 한국전통운세 (K-Saju · koreanfortune.kr) — 웹 결제            2026-11-24 신설
+// 한국전통운세 (KoreanFortune · koreanfortune.kr) — 웹 결제            2026-11-24 신설
 //
 //   로또앱과 같은 이니시스 상점(INICIS_MID · INICIS_PRO_HASHKEY)과
 //   같은 PayPal 계정(PAYPAL_CLIENT_ID · PAYPAL_CLIENT_SECRET · PAYPAL_MODE)을 그대로 씁니다.
@@ -35,9 +35,9 @@ const PAYPAL_API = PAYPAL_MODE === 'live' ? 'https://api-m.paypal.com' : 'https:
 
 // ── 상품 (가격은 여기서만 정합니다 — 화면은 이 값을 받아 보여 줍니다) ──
 const PRODUCTS = {
-  sub:  { krw: 19900, usd: '14.99', name: { ko: '한국전통운세 1년 구독', en: 'K-Saju 1-year subscription' } },
-  saju: { krw: 9900,  usd: '7.99',  name: { ko: '평생 사주 풀이', en: 'K-Saju life reading' } },
-  toj:  { krw: 4900,  usd: '3.99',  name: { ko: '토정비결', en: 'K-Saju Tojeong' } },
+  sub:  { krw: 19900, usd: '14.99', name: { ko: '한국전통운세 1년 구독', en: 'KoreanFortune 1-year pass' } },
+  saju: { krw: 9900,  usd: '7.99',  name: { ko: '평생 사주 풀이', en: 'KoreanFortune life reading' } },
+  toj:  { krw: 4900,  usd: '3.99',  name: { ko: '토정비결', en: 'KoreanFortune Tojeong' } },
 };
 
 const okUid = (s) => typeof s === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(s);
@@ -117,7 +117,7 @@ router.post('/inicis/prepare', async (req, res) => {
   });
   if (error) { console.error('[fortune] 주문 저장 실패:', error.message); return res.status(500).json({ error: '결제 준비 중 오류가 발생했습니다.' }); }
   res.json({
-    mid: MID, oid, amt, goodname, buyername: String(b.name || 'K-Saju').slice(0, 30), buyeremail: b.email, timestamp,
+    mid: MID, oid, amt, goodname, buyername: String(b.name || 'KoreanFortune').slice(0, 30), buyeremail: b.email, timestamp,
     chkfake: sha512b64(`${amt}${oid}${timestamp}${HASH_KEY}`),
     nextUrl: `${SERVER_URL}/api/fortune/inicis/return`, notiUrl: `${SERVER_URL}/api/fortune/inicis/noti`, closeUrl: `${SITE}/#pay`,
   });
@@ -188,7 +188,7 @@ router.post('/paypal/create', async (req, res) => {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ intent: 'CAPTURE', purchase_units: [{ amount: { currency_code: 'USD', value: p.usd },
         description: p.name.en + (b.product === 'toj' ? ` ${b.year}` : '') }],
-        application_context: { brand_name: 'K-Saju', shipping_preference: 'NO_SHIPPING' } }) });
+        application_context: { brand_name: 'KoreanFortune', shipping_preference: 'NO_SHIPPING' } }) });
     const d = await r.json();
     if (!r.ok) { console.error('[fortune] PayPal 주문 실패', JSON.stringify(d)); return res.status(500).json({ error: '주문 생성 실패' }); }
     const { error } = await supabase.from('fortune_orders').insert({
