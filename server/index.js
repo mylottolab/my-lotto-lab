@@ -380,4 +380,5 @@ app.use('/api/watch', watchRouter);
 app.use('/api/picks', require('./routes/picks'));
 // 🔴 2026-10-14 아이폰 앱 — 애플 인앱 결제(포인트) · 회원 탈퇴 · 비밀번호 찾기
 app.use('/api/payment/apple', require('./routes/payment_apple'));
+app.use('/api/fortune', require('./routes/fortune_pay'));   // 한국전통운세(koreanfortune.kr) 웹 결제
 app.use('/api/account', require('./routes/account'));
