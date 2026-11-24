@@ -14,6 +14,7 @@
 //   POST /api/fortune/paypal/create            { uid, product, bkey, year, email, lang }
 //   POST /api/fortune/paypal/capture           { orderID }
 //   POST /api/fortune/restore                  { uid, email, oid } — 다른 기기에서 구매 복원
+//   POST /api/fortune/google/verify            { uid, productId, purchaseToken, bkey, year } — 안드로이드 앱 결제
 //
 //   사전 준비 SQL: sql/fortune_tables.sql (사용자가 SQL Editor에서 실행)
 // =====================================================================
@@ -234,6 +235,65 @@ router.post('/restore', async (req, res) => {
   if (!data) return res.status(404).json({ error: 'notfound' });
   await supabase.from('fortune_links').upsert({ uid, email: email.toLowerCase() }, { onConflict: 'uid,email' });
   res.json({ ok: true });
+});
+
+// ── 구글 플레이(앱) 결제 확인 ─────────────────────────────────────────────
+//   앱이 { uid, productId, purchaseToken, bkey, year } 를 보내면 구글에 직접 물어보고, 진짜일 때만 엽니다.
+//   상품(플레이 콘솔 · 한 번 사는 상품): kf_year 1년 이용권 · kf_saju 평생 사주 · kf_toj 토정비결
+//   Render 환경변수: GOOGLE_PLAY_SERVICE_ACCOUNT (서비스 계정 JSON 통째로 — 부름·와파와 같은 것)
+//                   FORTUNE_ANDROID_PACKAGE (기본 com.weaveapp.kfortune)
+//   ⚠ 플레이 콘솔 → 사용자 및 권한 에서 그 서비스 계정에 이 앱의 "재무 데이터 보기 · 주문 관리" 권한을 줘야 합니다.
+const ANDROID_PACKAGE = process.env.FORTUNE_ANDROID_PACKAGE || 'com.weaveapp.kfortune';
+const GP_PRODUCT = { kf_year: 'sub', kf_saju: 'saju', kf_toj: 'toj' };
+let gTok = null, gUntil = 0;
+async function googleToken() {
+  const now = Math.floor(Date.now() / 1000);
+  if (gTok && now < gUntil) return gTok;
+  const raw = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT;
+  if (!raw) throw new Error('GOOGLE_PLAY_SERVICE_ACCOUNT 없음');
+  const sa = JSON.parse(raw);
+  const b64u = (b) => Buffer.from(b).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const unsigned = b64u(JSON.stringify({ alg: 'RS256', typ: 'JWT' })) + '.' + b64u(JSON.stringify({
+    iss: sa.client_email, scope: 'https://www.googleapis.com/auth/androidpublisher',
+    aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 }));
+  const sig = crypto.createSign('RSA-SHA256').update(unsigned).sign(String(sa.private_key).replace(/\\n/g, '\n'));
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: unsigned + '.' + b64u(sig) }) });
+  const d = await r.json();
+  if (!d.access_token) throw new Error('구글 출입증 실패 ' + JSON.stringify(d).slice(0, 200));
+  gTok = d.access_token; gUntil = now + 3300; return gTok;
+}
+router.post('/google/verify', async (req, res) => {
+  const b = req.body || {};
+  const kind = GP_PRODUCT[b.productId];
+  if (!kind || !okUid(b.uid) || typeof b.purchaseToken !== 'string' || b.purchaseToken.length > 600) return res.status(400).json({ error: 'input' });
+  if (kind !== 'sub' && !okBkey(b.bkey)) return res.status(400).json({ error: 'bkey' });
+  if (kind === 'toj' && !(Number(b.year) >= 2020 && Number(b.year) <= 2100)) return res.status(400).json({ error: 'year' });
+  try {
+    const tok = await googleToken();
+    const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${ANDROID_PACKAGE}/purchases/products/${encodeURIComponent(b.productId)}/tokens/${encodeURIComponent(b.purchaseToken)}`;
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + tok } });
+    if (!r.ok) { console.error('[fortune] 구글 확인 실패', r.status, (await r.text()).slice(0, 200)); return res.status(400).json({ error: 'google' }); }
+    const g = await r.json();
+    if (g.purchaseState !== 0) return res.status(400).json({ error: 'state', state: g.purchaseState });   // 0 결제됨 · 1 취소 · 2 대기
+    if (g.obfuscatedExternalAccountId && g.obfuscatedExternalAccountId !== b.uid) return res.status(403).json({ error: 'owner' });
+    const oid = 'GP:' + (g.orderId || b.purchaseToken.slice(0, 60));
+    const { data: had } = await supabase.from('fortune_orders').select('status').eq('oid', oid).maybeSingle();
+    if (!had) {
+      const p = PRODUCTS[kind];
+      const { error } = await supabase.from('fortune_orders').insert({
+        oid, uid: b.uid, email: 'google-play@koreanfortune.kr', product: kind, bkey: kind === 'sub' ? null : b.bkey,
+        year: kind === 'toj' ? Number(b.year) : null, method: 'google', amount: p.krw, currency: 'KRW', lang: String(b.lang || '').slice(0, 10),
+        status: 'created', tid: b.purchaseToken.slice(0, 200) });
+      if (error) { console.error('[fortune] 구글 주문 저장 실패', error.message); return res.status(500).json({ error: 'db' }); }
+      await grant({ oid, uid: b.uid, product: kind, tid: g.orderId || null });
+    }
+    if (g.acknowledgementState === 0) {   // 앱이 "소비"하지 못해도 사흘 뒤 자동 환불되지 않게
+      const a = await fetch(url + ':acknowledge', { method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: '{}' });
+      if (!a.ok) console.error('[fortune] 구글 acknowledge 실패', (await a.text()).slice(0, 200));
+    }
+    res.json({ ok: true, orderId: g.orderId || null });
+  } catch (e) { console.error('[fortune] 구글 확인 오류', e.message); res.status(500).json({ error: 'server' }); }
 });
 
 module.exports = router;
