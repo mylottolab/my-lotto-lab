@@ -275,6 +275,20 @@ router.post('/restore', async (req, res) => {
   const { uid, email } = req.body || {};
   const oid = String((req.body || {}).oid || '').trim().replace(/^GP:/i, '');
   if (!okUid(uid) || !oid || oid.length > 80) return res.status(400).json({ error: 'input' });
+  // 구글·애플 심사용: 「구매 복원」 주문번호 칸에 심사 코드(Render 환경변수 FORTUNE_REVIEW_CODE)를 넣으면 이 기기에 1년 이용권 30일
+  const RC = process.env.FORTUNE_REVIEW_CODE;
+  if (RC && RC.length >= 8 && oid === RC) {
+    const roid = 'REVIEW:' + uid;
+    const { data: had } = await supabase.from('fortune_orders').select('oid').eq('oid', roid).maybeSingle();
+    if (!had) {
+      const { error } = await supabase.from('fortune_orders').insert({
+        oid: roid, uid, email: GP_EMAIL, product: 'sub', method: 'review', amount: 0, currency: 'KRW',
+        status: 'completed', completed_at: new Date().toISOString(), expires_at: new Date(Date.now() + 30 * 864e5).toISOString() });
+      if (error) { console.error('[fortune] 심사 코드 저장 실패', error.message); return res.status(500).json({ error: 'db' }); }
+      console.log('[fortune] 심사 코드 사용', uid.slice(0, 8));
+    }
+    return res.json({ ok: true });
+  }
   if (/^GPA\.[0-9.-]+$/i.test(oid)) {
     const { data } = await supabase.from('fortune_orders').select('uid').eq('oid', 'GP:' + oid.toUpperCase()).eq('status', 'completed').maybeSingle();
     if (!data) return res.status(404).json({ error: 'notfound' });
