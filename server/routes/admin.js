@@ -550,6 +550,88 @@ router.get('/stats/deposits-daily', requireAdmin, async (req, res) => {
 // GET /api/admin/weave-sales?from=YYYY-MM-DD&to=YYYY-MM-DD   (x-admin-key 필요)
 // 입금포인트 1P = 1원(카드 · 무통장 · PayPal 원화 환산 · 애플 인앱)으로 봅니다.
 // 관리자가 넣은 포인트(manual_admin) · 옛 자료 옮기기(csv_import)는 매출이 아니라 뺍니다.
+// ─── 🔮 한국전통운세 (2026-11-25) ────────────────────────────────────────────
+//   fortune_orders(결제 완료)만 매출로 봅니다. 심사용 코드(review) · 테스트 결제(*_test)는 뺍니다.
+//   PayPal(달러)은 exchange_rate.usd_to_point(1P=1원) 환율로 원화 환산.
+const FORTUNE_NAME = { sub: '1년 이용권', saju: '평생 사주', toj: '토정비결' };
+const FORTUNE_CH = { inicis: 'pg', paypal: 'pg', google: 'google', apple: 'apple' };
+async function usdRate() {
+  try { const { data } = await supabase.from('exchange_rate').select('usd_to_point').eq('id', 1).maybeSingle(); return Number(data && data.usd_to_point) || 1400; } catch (e) { return 1400; }
+}
+async function fortuneOrders(fromIso, toIso, extra) {
+  const out = [];
+  for (let off = 0; off < 100000; off += 1000) {
+    let q = supabase.from('fortune_orders').select('oid, uid, email, product, bkey, year, method, amount, currency, status, lang, created_at, completed_at, expires_at')
+      .gte('created_at', fromIso).lte('created_at', toIso).order('created_at', { ascending: false }).range(off, off + 999);
+    if (extra) q = extra(q);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    out.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+const isSale = (o) => o.status === 'completed' && FORTUNE_CH[o.method];
+const kstDay = (t) => new Date(new Date(t).getTime() + 9 * 3600e3).toISOString().slice(0, 10);
+async function fortuneSalesRows(fromIso, toIso) {
+  const rate = await usdRate();
+  const rows = await fortuneOrders(fromIso, toIso, (q) => q.eq('status', 'completed'));
+  const agg = {};
+  rows.filter(isSale).forEach((o) => {
+    const day = kstDay(o.completed_at || o.created_at);
+    const product = FORTUNE_NAME[o.product] || o.product;
+    const channel = FORTUNE_CH[o.method];
+    const krw = o.currency === 'USD' ? Math.round(Number(o.amount) * rate) : Number(o.amount) || 0;
+    const k = day + '|' + product + '|' + channel;
+    if (!agg[k]) agg[k] = { day, app: 'kfortune', product, channel, orders: 0, gross: 0, refunds: 0, refund: 0 };
+    agg[k].orders += 1; agg[k].gross += krw;
+  });
+  return Object.values(agg);
+}
+// GET /api/admin/fortune/orders?from=YYYY-MM-DD&to=YYYY-MM-DD&q=검색어   주문 목록 + 요약
+router.get('/fortune/orders', requireAdmin, async (req, res) => {
+  try {
+    const re = /^\d{4}-\d{2}-\d{2}$/;
+    const from = String(req.query.from || ''), to = String(req.query.to || '');
+    if (!re.test(from) || !re.test(to) || from > to) return res.status(400).json({ error: 'from · to 날짜(YYYY-MM-DD)가 필요합니다.' });
+    const fromIso = new Date(Date.parse(from + 'T00:00:00+09:00')).toISOString();
+    const toIso = new Date(Date.parse(to + 'T23:59:59.999+09:00')).toISOString();
+    const qs = String(req.query.q || '').trim().slice(0, 80).toLowerCase();
+    const rate = await usdRate();
+    let rows = await fortuneOrders(fromIso, toIso);
+    if (qs) rows = rows.filter((o) => [o.oid, o.email, o.uid].some((v) => String(v || '').toLowerCase().includes(qs)));
+    const sum = { orders: 0, gross: 0, buyers: 0, byProduct: {}, byChannel: {}, byLang: {}, pending: 0, test: 0 };
+    const buyers = new Set();
+    rows.forEach((o) => {
+      o.krw = o.currency === 'USD' ? Math.round(Number(o.amount) * rate) : Number(o.amount) || 0;
+      o.sale = !!isSale(o);
+      if (o.status !== 'completed') { sum.pending++; return; }
+      if (!o.sale) { sum.test++; return; }
+      sum.orders++; sum.gross += o.krw; buyers.add(o.uid);
+      const pn = FORTUNE_NAME[o.product] || o.product;
+      (sum.byProduct[pn] = sum.byProduct[pn] || { orders: 0, gross: 0 }); sum.byProduct[pn].orders++; sum.byProduct[pn].gross += o.krw;
+      (sum.byChannel[o.method] = sum.byChannel[o.method] || { orders: 0, gross: 0 }); sum.byChannel[o.method].orders++; sum.byChannel[o.method].gross += o.krw;
+      const lg = o.lang || '-'; sum.byLang[lg] = (sum.byLang[lg] || 0) + 1;
+    });
+    sum.buyers = buyers.size;
+    const { count: people } = await supabase.from('fortune_people').select('bkey', { count: 'exact', head: true });
+    const { count: links } = await supabase.from('fortune_links').select('uid', { count: 'exact', head: true });
+    res.json({ rate, sum, people: people || 0, links: links || 0, rows: rows.slice(0, 2000) });
+  } catch (e) { console.error('[admin] 운세 주문 조회 오류:', e.message); res.status(500).json({ error: '조회 중 오류가 발생했습니다.' }); }
+});
+// POST /api/admin/fortune/mark-test { oid, test:true|false }   테스트 결제를 매출에서 빼거나 되돌림
+router.post('/fortune/mark-test', requireAdmin, async (req, res) => {
+  const oid = String((req.body || {}).oid || ''), test = !!(req.body || {}).test;
+  if (!oid || oid.length > 120) return res.status(400).json({ error: 'oid' });
+  const { data: o } = await supabase.from('fortune_orders').select('method').eq('oid', oid).maybeSingle();
+  if (!o) return res.status(404).json({ error: '주문이 없습니다.' });
+  const base = String(o.method).replace(/_test$/, '');
+  if (base === 'review') return res.status(400).json({ error: '심사용 코드 주문입니다.' });
+  const { error } = await supabase.from('fortune_orders').update({ method: test ? base + '_test' : base }).eq('oid', oid);
+  if (error) return res.status(500).json({ error: 'db' });
+  res.json({ ok: true, method: test ? base + '_test' : base });
+});
+
 router.get('/weave-sales', requireAdmin, async (req, res) => {
   try {
     const re = /^\d{4}-\d{2}-\d{2}$/;
@@ -585,6 +667,9 @@ router.get('/weave-sales', requireAdmin, async (req, res) => {
       if (!agg[k]) agg[k] = { day, app: 'allim', product, channel, orders: 0, gross: 0, refunds: 0, refund: 0 };
       agg[k].orders += 1; agg[k].gross += amt;
     });
+    // 🔮 2026-11-25 한국전통운세(koreanfortune.kr) — 같은 서버 · 같은 관리자 키
+    try { (await fortuneSalesRows(fromIso, toIso)).forEach((r) => { agg['kf|' + r.day + '|' + r.product + '|' + r.channel] = r; }); }
+    catch (e) { console.error('[admin] 운세 매출 조회 오류:', e.message); }
     return res.json({ rows: Object.values(agg) });
   } catch (err) {
     console.error('[admin] weave-sales 오류:', err);

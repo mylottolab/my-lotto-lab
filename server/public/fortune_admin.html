@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>한국전통운세 관리</title>
+<!--
+ 🔮 2026-11-25 한국전통운세(koreanfortune.kr) 관리 화면 — 위브앱 통합 관리의 「🔮 한국전통운세」 탭에서 열립니다.
+   알림로또와 같은 서버(my-lotto-lab) · 같은 관리자 키(x-admin-key)를 씁니다. 이 화면에는 키를 적어 두지 않습니다.
+   매출 = 결제 완료(completed) 중 이니시스 · PayPal · 구글 · 애플. 심사용 코드(review)와 테스트 결제(*_test)는 뺍니다.
+-->
+<style>
+:root{--bg:#f6f1e7;--card:#fffdf8;--ink:#221c16;--sub:#6e6458;--line:#e3d9c8;--acc:#a9322a;--gold:#b8862f;--ok:#2f6b45;--chip:#efe6d6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14110e;--card:#1e1a16;--ink:#ede5d8;--sub:#a89c8e;--line:#352e27;--acc:#d65a4e;--gold:#e7c27a;--ok:#7dba8e;--chip:#2a241e;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14110e;--card:#1e1a16;--ink:#ede5d8;--sub:#a89c8e;--line:#352e27;--acc:#d65a4e;--gold:#e7c27a;--ok:#7dba8e;--chip:#2a241e;color-scheme:dark}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;font-size:14px;word-break:keep-all}
+.wrap{max-width:1200px;margin:0 auto;padding:16px max(14px,env(safe-area-inset-right)) 40px max(14px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.seal{width:34px;height:34px;border-radius:8px;background:var(--acc);color:#fbf8f2;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px}
+h1{font-size:18px;margin:0;flex:1;min-width:160px}
+h1 small{font-size:12px;color:var(--sub);font-weight:600;margin-left:6px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 12px;font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--gold)}.btn.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+input{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 10px;font:inherit}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi b{display:block;font-size:22px;font-variant-numeric:tabular-nums}.kpi span{color:var(--sub);font-size:12.5px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+h2{font-size:14px;margin:0 0 8px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--sub);font-weight:700;white-space:nowrap}
+td.n,th.n{text-align:right}
+.tw{overflow-x:auto}
+.chip{display:inline-block;border-radius:10px;padding:1px 8px;font-size:12px;font-weight:700;background:var(--chip)}
+.chip.ok{color:var(--ok)}.chip.wait{color:var(--gold)}.chip.test{color:var(--sub);text-decoration:line-through}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.msg{color:var(--sub)}.err{color:var(--acc);font-weight:700}
+.login{max-width:420px;margin:60px auto;display:flex;flex-direction:column;gap:10px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="card login" id="login">
+    <header><div class="seal">運</div><h1>한국전통운세 관리</h1></header>
+    <p class="msg">알림로또 관리 화면과 같은 <b>관리자 키</b>를 넣어 주세요. 이 브라우저 창을 닫을 때까지만 기억합니다.</p>
+    <form id="lf" class="bar"><input type="password" id="key" placeholder="관리자 키" autocomplete="current-password" style="flex:1"><button class="btn pri" type="submit">들어가기</button></form>
+    <p class="err" id="lerr"></p>
+  </div>
+  <div id="main" hidden>
+    <header style="margin-bottom:12px"><div class="seal">運</div><h1>한국전통운세 관리<small>koreanfortune.kr · 앱(구글 · 애플)</small></h1>
+      <a class="btn" href="https://koreanfortune.kr" target="_blank" rel="noopener">사이트 ›</a><button class="btn" id="out" type="button">나가기</button></header>
+    <div class="card bar" style="margin-bottom:12px">
+      <span id="pre"></span>
+      <input type="date" id="from"> ~ <input type="date" id="to">
+      <input type="search" id="q" placeholder="주문번호 · 이메일 · 기기번호 검색" style="min-width:220px;flex:1">
+      <button class="btn pri" id="go" type="button">보기</button>
+      <button class="btn" id="csv" type="button">엑셀(CSV)</button>
+    </div>
+    <p class="msg" id="msg">불러오는 중… 서버가 잠들어 있으면 처음 30초~1분 걸릴 수 있습니다.</p>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid3" id="breaks" style="margin-top:12px"></div>
+    <div class="card" style="margin-top:12px"><h2>주문 목록 <span class="msg" id="cnt"></span></h2><div class="tw"><table id="tbl"></table></div>
+      <p class="msg" style="margin-bottom:0">「테스트로 빼기」를 누르면 그 주문은 매출 합계에서 빠집니다(이용 권한은 그대로). 라이선스 테스터의 구글 결제 · 애플 샌드박스 결제는 앞으로 자동으로 테스트로 표시됩니다.</p></div>
+  </div>
+</div>
+<script>
+(function(){
+  'use strict';
+  var API = location.origin + '/api/admin', key = '';
+  try { key = sessionStorage.getItem('mll_admin_key') || ''; } catch (e) {}
+  var $ = function(id){ return document.getElementById(id); };
+  var NAME = { sub:'1년 이용권', saju:'평생 사주', toj:'토정비결' };
+  var METHOD = { inicis:'카드(이니시스)', paypal:'PayPal', google:'구글 플레이', apple:'앱스토어', review:'심사용 코드', google_test:'구글(테스트)', apple_test:'애플(테스트)', inicis_test:'카드(테스트)', paypal_test:'PayPal(테스트)' };
+  var LANG = { ko:'한국어', en:'English', ja:'日本語', 'zh-Hans':'简体', 'zh-Hant':'繁體', es:'Español', de:'Deutsch', fr:'Français', id:'Indonesia', th:'ไทย', vi:'Tiếng Việt', ar:'العربية', ru:'Русский' };
+  var last = null;
+  function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function won(n){ return '₩' + Math.round(n || 0).toLocaleString('ko-KR'); }
+  function ymd(d){ return new Date(d.getTime() + 9*3600e3).toISOString().slice(0,10); }
+  function kst(t){ if (!t) return ''; var d = new Date(new Date(t).getTime() + 9*3600e3).toISOString(); return d.slice(0,10) + ' ' + d.slice(11,16); }
+  async function api(path, opt){
+    opt = opt || {}; opt.headers = Object.assign({ 'x-admin-key': key, 'Content-Type': 'application/json' }, opt.headers || {});
+    var r = await fetch(API + path, opt); var j = {}; try { j = await r.json(); } catch (e) {}
+    if (r.status === 401 || r.status === 403) { logout('관리자 키가 맞지 않습니다.'); throw new Error('auth'); }
+    if (!r.ok) throw new Error(j.error || ('오류 ' + r.status));
+    return j;
+  }
+  function logout(m){ key = ''; try { sessionStorage.removeItem('mll_admin_key'); } catch (e) {} $('main').hidden = true; $('login').hidden = false; $('lerr').textContent = m || ''; }
+  $('lf').addEventListener('submit', function(e){ e.preventDefault(); key = $('key').value.trim(); if (!key) return; try { sessionStorage.setItem('mll_admin_key', key); } catch (e2) {} start(); });
+  $('out').onclick = function(){ logout(''); };
+  var today = ymd(new Date());
+  var PRE = [['오늘', 0], ['7일', 6], ['30일', 29], ['이번 달', 'm'], ['올해', 'y'], ['전체', 'all']];
+  $('pre').innerHTML = PRE.map(function(p, i){ return '<button class="btn" type="button" data-p="' + i + '">' + p[0] + '</button> '; }).join('');
+  function setPre(i){
+    var p = PRE[i][1], t = new Date(), f;
+    if (p === 'm') f = today.slice(0,8) + '01'; else if (p === 'y') f = today.slice(0,4) + '-01-01'; else if (p === 'all') f = '2026-11-01';
+    else f = ymd(new Date(t.getTime() - p * 864e5));
+    $('from').value = f; $('to').value = today;
+    [].forEach.call($('pre').querySelectorAll('button'), function(b){ b.classList.toggle('on', +b.dataset.p === i); });
+  }
+  $('pre').addEventListener('click', function(e){ var b = e.target.closest('[data-p]'); if (b) { setPre(+b.dataset.p); load(); } });
+  $('go').onclick = load; $('q').addEventListener('keydown', function(e){ if (e.key === 'Enter') load(); });
+  async function load(){
+    $('msg').textContent = '불러오는 중…'; $('msg').className = 'msg';
+    try {
+      var j = await api('/fortune/orders?from=' + $('from').value + '&to=' + $('to').value + '&q=' + encodeURIComponent($('q').value));
+      last = j; paint(j); $('msg').textContent = '달러(PayPal)는 1$ = ' + j.rate.toLocaleString('ko-KR') + '원으로 환산했습니다. 구글 · 애플 금액은 수수료를 빼기 전 판매가입니다.';
+    } catch (e) { if (e.message !== 'auth') { $('msg').textContent = '불러오지 못했습니다: ' + e.message; $('msg').className = 'err'; } }
+  }
+  function paint(j){
+    var s = j.sum;
+    $('kpis').innerHTML = [
+      [won(s.gross), '매출(결제 완료)'], [s.orders.toLocaleString('ko-KR') + '건', '결제 건수'], [s.buyers.toLocaleString('ko-KR') + '명', '구매 기기 수'],
+      [j.people.toLocaleString('ko-KR') + '명', '1년 이용권 등록 인원(전체)'], [j.links.toLocaleString('ko-KR') + '건', '구매 복원 연결(전체)'], [s.pending + ' · ' + s.test, '결제 대기 · 테스트/심사']
+    ].map(function(k){ return '<div class="card kpi"><b>' + k[0] + '</b><span>' + k[1] + '</span></div>'; }).join('');
+    function box(title, obj, label){
+      var ks = Object.keys(obj); if (!ks.length) return '<div class="card"><h2>' + title + '</h2><p class="msg">없음</p></div>';
+      return '<div class="card"><h2>' + title + '</h2><table>' + ks.sort(function(a,b){ return (obj[b].gross||obj[b]) - (obj[a].gross||obj[a]); }).map(function(k){
+        var v = obj[k]; return '<tr><td>' + esc(label ? (label[k] || k) : k) + '</td>' + (typeof v === 'object' ? '<td class="n">' + v.orders + '건</td><td class="n">' + won(v.gross) + '</td>' : '<td class="n">' + v + '건</td>') + '</tr>';
+      }).join('') + '</table></div>';
+    }
+    $('breaks').innerHTML = box('상품별', s.byProduct) + box('결제 수단별', s.byChannel, METHOD) + box('언어별 결제', s.byLang, LANG);
+    $('cnt').textContent = j.rows.length + '건' + (j.rows.length >= 2000 ? ' (최근 2000건까지)' : '');
+    $('tbl').innerHTML = '<tr><th>주문 시각</th><th>상품</th><th>수단</th><th class="n">금액</th><th>상태</th><th>이메일</th><th>언어</th><th>주문번호</th><th>기기</th><th></th></tr>' + j.rows.map(function(o){
+      var st = o.status !== 'completed' ? '<span class="chip wait">' + esc(o.status === 'created' ? '결제 대기' : o.status) + '</span>' : o.sale ? '<span class="chip ok">결제 완료</span>' : '<span class="chip test">' + (o.method === 'review' ? '심사' : '테스트') + '</span>';
+      var amt = o.currency === 'USD' ? '$' + Number(o.amount).toFixed(2) + '<br><span class="msg">' + won(o.krw) + '</span>' : won(o.amount);
+      var prod = (NAME[o.product] || o.product) + (o.year ? ' ' + o.year : '') + (o.product === 'sub' && o.expires_at ? '<br><span class="msg">~' + esc(o.expires_at.slice(0,10)) + '</span>' : '');
+      var mail = /@koreanfortune\.kr$/.test(o.email || '') ? '<span class="msg">(앱 결제)</span>' : esc(o.email);
+      var tb = o.status === 'completed' && o.method !== 'review' ? '<button class="btn" type="button" data-t="' + esc(o.oid) + '" data-v="' + (o.sale ? 1 : 0) + '">' + (o.sale ? '테스트로 빼기' : '매출로 되돌리기') + '</button>' : '';
+      return '<tr><td>' + kst(o.created_at) + '</td><td>' + prod + '</td><td>' + esc(METHOD[o.method] || o.method) + '</td><td class="n">' + amt + '</td><td>' + st + '</td><td>' + mail + '</td><td>' + esc(LANG[o.lang] || o.lang || '') + '</td><td class="mono">' + esc(o.oid) + '</td><td class="mono">' + esc(String(o.uid || '').slice(0, 10)) + '</td><td>' + tb + '</td></tr>';
+    }).join('');
+  }
+  $('tbl').addEventListener('click', async function(e){
+    var b = e.target.closest('[data-t]'); if (!b) return;
+    b.disabled = true;
+    try { await api('/fortune/mark-test', { method: 'POST', body: JSON.stringify({ oid: b.dataset.t, test: b.dataset.v === '1' }) }); load(); }
+    catch (err) { b.disabled = false; if (err.message !== 'auth') $('msg').textContent = '바꾸지 못했습니다: ' + err.message; }
+  });
+  $('csv').onclick = function(){
+    if (!last) return;
+    var head = ['주문시각(KST)', '상품', '해', '수단', '통화', '금액', '원화', '상태', '매출포함', '이메일', '언어', '주문번호', '기기번호', '이용권만료'];
+    var lines = [head].concat(last.rows.map(function(o){ return [kst(o.created_at), NAME[o.product] || o.product, o.year || '', METHOD[o.method] || o.method, o.currency, o.amount, o.krw, o.status, o.sale ? 'Y' : 'N', o.email, o.lang || '', o.oid, o.uid, (o.expires_at || '').slice(0,10)]; }));
+    var csv = '﻿' + lines.map(function(r){ return r.map(function(v){ v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(','); }).join('\r\n');
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'kfortune_orders_' + $('from').value + '_' + $('to').value + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+  };
+  function start(){ $('login').hidden = true; $('main').hidden = false; setPre(2); load(); }
+  if (key) start();
+})();
+</script>
+</body>
+</html>

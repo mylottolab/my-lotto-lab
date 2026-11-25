@@ -357,7 +357,7 @@ router.post('/google/verify', async (req, res) => {
       const p = PRODUCTS[kind];
       const { error } = await supabase.from('fortune_orders').insert({
         oid, uid: b.uid, email: 'google-play@koreanfortune.kr', product: kind, bkey: kind === 'sub' ? null : b.bkey,
-        year: kind === 'toj' ? Number(b.year) : null, method: 'google', amount: p.krw, currency: 'KRW', lang: String(b.lang || '').slice(0, 10),
+        year: kind === 'toj' ? Number(b.year) : null, method: g.purchaseType === 0 ? 'google_test' : 'google', amount: p.krw, currency: 'KRW', lang: String(b.lang || '').slice(0, 10),
         status: 'created', tid: b.purchaseToken.slice(0, 200) });
       if (error) { console.error('[fortune] 구글 주문 저장 실패', error.message); return res.status(500).json({ error: 'db' }); }
       await grant({ oid, uid: b.uid, product: kind, tid: g.orderId || null });
@@ -428,7 +428,7 @@ router.post('/apple/verify', async (req, res) => {
       const p = PRODUCTS[kind];
       const { error } = await supabase.from('fortune_orders').insert({
         oid, uid: b.uid, email: GP_EMAIL, product: kind, bkey: kind === 'sub' ? null : b.bkey,
-        year: kind === 'toj' ? Number(b.year) : null, method: 'apple', amount: p.krw, currency: 'KRW', lang: String(b.lang || '').slice(0, 10),
+        year: kind === 'toj' ? Number(b.year) : null, method: tx.environment === 'Sandbox' ? 'apple_test' : 'apple', amount: p.krw, currency: 'KRW', lang: String(b.lang || '').slice(0, 10),
         status: 'created', tid: String(tx.originalTransactionId || tx.transactionId) });
       if (error) { console.error('[fortune] 애플 주문 저장 실패', error.message); return res.status(500).json({ error: 'db' }); }
       await grant({ oid, uid: b.uid, product: kind, tid: String(tx.transactionId) });
