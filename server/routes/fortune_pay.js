@@ -40,7 +40,15 @@ const PRODUCTS = {
   sub:  { krw: 19900, usd: '14.99', name: { ko: '한국전통운세 1년 구독', en: 'KoreanFortune 1-year pass' } },
   saju: { krw: 9900,  usd: '7.99',  name: { ko: '평생 사주 풀이', en: 'KoreanFortune life reading' } },
   toj:  { krw: 4900,  usd: '3.99',  name: { ko: '토정비결', en: 'KoreanFortune Tojeong' } },
+  // 2026-11-26 이사 방향 · 좋은 날(한 사람 · 한 해) / 행운의 번호 묶음(웹 전용 · 한 사람 · 한 로또)
+  move:   { krw: 3000, usd: '1.99', name: { ko: '이사 방향 · 좋은 날', en: 'KoreanFortune moving direction' } },
+  lot50:  { krw: 1500, usd: '0.99', name: { ko: '행운의 번호 50개', en: 'KoreanFortune 50 lucky number sets' } },
+  lot100: { krw: 2500, usd: '1.99', name: { ko: '행운의 번호 100개', en: 'KoreanFortune 100 lucky number sets' } },
 };
+const LOTTO_GAMES = 12;   // 행운의 번호: year 칸에 「로또 번호 + 1」(1~12)을 적습니다
+const isLot = (p) => p === 'lot50' || p === 'lot100';
+function yearOf(b) { return (b.product === 'toj' || b.product === 'move') ? Number(b.year) : isLot(b.product) ? Number(b.game) + 1 : null; }
+function suffixOf(b) { return (b.product === 'toj' || b.product === 'move') ? ` ${b.year}` : ''; }
 
 const okUid = (s) => typeof s === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(s);
 const okEmail = (s) => typeof s === 'string' && s.length <= 120 && /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(s);
@@ -53,7 +61,8 @@ function checkOrder(b) {
   if (!okUid(b.uid)) return '기기 정보가 올바르지 않습니다.';
   if (!okEmail(b.email)) return '이메일을 확인해 주세요.';
   if (b.product !== 'sub' && !okBkey(b.bkey)) return '대상(생년월일) 정보가 없습니다.';
-  if (b.product === 'toj' && !(Number(b.year) >= 2020 && Number(b.year) <= 2100)) return '연도가 올바르지 않습니다.';
+  if ((b.product === 'toj' || b.product === 'move') && !(Number(b.year) >= 2020 && Number(b.year) <= 2100)) return '연도가 올바르지 않습니다.';
+  if (isLot(b.product) && !(Number.isInteger(Number(b.game)) && Number(b.game) >= 0 && Number(b.game) < LOTTO_GAMES)) return '로또 종류가 올바르지 않습니다.';
   return null;
 }
 
@@ -106,11 +115,13 @@ function subAnchor(orders) {
 }
 async function entOf(uid) {
   const data = await ownedOrders(uid);
-  const ent = { sub: null, saju: [], toj: {}, people: [], peopleMax: SUB_PEOPLE };
+  const ent = { sub: null, saju: [], toj: {}, move: {}, lot: [], people: [], peopleMax: SUB_PEOPLE };
   data.forEach((o) => {
     if (o.product === 'sub' && o.expires_at) { const d = o.expires_at.slice(0, 10); if (!ent.sub || d > ent.sub) ent.sub = d; }
     if (o.product === 'saju' && o.bkey && ent.saju.indexOf(o.bkey) < 0) ent.saju.push(o.bkey);
     if (o.product === 'toj' && o.bkey) { const a = (ent.toj[o.year] = ent.toj[o.year] || []); if (a.indexOf(o.bkey) < 0) a.push(o.bkey); }
+    if (o.product === 'move' && o.bkey) { const a = (ent.move[o.year] = ent.move[o.year] || []); if (a.indexOf(o.bkey) < 0) a.push(o.bkey); }
+    if (isLot(o.product) && o.bkey) ent.lot.push({ oid: o.oid, p: o.product, bkey: o.bkey, g: (o.year || 1) - 1, at: o.created_at });
   });
   const anchor = subAnchor(data);
   if (anchor) {
@@ -152,10 +163,10 @@ router.post('/inicis/prepare', async (req, res) => {
   const timestamp = Date.now().toString();
   const oid = `KF_${timestamp}_${crypto.randomBytes(3).toString('hex')}`;
   const amt = String(p.krw);
-  const goodname = p.name.ko + (b.product === 'toj' ? ` ${b.year}` : '');
+  const goodname = p.name.ko + suffixOf(b);
   const { error } = await supabase.from('fortune_orders').insert({
     oid, uid: b.uid, email: b.email.toLowerCase(), product: b.product, bkey: b.bkey || null,
-    year: b.product === 'toj' ? Number(b.year) : null, method: 'inicis', amount: p.krw, currency: 'KRW',
+    year: yearOf(b), method: 'inicis', amount: p.krw, currency: 'KRW',
     lang: String(b.lang || '').slice(0, 10), status: 'created',
   });
   if (error) { console.error('[fortune] 주문 저장 실패:', error.message); return res.status(500).json({ error: '결제 준비 중 오류가 발생했습니다.' }); }
@@ -230,13 +241,13 @@ router.post('/paypal/create', async (req, res) => {
     const r = await fetch(`${PAYPAL_API}/v2/checkout/orders`, { method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ intent: 'CAPTURE', purchase_units: [{ amount: { currency_code: 'USD', value: p.usd },
-        description: p.name.en + (b.product === 'toj' ? ` ${b.year}` : '') }],
+        description: p.name.en + suffixOf(b) }],
         application_context: { brand_name: 'KoreanFortune', shipping_preference: 'NO_SHIPPING' } }) });
     const d = await r.json();
     if (!r.ok) { console.error('[fortune] PayPal 주문 실패', JSON.stringify(d)); return res.status(500).json({ error: '주문 생성 실패' }); }
     const { error } = await supabase.from('fortune_orders').insert({
       oid: d.id, uid: b.uid, email: b.email.toLowerCase(), product: b.product, bkey: b.bkey || null,
-      year: b.product === 'toj' ? Number(b.year) : null, method: 'paypal', amount: Number(p.usd), currency: 'USD',
+      year: yearOf(b), method: 'paypal', amount: Number(p.usd), currency: 'USD',
       lang: String(b.lang || '').slice(0, 10), status: 'created',
     });
     if (error) { console.error('[fortune] 주문 저장 실패:', error.message); return res.status(500).json({ error: '결제 준비 중 오류' }); }

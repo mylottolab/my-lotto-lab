@@ -553,7 +553,7 @@ router.get('/stats/deposits-daily', requireAdmin, async (req, res) => {
 // ─── 🔮 한국전통운세 (2026-11-25) ────────────────────────────────────────────
 //   fortune_orders(결제 완료)만 매출로 봅니다. 심사용 코드(review) · 테스트 결제(*_test)는 뺍니다.
 //   PayPal(달러)은 exchange_rate.usd_to_point(1P=1원) 환율로 원화 환산.
-const FORTUNE_NAME = { sub: '1년 이용권', saju: '평생 사주', toj: '토정비결' };
+const FORTUNE_NAME = { sub: '1년 이용권', saju: '평생 사주', toj: '토정비결', move: '이사 방향 · 좋은 날', lot50: '행운의 번호 50개', lot100: '행운의 번호 100개' };
 const FORTUNE_CH = { inicis: 'pg', paypal: 'pg', google: 'google', apple: 'apple' };
 async function usdRate() {
   try { const { data } = await supabase.from('exchange_rate').select('usd_to_point').eq('id', 1).maybeSingle(); return Number(data && data.usd_to_point) || 1400; } catch (e) { return 1400; }

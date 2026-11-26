@@ -74,7 +74,7 @@ td.n,th.n{text-align:right}
   var API = location.origin + '/api/admin', key = '';
   try { key = sessionStorage.getItem('mll_admin_key') || ''; } catch (e) {}
   var $ = function(id){ return document.getElementById(id); };
-  var NAME = { sub:'1년 이용권', saju:'평생 사주', toj:'토정비결' };
+  var NAME = { sub:'1년 이용권', saju:'평생 사주', toj:'토정비결', move:'이사 방향', lot50:'행운의 번호 50', lot100:'행운의 번호 100' };
   var METHOD = { inicis:'카드(이니시스)', paypal:'PayPal', google:'구글 플레이', apple:'앱스토어', review:'심사용 코드', google_test:'구글(테스트)', apple_test:'애플(테스트)', inicis_test:'카드(테스트)', paypal_test:'PayPal(테스트)' };
   var LANG = { ko:'한국어', en:'English', ja:'日本語', 'zh-Hans':'简体', 'zh-Hant':'繁體', es:'Español', de:'Deutsch', fr:'Français', id:'Indonesia', th:'ไทย', vi:'Tiếng Việt', ar:'العربية', ru:'Русский' };
   var last = null;
@@ -128,7 +128,7 @@ td.n,th.n{text-align:right}
     $('tbl').innerHTML = '<tr><th>주문 시각</th><th>상품</th><th>수단</th><th class="n">금액</th><th>상태</th><th>이메일</th><th>언어</th><th>주문번호</th><th>기기</th><th></th></tr>' + j.rows.map(function(o){
       var st = o.status !== 'completed' ? '<span class="chip wait">' + esc(o.status === 'created' ? '결제 대기' : o.status) + '</span>' : o.sale ? '<span class="chip ok">결제 완료</span>' : '<span class="chip test">' + (o.method === 'review' ? '심사' : '테스트') + '</span>';
       var amt = o.currency === 'USD' ? '$' + Number(o.amount).toFixed(2) + '<br><span class="msg">' + won(o.krw) + '</span>' : won(o.amount);
-      var prod = (NAME[o.product] || o.product) + (o.year ? ' ' + o.year : '') + (o.product === 'sub' && o.expires_at ? '<br><span class="msg">~' + esc(o.expires_at.slice(0,10)) + '</span>' : '');
+      var prod = (NAME[o.product] || o.product) + (o.year ? ' ' + (/^lot/.test(o.product) ? '· 로또 ' + o.year + '번' : o.year) : '') + (o.product === 'sub' && o.expires_at ? '<br><span class="msg">~' + esc(o.expires_at.slice(0,10)) + '</span>' : '');
       var mail = /@koreanfortune\.kr$/.test(o.email || '') ? '<span class="msg">(앱 결제)</span>' : esc(o.email);
       var tb = o.status === 'completed' && o.method !== 'review' ? '<button class="btn" type="button" data-t="' + esc(o.oid) + '" data-v="' + (o.sale ? 1 : 0) + '">' + (o.sale ? '테스트로 빼기' : '매출로 되돌리기') + '</button>' : '';
       return '<tr><td>' + kst(o.created_at) + '</td><td>' + prod + '</td><td>' + esc(METHOD[o.method] || o.method) + '</td><td class="n">' + amt + '</td><td>' + st + '</td><td>' + mail + '</td><td>' + esc(LANG[o.lang] || o.lang || '') + '</td><td class="mono">' + esc(o.oid) + '</td><td class="mono">' + esc(String(o.uid || '').slice(0, 10)) + '</td><td>' + tb + '</td></tr>';
